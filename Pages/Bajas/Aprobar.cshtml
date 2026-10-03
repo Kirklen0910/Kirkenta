@@ -1,0 +1,110 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Bajas.AprobarModel
+@{
+    ViewData["Title"] = "Aprobar baja";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Bajas/Details" asp-route-id="@Model.Input.Id" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver al detalle
+        </a>
+        <h2>Revisar baja @Model.Numero</h2>
+        <p>Solicitada por <strong>@Model.UsuarioSolicita</strong></p>
+    </div>
+</div>
+
+<div class="module-card" style="padding: 28px;">
+    <h3 class="form-section-title">Resumen</h3>
+
+    <div class="form-row" style="margin-top: 16px;">
+        <div>
+            <label class="empresa-info-label">Producto</label>
+            <p><strong>@Model.ProductoNombre</strong></p>
+        </div>
+        <div>
+            <label class="empresa-info-label">Tipo</label>
+            <p><span class="badge badge-info">@Model.TipoBaja</span></p>
+        </div>
+    </div>
+
+    <div class="form-row" style="margin-top: 16px;">
+        <div>
+            <label class="empresa-info-label">Cantidad</label>
+            <p style="font-size: 18px; font-weight: 700;">@Model.Cantidad</p>
+        </div>
+        <div>
+            <label class="empresa-info-label">Valor total de la pérdida</label>
+            <p style="font-size: 18px; font-weight: 700; color: var(--color-danger);">L. @Model.ValorTotal.ToString("N2")</p>
+        </div>
+    </div>
+
+    <div style="margin-top: 16px;">
+        <label class="empresa-info-label">Motivo</label>
+        <p style="padding: 12px; background: #f9fafb; border-radius: var(--radius-sm); font-size: 13.5px;">@Model.Motivo</p>
+    </div>
+
+    <div class="form-divider"></div>
+
+    <form method="post" class="erp-form">
+        <input type="hidden" asp-for="Input.Id" />
+
+        <h3 class="form-section-title">Decisión</h3>
+
+        <div class="form-field">
+            <label>Aprobación *</label>
+            <div class="radio-group">
+                <label class="radio-option">
+                    <input type="radio" asp-for="Input.Aprobar" value="true" checked />
+                    <span>
+                        <strong style="color: var(--color-success);">✅ Aprobar baja</strong>
+                        <small>El stock se descontará automáticamente del inventario</small>
+                    </span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" asp-for="Input.Aprobar" value="false" />
+                    <span>
+                        <strong style="color: var(--color-danger);">❌ Rechazar baja</strong>
+                        <small>El stock NO se modificará</small>
+                    </span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-field" id="fieldMotivoRechazo" style="display: none;">
+            <label asp-for="Input.MotivoRechazo">Motivo del rechazo *</label>
+            <textarea asp-for="Input.MotivoRechazo" class="form-input" rows="2" placeholder="Explica por qué rechazas esta baja..."></textarea>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Bajas/Details" asp-route-id="@Model.Input.Id" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary" id="btnConfirmar">
+                Confirmar aprobación
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var radios = document.querySelectorAll('input[name="Input.Aprobar"]');
+            var fieldMotivo = document.getElementById('fieldMotivoRechazo');
+            var btnConfirmar = document.getElementById('btnConfirmar');
+
+            function actualizar() {
+                var aprobar = document.querySelector('input[name="Input.Aprobar"]:checked').value === 'true';
+                fieldMotivo.style.display = aprobar ? 'none' : '';
+                btnConfirmar.textContent = aprobar ? '✅ Confirmar aprobación' : '❌ Confirmar rechazo';
+                btnConfirmar.style.background = aprobar ? 'var(--color-success)' : 'var(--color-danger)';
+            }
+
+            radios.forEach(function (r) { r.addEventListener('change', actualizar); });
+            actualizar();
+        })();
+    </script>
+}

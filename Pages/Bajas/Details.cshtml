@@ -1,0 +1,168 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Bajas.DetailsModel
+@{
+    ViewData["Title"] = $"Baja {Model.Baja.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Bajas/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a bajas
+        </a>
+        <h2>Baja @Model.Baja.Numero</h2>
+        <p>Solicitada el @Model.Baja.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.Baja.Estado == "Pendiente" && Model.EsAdmin)
+        {
+            <a asp-page="/Bajas/Aprobar" asp-route-id="@Model.Baja.Id" class="btn-primary" style="background: var(--color-warning);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Aprobar / Rechazar
+            </a>
+        }
+        @if (Model.Baja.Estado == "Aprobada" && !Model.Baja.Revertida && Model.EsAdmin)
+        {
+            <a asp-page="/Bajas/Revertir" asp-route-id="@Model.Baja.Id" class="btn-secondary" style="color: var(--color-danger); border-color: var(--color-danger-border);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="1 4 1 10 7 10"/>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                </svg>
+                Revertir baja
+            </a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+<div class="module-card" style="padding: 28px;">
+
+    <!-- Estado -->
+    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 1px solid var(--color-border);">
+        <div>
+            <h3 style="font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-muted); margin-bottom: 8px;">Estado actual</h3>
+            <span class="badge @(Model.Baja.Estado switch {
+                "Pendiente" => "badge-warning",
+                "Aprobada" => "badge-success",
+                "Rechazada" => "badge-danger",
+                _ => "badge"
+            })" style="font-size: 14px; padding: 8px 16px;">
+                @(Model.Baja.Revertida ? "REVERTIDA" : Model.Baja.Estado.ToUpper())
+            </span>
+        </div>
+        @if (Model.Baja.Estado == "Pendiente")
+        {
+            <div style="text-align: right;">
+                <p style="font-size: 13px; color: var(--color-muted);">Esperando aprobación</p>
+                <p style="font-size: 11.5px; color: var(--color-muted);">Solicitada por <strong>@Model.UsuarioSolicita</strong></p>
+            </div>
+        }
+        @if (Model.Baja.Estado == "Aprobada" && Model.Baja.FechaAprobacion.HasValue)
+        {
+            <div style="text-align: right;">
+                <p style="font-size: 13px; color: var(--color-success);">Aprobada el @Model.Baja.FechaAprobacion.Value.ToString("dd/MM/yyyy HH:mm")</p>
+                <p style="font-size: 11.5px; color: var(--color-muted);">Por <strong>@Model.UsuarioAprueba</strong></p>
+            </div>
+        }
+        @if (Model.Baja.Estado == "Rechazada")
+        {
+            <div style="text-align: right;">
+                <p style="font-size: 13px; color: var(--color-danger);">Rechazada</p>
+                @if (!string.IsNullOrEmpty(Model.Baja.MotivoRechazo))
+                {
+                    <p style="font-size: 12px; color: var(--color-muted); font-style: italic;">"@Model.Baja.MotivoRechazo"</p>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Info del producto -->
+    <div class="form-divider"></div>
+    <h3 class="form-section-title">Producto dado de baja</h3>
+
+    <div class="form-row" style="margin-top: 16px;">
+        <div>
+            <label class="empresa-info-label">Producto</label>
+            <p style="font-size: 14px; font-weight: 600;">@Model.Producto.Nombre</p>
+            @if (!string.IsNullOrEmpty(Model.Producto.SKU))
+            {
+                <p style="font-size: 12px; color: var(--color-muted); font-family: monospace;">SKU: @Model.Producto.SKU</p>
+            }
+        </div>
+        <div>
+            <label class="empresa-info-label">Tipo de baja</label>
+            <p><span class="badge badge-info">@Model.Baja.TipoBaja</span></p>
+        </div>
+    </div>
+
+    <div class="form-row" style="margin-top: 16px;">
+        <div>
+            <label class="empresa-info-label">Cantidad</label>
+            <p style="font-size: 20px; font-weight: 700;">@Model.Baja.Cantidad</p>
+        </div>
+        <div>
+            <label class="empresa-info-label">Motivo</label>
+            <p style="font-size: 13.5px; color: var(--color-text);">@Model.Baja.Motivo</p>
+        </div>
+    </div>
+
+    <!-- Valores -->
+    <div class="form-divider"></div>
+    <h3 class="form-section-title">Impacto económico</h3>
+
+    <div class="totales-panel" style="margin-top: 16px;">
+        <div class="totales-row">
+            <span>Costo unitario:</span>
+            <strong>L. @Model.Baja.ValorUnitario.ToString("N2")</strong>
+        </div>
+        <div class="totales-row">
+            <span>Cantidad:</span>
+            <strong>@Model.Baja.Cantidad</strong>
+        </div>
+        <div class="totales-row totales-row-final">
+            <span>PÉRDIDA TOTAL:</span>
+            <strong>L. @Model.Baja.ValorTotal.ToString("N2")</strong>
+        </div>
+    </div>
+
+    <!-- Reversión -->
+    @if (Model.Baja.Revertida && Model.Baja.FechaReversion.HasValue)
+    {
+        <div class="form-divider"></div>
+        <h3 class="form-section-title" style="color: var(--color-warning);">Información de reversión</h3>
+
+        <div style="padding: 16px; background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); border-radius: var(--radius-sm); margin-top: 12px;">
+            <p style="font-size: 13px; margin-bottom: 6px;">
+                <strong>Fecha:</strong> @Model.Baja.FechaReversion.Value.ToString("dd/MM/yyyy HH:mm")
+            </p>
+            @if (!string.IsNullOrEmpty(Model.UsuarioRevierte))
+            {
+                <p style="font-size: 13px; margin-bottom: 6px;">
+                    <strong>Usuario:</strong> @Model.UsuarioRevierte
+                </p>
+            }
+            @if (!string.IsNullOrEmpty(Model.Baja.MotivoReversion))
+            {
+                <p style="font-size: 13px;">
+                    <strong>Motivo:</strong> @Model.Baja.MotivoReversion
+                </p>
+            }
+        </div>
+    }
+
+</div>

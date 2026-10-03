@@ -1,0 +1,28 @@
+Dashboard        → Vista general
+Usuarios         → Lista, Crear, Roles, Mi perfil, Cambiar password, Actividad
+Ventas           → Pipeline, Nueva venta, Cotizaciones, Pedidos, Facturas,
+                   Notas de crédito, Clientes, Nuevo cliente, Descuentos, Comisiones
+Inventario       → Stock, Productos, Nuevo producto, Categorías, Unidades,
+                   Entradas, Salidas, Transferencias, Ajustes, Bodegas,
+                   Alertas, Kardex
+Compras          → Órdenes, Nueva orden, Cotizaciones, Proveedores,
+                   Nuevo proveedor, Recepciones, Pagos, Devoluciones
+Finanzas         → Contabilidad, Ingresos, Egresos, Cuentas, Conciliación,
+                   Facturación, Por cobrar, Por pagar, Impuestos, Presupuestos,
+                   Reportes, Balance, Resultados, Flujo de caja
+Producción       → Órdenes, Nueva orden, Planificación, Calidad, Materias,
+                   Recetas/BOM, Máquinas, Mantenimiento, Costos, Mermas
+RRHH             → Empleados, Nuevo empleado, Departamentos, Puestos, Contratos,
+                   Nómina, Recibos, Asistencia, Vacaciones, Permisos,
+                   Evaluaciones, Capacitaciones, Reclutamiento
+Reportes         → KPIs, Ventas, Inventario, Compras, Financieros, RRHH,
+                   Personalizados, Exportar, Programados
+Logística        → Rutas, Envíos, Nuevo envío, Transportistas, Vehículos,
+                   Conductores, Seguimiento, Entregas, Devoluciones, Costos
+Activos          → Inventario, Nuevo activo, Categorías, Ubicaciones,
+                   Responsables, Mantenimiento, Depreciación, Bajas, Etiquetas
+Seguridad        → Usuarios y roles, Permisos, Auditoría, Logs, Sesiones,
+                   Intentos fallidos, Respaldos, Restaurar, Políticas
+Configuración    → General, Empresa, Sucursales, Monedas, Impuestos,
+                   Métodos de pago, Notificaciones, Integraciones,
+                   Plantillas, Folios, Idiomas, Apariencia

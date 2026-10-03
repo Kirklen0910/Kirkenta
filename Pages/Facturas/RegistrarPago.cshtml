@@ -1,0 +1,73 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Facturas.RegistrarPagoModel
+@{
+    ViewData["Title"] = "Registrar pago";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Facturas/Details" asp-route-id="@Model.Factura.Id" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a la factura
+        </a>
+        <h2>Registrar pago</h2>
+        <p>Factura @Model.Factura.Numero — Saldo: <strong>L. @Model.Factura.Saldo.ToString("N2")</strong></p>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span asp-validation-summary="ModelOnly"></span>
+            </div>
+        }
+
+        <input type="hidden" asp-for="Input.FacturaId" />
+
+        <div class="form-field">
+            <label>Método de pago *</label>
+            <select asp-for="Input.MetodoPagoId" class="form-input" required>
+                @foreach (var m in Model.MetodosPago)
+                {
+                    <option value="@m.Id">@m.Nombre (@m.Tipo)</option>
+                }
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label>Monto *</label>
+            <input asp-for="Input.Monto" type="number" step="0.01" min="0.01" class="form-input" required />
+            <small class="form-help">Saldo pendiente: L. @Model.Factura.Saldo.ToString("N2")</small>
+        </div>
+
+        <div class="form-field">
+            <label>Referencia</label>
+            <input asp-for="Input.Referencia" class="form-input" placeholder="Nº autorización, cheque, etc." />
+        </div>
+
+        <div class="form-field">
+            <label>Notas</label>
+            <textarea asp-for="Input.Notas" class="form-input" rows="2"></textarea>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Facturas/Details" asp-route-id="@Model.Factura.Id" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Registrar pago
+            </button>
+        </div>
+    </form>
+</div>

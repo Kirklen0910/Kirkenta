@@ -1,0 +1,61 @@
+@page
+@model Kirkenta.Pages.Facturas.CreateFromVentaModel
+@{
+    ViewData["Title"] = "Generar factura";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Ventas/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a ventas
+        </a>
+        <h2>Generar factura</h2>
+        <p>Número: <strong>@Model.NumeroPreview</strong></p>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        <input type="hidden" asp-for="Input.VentaId" />
+
+        <div class="module-alert" style="background: var(--color-primary-soft); border: 1px solid #c7d2fe; color: var(--color-primary); margin: 0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            Se generará una factura a partir de la venta <strong>@Model.Venta.Numero</strong> por un total de <strong>L. @Model.Venta.Total.ToString("N2")</strong>
+        </div>
+
+        <div class="form-field">
+            <label>Cliente</label>
+            <input type="text" class="form-input" value="@(Model.Cliente?.Nombre ?? "Consumidor final")" readonly />
+        </div>
+
+        <div class="form-field">
+            <label>Fecha de vencimiento</label>
+            <input asp-for="Input.FechaVencimiento" type="date" class="form-input" value="@DateTime.Now.AddDays(30).ToString("yyyy-MM-dd")" />
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.AnularVenta" type="checkbox" />
+                <span>Anular la venta original (recomendado si es el mismo documento)</span>
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Ventas/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Generar factura
+            </button>
+        </div>
+    </form>
+</div>

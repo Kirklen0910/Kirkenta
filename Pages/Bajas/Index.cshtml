@@ -1,0 +1,214 @@
+@page
+@model Kirkenta.Pages.Bajas.IndexModel
+@{
+    ViewData["Title"] = "Bajas de inventario";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Bajas de inventario</h2>
+        <p>Registro de productos dados de baja por daño, pérdida, vencimiento u otros</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Bajas/Create" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nueva baja
+        </a>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Bajas este mes</span>
+        <span class="kpi-value">@Model.BajasMes</span>
+        <span class="kpi-trend">@Model.BajasMesValor.ToString("C") perdidos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Pendientes de aprobación</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.Pendientes</span>
+        <span class="kpi-trend">Requieren revisión</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Total histórico</span>
+        <span class="kpi-value">@Model.TotalHistorico</span>
+        <span class="kpi-trend down">@Model.TotalHistoricoValor.ToString("C") acumulado</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Aprobadas</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.Aprobadas</span>
+        <span class="kpi-trend up">Con impacto en inventario</span>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-toolbar">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Buscar por número, producto o motivo..." />
+        </div>
+        <div class="filter-group">
+            <select id="filterEstado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="Pendiente">Pendiente</option>
+                <option value="Aprobada">Aprobada</option>
+                <option value="Rechazada">Rechazada</option>
+            </select>
+            <select id="filterTipo" class="filter-select">
+                <option value="">Todos los tipos</option>
+                <option value="Dañado">Dañado</option>
+                <option value="Perdido">Perdido / Robado</option>
+                <option value="Vencido">Vencido</option>
+                <option value="Error de conteo">Error de conteo</option>
+                <option value="Muestra gratuita">Muestra gratuita</option>
+                <option value="Uso interno">Uso interno</option>
+                <option value="Devolución a proveedor">Devolución a proveedor</option>
+                <option value="Otro">Otro</option>
+            </select>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="module-alert module-alert-success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="module-alert module-alert-error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            @TempData["Error"]
+        </div>
+    }
+
+    @if (Model.Bajas.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            </svg>
+            <h3>No hay bajas registradas</h3>
+            <p>Registra la primera baja cuando un producto se dañe o pierda</p>
+            <a asp-page="/Bajas/Create" class="btn-primary">Registrar baja</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="bajasTable">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Fecha</th>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Tipo</th>
+                        <th>Valor</th>
+                        <th>Estado</th>
+                        <th style="width: 180px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in Model.Bajas)
+                    {
+                        var prod = Model.Productos.FirstOrDefault(p => p.Id == b.ProductoId);
+                        var badgeClass = b.Estado switch
+                        {
+                            "Pendiente" => "badge badge-warning",
+                            "Aprobada" => "badge badge-success",
+                            "Rechazada" => "badge badge-danger",
+                            _ => "badge"
+                        };
+                        <tr data-numero="@b.Numero.ToLower()"
+                            data-producto="@(prod?.Nombre.ToLower() ?? "")"
+                            data-motivo="@b.Motivo.ToLower()"
+                            data-estado="@b.Estado"
+                            data-tipo="@b.TipoBaja">
+                            <td><strong>@b.Numero</strong></td>
+                            <td>@b.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>@(prod?.Nombre ?? "—")</td>
+                            <td><strong>@b.Cantidad</strong></td>
+                            <td>
+                                <span class="badge badge-info">@b.TipoBaja</span>
+                            </td>
+                            <td><strong>L. @b.ValorTotal.ToString("N2")</strong></td>
+                            <td><span class="@badgeClass">@b.Estado</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <a asp-page="/Bajas/Details" asp-route-id="@b.Id" class="btn-icon-action" title="Ver detalle">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
+                                    @if (b.Estado == "Pendiente" && Model.EsAdmin)
+                                    {
+                                        <a asp-page="/Bajas/Aprobar" asp-route-id="@b.Id" class="btn-icon-action" title="Aprobar / Rechazar" style="color: var(--color-warning);">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var filterEstado = document.getElementById('filterEstado');
+            var filterTipo = document.getElementById('filterTipo');
+            var table = document.getElementById('bajasTable');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+
+            function filterRows() {
+                var search = (searchInput?.value || '').toLowerCase().trim();
+                var estado = filterEstado?.value || '';
+                var tipo = filterTipo?.value || '';
+
+                rows.forEach(function (row) {
+                    var numero = row.dataset.numero || '';
+                    var producto = row.dataset.producto || '';
+                    var motivo = row.dataset.motivo || '';
+                    var rowEstado = row.dataset.estado || '';
+                    var rowTipo = row.dataset.tipo || '';
+
+                    var matchSearch = !search || numero.includes(search) || producto.includes(search) || motivo.includes(search);
+                    var matchEstado = !estado || rowEstado === estado;
+                    var matchTipo = !tipo || rowTipo === tipo;
+
+                    row.style.display = (matchSearch && matchEstado && matchTipo) ? '' : 'none';
+                });
+            }
+
+            searchInput?.addEventListener('input', filterRows);
+            filterEstado?.addEventListener('change', filterRows);
+            filterTipo?.addEventListener('change', filterRows);
+        })();
+    </script>
+}

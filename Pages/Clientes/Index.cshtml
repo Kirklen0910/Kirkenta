@@ -1,0 +1,301 @@
+@page
+@model Kirkenta.Pages.Clientes.IndexModel
+@{
+    ViewData["Title"] = "Clientes";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Clientes</h2>
+        <p>Administra tu cartera de clientes</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/Clientes/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nuevo cliente
+            </a>
+        }
+        @if (Model.PuedeImportar)
+        {
+            <a asp-page="/Clientes/Import" class="btn-secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Importar
+            </a>
+        }
+        @if (Model.PuedeExportar)
+        {
+            <button type="button" class="btn-secondary" onclick="mostrarOpcionesExport()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Exportar
+            </button>
+        }
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-toolbar">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Buscar por nombre, RTN, email o código..." />
+        </div>
+        <div class="filter-group">
+            <select id="filterTipo" class="filter-select">
+                <option value="">Todos los tipos</option>
+                <option value="Regular">Regular</option>
+                <option value="Mayorista">Mayorista</option>
+                <option value="VIP">VIP</option>
+            </select>
+            <select id="filterEstado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="activo">Activos</option>
+                <option value="inactivo">Inactivos</option>
+            </select>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="module-alert module-alert-success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="module-alert module-alert-error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            @TempData["Error"]
+        </div>
+    }
+
+    @if (Model.Clientes.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+            </svg>
+            <h3>No hay clientes registrados</h3>
+            <p>Crea el primer cliente para empezar a vender</p>
+            <a asp-page="/Clientes/Create" class="btn-primary">Crear cliente</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="clientesTable">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;"></th>
+                        <th>Cliente</th>
+                        <th>Contacto</th>
+                        <th>Tipo</th>
+                        <th>Crédito</th>
+                        <th>Estado</th>
+                        <th style="width: 140px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.Clientes)
+                    {
+                        <tr data-nombre="@c.Nombre.ToLower()"
+                            data-rtn="@(c.RTN?.ToLower() ?? "")"
+                            data-email="@(c.Email?.ToLower() ?? "")"
+                            data-codigo="@(c.Codigo?.ToLower() ?? "")"
+                            data-tipo="@c.TipoCliente"
+                            data-estado="@(c.Activo ? "activo" : "inactivo")">
+                            <td>
+                                <div class="user-avatar-sm">
+                                    @(string.IsNullOrEmpty(c.Nombre) ? "?" : c.Nombre.Substring(0, 1).ToUpper())
+                                </div>
+                            </td>
+                            <td>
+                                <div class="table-user-cell">
+                                    <span class="table-user-name">@c.Nombre</span>
+                                    @if (!string.IsNullOrEmpty(c.RTN))
+                                    {
+                                        <span class="table-user-sub">RTN: @c.RTN</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <div class="table-user-cell">
+                                    @if (!string.IsNullOrEmpty(c.Email))
+                                    {
+                                        <span class="table-user-sub">@c.Email</span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(c.Telefono))
+                                    {
+                                        <span class="table-user-sub">@c.Telefono</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge badge-info">@c.TipoCliente</span>
+                            </td>
+                            <td>
+                                @if (c.LimiteCredito > 0)
+                                {
+                                    <span>L. @c.LimiteCredito.ToString("N2")</span>
+                                    <span class="table-user-sub">@c.DiasCredito días</span>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">Sin crédito</span>
+                                }
+                            </td>
+                            <td>
+                                @if (c.Activo)
+                                {
+                                    <span class="badge badge-success">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-danger">Inactivo</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    @if (Model.PuedeEditar)
+                                    {
+                                        <a asp-page="/Clientes/Edit" asp-route-id="@c.Id" class="btn-icon-action" title="Editar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                    @if (Model.PuedeEliminar)
+                                    {
+                                        <a asp-page="/Clientes/Delete" asp-route-id="@c.Id" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="3 6 5 6 21 6"/>
+                                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- Modal de exportación -->
+<div id="modalExport" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--color-surface); border-radius:var(--radius-lg); max-width:480px; width:100%; overflow:hidden;">
+        <div style="padding:20px 24px; border-bottom:1px solid var(--color-border); display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="font-size:16px; font-weight:700;">Exportar clientes</h3>
+            <button type="button" onclick="cerrarModalExport()" style="background:none; border:none; cursor:pointer; font-size:20px; color:var(--color-muted);">&times;</button>
+        </div>
+        <div style="padding:24px; display:flex; flex-direction:column; gap:16px;">
+            <div class="form-field">
+                <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Formato</label>
+                <select id="exportFormato" class="form-input">
+                    <option value="excel">Excel (.xlsx)</option>
+                    <option value="csv">CSV (.csv)</option>
+                    <option value="json">JSON (.json)</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-checkbox" style="display:flex; align-items:center; gap:8px; font-size:13px;">
+                    <input type="checkbox" id="exportSoloActivos" />
+                    <span>Solo clientes activos</span>
+                </label>
+            </div>
+        </div>
+        <div style="padding:16px 24px; background:#f9fafb; border-top:1px solid var(--color-border); display:flex; gap:12px; justify-content:flex-end;">
+            <button type="button" class="btn-secondary" onclick="cerrarModalExport()">Cancelar</button>
+            <a id="btnDescargarExport" href="#" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Descargar
+            </a>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var filterTipo = document.getElementById('filterTipo');
+            var filterEstado = document.getElementById('filterEstado');
+            var table = document.getElementById('clientesTable');
+            if (table) {
+                var rows = table.querySelectorAll('tbody tr');
+
+                function filterRows() {
+                    var search = (searchInput?.value || '').toLowerCase().trim();
+                    var tipo = filterTipo?.value || '';
+                    var estado = filterEstado?.value || '';
+
+                    rows.forEach(function (row) {
+                        var nombre = row.dataset.nombre || '';
+                        var rtn = row.dataset.rtn || '';
+                        var email = row.dataset.email || '';
+                        var codigo = row.dataset.codigo || '';
+                        var rowTipo = row.dataset.tipo || '';
+                        var rowEstado = row.dataset.estado || '';
+
+                        var matchSearch = !search || nombre.includes(search) || rtn.includes(search) || email.includes(search) || codigo.includes(search);
+                        var matchTipo = !tipo || rowTipo === tipo;
+                        var matchEstado = !estado || rowEstado === estado;
+
+                        row.style.display = (matchSearch && matchTipo && matchEstado) ? '' : 'none';
+                    });
+                }
+
+                searchInput?.addEventListener('input', filterRows);
+                filterTipo?.addEventListener('change', filterRows);
+                filterEstado?.addEventListener('change', filterRows);
+            }
+        })();
+
+        function mostrarOpcionesExport() {
+            document.getElementById('modalExport').style.display = 'flex';
+            actualizarLinkExport();
+        }
+        function cerrarModalExport() {
+            document.getElementById('modalExport').style.display = 'none';
+        }
+        function actualizarLinkExport() {
+            var formato = document.getElementById('exportFormato').value;
+            var soloActivos = document.getElementById('exportSoloActivos').checked;
+            document.getElementById('btnDescargarExport').href =
+                '/Clientes/Export?formato=' + formato + '&soloActivos=' + soloActivos;
+        }
+        document.getElementById('exportFormato')?.addEventListener('change', actualizarLinkExport);
+        document.getElementById('exportSoloActivos')?.addEventListener('change', actualizarLinkExport);
+    </script>
+}

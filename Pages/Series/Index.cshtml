@@ -1,0 +1,117 @@
+@page
+@model Kirkenta.Pages.Series.IndexModel
+@{
+    ViewData["Title"] = "Series de documentos";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Series de documentos</h2>
+        <p>Configura el formato y numeración de tus documentos</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Series/Create" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nueva serie
+        </a>
+    </div>
+</div>
+
+<div class="module-card">
+    @if (TempData["Success"] != null)
+    {
+        <div class="module-alert module-alert-success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            @TempData["Success"]
+        </div>
+    }
+
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Nombre</th>
+                    <th>Formato</th>
+                    <th>Próximo número</th>
+                    <th>Preview</th>
+                    <th>Predeterminada</th>
+                    <th>Estado</th>
+                    <th style="width: 120px; text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model.Series)
+                {
+                    <tr>
+                        <td><strong>@s.Tipo</strong></td>
+                        <td>@s.Nombre</td>
+                        <td>
+                            <code style="font-family: monospace; font-size: 12px; background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">
+                                @(s.FormatoPersonalizado ?? $"{s.Prefijo}{s.Separador}{"NUM"}")
+                            </code>
+                        </td>
+                        <td>@s.SiguienteNumero</td>
+                        <td><strong style="color: var(--color-primary);">@Model.Previews[s.Id]</strong></td>
+                        <td>
+                            @if (s.EsPredeterminada)
+                            {
+                                <span class="badge badge-success">Sí</span>
+                            }
+                            else
+                            {
+                                <span class="table-user-sub">—</span>
+                            }
+                        </td>
+                        <td>
+                            @if (s.Activa)
+                            {
+                                <span class="badge badge-success">Activa</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-danger">Inactiva</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="table-actions">
+                                <a asp-page="/Series/Edit" asp-route-id="@s.Id" class="btn-icon-action" title="Editar">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                    </svg>
+                                </a>
+                                <a asp-page="/Series/Delete" asp-route-id="@s.Id" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"/>
+                                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                    </svg>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="series-help">
+        <h4>💡 Variables disponibles para el formato personalizado</h4>
+        <ul>
+            <li><code>{PREFIX}</code> — Prefijo (Ej: COT)</li>
+            <li><code>{SUFFIX}</code> — Sufijo (Ej: -2026)</li>
+            <li><code>{SEP}</code> — Separador (Ej: -)</li>
+            <li><code>{NUM}</code> — Número correlativo (Ej: 0001)</li>
+            <li><code>{YEAR}</code> — Año (Ej: 2026)</li>
+            <li><code>{MONTH}</code> — Mes (Ej: 10)</li>
+            <li><code>{DAY}</code> — Día (Ej: 01)</li>
+        </ul>
+        <p><strong>Ejemplo:</strong> <code>{PREFIX}{SEP}{YEAR}{SEP}{NUM}</code> → COT-2026-0001</p>
+    </div>
+</div>

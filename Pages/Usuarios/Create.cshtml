@@ -1,0 +1,143 @@
+@page
+@model Kirkenta.Pages.Usuarios.CreateModel
+@{
+    ViewData["Title"] = "Nuevo usuario";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Usuarios/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a usuarios
+        </a>
+        <h2>Nuevo usuario</h2>
+        <p>Crea un nuevo usuario en el sistema</p>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span asp-validation-summary="ModelOnly"></span>
+            </div>
+        }
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Username">Usuario *</label>
+                <input asp-for="Input.Username" class="form-input" placeholder="juan.perez" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Email">Email *</label>
+                <input asp-for="Input.Email" type="email" class="form-input" placeholder="juan@empresa.com" required />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.NombreCompleto">Nombre completo</label>
+            <input asp-for="Input.NombreCompleto" class="form-input" placeholder="Juan Pérez García" />
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Telefono">Teléfono</label>
+                <input asp-for="Input.Telefono" class="form-input" placeholder="+504 9999-9999" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Rol">Rol *</label>
+                <select asp-for="Input.Rol" class="form-input" required>
+                    <option value="">— Selecciona un rol —</option>
+                    @foreach (var rol in Model.Roles)
+                    {
+                        <option value="@rol.Nombre">@rol.Nombre</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Password">Contraseña *</label>
+                <div class="form-input-wrapper">
+                    <input asp-for="Input.Password" id="passwordInput" type="password" class="form-input" placeholder="Mínimo 6 caracteres" required />
+                    <button type="button" class="password-toggle" id="passwordToggle" tabindex="-1">
+                        <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.ConfirmPassword">Confirmar contraseña *</label>
+                <div class="form-input-wrapper">
+                    <input asp-for="Input.ConfirmPassword" id="confirmInput" type="password" class="form-input" placeholder="Repite la contraseña" required />
+                    <button type="button" class="password-toggle" id="confirmToggle" tabindex="-1">
+                        <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.Activo" type="checkbox" checked />
+                <span>Usuario activo (puede iniciar sesión)</span>
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Usuarios/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Crear usuario
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            function bindToggle(toggleId, inputId) {
+                var toggle = document.getElementById(toggleId);
+                var input = document.getElementById(inputId);
+                if (!toggle || !input) return;
+                var eyeOpen = toggle.querySelector('.eye-open');
+                var eyeClosed = toggle.querySelector('.eye-closed');
+                toggle.addEventListener('click', function () {
+                    var isPassword = input.type === 'password';
+                    input.type = isPassword ? 'text' : 'password';
+                    eyeOpen.style.display = isPassword ? 'none' : 'block';
+                    eyeClosed.style.display = isPassword ? 'block' : 'none';
+                    input.focus();
+                });
+            }
+            bindToggle('passwordToggle', 'passwordInput');
+            bindToggle('confirmToggle', 'confirmInput');
+        })();
+    </script>
+}

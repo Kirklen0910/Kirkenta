@@ -1,0 +1,55 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Usuarios.DeleteModel
+@{
+    ViewData["Title"] = "Eliminar usuario";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Usuarios/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a usuarios
+        </a>
+        <h2>Eliminar usuario</h2>
+        <p>Esta acción no se puede deshacer</p>
+    </div>
+</div>
+
+<div class="module-card danger-card">
+    <div class="danger-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+    </div>
+
+    <h3>¿Eliminar al usuario "@Model.Usuario.Username"?</h3>
+    <p>Toda la información asociada a este usuario será eliminada permanentemente.</p>
+
+    <div class="user-preview">
+        <div class="user-avatar-sm">
+            @(string.IsNullOrEmpty(Model.Usuario.Username) ? "?" : Model.Usuario.Username.Substring(0, 1).ToUpper())
+        </div>
+        <div>
+            <strong>@Model.Usuario.Username</strong>
+            <span>@Model.Usuario.Email</span>
+        </div>
+    </div>
+
+    <form method="post" class="form-actions">
+        <a asp-page="/Usuarios/Index" class="btn-secondary">Cancelar</a>
+        <button type="submit" class="btn-danger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6"/>
+                <path d="M14 11v6"/>
+            </svg>
+            Sí, eliminar usuario
+        </button>
+    </form>
+</div>

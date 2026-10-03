@@ -1,0 +1,332 @@
+@page
+@model Kirkenta.Pages.Productos.IndexModel
+@{
+    ViewData["Title"] = "Productos";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Productos</h2>
+        <p>Administra tu catálogo de productos</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/Productos/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nuevo producto
+            </a>
+        }
+        @if (Model.PuedeImportar)
+        {
+            <a asp-page="/Productos/Import" class="btn-secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Importar
+            </a>
+        }
+        @if (Model.PuedeExportar)
+        {
+            <button type="button" class="btn-secondary" onclick="mostrarOpcionesExport()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Exportar
+            </button>
+        }
+        <a asp-page="/Categorias/Index" class="btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            Categorías
+        </a>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-toolbar">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Buscar por nombre, SKU o código de barras..." />
+        </div>
+        <div class="filter-group">
+            <select id="filterCategoria" class="filter-select">
+                <option value="">Todas las categorías</option>
+                @foreach (var cat in Model.Categorias)
+                {
+                    <option value="@cat.Id">@cat.Nombre</option>
+                }
+            </select>
+            <select id="filterStock" class="filter-select">
+                <option value="">Todo el stock</option>
+                <option value="bajo">Stock bajo</option>
+                <option value="agotado">Agotados</option>
+                <option value="disponible">Disponibles</option>
+            </select>
+            <select id="filterEstado" class="filter-select">
+                <option value="">Todos</option>
+                <option value="activo">Activos</option>
+                <option value="inactivo">Inactivos</option>
+            </select>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="module-alert module-alert-success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="module-alert module-alert-error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            @TempData["Error"]
+        </div>
+    }
+
+    @if (Model.Productos.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            </svg>
+            <h3>No hay productos</h3>
+            <p>Crea tu primer producto para empezar a vender</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="productosTable">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">SKU</th>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th>Precio venta</th>
+                        <th>Stock</th>
+                        <th>Estado</th>
+                        <th style="width: 200px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model.Productos)
+                    {
+                        var cat = Model.Categorias.FirstOrDefault(c => c.Id == p.CategoriaId);
+                        var stockClass = p.Stock <= 0 ? "agotado" : (p.Stock <= p.StockMinimo ? "bajo" : "disponible");
+                        <tr data-nombre="@p.Nombre.ToLower()"
+                            data-sku="@(p.SKU?.ToLower() ?? "")"
+                            data-barras="@(p.CodigoBarras?.ToLower() ?? "")"
+                            data-categoria="@(p.CategoriaId?.ToString() ?? "")"
+                            data-stock="@stockClass"
+                            data-estado="@(p.Activo ? "activo" : "inactivo")">
+                            <td>
+                                <span class="table-user-sub" style="font-family: monospace;">@(p.SKU ?? "—")</span>
+                            </td>
+                            <td>
+                                <div class="table-user-cell">
+                                    <span class="table-user-name">@p.Nombre</span>
+                                    @if (!string.IsNullOrEmpty(p.CodigoBarras))
+                                    {
+                                        <span class="table-user-sub">Barra: @p.CodigoBarras</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                @if (cat != null)
+                                {
+                                    <span class="badge" style="background: @(cat.Color)20; color: @cat.Color;">@cat.Nombre</span>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">Sin categoría</span>
+                                }
+                            </td>
+                            <td>
+                                <strong>L. @p.PrecioVenta.ToString("N2")</strong>
+                                @if (p.PrecioCompra > 0)
+                                {
+                                    <span class="table-user-sub">Costo: L. @p.PrecioCompra.ToString("N2")</span>
+                                }
+                            </td>
+                            <td>
+                                @if (p.Stock <= 0)
+                                {
+                                    <span class="badge badge-danger">Agotado</span>
+                                }
+                                else if (p.Stock <= p.StockMinimo)
+                                {
+                                    <span class="badge badge-warning">@p.Stock @p.UnidadMedida (Bajo)</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-success">@p.Stock @p.UnidadMedida</span>
+                                }
+                            </td>
+                            <td>
+                                @if (p.Activo)
+                                {
+                                    <span class="badge badge-success">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-danger">Inactivo</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    @if (Model.PuedeEditar)
+                                    {
+                                        <a asp-page="/Productos/Edit" asp-route-id="@p.Id" class="btn-icon-action" title="Editar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                    <a asp-page="/Compras/HistorialProducto" asp-route-productoId="@p.Id" class="btn-icon-action" title="Historial de compras" style="color: var(--color-success);">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 3v18h18"/>
+                                            <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+                                        </svg>
+                                    </a>
+                                    @if (Model.PuedeEliminar)
+                                    {
+                                        <a asp-page="/Productos/Delete" asp-route-id="@p.Id" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="3 6 5 6 21 6"/>
+                                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                                <path d="M10 11v6"/>
+                                                <path d="M14 11v6"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- Modal de exportación -->
+<div id="modalExport" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--color-surface); border-radius:var(--radius-lg); max-width:480px; width:100%; overflow:hidden;">
+        <div style="padding:20px 24px; border-bottom:1px solid var(--color-border); display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="font-size:16px; font-weight:700;">Exportar productos</h3>
+            <button type="button" onclick="cerrarModalExport()" style="background:none; border:none; cursor:pointer; font-size:20px; color:var(--color-muted);">&times;</button>
+        </div>
+        <div style="padding:24px; display:flex; flex-direction:column; gap:16px;">
+            <div class="form-field">
+                <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Formato</label>
+                <select id="exportFormato" class="form-input">
+                    <option value="excel">Excel (.xlsx)</option>
+                    <option value="csv">CSV (.csv)</option>
+                    <option value="json">JSON (.json)</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-checkbox" style="display:flex; align-items:center; gap:8px; font-size:13px;">
+                    <input type="checkbox" id="exportSoloActivos" />
+                    <span>Solo productos activos</span>
+                </label>
+            </div>
+        </div>
+        <div style="padding:16px 24px; background:#f9fafb; border-top:1px solid var(--color-border); display:flex; gap:12px; justify-content:flex-end;">
+            <button type="button" class="btn-secondary" onclick="cerrarModalExport()">Cancelar</button>
+            <a id="btnDescargarExport" href="#" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Descargar
+            </a>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var filterCategoria = document.getElementById('filterCategoria');
+            var filterStock = document.getElementById('filterStock');
+            var filterEstado = document.getElementById('filterEstado');
+            var table = document.getElementById('productosTable');
+            if (table) {
+                var rows = table.querySelectorAll('tbody tr');
+
+                function filterRows() {
+                    var search = (searchInput?.value || '').toLowerCase().trim();
+                    var cat = filterCategoria?.value || '';
+                    var stock = filterStock?.value || '';
+                    var estado = filterEstado?.value || '';
+
+                    rows.forEach(function (row) {
+                        var nombre = row.dataset.nombre || '';
+                        var sku = row.dataset.sku || '';
+                        var barras = row.dataset.barras || '';
+                        var rowCat = row.dataset.categoria || '';
+                        var rowStock = row.dataset.stock || '';
+                        var rowEstado = row.dataset.estado || '';
+
+                        var matchSearch = !search || nombre.includes(search) || sku.includes(search) || barras.includes(search);
+                        var matchCat = !cat || rowCat === cat;
+                        var matchStock = !stock || rowStock === stock;
+                        var matchEstado = !estado || rowEstado === estado;
+
+                        row.style.display = (matchSearch && matchCat && matchStock && matchEstado) ? '' : 'none';
+                    });
+                }
+
+                searchInput?.addEventListener('input', filterRows);
+                filterCategoria?.addEventListener('change', filterRows);
+                filterStock?.addEventListener('change', filterRows);
+                filterEstado?.addEventListener('change', filterRows);
+            }
+        })();
+
+        function mostrarOpcionesExport() {
+            document.getElementById('modalExport').style.display = 'flex';
+            actualizarLinkExport();
+        }
+        function cerrarModalExport() {
+            document.getElementById('modalExport').style.display = 'none';
+        }
+        function actualizarLinkExport() {
+            var formato = document.getElementById('exportFormato').value;
+            var soloActivos = document.getElementById('exportSoloActivos').checked;
+            document.getElementById('btnDescargarExport').href =
+                '/Productos/Export?formato=' + formato + '&soloActivos=' + soloActivos;
+        }
+        document.getElementById('exportFormato')?.addEventListener('change', actualizarLinkExport);
+        document.getElementById('exportSoloActivos')?.addEventListener('change', actualizarLinkExport);
+    </script>
+}

@@ -1,0 +1,192 @@
+@page
+@model Kirkenta.Pages.Proveedores.CreateModel
+@{
+    ViewData["Title"] = "Nuevo proveedor";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Proveedores/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a proveedores
+        </a>
+        <h2>Nuevo proveedor</h2>
+        <p>Registra un nuevo proveedor en el sistema</p>
+    </div>
+</div>
+
+<div class="module-card form-card-wide">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span asp-validation-summary="ModelOnly"></span>
+            </div>
+        }
+
+        <h3 class="form-section-title">Información básica</h3>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Codigo">Código</label>
+                <input asp-for="Input.Codigo" class="form-input" placeholder="@Model.NumeroPreview" />
+                <small class="form-help">
+                    Se generará automáticamente como <strong>@Model.NumeroPreview</strong> si lo dejas vacío.
+                    El formato se configura desde <a asp-page="/Series/Index">Nomenclatura</a>.
+                </small>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Nombre">Nombre *</label>
+                <input asp-for="Input.Nombre" class="form-input" placeholder="Nombre comercial" required />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.RazonSocial">Razón social</label>
+                <input asp-for="Input.RazonSocial" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.RTN">RTN</label>
+                <input asp-for="Input.RTN" class="form-input" placeholder="0801-1990-12345" />
+            </div>
+        </div>
+
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Contacto</h3>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Contacto">Persona de contacto</label>
+                <input asp-for="Input.Contacto" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.TelefonoContacto">Teléfono del contacto</label>
+                <input asp-for="Input.TelefonoContacto" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Telefono">Teléfono principal</label>
+                <input asp-for="Input.Telefono" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Email">Email</label>
+                <input asp-for="Input.Email" type="email" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Direccion">Dirección</label>
+            <input asp-for="Input.Direccion" class="form-input" />
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Ciudad">Ciudad</label>
+                <input asp-for="Input.Ciudad" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Pais">País</label>
+                <input asp-for="Input.Pais" class="form-input" value="Honduras" />
+            </div>
+        </div>
+
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Condiciones comerciales</h3>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.CondicionPago">Condición de pago *</label>
+                <select asp-for="Input.CondicionPago" class="form-input" id="condicionSelect" required>
+                    <option value="Contado">Contado</option>
+                    <option value="Credito">Crédito</option>
+                </select>
+            </div>
+            <div class="form-field" id="diasCreditoField" style="display: none;">
+                <label asp-for="Input.DiasCredito">Días de crédito</label>
+                <input asp-for="Input.DiasCredito" type="number" min="0" max="365" class="form-input" value="0" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field" id="limiteCreditoField" style="display: none;">
+                <label asp-for="Input.LimiteCredito">Límite de crédito (L.)</label>
+                <input asp-for="Input.LimiteCredito" type="number" step="0.01" min="0" class="form-input" value="0" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.MonedaId">Moneda predeterminada *</label>
+                <select asp-for="Input.MonedaId" class="form-input" required>
+                    @foreach (var m in Model.Monedas)
+                    {
+                        <option value="@m.Id">@m.Codigo - @m.Nombre</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Datos bancarios (opcional)</h3>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Banco">Banco</label>
+                <input asp-for="Input.Banco" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.CuentaBancaria">Número de cuenta</label>
+                <input asp-for="Input.CuentaBancaria" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Notas">Notas</label>
+            <textarea asp-for="Input.Notas" class="form-input" rows="2"></textarea>
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.Activo" type="checkbox" checked />
+                <span>Proveedor activo</span>
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Proveedores/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Crear proveedor
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var condicionSelect = document.getElementById('condicionSelect');
+            var diasCreditoField = document.getElementById('diasCreditoField');
+            var limiteCreditoField = document.getElementById('limiteCreditoField');
+
+            function actualizar() {
+                var esCredito = condicionSelect.value === 'Credito';
+                diasCreditoField.style.display = esCredito ? '' : 'none';
+                limiteCreditoField.style.display = esCredito ? '' : 'none';
+            }
+
+            condicionSelect.addEventListener('change', actualizar);
+            actualizar();
+        })();
+    </script>
+}

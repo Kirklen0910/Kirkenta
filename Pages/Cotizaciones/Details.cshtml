@@ -1,0 +1,211 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Cotizaciones.DetailsModel
+@{
+    ViewData["Title"] = $"Cotización {Model.Cotizacion.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Cotizaciones/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a cotizaciones
+        </a>
+        <h2>Cotización @Model.Cotizacion.Numero</h2>
+        <p>Creada el @Model.Cotizacion.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.Cotizacion.Estado == "Aceptada")
+        {
+            <a asp-page="/POS/Index" asp-route-cotizacionId="@Model.Cotizacion.Id" class="btn-primary" style="background: #10b981;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <circle cx="9" cy="21" r="1"/>
+                    <circle cx="20" cy="21" r="1"/>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                </svg>
+                Cobrar en POS
+            </a>
+            <form method="post" asp-page-handler="Convertir" asp-route-id="@Model.Cotizacion.Id" style="display:inline;" onsubmit="return confirm('¿Convertir a factura directamente (sin cobrar)?');">
+                <button type="submit" class="btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    Facturar (sin cobrar)
+                </button>
+            </form>
+        }
+        @if (Model.Cotizacion.Estado == "Convertida" && Model.Cotizacion.FacturaId.HasValue)
+        {
+            <a asp-page="/Facturas/Details" asp-route-id="@Model.Cotizacion.FacturaId" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                Ver factura
+            </a>
+        }
+        <button type="button" class="btn-secondary" onclick="window.print()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <polyline points="6 9 6 2 18 2 18 9"/>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Imprimir
+        </button>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+<div class="module-card" style="padding: 40px;">
+    <div class="factura-header">
+        <div class="factura-empresa">
+            @if (!string.IsNullOrEmpty(Model.Empresa.LogoPath))
+            {
+                <img src="@Model.Empresa.LogoPath" alt="@Model.Empresa.Nombre" style="width: 80px; height: 80px; object-fit: contain;" />
+            }
+            <div>
+                <h3 style="font-size: 18px;">@Model.Empresa.Nombre</h3>
+                @if (!string.IsNullOrEmpty(Model.Empresa.RazonSocial))
+                {
+                    <p style="color: var(--color-muted); font-size: 13px;">@Model.Empresa.RazonSocial</p>
+                }
+                @if (!string.IsNullOrEmpty(Model.Empresa.RTN))
+                {
+                    <p style="color: var(--color-muted); font-size: 12px;">RTN: @Model.Empresa.RTN</p>
+                }
+                @if (!string.IsNullOrEmpty(Model.Empresa.Direccion))
+                {
+                    <p style="color: var(--color-muted); font-size: 12px;">@Model.Empresa.Direccion</p>
+                }
+                @if (!string.IsNullOrEmpty(Model.Empresa.Telefono))
+                {
+                    <p style="color: var(--color-muted); font-size: 12px;">Tel: @Model.Empresa.Telefono</p>
+                }
+                @if (!string.IsNullOrEmpty(Model.Empresa.Email))
+                {
+                    <p style="color: var(--color-muted); font-size: 12px;">@Model.Empresa.Email</p>
+                }
+            </div>
+        </div>
+        <div class="factura-numero">
+            <span class="factura-numero-label">COTIZACIÓN</span>
+            <strong class="factura-numero-value">@Model.Cotizacion.Numero</strong>
+            <span class="badge @(Model.Cotizacion.Estado switch {
+                "Aceptada" => "badge-success",
+                "Rechazada" => "badge-danger",
+                "Convertida" => "badge-success",
+                "Vencida" => "badge-warning",
+                _ => "badge-info"
+            })" style="margin-top: 6px;">
+                @Model.Cotizacion.Estado
+            </span>
+        </div>
+    </div>
+
+    <div class="factura-info-grid">
+        <div>
+            <h4 class="factura-info-label">Cliente</h4>
+            <p><strong>@Model.Cliente.Nombre</strong></p>
+            @if (!string.IsNullOrEmpty(Model.Cliente.RTN))
+            {
+                <p>RTN: @Model.Cliente.RTN</p>
+            }
+            @if (!string.IsNullOrEmpty(Model.Cliente.Direccion))
+            {
+                <p>@Model.Cliente.Direccion</p>
+            }
+            @if (!string.IsNullOrEmpty(Model.Cliente.Telefono))
+            {
+                <p>Tel: @Model.Cliente.Telefono</p>
+            }
+            @if (!string.IsNullOrEmpty(Model.Cliente.Email))
+            {
+                <p>@Model.Cliente.Email</p>
+            }
+        </div>
+        <div>
+            <h4 class="factura-info-label">Detalles</h4>
+            <p><strong>Fecha:</strong> @Model.Cotizacion.Fecha.ToString("dd/MM/yyyy")</p>
+            @if (Model.Cotizacion.FechaVencimiento.HasValue)
+            {
+                <p><strong>Vence:</strong> @Model.Cotizacion.FechaVencimiento.Value.ToString("dd/MM/yyyy")</p>
+            }
+            <p><strong>Válida por:</strong> @Model.Cotizacion.Validez días</p>
+        </div>
+    </div>
+
+    <div class="table-wrapper" style="margin-top: 32px;">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th style="text-align: right;">Cantidad</th>
+                    <th style="text-align: right;">Precio</th>
+                    <th style="text-align: right;">Desc.</th>
+                    <th style="text-align: right;">Imp.</th>
+                    <th style="text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    var prod = Model.Productos.FirstOrDefault(p => p.Id == item.ProductoId);
+                    <tr>
+                        <td>@(prod?.Nombre ?? "—")</td>
+                        <td style="text-align: right;">@item.Cantidad</td>
+                        <td style="text-align: right;">L. @item.PrecioUnitario.ToString("N2")</td>
+                        <td style="text-align: right;">L. @item.Descuento.ToString("N2")</td>
+                        <td style="text-align: right;">@item.ImpuestoPorcentaje%</td>
+                        <td style="text-align: right;"><strong>L. @item.Total.ToString("N2")</strong></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="totales-panel" style="margin-top: 24px;">
+        <div class="totales-row">
+            <span>Subtotal:</span>
+            <strong>L. @Model.Cotizacion.Subtotal.ToString("N2")</strong>
+        </div>
+        <div class="totales-row">
+            <span>Descuento:</span>
+            <strong>L. @Model.Cotizacion.Descuento.ToString("N2")</strong>
+        </div>
+        <div class="totales-row">
+            <span>Impuestos:</span>
+            <strong>L. @Model.Cotizacion.Impuestos.ToString("N2")</strong>
+        </div>
+        <div class="totales-row totales-row-final">
+            <span>TOTAL:</span>
+            <strong>L. @Model.Cotizacion.Total.ToString("N2")</strong>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Cotizacion.Notas))
+    {
+        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-border);">
+            <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">Notas</h4>
+            <p style="color: var(--color-muted); font-size: 13px;">@Model.Cotizacion.Notas</p>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(Model.Empresa.NotasFactura))
+    {
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--color-border); text-align: center;">
+            <p style="font-size: 12px; color: var(--color-muted); line-height: 1.6;">@Model.Empresa.NotasFactura</p>
+        </div>
+    }
+</div>

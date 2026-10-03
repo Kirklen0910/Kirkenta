@@ -1,0 +1,604 @@
+@page
+@model Kirkenta.Pages.POS.IndexModel
+@{
+    ViewData["Title"] = "Punto de Venta";
+    Layout = "_LayoutPOS";
+}
+@Html.AntiForgeryToken()
+
+<div class="pos-grid">
+    <!-- Columna izquierda: Productos -->
+    <div class="pos-products-panel">
+        <div class="pos-search-wrapper">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text"
+                   id="posSearch"
+                   placeholder="Buscar producto por nombre, SKU o código de barras..."
+                   autofocus
+                   autocomplete="off" />
+        </div>
+
+        <div class="pos-categories" id="posCategories">
+            <button type="button" class="pos-category-btn is-active" data-categoria="">Todos</button>
+            @foreach (var cat in Model.Categorias)
+            {
+                <button type="button" class="pos-category-btn" data-categoria="@cat.Id">@cat.Nombre</button>
+            }
+        </div>
+
+        <div class="pos-products-grid" id="posProductsGrid">
+            @foreach (var prod in Model.Productos)
+            {
+                var impuestoPct = prod.ImpuestoId.HasValue
+                    ? Model.ImpuestosDict.GetValueOrDefault(prod.ImpuestoId.Value, 0)
+                    : 0m;
+                var agotado = prod.Stock <= 0;
+
+                <button type="button"
+                        class="pos-product-card @(agotado ? "is-agotado" : "")"
+                        data-id="@prod.Id"
+                        data-nombre="@prod.Nombre"
+                        data-precio="@prod.PrecioVenta"
+                        data-stock="@prod.Stock"
+                        data-impuesto="@impuestoPct"
+                        data-sku="@prod.SKU"
+                        data-categoria="@(prod.CategoriaId?.ToString() ?? "")"
+                        disabled="@agotado">
+                    <div class="pos-product-info">
+                        <span class="pos-product-name">@prod.Nombre</span>
+                        @if (!string.IsNullOrEmpty(prod.SKU))
+                        {
+                            <span class="pos-product-sku">@prod.SKU</span>
+                        }
+                    </div>
+                    <div class="pos-product-footer">
+                        <span class="pos-product-price">L. @prod.PrecioVenta.ToString("N2")</span>
+                        @if (agotado)
+                        {
+                            <span class="badge badge-danger">Agotado</span>
+                        }
+                        else
+                        {
+                            <span class="pos-product-stock">Stock: @prod.Stock</span>
+                        }
+                    </div>
+                </button>
+            }
+
+            @if (Model.Productos.Count == 0)
+            {
+                <div class="pos-empty-products">
+                    <p>No hay productos disponibles</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Columna derecha: Carrito -->
+    <div class="pos-cart-panel">
+        <div class="pos-cart-header">
+            <h2>Venta actual</h2>
+            <button type="button" class="btn-icon-action btn-icon-action-danger" id="btnClearCart" title="Vaciar carrito">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                </svg>
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.CotizacionInfo))
+        {
+            <div class="pos-cotizacion-banner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <span>@Model.CotizacionInfo</span>
+            </div>
+        }
+
+        <div class="pos-client-select">
+            <label>Cliente</label>
+            <div class="pos-cliente-wrapper">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pos-cliente-icon">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input type="text"
+                       id="posClienteSearch"
+                       class="pos-cliente-input"
+                       placeholder="Buscar cliente por nombre o RTN..."
+                       autocomplete="off"
+                       value="@Model.ClienteInicialNombre" />
+                <input type="hidden" id="posClienteId" value="@Model.ClienteInicialId" />
+                <div class="pos-cliente-results" id="posClienteResults"></div>
+            </div>
+        </div>
+
+        <div class="pos-cart-items" id="posCartItems">
+            <div class="pos-cart-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="21" r="1"/>
+                    <circle cx="20" cy="21" r="1"/>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                </svg>
+                <p>Agrega productos al carrito</p>
+            </div>
+        </div>
+
+        <div class="pos-cart-totals">
+            <div class="pos-total-row">
+                <span>Subtotal</span>
+                <strong id="posSubtotal">L. 0.00</strong>
+            </div>
+            <div class="pos-total-row">
+                <span>Impuestos</span>
+                <strong id="posImpuestos">L. 0.00</strong>
+            </div>
+            <div class="pos-total-row">
+                <span>Descuento</span>
+                <input type="number" id="posDescuento" min="0" step="0.01" value="0" />
+            </div>
+            <div class="pos-total-row pos-total-row-final">
+                <span>TOTAL</span>
+                <strong id="posTotal">L. 0.00</strong>
+            </div>
+        </div>
+
+        <div class="pos-cart-actions">
+            <button type="button" class="btn-primary pos-btn-cobrar" id="btnCobrar" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="1" x2="12" y2="23"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                COBRAR
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de cobro -->
+<div class="pos-modal" id="modalCobro">
+    <div class="pos-modal-content">
+        <div class="pos-modal-header">
+            <h3>Registrar pago</h3>
+            <button type="button" class="btn-icon-action" id="btnCloseModal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="pos-modal-body">
+            <div class="pos-modal-total">
+                <span>Total a pagar</span>
+                <strong id="modalTotal">L. 0.00</strong>
+            </div>
+
+            <div class="form-field">
+                <label>Método de pago</label>
+                <select id="modalMetodo" class="form-input">
+                    @foreach (var m in Model.MetodosPago)
+                    {
+                        <option value="@m.Id" data-tipo="@m.Tipo" data-req="@m.RequiereReferencia.ToString().ToLower()">@m.Nombre</option>
+                    }
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label>Monto recibido</label>
+                <input type="number" id="modalMonto" class="form-input" step="0.01" min="0" />
+            </div>
+
+            <div class="form-field" id="fieldReferencia" style="display: none;">
+                <label>Referencia / Nº autorización</label>
+                <input type="text" id="modalReferencia" class="form-input" placeholder="Ej: 123456" />
+            </div>
+
+            <div class="pos-modal-cambio">
+                <span>Cambio</span>
+                <strong id="modalCambio">L. 0.00</strong>
+            </div>
+
+            <!-- ⬇️ NUEVO: Checkbox de registro automático en Finanzas ⬇️ -->
+            <div class="form-field" style="margin-top: 8px;">
+                <label class="form-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="registrarEnFinanzas" checked />
+                    <span style="font-size: 13px;"><strong>Registrar automáticamente en Finanzas</strong></span>
+                </label>
+                <small class="form-help" style="display: block; margin-top: 4px;">Se creará un movimiento de ingreso en la cuenta POS.</small>
+            </div>
+        </div>
+
+        <div class="pos-modal-footer">
+            <button type="button" class="btn-secondary" id="btnCancelarModal">Cancelar</button>
+            <button type="button" class="btn-primary" id="btnConfirmarPago">
+                Confirmar pago
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de éxito -->
+<div class="pos-modal" id="modalExito">
+    <div class="pos-modal-content pos-modal-success">
+        <div class="pos-success-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+        </div>
+        <h3>¡Venta completada!</h3>
+        <p id="ventaNumero"></p>
+        <div class="pos-success-total">
+            <span>Total:</span>
+            <strong id="ventaTotal"></strong>
+        </div>
+
+        <!-- ⬇️ NUEVO: Aviso si el movimiento financiero falló ⬇️ -->
+        <div id="avisoMovimiento" style="display: none; background: #fffbeb; border: 1px solid #fde68a; color: #d97706; padding: 10px 14px; border-radius: 8px; font-size: 12.5px; margin-bottom: 16px; text-align: left;">
+            <strong>⚠️ Aviso:</strong> <span id="avisoTexto"></span>
+        </div>
+
+        <div class="pos-modal-footer">
+            <button type="button" class="btn-primary" id="btnNuevaVenta">Nueva venta</button>
+        </div>
+    </div>
+</div>
+
+<input type="hidden" id="clientesJson" value="@Model.ClientesJson" />
+<input type="hidden" id="itemsInicialesJson" value="@Model.ItemsInicialesJson" />
+<input type="hidden" id="cotizacionId" value="@Model.CotizacionId" />
+
+@section Scripts {
+    <script>
+        (function () {
+            var carrito = [];
+            var clientes = JSON.parse(document.getElementById('clientesJson').value || '[]');
+            var itemsIniciales = JSON.parse(document.getElementById('itemsInicialesJson').value || '[]');
+            var cotizacionId = document.getElementById('cotizacionId').value || null;
+
+            var posSearch = document.getElementById('posSearch');
+            var cartItems = document.getElementById('posCartItems');
+            var subtotalEl = document.getElementById('posSubtotal');
+            var impuestosEl = document.getElementById('posImpuestos');
+            var totalEl = document.getElementById('posTotal');
+            var descuentoInput = document.getElementById('posDescuento');
+            var btnCobrar = document.getElementById('btnCobrar');
+            var btnClearCart = document.getElementById('btnClearCart');
+            var modalCobro = document.getElementById('modalCobro');
+            var modalExito = document.getElementById('modalExito');
+
+            var clienteSearch = document.getElementById('posClienteSearch');
+            var clienteResults = document.getElementById('posClienteResults');
+            var clienteIdInput = document.getElementById('posClienteId');
+            var descuentoGlobal = 0;
+
+            // Cargar items iniciales (si viene desde cotización)
+            if (itemsIniciales && itemsIniciales.length > 0) {
+                carrito = itemsIniciales;
+            }
+
+            function formatMoney(n) {
+                return 'L. ' + (n || 0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+            }
+
+            // === Buscador de clientes ===
+            function buscarClientes(texto) {
+                if (!texto || texto.length < 2) { clienteResults.style.display = 'none'; return; }
+                var t = texto.toLowerCase();
+                var filtrados = clientes.filter(function (c) {
+                    return (c.nombre || '').toLowerCase().includes(t)
+                        || (c.rtn || '').toLowerCase().includes(t)
+                        || (c.codigo || '').toLowerCase().includes(t);
+                }).slice(0, 8);
+
+                if (filtrados.length === 0) {
+                    clienteResults.innerHTML = '<div class="pos-cliente-result" style="cursor:default; color: var(--color-muted); justify-content: center;">Sin resultados</div>';
+                    clienteResults.style.display = 'block';
+                    return;
+                }
+
+                clienteResults.innerHTML = filtrados.map(function (c) {
+                    return '<div class="pos-cliente-result" data-id="' + c.id + '" data-nombre="' + c.nombre + '">' +
+                        '<div class="pos-cliente-result-avatar">' + c.nombre.substring(0, 1).toUpperCase() + '</div>' +
+                        '<div class="pos-cliente-result-info">' +
+                        '<strong>' + c.nombre + '</strong>' +
+                        (c.rtn ? '<small>RTN: ' + c.rtn + '</small>' : '') +
+                        (c.codigo ? '<small>Código: ' + c.codigo + '</small>' : '') +
+                        '</div>' +
+                        '</div>';
+                }).join('');
+                clienteResults.style.display = 'block';
+
+                clienteResults.querySelectorAll('.pos-cliente-result[data-id]').forEach(function (el) {
+                    el.addEventListener('click', function () {
+                        clienteIdInput.value = this.dataset.id;
+                        clienteSearch.value = this.dataset.nombre;
+                        clienteResults.style.display = 'none';
+                    });
+                });
+            }
+
+            clienteSearch.addEventListener('input', function () { buscarClientes(this.value); });
+            clienteSearch.addEventListener('focus', function () { if (this.value.length >= 2) buscarClientes(this.value); });
+
+            document.addEventListener('click', function (e) {
+                if (!clienteResults.contains(e.target) && e.target !== clienteSearch) {
+                    clienteResults.style.display = 'none';
+                }
+            });
+
+            // === Agregar producto ===
+            document.querySelectorAll('.pos-product-card').forEach(function (card) {
+                card.addEventListener('click', function () {
+                    if (this.classList.contains('is-agotado')) return;
+                    var id = parseInt(this.dataset.id);
+                    var nombre = this.dataset.nombre;
+                    var precio = parseFloat(this.dataset.precio);
+                    var impuesto = parseFloat(this.dataset.impuesto) || 0;
+                    var stock = parseFloat(this.dataset.stock);
+
+                    var existente = carrito.find(function (i) { return i.productoId === id; });
+                    if (existente) {
+                        if (existente.cantidad >= stock) {
+                            alert('No hay más stock disponible');
+                            return;
+                        }
+                        existente.cantidad++;
+                    } else {
+                        carrito.push({
+                            productoId: id,
+                            nombre: nombre,
+                            precio: precio,
+                            cantidad: 1,
+                            impuesto: impuesto,
+                            stock: stock
+                        });
+                    }
+                    renderCarrito();
+                });
+            });
+
+            // === Renderizar carrito ===
+            function renderCarrito() {
+                if (carrito.length === 0) {
+                    cartItems.innerHTML = '<div class="pos-cart-empty">' +
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+                        '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>' +
+                        '<path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' +
+                        '<p>Agrega productos al carrito</p></div>';
+                    btnCobrar.disabled = true;
+                    actualizarTotales();
+                    return;
+                }
+
+                cartItems.innerHTML = carrito.map(function (item, idx) {
+                    var sub = item.precio * item.cantidad;
+                    return '<div class="pos-cart-item">' +
+                        '<div class="pos-cart-item-info">' +
+                        '<span class="pos-cart-item-name">' + item.nombre + '</span>' +
+                        '<span class="pos-cart-item-price">' + formatMoney(item.precio) + ' c/u</span>' +
+                        '</div>' +
+                        '<div class="pos-cart-item-controls">' +
+                        '<button type="button" data-action="menos" data-idx="' + idx + '">−</button>' +
+                        '<span class="pos-cart-item-qty">' + item.cantidad + '</span>' +
+                        '<button type="button" data-action="mas" data-idx="' + idx + '">+</button>' +
+                        '</div>' +
+                        '<span class="pos-cart-item-total">' + formatMoney(sub) + '</span>' +
+                        '<button type="button" class="pos-cart-item-remove" data-action="remove" data-idx="' + idx + '">✕</button>' +
+                        '</div>';
+                }).join('');
+
+                cartItems.querySelectorAll('[data-action]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        var action = this.dataset.action;
+                        var idx = parseInt(this.dataset.idx);
+                        var item = carrito[idx];
+
+                        if (action === 'mas') {
+                            if (item.cantidad >= (item.stock || 999999)) { alert('No hay más stock'); return; }
+                            item.cantidad++;
+                        } else if (action === 'menos') {
+                            if (item.cantidad > 1) item.cantidad--;
+                            else carrito.splice(idx, 1);
+                        } else if (action === 'remove') {
+                            carrito.splice(idx, 1);
+                        }
+                        renderCarrito();
+                    });
+                });
+
+                btnCobrar.disabled = false;
+                actualizarTotales();
+            }
+
+            function actualizarTotales() {
+                var subtotal = 0, impuestos = 0;
+                carrito.forEach(function (item) {
+                    var sub = item.precio * item.cantidad;
+                    subtotal += sub;
+                    impuestos += sub * (item.impuesto / 100);
+                });
+
+                var total = subtotal + impuestos - descuentoGlobal;
+
+                subtotalEl.textContent = formatMoney(subtotal);
+                impuestosEl.textContent = formatMoney(impuestos);
+                totalEl.textContent = formatMoney(total);
+            }
+
+            descuentoInput.addEventListener('input', function () {
+                descuentoGlobal = parseFloat(this.value) || 0;
+                actualizarTotales();
+            });
+
+            btnClearCart.addEventListener('click', function () {
+                if (carrito.length === 0) return;
+                if (confirm('¿Vaciar el carrito?')) {
+                    carrito = [];
+                    descuentoGlobal = 0;
+                    descuentoInput.value = '0';
+                    clienteSearch.value = '';
+                    clienteIdInput.value = '';
+                    renderCarrito();
+                }
+            });
+
+            btnCobrar.addEventListener('click', function () {
+                var total = parseFloat(totalEl.textContent.replace('L. ', '').replace(/,/g, '')) || 0;
+                document.getElementById('modalTotal').textContent = formatMoney(total);
+                document.getElementById('modalMonto').value = total.toFixed(2);
+                document.getElementById('modalCambio').textContent = 'L. 0.00';
+                modalCobro.classList.add('is-open');
+                document.getElementById('modalMonto').focus();
+            });
+
+            document.getElementById('btnCloseModal').addEventListener('click', function () {
+                modalCobro.classList.remove('is-open');
+            });
+
+            document.getElementById('btnCancelarModal').addEventListener('click', function () {
+                modalCobro.classList.remove('is-open');
+            });
+
+            var modalMonto = document.getElementById('modalMonto');
+            var modalMetodo = document.getElementById('modalMetodo');
+            var modalCambio = document.getElementById('modalCambio');
+            var fieldReferencia = document.getElementById('fieldReferencia');
+
+            function actualizarCambio() {
+                var total = parseFloat(document.getElementById('modalTotal').textContent.replace('L. ', '').replace(/,/g, '')) || 0;
+                var monto = parseFloat(modalMonto.value) || 0;
+                var cambio = monto - total;
+                modalCambio.textContent = formatMoney(cambio > 0 ? cambio : 0);
+            }
+
+            function actualizarReferencia() {
+                var opt = modalMetodo.options[modalMetodo.selectedIndex];
+                var req = opt.dataset.req === 'true';
+                fieldReferencia.style.display = req ? '' : 'none';
+            }
+
+            modalMonto.addEventListener('input', actualizarCambio);
+            modalMetodo.addEventListener('change', actualizarReferencia);
+            actualizarReferencia();
+
+            // === Confirmar pago ===
+            document.getElementById('btnConfirmarPago').addEventListener('click', function () {
+                if (carrito.length === 0) return;
+
+                var clienteId = clienteIdInput.value;
+                var metodoId = parseInt(modalMetodo.value);
+                var monto = parseFloat(modalMonto.value) || 0;
+                var referencia = document.getElementById('modalReferencia').value;
+
+                // ⬇️ NUEVO: leer el checkbox de Finanzas
+                var registrarEnFinanzas = document.getElementById('registrarEnFinanzas').checked;
+
+                var payload = {
+                    clienteId: clienteId ? parseInt(clienteId) : null,
+                    metodoPagoId: metodoId,
+                    monto: monto,
+                    referencia: referencia,
+                    descuento: descuentoGlobal,
+                    cotizacionId: cotizacionId ? parseInt(cotizacionId) : null,
+                    registrarEnFinanzas: registrarEnFinanzas, // ⬅️ NUEVO
+                    items: carrito.map(function (i) {
+                        return {
+                            productoId: i.productoId,
+                            cantidad: i.cantidad,
+                            precioUnitario: i.precio,
+                            impuestoPorcentaje: i.impuesto,
+                            descuento: 0
+                        };
+                    })
+                };
+
+                var token = document.querySelector('input[name="__RequestVerificationToken"]');
+                var tokenValue = token ? token.value : '';
+
+                fetch('?handler=RegistrarVenta', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': tokenValue
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(function (r) {
+                    if (!r.ok) {
+                        return r.text().then(function (text) {
+                            throw new Error('HTTP ' + r.status + ': ' + text.substring(0, 200));
+                        });
+                    }
+                    return r.text().then(function (text) {
+                        if (!text) throw new Error('Respuesta vacía del servidor');
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            throw new Error('Respuesta no válida: ' + text.substring(0, 200));
+                        }
+                    });
+                })
+                .then(function (data) {
+                    if (data.success) {
+                        modalCobro.classList.remove('is-open');
+                        document.getElementById('ventaNumero').textContent = 'Venta ' + data.numero;
+                        document.getElementById('ventaTotal').textContent = formatMoney(data.total);
+
+                        // ⬇️ NUEVO: Mostrar aviso si el movimiento financiero falló
+                        var avisoBox = document.getElementById('avisoMovimiento');
+                        if (data.movimientoRegistrado === false && data.movimientoError) {
+                            document.getElementById('avisoTexto').textContent = data.movimientoError;
+                            avisoBox.style.display = 'block';
+                        } else {
+                            avisoBox.style.display = 'none';
+                        }
+
+                        modalExito.classList.add('is-open');
+                    } else {
+                        alert('Error: ' + (data.error || 'No se pudo registrar la venta'));
+                    }
+                })
+                .catch(function (err) {
+                    alert('Error: ' + err.message);
+                    console.error(err);
+                });
+            });
+
+            document.getElementById('btnNuevaVenta').addEventListener('click', function () {
+                window.location.href = '/POS/Index';
+            });
+
+            posSearch.addEventListener('input', function () {
+                var texto = this.value.toLowerCase().trim();
+                document.querySelectorAll('.pos-product-card').forEach(function (card) {
+                    var nombre = card.dataset.nombre.toLowerCase();
+                    var sku = (card.dataset.sku || '').toLowerCase();
+                    var match = !texto || nombre.includes(texto) || sku.includes(texto);
+                    card.style.display = match ? '' : 'none';
+                });
+            });
+
+            document.querySelectorAll('.pos-category-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    document.querySelectorAll('.pos-category-btn').forEach(function (b) { b.classList.remove('is-active'); });
+                    this.classList.add('is-active');
+                    var cat = this.dataset.categoria;
+                    document.querySelectorAll('.pos-product-card').forEach(function (card) {
+                        var cardCat = card.dataset.categoria || '';
+                        card.style.display = (!cat || cardCat === cat) ? '' : 'none';
+                    });
+                });
+            });
+
+            // Render inicial
+            renderCarrito();
+        })();
+    </script>
+}

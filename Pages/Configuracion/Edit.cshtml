@@ -1,0 +1,191 @@
+@page
+@model Kirkenta.Pages.Configuracion.EditModel
+@{
+    ViewData["Title"] = "Editar configuración de empresa";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Configuracion/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a configuración
+        </a>
+        <h2>Editar configuración</h2>
+    </div>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+    <input type="hidden" asp-for="Input.Id" />
+    <input type="hidden" asp-for="Input.LogoPath" />
+
+    <div class="module-card form-card-wide">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span asp-validation-summary="ModelOnly"></span>
+            </div>
+        }
+
+        <!-- Logo -->
+        <h3 class="form-section-title">Logo de la empresa</h3>
+        <p class="form-section-desc">Sube el logo (PNG, JPG — máximo 2 MB). Se mostrará en cotizaciones y facturas.</p>
+
+        <div class="logo-upload-wrapper">
+            <div class="logo-preview">
+                @if (!string.IsNullOrEmpty(Model.Input.LogoPath))
+                {
+                    <img src="@Model.Input.LogoPath" alt="Logo empresa" id="logoPreviewImg" />
+                }
+                else
+                {
+                    <div class="logo-preview-placeholder" id="logoPreviewPlaceholder">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        <span>Sin logo</span>
+                    </div>
+                    <img src="" alt="" id="logoPreviewImg" style="display: none;" />
+                }
+            </div>
+            <div class="logo-upload-controls">
+                <input type="file" asp-for="LogoFile" accept="image/png,image/jpeg,image/jpg,image/webp" id="logoFileInput" style="display: none;" />
+                <button type="button" class="btn-secondary" onclick="document.getElementById('logoFileInput').click();">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    Subir logo
+                </button>
+                <p class="form-help">PNG, JPG, WEBP. Máx 2 MB.</p>
+            </div>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <!-- Datos básicos -->
+        <h3 class="form-section-title">Información de la empresa</h3>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Nombre">Nombre comercial *</label>
+                <input asp-for="Input.Nombre" class="form-input" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.RazonSocial">Razón social</label>
+                <input asp-for="Input.RazonSocial" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.RTN">RTN</label>
+                <input asp-for="Input.RTN" class="form-input" placeholder="0801-1990-12345" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Telefono">Teléfono</label>
+                <input asp-for="Input.Telefono" class="form-input" placeholder="+504 9999-9999" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Email">Email</label>
+                <input asp-for="Input.Email" type="email" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.SitioWeb">Sitio web</label>
+                <input asp-for="Input.SitioWeb" class="form-input" placeholder="https://miempresa.com" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Direccion">Dirección</label>
+            <input asp-for="Input.Direccion" class="form-input" />
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Ciudad">Ciudad</label>
+                <input asp-for="Input.Ciudad" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Pais">País</label>
+                <input asp-for="Input.Pais" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <!-- Datos fiscales -->
+        <h3 class="form-section-title">Datos fiscales (para facturas)</h3>
+
+        <div class="form-field">
+            <label asp-for="Input.CAI">CAI</label>
+            <input asp-for="Input.CAI" class="form-input" placeholder="XXXXXX-XXXXXX-XXXXXX-XXXXXX" />
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.RangoInicial">Rango inicial</label>
+                <input asp-for="Input.RangoInicial" class="form-input" placeholder="000-001-01-00000001" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.RangoFinal">Rango final</label>
+                <input asp-for="Input.RangoFinal" class="form-input" placeholder="000-001-01-00001000" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.FechaLimiteEmision">Fecha límite de emisión</label>
+            <input asp-for="Input.FechaLimiteEmision" type="date" class="form-input" />
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.NotasFactura">Notas al pie de factura</label>
+            <textarea asp-for="Input.NotasFactura" class="form-input" rows="3" placeholder="Ej: La factura es beneficio de todos, exíjala..."></textarea>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Configuracion/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Guardar cambios
+            </button>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        (function () {
+            var input = document.getElementById('logoFileInput');
+            var img = document.getElementById('logoPreviewImg');
+            var placeholder = document.getElementById('logoPreviewPlaceholder');
+
+            input.addEventListener('change', function (e) {
+                if (this.files && this.files[0]) {
+                    var reader = new FileReader();
+                    reader.onload = function (evt) {
+                        img.src = evt.target.result;
+                        img.style.display = 'block';
+                        if (placeholder) placeholder.style.display = 'none';
+                    };
+                    reader.readAsDataURL(this.files[0]);
+                }
+            });
+        })();
+    </script>
+}

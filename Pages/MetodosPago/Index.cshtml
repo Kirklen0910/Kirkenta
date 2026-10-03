@@ -1,0 +1,103 @@
+@page
+@model Kirkenta.Pages.MetodosPago.IndexModel
+@{
+    ViewData["Title"] = "Métodos de pago";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Configuracion/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a configuración
+        </a>
+        <h2>Métodos de pago</h2>
+        <p>Configura las formas de pago aceptadas</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/MetodosPago/Create" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nuevo método
+        </a>
+    </div>
+</div>
+
+<div class="module-card">
+    @if (TempData["Success"] != null)
+    {
+        <div class="module-alert module-alert-success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (Model.Metodos.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                <line x1="1" y1="10" x2="23" y2="10"/>
+            </svg>
+            <h3>No hay métodos de pago</h3>
+            <p>Crea tu primer método de pago</p>
+        </div>
+    }
+    else
+    {
+        <div class="roles-grid">
+            @foreach (var m in Model.Metodos)
+            {
+                <div class="role-card">
+                    <div class="role-card-header">
+                        <div class="role-color" style="background: var(--color-primary); display:flex; align-items:center; justify-content:center; font-size:20px;">
+                            @switch (m.Tipo)
+                            {
+                                case "Efectivo":
+                                    <span>💵</span>
+                                    break;
+                                case "Tarjeta":
+                                    <span>💳</span>
+                                    break;
+                                case "Transferencia":
+                                    <span>🏦</span>
+                                    break;
+                                case "Credito":
+                                    <span>📋</span>
+                                    break;
+                                default:
+                                    <span>💰</span>
+                                    break;
+                            }
+                        </div>
+                        <div class="role-info">
+                            <h3>@m.Nombre</h3>
+                            <span class="badge badge-info">@m.Tipo</span>
+                        </div>
+                    </div>
+
+                    @if (m.RequiereReferencia)
+                    {
+                        <p class="role-desc">Requiere número de referencia</p>
+                    }
+                    else
+                    {
+                        <p class="role-desc">Sin referencia requerida</p>
+                    }
+
+                    <div class="role-actions">
+                        <a asp-page="/MetodosPago/Edit" asp-route-id="@m.Id" class="btn-sm btn-secondary">Editar</a>
+                        <a asp-page="/MetodosPago/Delete" asp-route-id="@m.Id" class="btn-sm btn-danger">Eliminar</a>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

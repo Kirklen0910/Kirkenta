@@ -1,0 +1,144 @@
+@page
+@model Kirkenta.Pages.Facturas.IndexModel
+@{
+    ViewData["Title"] = "Facturas";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Facturas</h2>
+        <p>Administra las facturas emitidas</p>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-toolbar">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Buscar por número o cliente..." />
+        </div>
+        <div class="filter-group">
+            <select id="filterEstado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="Emitida">Emitida</option>
+                <option value="PagadaParcial">Pagada parcial</option>
+                <option value="Pagada">Pagada</option>
+                <option value="Anulada">Anulada</option>
+            </select>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="module-alert module-alert-success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (Model.Facturas.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <h3>No hay facturas</h3>
+            <p>Las facturas se generan al convertir cotizaciones o ventas</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="facturasTable">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Cliente</th>
+                        <th>Fecha</th>
+                        <th>Total</th>
+                        <th>Saldo</th>
+                        <th>Estado</th>
+                        <th style="width: 140px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var f in Model.Facturas)
+                    {
+                        var cliente = Model.Clientes.FirstOrDefault(c => c.Id == f.ClienteId);
+                        var badgeClass = f.Estado switch
+                        {
+                            "Pagada" => "badge badge-success",
+                            "Emitida" => "badge badge-info",
+                            "PagadaParcial" => "badge badge-warning",
+                            "Anulada" => "badge badge-danger",
+                            _ => "badge"
+                        };
+                        <tr data-numero="@f.Numero.ToLower()"
+                            data-cliente="@(cliente?.Nombre.ToLower() ?? "")"
+                            data-estado="@f.Estado">
+                            <td><strong>@f.Numero</strong></td>
+                            <td>@(cliente?.Nombre ?? "—")</td>
+                            <td>@f.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td><strong>L. @f.Total.ToString("N2")</strong></td>
+                            <td>L. @f.Saldo.ToString("N2")</td>
+                            <td><span class="@badgeClass">@f.Estado</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <a asp-page="/Facturas/Details" asp-route-id="@f.Id" class="btn-icon-action" title="Ver">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
+                                    @if (f.Estado != "Pagada" && f.Estado != "Anulada")
+                                    {
+                                        <a asp-page="/Facturas/RegistrarPago" asp-route-id="@f.Id" class="btn-icon-action" title="Registrar pago" style="color: var(--color-success);">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="12" y1="1" x2="12" y2="23"/>
+                                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var filterEstado = document.getElementById('filterEstado');
+            var table = document.getElementById('facturasTable');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+
+            function filterRows() {
+                var search = (searchInput?.value || '').toLowerCase().trim();
+                var estado = filterEstado?.value || '';
+                rows.forEach(function (row) {
+                    var numero = row.dataset.numero || '';
+                    var cliente = row.dataset.cliente || '';
+                    var rowEstado = row.dataset.estado || '';
+                    var matchSearch = !search || numero.includes(search) || cliente.includes(search);
+                    var matchEstado = !estado || rowEstado === estado;
+                    row.style.display = (matchSearch && matchEstado) ? '' : 'none';
+                });
+            }
+            searchInput?.addEventListener('input', filterRows);
+            filterEstado?.addEventListener('change', filterRows);
+        })();
+    </script>
+}

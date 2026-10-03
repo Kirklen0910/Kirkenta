@@ -1,0 +1,56 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Bajas.RevertirModel
+@{
+    ViewData["Title"] = "Revertir baja";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Bajas/Details" asp-route-id="@Model.Input.Id" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver al detalle
+        </a>
+        <h2>Revertir baja @Model.Numero</h2>
+    </div>
+</div>
+
+<div class="module-card danger-card">
+    <div class="danger-icon" style="background: var(--color-warning-bg); color: var(--color-warning);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10"/>
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+        </svg>
+    </div>
+
+    <h3>¿Revertir la baja @Model.Numero?</h3>
+    <p>El stock del producto se restaurará automáticamente (+@Model.Cantidad unidades).</p>
+
+    <div style="padding: 16px; background: #f9fafb; border-radius: var(--radius-sm); margin-bottom: 20px; text-align: left;">
+        <p style="font-size: 13px;"><strong>Producto:</strong> @Model.ProductoNombre</p>
+        <p style="font-size: 13px;"><strong>Cantidad:</strong> @Model.Cantidad</p>
+        <p style="font-size: 13px;"><strong>Valor a restaurar:</strong> L. @Model.ValorTotal.ToString("N2")</p>
+    </div>
+
+    <form method="post" class="erp-form">
+        <input type="hidden" asp-for="Input.Id" />
+
+        <div class="form-field" style="text-align: left;">
+            <label asp-for="Input.MotivoReversion">Motivo de la reversión *</label>
+            <textarea asp-for="Input.MotivoReversion" class="form-input" rows="3" placeholder="Explica por qué se revierte esta baja (ej: error en el registro, producto recuperado, etc.)..." required></textarea>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Bajas/Details" asp-route-id="@Model.Input.Id" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-danger">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="1 4 1 10 7 10"/>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                </svg>
+                Sí, revertir baja
+            </button>
+        </div>
+    </form>
+</div>

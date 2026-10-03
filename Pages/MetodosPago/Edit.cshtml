@@ -1,0 +1,76 @@
+@page "{id:int}"
+@model Kirkenta.Pages.MetodosPago.EditModel
+@{
+    ViewData["Title"] = "Editar método de pago";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/MetodosPago/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a métodos
+        </a>
+        <h2>Editar método</h2>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span asp-validation-summary="ModelOnly"></span>
+            </div>
+        }
+
+        <input type="hidden" asp-for="Input.Id" />
+
+        <div class="form-field">
+            <label asp-for="Input.Nombre">Nombre *</label>
+            <input asp-for="Input.Nombre" class="form-input" required />
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Tipo">Tipo *</label>
+            <select asp-for="Input.Tipo" class="form-input" required>
+                <option value="Efectivo">Efectivo</option>
+                <option value="Tarjeta">Tarjeta</option>
+                <option value="Transferencia">Transferencia</option>
+                <option value="Credito">Crédito</option>
+                <option value="Otro">Otro</option>
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.RequiereReferencia" type="checkbox" />
+                <span>Requiere número de referencia</span>
+            </label>
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.Activo" type="checkbox" />
+                <span>Método activo</span>
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/MetodosPago/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Guardar cambios
+            </button>
+        </div>
+    </form>
+</div>

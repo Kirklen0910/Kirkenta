@@ -1,0 +1,57 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Finanzas.Movimientos.AnularModel
+@{
+    ViewData["Title"] = "Anular movimiento";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/Movimientos/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a movimientos
+        </a>
+        <h2>Anular movimiento</h2>
+    </div>
+</div>
+
+<div class="module-card danger-card">
+    <div class="danger-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+    </div>
+
+    <h3>¿Anular el movimiento @Model.Movimiento.Numero?</h3>
+    <p>El movimiento <strong>no se elimina</strong>, solo se marca como anulado. El saldo de la cuenta se revierte.</p>
+
+    <div class="user-preview">
+        <div class="user-avatar-sm">💰</div>
+        <div>
+            <strong>@Model.Movimiento.Numero — L. @Model.Movimiento.Monto.ToString("N2")</strong>
+            <span>@Model.Movimiento.Tipo — @Model.Movimiento.Concepto (@Model.CuentaNombre)</span>
+        </div>
+    </div>
+
+    <form method="post">
+        <div class="form-field">
+            <label style="text-align: left;">Motivo de anulación *</label>
+            <textarea name="Motivo" class="form-input" rows="3" required placeholder="Explica por qué se anula este movimiento..."></textarea>
+        </div>
+
+        <div class="form-actions" style="justify-content: center;">
+            <a asp-page="/Finanzas/Movimientos/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-danger">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                </svg>
+                Sí, anular
+            </button>
+        </div>
+    </form>
+</div>

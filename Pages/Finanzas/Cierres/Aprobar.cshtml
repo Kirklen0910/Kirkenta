@@ -1,0 +1,104 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Finanzas.Cierres.AprobarModel
+@{
+    ViewData["Title"] = $"Aprobar cierre {Model.Cierre.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/Cierres/Details" asp-route-id="@Model.Cierre.Id" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver al cierre
+        </a>
+        <h2>Aprobar / Rechazar cierre</h2>
+        <p>Revisa el cierre antes de tomar una decisión</p>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <div class="user-preview">
+            <div class="user-avatar-sm">💰</div>
+            <div>
+                <strong>Cierre @Model.Cierre.Numero</strong>
+                <span>@Model.CuentaNombre — Cerrado por @Model.UsuarioCierra</span>
+            </div>
+        </div>
+
+        <div class="totales-panel" style="max-width: 100%; margin: 16px 0;">
+            <div class="totales-row">
+                <span>Saldo inicial:</span>
+                <strong>L. @Model.Cierre.SaldoInicialSistema.ToString("N2")</strong>
+            </div>
+            <div class="totales-row">
+                <span>Ingresos efectivo:</span>
+                <strong style="color: var(--color-success);">+ L. @Model.Cierre.TotalIngresosEfectivo.ToString("N2")</strong>
+            </div>
+            <div class="totales-row">
+                <span>Egresos efectivo:</span>
+                <strong style="color: var(--color-danger);">− L. @Model.Cierre.TotalEgresosEfectivo.ToString("N2")</strong>
+            </div>
+            <div class="totales-row" style="border-top: 1px solid var(--color-border); padding-top: 8px;">
+                <span style="font-weight: 700;">Efectivo esperado:</span>
+                <strong>L. @Model.Cierre.EfectivoEsperado.ToString("N2")</strong>
+            </div>
+            <div class="totales-row">
+                <span style="font-weight: 700;">Efectivo contado:</span>
+                <strong>L. @Model.Cierre.EfectivoContado.ToString("N2")</strong>
+            </div>
+            <div class="totales-row totales-row-final">
+                <span>DIFERENCIA:</span>
+                <strong style="color: @(Model.Cierre.Diferencia == 0 ? "var(--color-muted)" : Model.Cierre.Diferencia > 0 ? "var(--color-success)" : "var(--color-danger)");">
+                    @(Model.Cierre.Diferencia > 0 ? "+" : "") L. @Model.Cierre.Diferencia.ToString("N2")
+                </strong>
+            </div>
+        </div>
+
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Decisión</h3>
+
+        <div class="form-field">
+            <label>Acción *</label>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                <label style="display:flex; align-items:center; gap:10px; padding: 12px; border: 2px solid var(--color-border); border-radius: 6px; cursor: pointer;">
+                    <input type="radio" asp-for="Accion" value="aprobar" />
+                    <span><strong style="color: var(--color-success);">✓ Aprobar</strong> — El cierre es correcto</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:10px; padding: 12px; border: 2px solid var(--color-border); border-radius: 6px; cursor: pointer;">
+                    <input type="radio" asp-for="Accion" value="rechazar" />
+                    <span><strong style="color: var(--color-danger);">✗ Rechazar</strong> — Requiere corrección</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Motivo">Motivo del rechazo (obligatorio si rechaza)</label>
+            <textarea asp-for="Motivo" class="form-input" rows="3" placeholder="Explica qué necesita corrección..."></textarea>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Finanzas/Cierres/Details" asp-route-id="@Model.Cierre.Id" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Confirmar decisión
+            </button>
+        </div>
+    </form>
+</div>

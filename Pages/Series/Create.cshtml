@@ -1,0 +1,182 @@
+@page
+@model Kirkenta.Pages.Series.CreateModel
+@{
+    ViewData["Title"] = "Nueva serie";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Series/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a series
+        </a>
+        <h2>Nueva serie</h2>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span asp-validation-summary="ModelOnly"></span>
+            </div>
+        }
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Tipo">Tipo de documento *</label>
+                <select asp-for="Input.Tipo" class="form-input" required>
+                    <option value="">— Selecciona —</option>
+                    <optgroup label="Ventas">
+                        <option value="Cotizacion">Cotización</option>
+                        <option value="Pedido">Pedido</option>
+                        <option value="Venta">Venta</option>
+                        <option value="Factura">Factura</option>
+                        <option value="Devolucion">Devolución</option>
+                    </optgroup>
+                    <optgroup label="Inventario">
+                        <option value="Producto">Producto (SKU)</option>
+                        <option value="Baja">Baja de inventario</option>
+                    </optgroup>
+                    <optgroup label="Compras">
+                        <option value="Proveedor">Proveedor</option>
+                        <option value="OrdenCompra">Orden de compra</option>
+                        <option value="PagoProveedor">Pago a proveedor</option>
+                        <option value="DevolucionProveedor">Devolución a proveedor</option>
+                    </optgroup>
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Nombre">Nombre de la serie *</label>
+                <input asp-for="Input.Nombre" class="form-input" placeholder="Ej: Principal" required />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Prefijo">Prefijo *</label>
+                <input asp-for="Input.Prefijo" class="form-input" placeholder="PROV" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Sufijo">Sufijo</label>
+                <input asp-for="Input.Sufijo" class="form-input" placeholder="-2026 (opcional)" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Separador">Separador</label>
+                <input asp-for="Input.Separador" class="form-input" value="-" maxlength="5" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.LongitudNumero">Longitud del número</label>
+                <input asp-for="Input.LongitudNumero" type="number" min="1" max="10" class="form-input" value="4" />
+                <small class="form-help">4 → 0001, 5 → 00001</small>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.SiguienteNumero">Siguiente número</label>
+            <input asp-for="Input.SiguienteNumero" type="number" min="1" class="form-input" value="1" />
+        </div>
+
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Formato personalizado (opcional)</h3>
+        <p class="form-section-desc">
+            Si lo dejas vacío, se usará <code>{PREFIX}{SEP}{NUM}</code> por defecto.
+        </p>
+
+        <div class="form-field">
+            <label asp-for="Input.FormatoPersonalizado">Formato</label>
+            <input asp-for="Input.FormatoPersonalizado" class="form-input" id="formatoInput" placeholder="{PREFIX}{SEP}{NUM}" />
+        </div>
+
+        <div class="preview-box">
+            <span class="preview-label">Preview:</span>
+            <span class="preview-value" id="previewValue">PROV-0001</span>
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.EsPredeterminada" type="checkbox" />
+                <span>Usar como predeterminada para este tipo</span>
+            </label>
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.Activa" type="checkbox" checked />
+                <span>Serie activa</span>
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Series/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Crear serie
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var prefijoInput = document.getElementById('Input_Prefijo');
+            var sufijoInput = document.getElementById('Input_Sufijo');
+            var separadorInput = document.getElementById('Input_Separador');
+            var longitudInput = document.getElementById('Input_LongitudNumero');
+            var siguienteInput = document.getElementById('Input_SiguienteNumero');
+            var formatoInput = document.getElementById('formatoInput');
+            var previewValue = document.getElementById('previewValue');
+
+            function actualizarPreview() {
+                var prefijo = prefijoInput?.value || '';
+                var sufijo = sufijoInput?.value || '';
+                var sep = separadorInput?.value || '-';
+                var long = parseInt(longitudInput?.value || '4', 10);
+                var num = parseInt(siguienteInput?.value || '1', 10);
+                var formato = formatoInput?.value || '';
+
+                var numStr = String(num).padStart(long, '0');
+                var anio = new Date().getFullYear().toString();
+                var mes = String(new Date().getMonth() + 1).padStart(2, '0');
+                var dia = String(new Date().getDate()).padStart(2, '0');
+
+                var resultado;
+                if (formato.trim()) {
+                    resultado = formato
+                        .replace(/{PREFIX}/g, prefijo)
+                        .replace(/{SUFFIX}/g, sufijo)
+                        .replace(/{SEP}/g, sep)
+                        .replace(/{YEAR}/g, anio)
+                        .replace(/{MONTH}/g, mes)
+                        .replace(/{DAY}/g, dia)
+                        .replace(/{NUM}/g, numStr);
+                } else {
+                    resultado = prefijo + sep + numStr;
+                }
+
+                if (previewValue) previewValue.textContent = resultado;
+            }
+
+            [prefijoInput, sufijoInput, separadorInput, longitudInput, siguienteInput, formatoInput].forEach(function (el) {
+                el?.addEventListener('input', actualizarPreview);
+            });
+
+            actualizarPreview();
+        })();
+    </script>
+}

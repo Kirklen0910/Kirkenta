@@ -1,0 +1,204 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="dashboard">
+    <div class="dashboard-header">
+        <h1>Hola, @User.Identity?.Name 👋</h1>
+        <p>Este es el resumen de tu operación</p>
+    </div>
+
+    <!-- KPIs reales -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <span class="kpi-label">Ventas de hoy</span>
+            <span class="kpi-value">L. @Model.VentasHoy.ToString("N2")</span>
+            <span class="kpi-trend @(Model.VentasHoy >= Model.VentasAyer ? "up" : "down")">
+                @(Model.VentasHoy >= Model.VentasAyer ? "↑" : "↓")
+                @(Model.VentasAyer > 0 ? Math.Abs((Model.VentasHoy - Model.VentasAyer) / Model.VentasAyer * 100).ToString("N1") : "0")% vs ayer
+            </span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Ventas del mes</span>
+            <span class="kpi-value">L. @Model.VentasMes.ToString("N2")</span>
+            <span class="kpi-trend @(Model.VentasMes >= Model.VentasMesAnterior ? "up" : "down")">
+                @(Model.VentasMes >= Model.VentasMesAnterior ? "↑" : "↓")
+                @(Model.VentasMesAnterior > 0 ? Math.Abs((Model.VentasMes - Model.VentasMesAnterior) / Model.VentasMesAnterior * 100).ToString("N1") : "0")% vs mes anterior
+            </span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Clientes activos</span>
+            <span class="kpi-value">@Model.ClientesActivos</span>
+            <span class="kpi-trend">Total registrados: @Model.ClientesTotal</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Productos en stock</span>
+            <span class="kpi-value">@Model.ProductosTotal</span>
+            <span class="kpi-trend @(Model.ProductosStockBajo > 0 ? "down" : "up")">
+                @if (Model.ProductosStockBajo > 0)
+                {
+                    <span>⚠️ @Model.ProductosStockBajo con stock bajo</span>
+                }
+                else
+                {
+                    <span>✅ Stock saludable</span>
+                }
+            </span>
+        </div>
+    </div>
+
+    <!-- Accesos rápidos -->
+    <div class="section">
+        <h2 class="section-title">Accesos rápidos</h2>
+        <div class="quick-grid">
+            <a asp-page="/POS/Index" class="quick-action">
+                <span class="quick-icon">🛒</span>
+                <span class="quick-label">Punto de venta</span>
+            </a>
+            <a asp-page="/Productos/Create" class="quick-action">
+                <span class="quick-icon">📦</span>
+                <span class="quick-label">Nuevo producto</span>
+            </a>
+            <a asp-page="/Clientes/Create" class="quick-action">
+                <span class="quick-icon">👤</span>
+                <span class="quick-label">Nuevo cliente</span>
+            </a>
+            <a asp-page="/Cotizaciones/Create" class="quick-action">
+                <span class="quick-icon">📝</span>
+                <span class="quick-label">Nueva cotización</span>
+            </a>
+            <a asp-page="/Reportes/Ventas" class="quick-action">
+                <span class="quick-icon">📊</span>
+                <span class="quick-label">Reportes</span>
+            </a>
+            <a asp-page="/Facturas/Index" class="quick-action">
+                <span class="quick-icon">🧾</span>
+                <span class="quick-label">Facturas</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Gráfico de ventas últimos 7 días -->
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">Ventas de los últimos 7 días</h3>
+        <div style="height: 300px;">
+            <canvas id="chartDashboardVentas"></canvas>
+        </div>
+    </div>
+
+    <!-- Panel doble: Top productos + Últimas ventas -->
+    <div class="panel-grid">
+        <div class="module-card" style="padding: 20px;">
+            <h3 class="panel-title" style="margin-bottom: 16px;">🏆 Top 5 productos del mes</h3>
+            @if (Model.TopProductosMes.Count == 0)
+            {
+                <p style="color: var(--color-muted); text-align: center; padding: 40px;">Sin ventas este mes</p>
+            }
+            else
+            {
+                <div class="table-wrapper">
+                    <table class="erp-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Producto</th>
+                                <th style="text-align: right;">Cantidad</th>
+                                <th style="text-align: right;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                var i = 1;
+                            }
+                            @foreach (var p in Model.TopProductosMes)
+                            {
+                                <tr>
+                                    <td><strong>@i</strong></td>
+                                    <td>@p.Nombre</td>
+                                    <td style="text-align: right;">@p.Cantidad</td>
+                                    <td style="text-align: right;"><strong>L. @p.Total.ToString("N2")</strong></td>
+                                </tr>
+                                i++;
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <div class="module-card" style="padding: 20px;">
+            <h3 class="panel-title" style="margin-bottom: 16px;">📋 Últimas ventas</h3>
+            @if (Model.UltimasVentas.Count == 0)
+            {
+                <p style="color: var(--color-muted); text-align: center; padding: 40px;">Aún no hay ventas</p>
+            }
+            else
+            {
+                <div class="timeline">
+                    @foreach (var v in Model.UltimasVentas)
+                    {
+                        <div class="timeline-item">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <strong>@v.Numero</strong>
+                                    <span class="timeline-date">@v.Fecha.ToString("dd/MM HH:mm")</span>
+                                </div>
+                                <p class="timeline-detail">@v.ClienteNombre — <strong>L. @v.Total.ToString("N2")</strong></p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            var ventasData = @Html.Raw(Model.Ventas7DiasJson);
+            var ctx = document.getElementById('chartDashboardVentas');
+            if (ctx && ventasData.labels && ventasData.labels.length > 0) {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ventasData.labels,
+                        datasets: [{
+                            label: 'Ventas (L.)',
+                            data: ventasData.data,
+                            backgroundColor: 'rgba(79, 70, 229, 0.85)',
+                            borderRadius: 8,
+                            borderSkipped: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        return 'L. ' + context.parsed.y.toLocaleString('es-HN', { minimumFractionDigits: 2 });
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (value) { return 'L. ' + value.toLocaleString(); }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        })();
+    </script>
+}

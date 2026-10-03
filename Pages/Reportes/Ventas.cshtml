@@ -1,0 +1,276 @@
+@page
+@model Kirkenta.Pages.Reportes.VentasModel
+@{
+    ViewData["Title"] = "Reportes de ventas";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Reportes de ventas</h2>
+        <p>Análisis detallado de tus ventas con filtros avanzados</p>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+    <form method="get" class="reportes-filtros">
+        <div class="filtros-row">
+            <div class="form-field" style="margin: 0;">
+                <label>Desde</label>
+                <input type="date" name="desde" class="form-input" value="@Model.Desde.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>Hasta</label>
+                <input type="date" name="hasta" class="form-input" value="@Model.Hasta.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>Cliente</label>
+                <input type="text" name="cliente" class="form-input" placeholder="Nombre o RTN..." value="@Model.FiltroCliente" />
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>Producto</label>
+                <input type="text" name="producto" class="form-input" placeholder="Nombre o SKU..." value="@Model.FiltroProducto" />
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn-primary">Aplicar filtros</button>
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>&nbsp;</label>
+                <a asp-page="/Reportes/Ventas" class="btn-secondary">Limpiar</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total vendido</span>
+        <span class="kpi-value">L. @Model.TotalVendido.ToString("N2")</span>
+        <span class="kpi-trend up">@Model.CantidadVentas ventas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Ticket promedio</span>
+        <span class="kpi-value">L. @Model.TicketPromedio.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Productos vendidos</span>
+        <span class="kpi-value">@Model.ProductosVendidos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Clientes únicos</span>
+        <span class="kpi-value">@Model.ClientesUnicos</span>
+    </div>
+</div>
+
+<!-- Gráfico de ventas por día -->
+<div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+    <h3 class="panel-title" style="margin-bottom: 16px;">Ventas por día en el período</h3>
+    <div style="height: 320px;">
+        <canvas id="chartVentasPorDia"></canvas>
+    </div>
+</div>
+
+<!-- Gráficos: Top productos y Top clientes -->
+<div class="panel-grid" style="margin-bottom: 20px;">
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">🏆 Top 10 productos más vendidos</h3>
+        <div style="height: 320px;">
+            <canvas id="chartTopProductos"></canvas>
+        </div>
+    </div>
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">👥 Top 10 clientes</h3>
+        <div style="height: 320px;">
+            <canvas id="chartTopClientes"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Tablas: Top y Menos vendidos -->
+<div class="panel-grid">
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">🏆 Productos más vendidos</h3>
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Producto</th>
+                        <th style="text-align: right;">Cantidad</th>
+                        <th style="text-align: right;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.TopProductos.Count == 0)
+                    {
+                        <tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--color-muted);">Sin datos en el período</td></tr>
+                    }
+                    else
+                    {
+                        var i = 1;
+                        foreach (var p in Model.TopProductos)
+                        {
+                            <tr>
+                                <td><strong>@i</strong></td>
+                                <td>@p.Nombre</td>
+                                <td style="text-align: right;">@p.Cantidad</td>
+                                <td style="text-align: right;"><strong>L. @p.Total.ToString("N2")</strong></td>
+                            </tr>
+                            i++;
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">📉 Productos menos vendidos</h3>
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Producto</th>
+                        <th style="text-align: right;">Cantidad</th>
+                        <th style="text-align: right;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.MenosProductos.Count == 0)
+                    {
+                        <tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--color-muted);">Sin datos en el período</td></tr>
+                    }
+                    else
+                    {
+                        var i = 1;
+                        foreach (var p in Model.MenosProductos)
+                        {
+                            <tr>
+                                <td><strong>@i</strong></td>
+                                <td>@p.Nombre</td>
+                                <td style="text-align: right;">@p.Cantidad</td>
+                                <td style="text-align: right;"><strong>L. @p.Total.ToString("N2")</strong></td>
+                            </tr>
+                            i++;
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            var colorPrimario = '#4f46e5';
+            var colorSecundario = '#10b981';
+            var colorAcento = '#f59e0b';
+
+            // === Gráfico: Ventas por día ===
+            var ventasPorDia = @Html.Raw(Model.VentasPorDiaJson);
+            var ctxDia = document.getElementById('chartVentasPorDia');
+            if (ctxDia && ventasPorDia.labels && ventasPorDia.labels.length > 0) {
+                new Chart(ctxDia, {
+                    type: 'line',
+                    data: {
+                        labels: ventasPorDia.labels,
+                        datasets: [{
+                            label: 'Total vendido (L.)',
+                            data: ventasPorDia.data,
+                            borderColor: colorPrimario,
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: colorPrimario,
+                            pointRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (value) { return 'L. ' + value.toLocaleString(); }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // === Gráfico: Top productos ===
+            var topProductos = @Html.Raw(Model.TopProductosJson);
+            var ctxTop = document.getElementById('chartTopProductos');
+            if (ctxTop && topProductos.labels && topProductos.labels.length > 0) {
+                new Chart(ctxTop, {
+                    type: 'bar',
+                    data: {
+                        labels: topProductos.labels,
+                        datasets: [{
+                            label: 'Cantidad vendida',
+                            data: topProductos.data,
+                            backgroundColor: colorPrimario,
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+
+            // === Gráfico: Top clientes ===
+            var topClientes = @Html.Raw(Model.TopClientesJson);
+            var ctxCli = document.getElementById('chartTopClientes');
+            if (ctxCli && topClientes.labels && topClientes.labels.length > 0) {
+                new Chart(ctxCli, {
+                    type: 'doughnut',
+                    data: {
+                        labels: topClientes.labels,
+                        datasets: [{
+                            data: topClientes.data,
+                            backgroundColor: [
+                                '#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+                                '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#6366f1'
+                            ],
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    boxWidth: 12,
+                                    font: { size: 11 }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        })();
+    </script>
+}

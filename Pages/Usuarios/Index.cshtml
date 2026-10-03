@@ -1,0 +1,225 @@
+@page
+@model Kirkenta.Pages.Usuarios.IndexModel
+@{
+    ViewData["Title"] = "Usuarios";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Usuarios</h2>
+        <p>Administra los usuarios del sistema</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/Usuarios/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nuevo usuario
+            </a>
+        }
+        @if (Model.PuedeGestionarRoles)
+        {
+            <a asp-page="/Usuarios/Roles" class="btn-secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                Roles
+            </a>
+        }
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-toolbar">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Buscar por usuario, email o nombre..." />
+        </div>
+        <div class="filter-group">
+            <select id="filterRol" class="filter-select">
+                <option value="">Todos los roles</option>
+                @foreach (var rol in Model.Roles)
+                {
+                    <option value="@rol.Nombre">@rol.Nombre</option>
+                }
+            </select>
+            <select id="filterEstado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="activo">Activos</option>
+                <option value="inactivo">Inactivos</option>
+            </select>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="module-alert module-alert-success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="module-alert module-alert-error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            @TempData["Error"]
+        </div>
+    }
+
+    @if (Model.Usuarios.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <h3>No hay usuarios registrados</h3>
+            <p>Crea el primer usuario para empezar</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="usuariosTable">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;"></th>
+                        <th>Usuario</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th>Último acceso</th>
+                        <th style="width: 140px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in Model.Usuarios)
+                    {
+                        var rolColor = Model.Roles.FirstOrDefault(r => r.Nombre == u.Rol)?.Color ?? "#6b7280";
+                        <tr data-username="@u.Username.ToLower()"
+                            data-email="@u.Email.ToLower()"
+                            data-nombre="@(u.NombreCompleto?.ToLower() ?? "")"
+                            data-rol="@u.Rol"
+                            data-estado="@(u.Activo ? "activo" : "inactivo")">
+                            <td>
+                                <div class="user-avatar-sm" style="background: @rolColor;">
+                                    @(string.IsNullOrEmpty(u.Username) ? "?" : u.Username.Substring(0, 1).ToUpper())
+                                </div>
+                            </td>
+                            <td>
+                                <div class="table-user-cell">
+                                    <span class="table-user-name">@u.Username</span>
+                                    @if (!string.IsNullOrEmpty(u.NombreCompleto))
+                                    {
+                                        <span class="table-user-sub">@u.NombreCompleto</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>@u.Email</td>
+                            <td>
+                                <span class="badge" style="background: @(rolColor)20; color: @rolColor;">
+                                    @u.Rol
+                                </span>
+                            </td>
+                            <td>
+                                @if (u.Activo)
+                                {
+                                    <span class="badge badge-success">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-danger">Inactivo</span>
+                                }
+                            </td>
+                            <td>
+                                @(u.UltimoAcceso.HasValue ? u.UltimoAcceso.Value.ToString("dd/MM/yyyy HH:mm") : "Nunca")
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    @if (Model.PuedeEditar)
+                                    {
+                                        <a asp-page="/Usuarios/Edit" asp-route-id="@u.Id" class="btn-icon-action" title="Editar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                    <a asp-page="/Usuarios/Actividad" asp-route-id="@u.Id" class="btn-icon-action" title="Actividad">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                        </svg>
+                                    </a>
+                                    @if (Model.PuedeEliminar && u.Username != User.Identity?.Name)
+                                    {
+                                        <a asp-page="/Usuarios/Delete" asp-route-id="@u.Id" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="3 6 5 6 21 6"/>
+                                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                                <path d="M10 11v6"/>
+                                                <path d="M14 11v6"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var filterRol = document.getElementById('filterRol');
+            var filterEstado = document.getElementById('filterEstado');
+            var table = document.getElementById('usuariosTable');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+
+            function filterRows() {
+                var search = (searchInput?.value || '').toLowerCase().trim();
+                var rol = filterRol?.value || '';
+                var estado = filterEstado?.value || '';
+
+                rows.forEach(function (row) {
+                    var username = row.dataset.username || '';
+                    var email = row.dataset.email || '';
+                    var nombre = row.dataset.nombre || '';
+                    var rowRol = row.dataset.rol || '';
+                    var rowEstado = row.dataset.estado || '';
+
+                    var matchSearch = !search || username.includes(search) || email.includes(search) || nombre.includes(search);
+                    var matchRol = !rol || rowRol === rol;
+                    var matchEstado = !estado || rowEstado === estado;
+
+                    row.style.display = (matchSearch && matchRol && matchEstado) ? '' : 'none';
+                });
+            }
+
+            searchInput?.addEventListener('input', filterRows);
+            filterRol?.addEventListener('change', filterRows);
+            filterEstado?.addEventListener('change', filterRows);
+        })();
+    </script>
+}

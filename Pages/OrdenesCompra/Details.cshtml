@@ -1,0 +1,296 @@
+@page "{id:int}"
+@model Kirkenta.Pages.OrdenesCompra.DetailsModel
+@{
+    ViewData["Title"] = $"Orden {Model.Orden.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/OrdenesCompra/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a órdenes
+        </a>
+        <h2>Orden @Model.Orden.Numero</h2>
+        <p>Creada el @Model.Orden.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.Orden.Estado == "Borrador")
+        {
+            <a asp-page="/OrdenesCompra/Edit" asp-route-id="@Model.Orden.Id" class="btn-secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Editar
+            </a>
+        }
+        @if (Model.Orden.Estado == "Enviada" || Model.Orden.Estado == "RecibidaParcial")
+        {
+            <a asp-page="/OrdenesCompra/Recibir" asp-route-id="@Model.Orden.Id" class="btn-primary" style="background: var(--color-success);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Recibir mercancía
+            </a>
+        }
+        @if (Model.Orden.Saldo > 0 && Model.Orden.Estado == "Recibida")
+        {
+            <a asp-page="/PagosProveedor/Create" asp-route-ordenId="@Model.Orden.Id" class="btn-primary" style="background: var(--color-success);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="1" x2="12" y2="23"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                Registrar pago
+            </a>
+        }
+        <button type="button" class="btn-secondary" onclick="window.print()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <polyline points="6 9 6 2 18 2 18 9"/>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Imprimir
+        </button>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+<div class="module-card" style="padding: 28px;">
+
+    <div class="factura-header">
+        <div class="factura-empresa">
+            @if (!string.IsNullOrEmpty(Model.Empresa.LogoPath))
+            {
+                <img src="@Model.Empresa.LogoPath" alt="@Model.Empresa.Nombre" style="width: 70px; height: 70px; object-fit: contain;" />
+            }
+            <div>
+                <h3 style="font-size: 16px;">@Model.Empresa.Nombre</h3>
+                @if (!string.IsNullOrEmpty(Model.Empresa.RTN))
+                {
+                    <p style="color: var(--color-muted); font-size: 12px;">RTN: @Model.Empresa.RTN</p>
+                }
+            </div>
+        </div>
+        <div class="factura-numero">
+            <span class="factura-numero-label">ORDEN DE COMPRA</span>
+            <strong class="factura-numero-value">@Model.Orden.Numero</strong>
+            <span class="badge @(Model.Orden.Estado switch {
+                "Recibida" => "badge-success",
+                "Cancelada" => "badge-danger",
+                "RecibidaParcial" => "badge-warning",
+                "Enviada" => "badge-info",
+                _ => "badge"
+            })" style="margin-top: 6px;">
+                @Model.Orden.Estado
+            </span>
+        </div>
+    </div>
+
+    <div class="factura-info-grid">
+        <div>
+            <h4 class="factura-info-label">Proveedor</h4>
+            <p><strong>@Model.Proveedor.Nombre</strong></p>
+            @if (!string.IsNullOrEmpty(Model.Proveedor.RTN))
+            {
+                <p>RTN: @Model.Proveedor.RTN</p>
+            }
+            @if (!string.IsNullOrEmpty(Model.Proveedor.Contacto))
+            {
+                <p>Contacto: @Model.Proveedor.Contacto</p>
+            }
+            @if (!string.IsNullOrEmpty(Model.Proveedor.Telefono))
+            {
+                <p>Tel: @Model.Proveedor.Telefono</p>
+            }
+            @if (!string.IsNullOrEmpty(Model.Proveedor.Email))
+            {
+                <p>@Model.Proveedor.Email</p>
+            }
+        </div>
+        <div>
+            <h4 class="factura-info-label">Detalles</h4>
+            <p><strong>Fecha:</strong> @Model.Orden.Fecha.ToString("dd/MM/yyyy")</p>
+            @if (Model.Orden.FechaEntregaEstimada.HasValue)
+            {
+                <p><strong>Entrega estimada:</strong> @Model.Orden.FechaEntregaEstimada.Value.ToString("dd/MM/yyyy")</p>
+            }
+            @if (Model.Orden.FechaRecepcion.HasValue)
+            {
+                <p><strong>Recibida:</strong> @Model.Orden.FechaRecepcion.Value.ToString("dd/MM/yyyy")</p>
+            }
+            @if (Model.Moneda != null)
+            {
+                <p><strong>Moneda:</strong> @Model.Moneda.Codigo (@Model.Moneda.Simbolo)</p>
+                @if (Model.Orden.TipoCambio != 1)
+                {
+                    <p><strong>Tipo de cambio:</strong> @Model.Orden.TipoCambio.ToString("N4")</p>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="table-wrapper" style="margin-top: 32px;">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th style="text-align: right;">Cantidad</th>
+                    <th style="text-align: right;">Recibida</th>
+                    <th style="text-align: right;">Precio</th>
+                    <th style="text-align: right;">Desc.</th>
+                    <th style="text-align: right;">Imp.</th>
+                    <th style="text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    var prod = Model.Productos.FirstOrDefault(p => p.Id == item.ProductoId);
+                    <tr>
+                        <td>@(prod?.Nombre ?? "—")</td>
+                        <td style="text-align: right;">@item.Cantidad</td>
+                        <td style="text-align: right;">
+                            @if (item.CantidadRecibida >= item.Cantidad)
+                            {
+                                <span class="badge badge-success">@item.CantidadRecibida</span>
+                            }
+                            else if (item.CantidadRecibida > 0)
+                            {
+                                <span class="badge badge-warning">@item.CantidadRecibida / @item.Cantidad</span>
+                            }
+                            else
+                            {
+                                <span class="badge">0 / @item.Cantidad</span>
+                            }
+                        </td>
+                        <td style="text-align: right;">L. @item.PrecioUnitario.ToString("N2")</td>
+                        <td style="text-align: right;">L. @item.Descuento.ToString("N2")</td>
+                        <td style="text-align: right;">@item.ImpuestoPorcentaje%</td>
+                        <td style="text-align: right;"><strong>L. @item.Total.ToString("N2")</strong></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="totales-panel" style="margin-top: 24px;">
+        <div class="totales-row">
+            <span>Subtotal:</span>
+            <strong>L. @Model.Orden.Subtotal.ToString("N2")</strong>
+        </div>
+        <div class="totales-row">
+            <span>Descuento:</span>
+            <strong>L. @Model.Orden.Descuento.ToString("N2")</strong>
+        </div>
+        <div class="totales-row">
+            <span>Impuestos:</span>
+            <strong>L. @Model.Orden.Impuestos.ToString("N2")</strong>
+        </div>
+        <div class="totales-row totales-row-final">
+            <span>TOTAL:</span>
+            <strong>L. @Model.Orden.Total.ToString("N2")</strong>
+        </div>
+        @if (Model.Orden.Saldo > 0 && Model.Orden.Estado != "Cancelada")
+        {
+            <div class="totales-row" style="color: var(--color-danger); border-top: 1px solid var(--color-border); margin-top: 8px; padding-top: 12px;">
+                <span>Saldo pendiente:</span>
+                <strong>L. @Model.Orden.Saldo.ToString("N2")</strong>
+            </div>
+        }
+        else if (Model.Orden.Estado == "Recibida")
+        {
+            <div class="totales-row" style="color: var(--color-success); border-top: 1px solid var(--color-border); margin-top: 8px; padding-top: 12px;">
+                <span>Estado de pago:</span>
+                <strong>✅ Pagada</strong>
+            </div>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Orden.Notas))
+    {
+        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-border);">
+            <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">Notas</h4>
+            <p style="color: var(--color-muted); font-size: 13px;">@Model.Orden.Notas</p>
+        </div>
+    }
+
+    <!-- Adjuntos -->
+    <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--color-border);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h4 style="font-size: 14px; font-weight: 600;">Documentos adjuntos</h4>
+            <form method="post" asp-page-handler="SubirAdjunto" asp-route-id="@Model.Orden.Id" enctype="multipart/form-data" style="display: inline-flex; gap: 8px; align-items: center;">
+                <select name="tipoDoc" class="filter-select" style="padding: 6px 10px; font-size: 12.5px;">
+                    <option value="Factura">Factura</option>
+                    <option value="Comprobante de pago">Comprobante de pago</option>
+                    <option value="Orden firmada">Orden firmada</option>
+                    <option value="Otro">Otro</option>
+                </select>
+                <input type="file" name="archivo" accept=".pdf,.jpg,.jpeg,.png" style="font-size: 12px;" />
+                <button type="submit" class="btn-sm btn-secondary">Subir</button>
+            </form>
+        </div>
+
+        @if (Model.Adjuntos.Count == 0)
+        {
+            <p style="font-size: 13px; color: var(--color-muted); text-align: center; padding: 20px;">Sin documentos adjuntos</p>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="erp-table">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Nombre</th>
+                            <th>Tamaño</th>
+                            <th>Fecha</th>
+                            <th style="width: 120px; text-align: right;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var adj in Model.Adjuntos)
+                        {
+                            <tr>
+                                <td><span class="badge badge-info">@adj.TipoDocumento</span></td>
+                                <td>@adj.NombreArchivo</td>
+                                <td>@adj.TamanoKB KB</td>
+                                <td>@adj.FechaSubida.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>
+                                    <div class="table-actions">
+                                        <a href="@adj.RutaArchivo" target="_blank" class="btn-icon-action" title="Ver">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                                <circle cx="12" cy="12" r="3"/>
+                                            </svg>
+                                        </a>
+                                        <form method="post" asp-page-handler="EliminarAdjunto" asp-route-id="@Model.Orden.Id" asp-route-adjuntoId="@adj.Id" style="display:inline;" onsubmit="return confirm('¿Eliminar este adjunto?');">
+                                            <button type="submit" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <polyline points="3 6 5 6 21 6"/>
+                                                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

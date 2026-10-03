@@ -1,0 +1,317 @@
+@page
+@model Kirkenta.Pages.Cotizaciones.CreateModel
+@{
+    ViewData["Title"] = "Nueva cotización";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Cotizaciones/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a cotizaciones
+        </a>
+        <h2>Nueva cotización</h2>
+        <p>Número: <strong>@Model.NumeroPreview</strong></p>
+    </div>
+</div>
+
+<form method="post" id="cotizacionForm">
+    <div class="module-card form-card-wide">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span asp-validation-summary="ModelOnly"></span>
+            </div>
+        }
+
+        <div class="form-row">
+            <div class="form-field">
+                <label>Cliente *</label>
+                <div class="cliente-search-wrapper">
+                    <input type="text"
+                           id="clienteSearch"
+                           class="form-input"
+                           placeholder="Buscar por nombre, RTN o código..."
+                           autocomplete="off" />
+                    <input type="hidden" asp-for="Input.ClienteId" id="clienteIdInput" />
+                    <div class="cliente-search-results" id="clienteResults"></div>
+                </div>
+            </div>
+            <div class="form-field">
+                <label>Válida por (días)</label>
+                <input asp-for="Input.Validez" type="number" class="form-input" value="30" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label>Notas</label>
+            <textarea asp-for="Input.Notas" class="form-input" rows="2" placeholder="Observaciones o condiciones..."></textarea>
+        </div>
+
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Productos</h3>
+
+        <div class="items-toolbar">
+            <div class="search-box" style="max-width: 400px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" id="productoSearch" placeholder="Buscar producto por nombre o SKU..." />
+            </div>
+            <div id="productoResults" class="producto-results"></div>
+        </div>
+
+        <div class="table-wrapper" style="margin-top: 16px;">
+            <table class="erp-table" id="itemsTable">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th style="width: 100px;">Cantidad</th>
+                        <th style="width: 130px;">Precio</th>
+                        <th style="width: 100px;">Descuento</th>
+                        <th style="width: 80px;">Imp.%</th>
+                        <th style="width: 120px;">Total</th>
+                        <th style="width: 50px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="itemsBody">
+                    <tr class="empty-items-row">
+                        <td colspan="7" style="text-align: center; padding: 30px; color: var(--color-muted);">
+                            Agrega productos desde el buscador arriba
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="totales-panel">
+            <div class="totales-row">
+                <span>Subtotal:</span>
+                <strong id="subtotal">L. 0.00</strong>
+            </div>
+            <div class="totales-row">
+                <span>Descuento:</span>
+                <strong id="descuentoTotal">L. 0.00</strong>
+            </div>
+            <div class="totales-row">
+                <span>Impuestos:</span>
+                <strong id="impuestosTotal">L. 0.00</strong>
+            </div>
+            <div class="totales-row totales-row-final">
+                <span>TOTAL:</span>
+                <strong id="totalFinal">L. 0.00</strong>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Cotizaciones/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Crear cotización
+            </button>
+        </div>
+    </div>
+</form>
+
+<input type="hidden" id="productosJson" value="@Model.ProductosJson" />
+
+@section Scripts {
+    <script>
+        (function () {
+            // === Buscador de clientes ===
+            var clientes = JSON.parse('@Html.Raw(Model.ClientesJson)');
+            var clienteSearch = document.getElementById('clienteSearch');
+            var clienteResults = document.getElementById('clienteResults');
+            var clienteIdInput = document.getElementById('clienteIdInput');
+
+            function buscarClientes(texto) {
+                if (!texto || texto.length < 2) { clienteResults.style.display = 'none'; return; }
+                var t = texto.toLowerCase();
+                var filtrados = clientes.filter(function (c) {
+                    return (c.nombre || '').toLowerCase().includes(t)
+                        || (c.rtn || '').toLowerCase().includes(t)
+                        || (c.codigo || '').toLowerCase().includes(t);
+                }).slice(0, 8);
+
+                if (filtrados.length === 0) {
+                    clienteResults.innerHTML = '<div class="cliente-result-item" style="cursor:default; color: var(--color-muted);">Sin resultados</div>';
+                    clienteResults.style.display = 'block';
+                    return;
+                }
+
+                clienteResults.innerHTML = filtrados.map(function (c) {
+                    return '<div class="cliente-result-item" data-id="' + c.id + '" data-nombre="' + c.nombre + '">' +
+                        '<div><strong>' + c.nombre + '</strong>' +
+                        (c.rtn ? '<br><small>RTN: ' + c.rtn + '</small>' : '') +
+                        (c.codigo ? '<br><small>Código: ' + c.codigo + '</small>' : '') +
+                        '</div></div>';
+                }).join('');
+                clienteResults.style.display = 'block';
+
+                clienteResults.querySelectorAll('.cliente-result-item[data-id]').forEach(function (el) {
+                    el.addEventListener('click', function () {
+                        clienteIdInput.value = this.dataset.id;
+                        clienteSearch.value = this.dataset.nombre;
+                        clienteResults.style.display = 'none';
+                    });
+                });
+            }
+
+            clienteSearch.addEventListener('input', function () { buscarClientes(this.value); });
+            clienteSearch.addEventListener('focus', function () { if (this.value.length >= 2) buscarClientes(this.value); });
+
+            document.addEventListener('click', function (e) {
+                if (!clienteResults.contains(e.target) && e.target !== clienteSearch) {
+                    clienteResults.style.display = 'none';
+                }
+            });
+
+            // === Buscador de productos ===
+            var productos = JSON.parse(document.getElementById('productosJson').value || '[]');
+            var items = [];
+            var searchInput = document.getElementById('productoSearch');
+            var resultsBox = document.getElementById('productoResults');
+            var itemsBody = document.getElementById('itemsBody');
+
+            function formatMoney(n) { return 'L. ' + (n || 0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,'); }
+
+            function mostrarResultados(texto) {
+                if (!texto || texto.length < 2) { resultsBox.style.display = 'none'; return; }
+                var filtrados = productos.filter(function (p) {
+                    return p.nombre.toLowerCase().includes(texto.toLowerCase()) || (p.sku || '').toLowerCase().includes(texto.toLowerCase());
+                }).slice(0, 8);
+
+                if (filtrados.length === 0) { resultsBox.style.display = 'none'; return; }
+
+                resultsBox.innerHTML = filtrados.map(function (p) {
+                    return '<div class="producto-result-item" data-id="' + p.id + '">' +
+                        '<div><strong>' + p.nombre + '</strong><br><small>SKU: ' + (p.sku || '—') + ' | Stock: ' + p.stock + '</small></div>' +
+                        '<span class="badge badge-info">' + formatMoney(p.precio) + '</span>' +
+                        '</div>';
+                }).join('');
+                resultsBox.style.display = 'block';
+
+                resultsBox.querySelectorAll('.producto-result-item').forEach(function (el) {
+                    el.addEventListener('click', function () {
+                        var id = parseInt(this.dataset.id);
+                        var prod = productos.find(function (p) { return p.id === id; });
+                        if (prod) agregarItem(prod);
+                        searchInput.value = '';
+                        resultsBox.style.display = 'none';
+                    });
+                });
+            }
+
+            function agregarItem(prod) {
+                var existente = items.find(function (i) { return i.productoId === prod.id; });
+                if (existente) {
+                    existente.cantidad++;
+                } else {
+                    items.push({
+                        productoId: prod.id,
+                        nombre: prod.nombre,
+                        cantidad: 1,
+                        precio: prod.precio,
+                        descuento: 0,
+                        impuesto: prod.impuesto
+                    });
+                }
+                renderItems();
+            }
+
+            function renderItems() {
+                if (items.length === 0) {
+                    itemsBody.innerHTML = '<tr class="empty-items-row"><td colspan="7" style="text-align: center; padding: 30px; color: var(--color-muted);">Agrega productos desde el buscador arriba</td></tr>';
+                    actualizarTotales();
+                    return;
+                }
+
+                itemsBody.innerHTML = items.map(function (item, idx) {
+                    var subtotal = item.cantidad * item.precio - item.descuento;
+                    var iva = subtotal * (item.impuesto / 100);
+                    var total = subtotal + iva;
+
+                    return '<tr>' +
+                        '<td><strong>' + item.nombre + '</strong></td>' +
+                        '<td><input type="number" min="1" step="1" value="' + item.cantidad + '" data-idx="' + idx + '" data-field="cantidad" class="form-input" style="padding: 6px 8px; text-align: center;" /></td>' +
+                        '<td><input type="number" min="0" step="0.01" value="' + item.precio.toFixed(2) + '" data-idx="' + idx + '" data-field="precio" class="form-input" style="padding: 6px 8px;" /></td>' +
+                        '<td><input type="number" min="0" step="0.01" value="' + item.descuento.toFixed(2) + '" data-idx="' + idx + '" data-field="descuento" class="form-input" style="padding: 6px 8px;" /></td>' +
+                        '<td style="text-align: center;">' + item.impuesto.toFixed(2) + '%</td>' +
+                        '<td><strong>' + formatMoney(total) + '</strong></td>' +
+                        '<td><button type="button" class="btn-icon-action btn-icon-action-danger" data-remove="' + idx + '">✕</button></td>' +
+                        '</tr>';
+                }).join('');
+
+                itemsBody.querySelectorAll('input[data-field]').forEach(function (input) {
+                    input.addEventListener('change', function () {
+                        var idx = parseInt(this.dataset.idx);
+                        var field = this.dataset.field;
+                        var val = parseFloat(this.value) || 0;
+                        items[idx][field] = val;
+                        renderItems();
+                    });
+                });
+
+                itemsBody.querySelectorAll('[data-remove]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        items.splice(parseInt(this.dataset.remove), 1);
+                        renderItems();
+                    });
+                });
+
+                actualizarTotales();
+                actualizarHiddenInputs();
+            }
+
+            function actualizarTotales() {
+                var subtotal = 0, descuento = 0, impuestos = 0, total = 0;
+                items.forEach(function (item) {
+                    var st = item.cantidad * item.precio - item.descuento;
+                    var iv = st * (item.impuesto / 100);
+                    subtotal += item.cantidad * item.precio;
+                    descuento += item.descuento;
+                    impuestos += iv;
+                    total += st + iv;
+                });
+                document.getElementById('subtotal').textContent = formatMoney(subtotal);
+                document.getElementById('descuentoTotal').textContent = formatMoney(descuento);
+                document.getElementById('impuestosTotal').textContent = formatMoney(impuestos);
+                document.getElementById('totalFinal').textContent = formatMoney(total);
+            }
+
+            function actualizarHiddenInputs() {
+                var container = document.getElementById('hiddenItems');
+                if (container) container.remove();
+                var div = document.createElement('div');
+                div.id = 'hiddenItems';
+                items.forEach(function (item, idx) {
+                    div.innerHTML += '<input type="hidden" name="Input.Items[' + idx + '].ProductoId" value="' + item.productoId + '" />' +
+                        '<input type="hidden" name="Input.Items[' + idx + '].Cantidad" value="' + item.cantidad + '" />' +
+                        '<input type="hidden" name="Input.Items[' + idx + '].PrecioUnitario" value="' + item.precio + '" />' +
+                        '<input type="hidden" name="Input.Items[' + idx + '].Descuento" value="' + item.descuento + '" />' +
+                        '<input type="hidden" name="Input.Items[' + idx + '].ImpuestoPorcentaje" value="' + item.impuesto + '" />';
+                });
+                document.getElementById('cotizacionForm').appendChild(div);
+            }
+
+            searchInput.addEventListener('input', function () { mostrarResultados(this.value); });
+
+            document.addEventListener('click', function (e) {
+                if (!resultsBox.contains(e.target) && e.target !== searchInput) {
+                    resultsBox.style.display = 'none';
+                }
+            });
+        })();
+    </script>
+}

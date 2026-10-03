@@ -1,0 +1,551 @@
+@using System.Security.Claims
+@using Kirkenta.Data
+@using Kirkenta.Helpers
+@using Kirkenta.Models
+@inject ApplicationDbContext DbContext
+@{
+    var currentPath = Context.Request.Path.Value ?? "/";
+    var segments = currentPath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+    var breadcrumb = new List<(string Label, string Url)>();
+    breadcrumb.Add(("Kirkenta", "/Index"));
+
+    var moduleNames = new Dictionary<string, string>
+    {
+        { "Usuarios", "Usuarios" }, { "Ventas", "Ventas" }, { "Inventario", "Inventario" },
+        { "Compras", "Compras" }, { "Finanzas", "Finanzas" }, { "Produccion", "Producción" },
+        { "RRHH", "RRHH" }, { "Reportes", "Reportes" }, { "Logistica", "Logística" },
+        { "Activos", "Activos" }, { "Seguridad", "Seguridad" }, { "Configuracion", "Configuración" },
+        { "Auth", "Autenticación" }, { "Clientes", "Clientes" }, { "Productos", "Productos" },
+        { "Categorias", "Categorías" }, { "Series", "Series" }, { "Impuestos", "Impuestos" },
+        { "MetodosPago", "Métodos de pago" }, { "UnidadesMedida", "Unidades de medida" },
+        { "Cotizaciones", "Cotizaciones" }, { "Pedidos", "Pedidos" }, { "POS", "Punto de venta" },
+        { "Facturas", "Facturas" }, { "Devoluciones", "Devoluciones" }, { "Nomenclatura", "Nomenclatura" },
+        { "Bajas", "Bajas" }, { "Proveedores", "Proveedores" }, { "OrdenesCompra", "Órdenes de compra" },
+        { "PagosProveedor", "Pagos a proveedores" },
+        // FINANZAS
+        { "Cuentas", "Cuentas financieras" }, { "Movimientos", "Movimientos" },
+        { "Vales", "Vales a empleados" }, { "CategoriasFinancieras", "Categorías financieras" },
+        { "Aperturas", "Aperturas de caja" }, { "Cierres", "Cierres de caja" }
+    };
+
+    var actionNames = new Dictionary<string, string>
+    {
+        { "Index", "Lista" }, { "Create", "Crear" }, { "Edit", "Editar" }, { "Delete", "Eliminar" },
+        { "Roles", "Roles" }, { "RolesCreate", "Nuevo rol" }, { "RolesEdit", "Editar rol" },
+        { "RolesDelete", "Eliminar rol" }, { "Perfil", "Mi perfil" },
+        { "CambiarPassword", "Cambiar contraseña" }, { "Actividad", "Actividad" },
+        { "Login", "Iniciar sesión" }, { "Register", "Registrarse" },
+        { "Details", "Detalle" }, { "RegistrarPago", "Registrar pago" },
+        { "CreateFromVenta", "Generar factura" }, { "Aprobar", "Aprobar" },
+        { "Revertir", "Revertir" }, { "Recibir", "Recibir" },
+        { "HistorialProducto", "Historial de producto" },
+        { "Anular", "Anular" }, { "Entregar", "Entregar" }
+    };
+
+    for (int i = 0; i < segments.Length; i++)
+    {
+        var seg = segments[i];
+        var url = "/" + string.Join("/", segments.Take(i + 1));
+
+        string label = seg;
+        if (moduleNames.ContainsKey(seg)) label = moduleNames[seg];
+        else if (actionNames.ContainsKey(seg)) label = actionNames[seg];
+
+        if (i == segments.Length - 1 && ViewData["Title"] != null)
+        {
+            var titleStr = ViewData["Title"]?.ToString() ?? label;
+            if (!string.IsNullOrWhiteSpace(titleStr)) label = titleStr;
+        }
+
+        breadcrumb.Add((label, url));
+    }
+
+    var currentUsername = User.Identity?.Name;
+    var currentUser = !string.IsNullOrEmpty(currentUsername)
+        ? DbContext.Usuarios.FirstOrDefault(u => u.Username == currentUsername)
+        : null;
+
+    var currentRol = currentUser?.Rol ?? "Pendiente";
+    var esPendiente = currentRol == "Pendiente";
+    var esAdmin = currentRol == "Admin";
+
+    var modulosVisibles = PermisoHelper.ModulosVisibles(DbContext, currentRol);
+
+    bool puedeVerModulo(string modulo) => modulosVisibles.Contains(modulo);
+
+    bool puedeVerSubmodulo(string modulo, string submodulo)
+    {
+        if (esAdmin) return true;
+        var subs = PermisoHelper.SubmodulosVisibles(DbContext, currentRol, modulo);
+        if (subs.Count == 0) return false;
+        return subs.Contains(submodulo);
+    }
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Kirkenta ERP</title>
+    <link rel="icon" type="image/png" href="~/favicon.png?v=@DateTime.Now.Ticks" />
+    <link rel="apple-touch-icon" href="~/favicon.png" />
+    <link rel="shortcut icon" type="image/png" href="~/favicon.png" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/theme.css?v=@DateTime.Now.Ticks" />
+</head>
+<body class="app-body">
+
+    <aside class="erp-sidebar" id="erpSidebar">
+        <div class="erp-sidebar-header">
+            <a asp-page="/Index" class="erp-sidebar-logo">
+                <img src="~/images/logo.png" alt="Kirkenta ERP" class="erp-logo-img" />
+                <span class="erp-logo-text">Kirkenta</span>
+            </a>
+        </div>
+
+        <nav class="erp-sidebar-nav">
+
+            <!-- DASHBOARD -->
+            <a asp-page="/Index" class="erp-nav-item">
+                <span class="erp-nav-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="9"/>
+                        <rect x="14" y="3" width="7" height="5"/>
+                        <rect x="14" y="12" width="7" height="9"/>
+                        <rect x="3" y="16" width="7" height="5"/>
+                    </svg>
+                </span>
+                <span class="erp-nav-text">Dashboard</span>
+            </a>
+
+            <!-- USUARIOS -->
+            @if (puedeVerModulo("Usuarios"))
+            {
+                <div class="erp-nav-group">
+                    <button type="button" class="erp-nav-item erp-nav-toggle" data-target="menu-usuarios">
+                        <span class="erp-nav-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                        </span>
+                        <span class="erp-nav-text">Usuarios</span>
+                        <span class="erp-nav-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                    </button>
+                    <div class="erp-nav-submenu" id="menu-usuarios">
+                        @if (puedeVerSubmodulo("Usuarios", "Index")) { <a asp-page="/Usuarios/Index">📋 Lista de usuarios</a> }
+                        @if (puedeVerSubmodulo("Usuarios", "Create")) { <a asp-page="/Usuarios/Create">➕ Nuevo usuario</a> }
+                        @if (puedeVerSubmodulo("Usuarios", "Roles")) { <a asp-page="/Usuarios/Roles">🔑 Roles y permisos</a> }
+                        @if (puedeVerSubmodulo("Usuarios", "Perfil")) { <a asp-page="/Usuarios/Perfil">👤 Mi perfil</a> }
+                        @if (puedeVerSubmodulo("Usuarios", "CambiarPassword")) { <a asp-page="/Usuarios/CambiarPassword">🔒 Cambiar contraseña</a> }
+                    </div>
+                </div>
+            }
+            else if (!esPendiente)
+            {
+                <a asp-page="/Usuarios/Perfil" class="erp-nav-item">
+                    <span class="erp-nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </span>
+                    <span class="erp-nav-text">Mi perfil</span>
+                </a>
+            }
+
+            <!-- VENTAS -->
+            @if (puedeVerModulo("Ventas"))
+            {
+                <div class="erp-nav-group">
+                    <button type="button" class="erp-nav-item erp-nav-toggle" data-target="menu-ventas">
+                        <span class="erp-nav-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="9" cy="21" r="1"/>
+                                <circle cx="20" cy="21" r="1"/>
+                                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                            </svg>
+                        </span>
+                        <span class="erp-nav-text">Ventas</span>
+                        <span class="erp-nav-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                    </button>
+                    <div class="erp-nav-submenu" id="menu-ventas">
+                        @if (esAdmin || puedeVerSubmodulo("Ventas", "Create")) { <a asp-page="/POS/Index">🛒 Punto de venta</a> }
+                        @if (puedeVerSubmodulo("Ventas", "Index")) { <a asp-page="/Ventas/Index">💰 Ventas</a> }
+                        @if (puedeVerSubmodulo("Ventas", "Cotizaciones")) { <a asp-page="/Cotizaciones/Index">📝 Cotizaciones</a> }
+                        @if (puedeVerSubmodulo("Ventas", "Pedidos")) { <a asp-page="/Pedidos/Index">📦 Pedidos</a> }
+                        @if (puedeVerSubmodulo("Ventas", "Facturas")) { <a asp-page="/Facturas/Index">🧾 Facturas</a> }
+                        @if (puedeVerSubmodulo("Ventas", "Clientes")) { <a asp-page="/Clientes/Index">👥 Clientes</a> }
+                        <a asp-page="/Devoluciones/Index">↩️ Devoluciones</a>
+                    </div>
+                </div>
+            }
+
+            <!-- INVENTARIO -->
+            @if (puedeVerModulo("Inventario"))
+            {
+                <div class="erp-nav-group">
+                    <button type="button" class="erp-nav-item erp-nav-toggle" data-target="menu-inventario">
+                        <span class="erp-nav-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                                <line x1="12" y1="22.08" x2="12" y2="12"/>
+                            </svg>
+                        </span>
+                        <span class="erp-nav-text">Inventario</span>
+                        <span class="erp-nav-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                    </button>
+                    <div class="erp-nav-submenu" id="menu-inventario">
+                        <a asp-page="/Productos/Index">📦 Productos</a>
+                        <a asp-page="/Categorias/Index">🏷️ Categorías</a>
+                        <a asp-page="/UnidadesMedida/Index">📏 Unidades de medida</a>
+                        <a asp-page="/Bajas/Index">🗑️ Bajas de inventario</a>
+                    </div>
+                </div>
+            }
+
+            <!-- COMPRAS -->
+            @if (puedeVerModulo("Compras"))
+            {
+                <div class="erp-nav-group">
+                    <button type="button" class="erp-nav-item erp-nav-toggle" data-target="menu-compras">
+                        <span class="erp-nav-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="9" cy="21" r="1"/>
+                                <circle cx="20" cy="21" r="1"/>
+                                <path d="M1 1h15v13H1z"/>
+                                <path d="M16 8h4l3 3v3h-7z"/>
+                            </svg>
+                        </span>
+                        <span class="erp-nav-text">Compras</span>
+                        <span class="erp-nav-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                    </button>
+                    <div class="erp-nav-submenu" id="menu-compras">
+                        <a asp-page="/Compras/Index">📊 Dashboard</a>
+                        <a asp-page="/Proveedores/Index">🏢 Proveedores</a>
+                        <a asp-page="/OrdenesCompra/Index">📦 Órdenes de compra</a>
+                        <a asp-page="/PagosProveedor/Index">💳 Pagos a proveedores</a>
+                        <a asp-page="/PagosProveedor/Index" asp-route-tab="porpagar">💰 Cuentas por pagar</a>
+                        <a asp-page="/Reportes/Compras">📈 Reportes de compras</a>
+                    </div>
+                </div>
+            }
+
+            <!-- FINANZAS -->
+            @if (puedeVerModulo("Finanzas"))
+            {
+                <div class="erp-nav-group">
+                    <button type="button" class="erp-nav-item erp-nav-toggle" data-target="menu-finanzas">
+                        <span class="erp-nav-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="1" x2="12" y2="23"/>
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                        </span>
+                        <span class="erp-nav-text">Finanzas</span>
+                        <span class="erp-nav-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                    </button>
+                    <div class="erp-nav-submenu" id="menu-finanzas">
+                        @if (puedeVerSubmodulo("Finanzas", "Index")) { <a asp-page="/Finanzas/Index">📊 Dashboard</a> }
+                        @if (puedeVerSubmodulo("Finanzas", "Cuentas")) { <a asp-page="/Finanzas/Cuentas/Index">💳 Cuentas financieras</a> }
+                        @if (puedeVerSubmodulo("Finanzas", "Categorias")) { <a asp-page="/Finanzas/Categorias/Index">🏷️ Categorías</a> }
+                        @if (puedeVerSubmodulo("Finanzas", "Movimientos")) { <a asp-page="/Finanzas/Movimientos/Index">💵 Movimientos</a> }
+                        @if (puedeVerSubmodulo("Finanzas", "Aperturas")) { <a asp-page="/Finanzas/Aperturas/Index">🔓 Aperturas de caja</a> }
+                        @if (puedeVerSubmodulo("Finanzas", "Cierres")) { <a asp-page="/Finanzas/Cierres/Index">🔒 Cierres de caja</a> }
+                        @if (puedeVerSubmodulo("Finanzas", "Reportes")) { <a asp-page="/Finanzas/Reportes/Index">📈 Reportes</a> }
+                    </div>
+                </div>
+            }
+
+            <!-- PRODUCCIÓN -->
+            @if (puedeVerModulo("Produccion"))
+            {
+                <div class="erp-nav-group">
+                    <button type="button" class="erp-nav-item erp-nav-toggle" data-target="menu-produccion">
+                        <span class="erp-nav-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2 20h20"/>
+                                <path d="M4 20V10l5 3V10l5 3V6l5 3v11"/>
+                            </svg>
+                        </span>
+                        <span class="erp-nav-text">Producción</span>
+                        <span class="erp-nav-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                    </button>
+                    <div class="erp-nav-submenu" id="menu-produccion">
+                        @if (puedeVerSubmodulo("Produccion", "Index")) { <a asp-page="/Produccion/Index">🏭 Órdenes de producción</a> }
+                        @if (puedeVerSubmodulo("Produccion", "Calidad")) { <a asp-page="/Produccion/Calidad">✅ Calidad</a> }
+                    </div>
+                </div>
+            }
+
+            <!-- RRHH -->
+            @if (puedeVerModulo("RRHH"))
+            {
+                <div class="erp-nav-group">
+                    <button type="button" class="erp-nav-item erp-nav-toggle" data-target="menu-rrhh">
+                        <span class="erp-nav-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </span>
+                        <span class="erp-nav-text">RRHH</span>
+                        <span class="erp-nav-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                    </button>
+                    <div class="erp-nav-submenu" id="menu-rrhh">
+                        @if (puedeVerSubmodulo("RRHH", "Index")) { <a asp-page="/RRHH/Index">👥 Empleados</a> }
+                        @if (puedeVerSubmodulo("RRHH", "Nomina")) { <a asp-page="/RRHH/Nomina">💵 Nómina</a> }
+                    </div>
+                </div>
+            }
+
+            <!-- REPORTES -->
+            @if (puedeVerModulo("Reportes"))
+            {
+                <div class="erp-nav-group">
+                    <button type="button" class="erp-nav-item erp-nav-toggle" data-target="menu-reportes">
+                        <span class="erp-nav-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="20" x2="18" y2="10"/>
+                                <line x1="12" y1="20" x2="12" y2="4"/>
+                                <line x1="6" y1="20" x2="6" y2="14"/>
+                            </svg>
+                        </span>
+                        <span class="erp-nav-text">Reportes</span>
+                        <span class="erp-nav-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                    </button>
+                    <div class="erp-nav-submenu" id="menu-reportes">
+                        <a asp-page="/Reportes/Ventas">📈 Reportes de ventas</a>
+                        <a asp-page="/Reportes/Compras">🚚 Reportes de compras</a>
+                    </div>
+                </div>
+            }
+
+            <!-- LOGÍSTICA -->
+            @if (puedeVerModulo("Logistica"))
+            {
+                <div class="erp-nav-group">
+                    <button type="button" class="erp-nav-item erp-nav-toggle" data-target="menu-logistica">
+                        <span class="erp-nav-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="1" y="3" width="15" height="13"/>
+                                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+                                <circle cx="5.5" cy="18.5" r="2.5"/>
+                                <circle cx="18.5" cy="18.5" r="2.5"/>
+                            </svg>
+                        </span>
+                        <span class="erp-nav-text">Logística</span>
+                        <span class="erp-nav-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                    </button>
+                    <div class="erp-nav-submenu" id="menu-logistica">
+                        @if (puedeVerSubmodulo("Logistica", "Index")) { <a asp-page="/Logistica/Index">🗺️ Rutas</a> }
+                        @if (puedeVerSubmodulo("Logistica", "Envios")) { <a asp-page="/Logistica/Envios">🚚 Envíos</a> }
+                    </div>
+                </div>
+            }
+
+            <!-- ACTIVOS -->
+            @if (puedeVerModulo("Activos"))
+            {
+                <div class="erp-nav-group">
+                    <button type="button" class="erp-nav-item erp-nav-toggle" data-target="menu-activos">
+                        <span class="erp-nav-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="4" y="2" width="16" height="20" rx="2"/>
+                                <path d="M9 6h6M9 10h6M9 14h4"/>
+                            </svg>
+                        </span>
+                        <span class="erp-nav-text">Activos</span>
+                        <span class="erp-nav-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                    </button>
+                    <div class="erp-nav-submenu" id="menu-activos">
+                        @if (puedeVerSubmodulo("Activos", "Index")) { <a asp-page="/Activos/Index">🏛️ Inventario</a> }
+                        @if (puedeVerSubmodulo("Activos", "Mantenimiento")) { <a asp-page="/Activos/Mantenimiento">🔧 Mantenimiento</a> }
+                    </div>
+                </div>
+            }
+
+            <!-- SEGURIDAD -->
+            @if (puedeVerModulo("Seguridad"))
+            {
+                <div class="erp-nav-group">
+                    <button type="button" class="erp-nav-item erp-nav-toggle" data-target="menu-seguridad">
+                        <span class="erp-nav-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            </svg>
+                        </span>
+                        <span class="erp-nav-text">Seguridad</span>
+                        <span class="erp-nav-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                    </button>
+                    <div class="erp-nav-submenu" id="menu-seguridad">
+                        @if (puedeVerSubmodulo("Seguridad", "Index")) { <a asp-page="/Seguridad/Index">🛡️ Usuarios y roles</a> }
+                        @if (puedeVerSubmodulo("Seguridad", "Auditoria")) { <a asp-page="/Seguridad/Auditoria">📋 Auditoría</a> }
+                    </div>
+                </div>
+            }
+
+            <!-- CONFIGURACIÓN -->
+            @if (esAdmin)
+            {
+                <div class="erp-nav-group">
+                    <button type="button" class="erp-nav-item erp-nav-toggle" data-target="menu-config">
+                        <span class="erp-nav-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="3"/>
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                            </svg>
+                        </span>
+                        <span class="erp-nav-text">Configuración</span>
+                        <span class="erp-nav-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                    </button>
+                    <div class="erp-nav-submenu" id="menu-config">
+                        <a asp-page="/Configuracion/Index">🏢 Datos de la empresa</a>
+                        <a asp-page="/Nomenclatura/Index">🔢 Nomenclatura</a>
+                        <a asp-page="/MetodosPago/Index">💳 Métodos de pago</a>
+                    </div>
+                </div>
+            }
+
+        </nav>
+
+        <div class="erp-sidebar-footer">
+            <div class="erp-user">
+                <div class="erp-user-avatar">
+                    @(User.Identity?.Name != null && User.Identity.Name.Length > 0
+                        ? User.Identity.Name.Substring(0, 1).ToUpper()
+                        : "?")
+                </div>
+                <div class="erp-user-meta">
+                    <span class="erp-user-name">@User.Identity?.Name</span>
+                    <span class="erp-user-role">@currentRol</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="erp-main-wrapper">
+        <header class="erp-topbar">
+            <nav class="erp-breadcrumb" aria-label="Breadcrumb">
+                @for (int i = 0; i < breadcrumb.Count; i++)
+                {
+                    var item = breadcrumb[i];
+                    var isLast = i == breadcrumb.Count - 1;
+
+                    if (isLast)
+                    {
+                        <span class="erp-breadcrumb-current">@item.Label</span>
+                    }
+                    else
+                    {
+                        <a href="@item.Url" class="erp-breadcrumb-link">@item.Label</a>
+                        <svg class="erp-breadcrumb-sep" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    }
+                }
+            </nav>
+
+            <div class="erp-topbar-right">
+                <form method="post" asp-page="/Auth/Logout" class="erp-logout-form">
+                    <button type="submit" class="erp-logout-btn">Salir</button>
+                </form>
+            </div>
+        </header>
+
+        <main role="main" class="erp-main">
+
+            @if (esPendiente)
+            {
+                <div class="pending-banner">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <div>
+                        <strong>Tu cuenta está pendiente de aprobación</strong>
+                        <p>Un administrador debe asignarte un rol para que puedas acceder a los módulos del sistema.</p>
+                    </div>
+                </div>
+            }
+
+            @if (TempData["Error"] != null)
+            {
+                <div class="module-alert module-alert-error">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    @TempData["Error"]
+                </div>
+            }
+
+            @RenderBody()
+        </main>
+
+        <footer class="erp-footer">
+            <p>&copy; 2026 Kirkenta ERP — Todos los derechos reservados</p>
+        </footer>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <script>
+        (function () {
+            var toggles = document.querySelectorAll('.erp-nav-toggle');
+            toggles.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var targetId = btn.getAttribute('data-target');
+                    var submenu = document.getElementById(targetId);
+                    if (!submenu) return;
+
+                    document.querySelectorAll('.erp-nav-toggle.is-expanded').forEach(function (other) {
+                        if (other !== btn) {
+                            other.classList.remove('is-expanded');
+                            var otherId = other.getAttribute('data-target');
+                            var otherSub = document.getElementById(otherId);
+                            if (otherSub) otherSub.classList.remove('is-open');
+                        }
+                    });
+
+                    btn.classList.toggle('is-expanded');
+                    submenu.classList.toggle('is-open');
+                });
+            });
+        })();
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

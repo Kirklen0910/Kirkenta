@@ -1,0 +1,488 @@
+@page
+@model Kirkenta.Pages.Finanzas.Reportes.IndexModel
+@{
+    ViewData["Title"] = "Reportes de Finanzas";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Reportes financieros</h2>
+        <p>Análisis de flujo de caja, estado de resultados y movimientos</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Finanzas/Index" class="btn-secondary">Volver a Finanzas</a>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+    <form method="get" class="reportes-filtros">
+        <input type="hidden" name="tab" value="@Model.TabActiva" />
+        <div class="filtros-row">
+            <div class="form-field" style="margin: 0;">
+                <label>Desde</label>
+                <input type="date" name="desde" class="form-input" value="@Model.Desde.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>Hasta</label>
+                <input type="date" name="hasta" class="form-input" value="@Model.Hasta.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>Cuenta</label>
+                <select name="cuentaId" class="form-input">
+                    <option value="">Todas las cuentas</option>
+                    @foreach (var c in Model.Cuentas)
+                    {
+                        if (Model.FiltroCuentaId == c.Id)
+                        {
+                            <option value="@c.Id" selected>@c.Nombre</option>
+                        }
+                        else
+                        {
+                            <option value="@c.Id">@c.Nombre</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>Categoría</label>
+                <select name="categoriaId" class="form-input">
+                    <option value="">Todas las categorías</option>
+                    <optgroup label="Ingresos">
+                        @foreach (var c in Model.Categorias.Where(x => x.Tipo == "Ingreso"))
+                        {
+                            if (Model.FiltroCategoriaId == c.Id)
+                            {
+                                <option value="@c.Id" selected>@c.Nombre</option>
+                            }
+                            else
+                            {
+                                <option value="@c.Id">@c.Nombre</option>
+                            }
+                        }
+                    </optgroup>
+                    <optgroup label="Egresos">
+                        @foreach (var c in Model.Categorias.Where(x => x.Tipo == "Egreso"))
+                        {
+                            if (Model.FiltroCategoriaId == c.Id)
+                            {
+                                <option value="@c.Id" selected>@c.Nombre</option>
+                            }
+                            else
+                            {
+                                <option value="@c.Id">@c.Nombre</option>
+                            }
+                        }
+                    </optgroup>
+                </select>
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn-primary">Aplicar</button>
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>&nbsp;</label>
+                <a asp-page="/Finanzas/Reportes/Index" class="btn-secondary">Limpiar</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- KPIs generales -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total ingresos</span>
+        <span class="kpi-value" style="color: var(--color-success);">+ L. @Model.TotalIngresos.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Total egresos</span>
+        <span class="kpi-value" style="color: var(--color-danger);">- L. @Model.TotalEgresos.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Balance del período</span>
+        <span class="kpi-value" style="color: @(Model.Balance >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+            L. @Model.Balance.ToString("N2")
+        </span>
+        <span class="kpi-trend @(Model.Balance >= 0 ? "up" : "down")">
+            @(Model.Balance >= 0 ? "↑ Superávit" : "↓ Déficit")
+        </span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Movimientos</span>
+        <span class="kpi-value">@Model.CantidadMovimientos</span>
+        <span class="kpi-trend">En el período</span>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="nomenclatura-tabs" style="margin-bottom: 20px;">
+    <a href="?tab=flujo&desde=@Model.Desde.ToString("yyyy-MM-dd")&hasta=@Model.Hasta.ToString("yyyy-MM-dd")&cuentaId=@Model.FiltroCuentaId&categoriaId=@Model.FiltroCategoriaId"
+       class="nomenclatura-tab @(Model.TabActiva == "flujo" ? "is-active" : "")">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+        Flujo de caja
+    </a>
+    <a href="?tab=resultados&desde=@Model.Desde.ToString("yyyy-MM-dd")&hasta=@Model.Hasta.ToString("yyyy-MM-dd")&cuentaId=@Model.FiltroCuentaId&categoriaId=@Model.FiltroCategoriaId"
+       class="nomenclatura-tab @(Model.TabActiva == "resultados" ? "is-active" : "")">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23"/>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+        Estado de resultados
+    </a>
+    <a href="?tab=cuenta&desde=@Model.Desde.ToString("yyyy-MM-dd")&hasta=@Model.Hasta.ToString("yyyy-MM-dd")&cuentaId=@Model.FiltroCuentaId&categoriaId=@Model.FiltroCategoriaId"
+       class="nomenclatura-tab @(Model.TabActiva == "cuenta" ? "is-active" : "")">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2"/>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+        </svg>
+        Estado de cuenta
+    </a>
+</div>
+
+<!-- ============================================ -->
+<!-- TAB 1: FLUJO DE CAJA                          -->
+<!-- ============================================ -->
+@if (Model.TabActiva == "flujo")
+{
+    <div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">Flujo de caja mensual</h3>
+        <div style="height: 350px;">
+            <canvas id="chartFlujo"></canvas>
+        </div>
+    </div>
+
+    <div class="module-card">
+        <div style="padding: 20px; border-bottom: 1px solid var(--color-border);">
+            <h3 class="panel-title">Detalle mensual</h3>
+        </div>
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Mes</th>
+                        <th style="text-align: right;">Ingresos</th>
+                        <th style="text-align: right;">Egresos</th>
+                        <th style="text-align: right;">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var f in Model.FlujoCaja)
+                    {
+                        <tr>
+                            <td><strong>@f.Mes</strong></td>
+                            <td style="text-align: right; color: var(--color-success);">+ L. @f.Ingresos.ToString("N2")</td>
+                            <td style="text-align: right; color: var(--color-danger);">- L. @f.Egresos.ToString("N2")</td>
+                            <td style="text-align: right;">
+                                <strong style="color: @(f.Balance >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+                                    L. @f.Balance.ToString("N2")
+                                </strong>
+                            </td>
+                        </tr>
+                    }
+                    <tr style="background: #f9fafb; font-weight: 700;">
+                        <td>TOTAL</td>
+                        <td style="text-align: right; color: var(--color-success);">+ L. @Model.TotalIngresos.ToString("N2")</td>
+                        <td style="text-align: right; color: var(--color-danger);">- L. @Model.TotalEgresos.ToString("N2")</td>
+                        <td style="text-align: right; color: @(Model.Balance >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+                            L. @Model.Balance.ToString("N2")
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<!-- ============================================ -->
+<!-- TAB 2: ESTADO DE RESULTADOS                   -->
+<!-- ============================================ -->
+@if (Model.TabActiva == "resultados")
+{
+    <div class="panel-grid" style="margin-bottom: 20px;">
+        <div class="module-card" style="padding: 20px;">
+            <h3 class="panel-title" style="margin-bottom: 16px; color: var(--color-success);">💰 Ingresos por categoría</h3>
+            @if (Model.IngresosPorCategoria.Count == 0)
+            {
+                <p style="color: var(--color-muted); text-align: center; padding: 30px;">Sin ingresos en el período</p>
+            }
+            else
+            {
+                <div class="table-wrapper">
+                    <table class="erp-table">
+                        <thead>
+                            <tr>
+                                <th>Categoría</th>
+                                <th style="text-align: right;">Movs.</th>
+                                <th style="text-align: right;">Total</th>
+                                <th style="text-align: right;">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in Model.IngresosPorCategoria)
+                            {
+                                <tr>
+                                    <td>
+                                        <span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:@c.Color; margin-right:6px;"></span>
+                                        @c.Nombre
+                                    </td>
+                                    <td style="text-align: right;">@c.Cantidad</td>
+                                    <td style="text-align: right;"><strong>L. @c.Total.ToString("N2")</strong></td>
+                                    <td style="text-align: right;">@c.Porcentaje%</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <div class="module-card" style="padding: 20px;">
+            <h3 class="panel-title" style="margin-bottom: 16px; color: var(--color-danger);">💸 Egresos por categoría</h3>
+            @if (Model.EgresosPorCategoria.Count == 0)
+            {
+                <p style="color: var(--color-muted); text-align: center; padding: 30px;">Sin egresos en el período</p>
+            }
+            else
+            {
+                <div class="table-wrapper">
+                    <table class="erp-table">
+                        <thead>
+                            <tr>
+                                <th>Categoría</th>
+                                <th style="text-align: right;">Movs.</th>
+                                <th style="text-align: right;">Total</th>
+                                <th style="text-align: right;">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in Model.EgresosPorCategoria)
+                            {
+                                <tr>
+                                    <td>
+                                        <span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:@c.Color; margin-right:6px;"></span>
+                                        @c.Nombre
+                                    </td>
+                                    <td style="text-align: right;">@c.Cantidad</td>
+                                    <td style="text-align: right;"><strong>L. @c.Total.ToString("N2")</strong></td>
+                                    <td style="text-align: right;">@c.Porcentaje%</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Resumen de resultados -->
+    <div class="module-card" style="padding: 28px;">
+        <h3 class="panel-title" style="margin-bottom: 20px;">📊 Resumen del período</h3>
+        <div style="max-width: 500px; margin: 0 auto;">
+            <div class="totales-row">
+                <span>Total ingresos:</span>
+                <strong style="color: var(--color-success);">L. @Model.TotalIngresos.ToString("N2")</strong>
+            </div>
+            <div class="totales-row">
+                <span>Total egresos:</span>
+                <strong style="color: var(--color-danger);">L. @Model.TotalEgresos.ToString("N2")</strong>
+            </div>
+            <div class="totales-row totales-row-final">
+                <span>@(Model.Balance >= 0 ? "UTILIDAD" : "PÉRDIDA"):</span>
+                <strong style="color: @(Model.Balance >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+                    L. @Math.Abs(Model.Balance).ToString("N2")
+                </strong>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ============================================ -->
+<!-- TAB 3: ESTADO DE CUENTA                       -->
+<!-- ============================================ -->
+@if (Model.TabActiva == "cuenta")
+{
+    @if (!Model.FiltroCuentaId.HasValue)
+    {
+        <div class="module-alert" style="background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <div>
+                <strong>Selecciona una cuenta</strong>
+                <p style="margin: 4px 0 0 0; font-size: 12.5px;">Elige una cuenta en el filtro de arriba para ver su estado de cuenta detallado.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="kpi-grid" style="margin-bottom: 20px;">
+            <div class="kpi-card">
+                <span class="kpi-label">Saldo inicial del período</span>
+                <span class="kpi-value">L. @Model.SaldoInicialCuenta.ToString("N2")</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Saldo final del período</span>
+                <span class="kpi-value" style="color: var(--color-primary);">L. @Model.SaldoFinalCuenta.ToString("N2")</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Movimientos en el período</span>
+                <span class="kpi-value">@Model.Movimientos.Count</span>
+            </div>
+        </div>
+
+        <div class="module-card">
+            <div style="padding: 20px; border-bottom: 1px solid var(--color-border);">
+                <h3 class="panel-title">Estado de cuenta detallado</h3>
+                <p class="panel-muted">Movimientos en orden cronológico con saldo acumulado</p>
+            </div>
+
+            @if (Model.Movimientos.Count == 0)
+            {
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="7" width="20" height="14" rx="2"/>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                    </svg>
+                    <h3>Sin movimientos</h3>
+                    <p>No hay movimientos en el período seleccionado</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-wrapper">
+                    <table class="erp-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Número</th>
+                                <th>Tipo</th>
+                                <th>Concepto</th>
+                                <th>Categoría</th>
+                                <th style="text-align: right;">Monto</th>
+                                <th style="text-align: right;">Saldo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="background: #f3f4f6; font-weight: 700;">
+                                <td colspan="6">SALDO INICIAL</td>
+                                <td style="text-align: right;">L. @Model.SaldoInicialCuenta.ToString("N2")</td>
+                            </tr>
+                            @foreach (var m in Model.Movimientos)
+                            {
+                                <tr>
+                                    <td>@m.Fecha.ToString("dd/MM/yyyy")</td>
+                                    <td><span style="font-family: monospace;">@m.Numero</span></td>
+                                    <td>
+                                        @if (m.Tipo == "Ingreso")
+                                        {
+                                            <span class="badge badge-success">Ingreso</span>
+                                        }
+                                        else if (m.Tipo == "Egreso")
+                                        {
+                                            <span class="badge badge-danger">Egreso</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-info">Transf.</span>
+                                        }
+                                    </td>
+                                    <td>@m.Concepto</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(m.CategoriaNombre))
+                                        {
+                                            <span class="badge" style="background: @(m.CategoriaColor)20; color: @m.CategoriaColor;">@m.CategoriaNombre</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="table-user-sub">—</span>
+                                        }
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <strong style="color: @(m.MontoFirmado >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+                                            @(m.MontoFirmado >= 0 ? "+" : "") L. @m.MontoFirmado.ToString("N2")
+                                        </strong>
+                                    </td>
+                                    <td style="text-align: right;"><strong>L. @m.SaldoAcumulado.ToString("N2")</strong></td>
+                                </tr>
+                            }
+                            <tr style="background: #f3f4f6; font-weight: 700;">
+                                <td colspan="6">SALDO FINAL</td>
+                                <td style="text-align: right;">L. @Model.SaldoFinalCuenta.ToString("N2")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            @if (Model.TabActiva == "flujo")
+            {
+                <text>
+                var flujo = JSON.parse('@Html.Raw(Model.FlujoCajaJson)');
+                var ctx = document.getElementById('chartFlujo');
+                if (ctx && flujo.labels && flujo.labels.length > 0) {
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: flujo.labels,
+                            datasets: [
+                                {
+                                    label: 'Ingresos',
+                                    data: flujo.ingresos,
+                                    backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                                    borderRadius: 6
+                                },
+                                {
+                                    label: 'Egresos',
+                                    data: flujo.egresos,
+                                    backgroundColor: 'rgba(239, 68, 68, 0.85)',
+                                    borderRadius: 6
+                                },
+                                {
+                                    label: 'Balance',
+                                    data: flujo.balance,
+                                    type: 'line',
+                                    borderColor: '#4f46e5',
+                                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                                    borderWidth: 2,
+                                    tension: 0.3,
+                                    pointBackgroundColor: '#4f46e5',
+                                    pointRadius: 4,
+                                    fill: false
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        callback: function (v) { return 'L. ' + v.toLocaleString(); }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+                </text>
+            }
+        })();
+    </script>
+}

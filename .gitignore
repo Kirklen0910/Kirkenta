@@ -1,0 +1,48 @@
+﻿# ===== BUILD =====
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.dll
+*.pdb
+*.user
+*.suo
+
+# ===== IDE =====
+.vs/
+.vscode/
+.idea/
+
+# ===== NUGET =====
+*.nupkg
+packages/
+
+# ===== LOGS =====
+*.log
+
+# ===== CONFIG SENSIBLE =====
+appsettings.Development.json
+appsettings.Production.json
+
+# ===== SISTEMA =====
+.DS_Store
+Thumbs.db
+
+# ===== UPLOADS DE USUARIOS =====
+wwwroot/uploads/
+
+# ===== ACCESOS DIRECTOS =====
+*.lnk
+
+# ===== CARPETAS DEL PROYECTO PHP VIEJO =====
+app/
+config/
+public/
+storage/
+vendor/
+includes/
+modules/
+backups/
+logs/
+assets/
+uploads/

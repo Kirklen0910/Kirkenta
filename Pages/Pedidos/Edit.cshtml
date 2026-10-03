@@ -1,0 +1,55 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Pedidos.EditModel
+@{
+    ViewData["Title"] = "Cambiar estado del pedido";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Pedidos/Details" asp-route-id="@Model.Input.Id" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver al pedido
+        </a>
+        <h2>Estado del pedido @Model.Numero</h2>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        <input type="hidden" asp-for="Input.Id" />
+
+        <div class="form-field">
+            <label>Estado *</label>
+            <select asp-for="Input.Estado" class="form-input" required>
+                <option value="Pendiente">Pendiente</option>
+                <option value="En preparacion">En preparación</option>
+                <option value="Enviado">Enviado</option>
+                <option value="Entregado">Entregado</option>
+                <option value="Cancelado">Cancelado</option>
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label>Fecha de entrega</label>
+            <input asp-for="Input.FechaEntrega" type="date" class="form-input" />
+        </div>
+
+        <div class="form-field">
+            <label>Notas</label>
+            <textarea asp-for="Input.Notas" class="form-input" rows="2"></textarea>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Pedidos/Details" asp-route-id="@Model.Input.Id" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Guardar cambios
+            </button>
+        </div>
+    </form>
+</div>
