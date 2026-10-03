@@ -1,0 +1,133 @@
+@page
+@model Kirkenta.Pages.Configuracion.IndexModel
+@{
+    ViewData["Title"] = "Configuración de empresa";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Configuración de empresa</h2>
+        <p>Datos que aparecerán en tus cotizaciones, facturas y documentos</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Configuracion/Edit" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Editar
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+<div class="empresa-layout">
+    <div class="module-card empresa-logo-card">
+        <h3 class="form-section-title">Logo de la empresa</h3>
+        <p class="form-section-desc">Se muestra en facturas, cotizaciones y pedidos</p>
+        <div class="empresa-logo-preview">
+            @if (!string.IsNullOrEmpty(Model.Empresa.LogoPath))
+            {
+                <img src="@Model.Empresa.LogoPath" alt="Logo empresa" />
+            }
+            else
+            {
+                <div class="empresa-logo-placeholder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    <span>Sin logo</span>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="module-card empresa-info-card">
+        <h3 class="form-section-title">Información de la empresa</h3>
+
+        <div class="empresa-info-grid">
+            <div class="empresa-info-item">
+                <span class="empresa-info-label">Nombre</span>
+                <span class="empresa-info-value">@Model.Empresa.Nombre</span>
+            </div>
+            <div class="empresa-info-item">
+                <span class="empresa-info-label">Razón social</span>
+                <span class="empresa-info-value">@(Model.Empresa.RazonSocial ?? "—")</span>
+            </div>
+            <div class="empresa-info-item">
+                <span class="empresa-info-label">RTN</span>
+                <span class="empresa-info-value">@(Model.Empresa.RTN ?? "—")</span>
+            </div>
+            <div class="empresa-info-item">
+                <span class="empresa-info-label">Teléfono</span>
+                <span class="empresa-info-value">@(Model.Empresa.Telefono ?? "—")</span>
+            </div>
+            <div class="empresa-info-item">
+                <span class="empresa-info-label">Email</span>
+                <span class="empresa-info-value">@(Model.Empresa.Email ?? "—")</span>
+            </div>
+            <div class="empresa-info-item">
+                <span class="empresa-info-label">Sitio web</span>
+                <span class="empresa-info-value">@(Model.Empresa.SitioWeb ?? "—")</span>
+            </div>
+            <div class="empresa-info-item empresa-info-full">
+                <span class="empresa-info-label">Dirección</span>
+                <span class="empresa-info-value">@(Model.Empresa.Direccion ?? "—")</span>
+            </div>
+            <div class="empresa-info-item">
+                <span class="empresa-info-label">Ciudad</span>
+                <span class="empresa-info-value">@(Model.Empresa.Ciudad ?? "—")</span>
+            </div>
+            <div class="empresa-info-item">
+                <span class="empresa-info-label">País</span>
+                <span class="empresa-info-value">@(Model.Empresa.Pais ?? "—")</span>
+            </div>
+        </div>
+
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Datos fiscales (para facturas)</h3>
+
+        <div class="empresa-info-grid">
+            <div class="empresa-info-item">
+                <span class="empresa-info-label">CAI</span>
+                <span class="empresa-info-value">@(Model.Empresa.CAI ?? "—")</span>
+            </div>
+            <div class="empresa-info-item">
+                <span class="empresa-info-label">Rango autorizado</span>
+                <span class="empresa-info-value">
+                    @if (!string.IsNullOrEmpty(Model.Empresa.RangoInicial))
+                    {
+                        <span>@Model.Empresa.RangoInicial — @Model.Empresa.RangoFinal</span>
+                    }
+                    else
+                    {
+                        <span>—</span>
+                    }
+                </span>
+            </div>
+            <div class="empresa-info-item">
+                <span class="empresa-info-label">Fecha límite emisión</span>
+                <span class="empresa-info-value">@(Model.Empresa.FechaLimiteEmision?.ToString("dd/MM/yyyy") ?? "—")</span>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.Empresa.NotasFactura))
+        {
+            <div class="form-divider"></div>
+            <h3 class="form-section-title">Notas al pie de factura</h3>
+            <p class="empresa-notas">@Model.Empresa.NotasFactura</p>
+        }
+    </div>
+</div>

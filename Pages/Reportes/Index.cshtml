@@ -1,0 +1,30 @@
+@page
+@model Kirkenta.Pages.Reportes.IndexModel
+@{
+    ViewData["Title"] = "Reportes";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Reportes</h2>
+        <p>Centro de reportes y análisis del sistema</p>
+    </div>
+</div>
+
+<div class="quick-grid">
+    <a asp-page="/Reportes/Ventas" class="quick-action" style="padding: 32px 20px;">
+        <span class="quick-icon" style="font-size: 32px;">📈</span>
+        <span class="quick-label" style="font-size: 15px;">Reportes de ventas</span>
+        <span class="quick-label" style="font-size: 12px; color: var(--color-muted); font-weight: 400; margin-top: 4px;">
+            Análisis de ventas por período, producto y cliente
+        </span>
+    </a>
+
+    <a asp-page="/Reportes/Compras" class="quick-action" style="padding: 32px 20px;">
+        <span class="quick-icon" style="font-size: 32px;">🚚</span>
+        <span class="quick-label" style="font-size: 15px;">Reportes de compras</span>
+        <span class="quick-label" style="font-size: 12px; color: var(--color-muted); font-weight: 400; margin-top: 4px;">
+            Compras por proveedor, producto y fecha
+        </span>
+    </a>
+</div>

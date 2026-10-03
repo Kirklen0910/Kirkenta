@@ -1,0 +1,67 @@
+@page
+@model Kirkenta.Pages.UnidadesMedida.CreateModel
+@{
+    ViewData["Title"] = "Nueva unidad de medida";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/UnidadesMedida/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a unidades
+        </a>
+        <h2>Nueva unidad de medida</h2>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span asp-validation-summary="ModelOnly"></span>
+            </div>
+        }
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Nombre">Nombre *</label>
+                <input asp-for="Input.Nombre" class="form-input" placeholder="Ej: Botella" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Abreviatura">Abreviatura *</label>
+                <input asp-for="Input.Abreviatura" class="form-input" placeholder="Ej: Bot" maxlength="10" required />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Descripcion">Descripción</label>
+            <textarea asp-for="Input.Descripcion" class="form-input" rows="2" placeholder="Detalles de la unidad..."></textarea>
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.Activa" type="checkbox" checked />
+                <span>Unidad activa</span>
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/UnidadesMedida/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Crear unidad
+            </button>
+        </div>
+    </form>
+</div>

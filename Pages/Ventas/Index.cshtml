@@ -1,0 +1,158 @@
+@page
+@model Kirkenta.Pages.Ventas.IndexModel
+@{
+    ViewData["Title"] = "Ventas";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Ventas</h2>
+        <p>Historial de todas las ventas registradas</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/POS/Index" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <circle cx="9" cy="21" r="1"/>
+                <circle cx="20" cy="21" r="1"/>
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+            </svg>
+            Nuevo POS
+        </a>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-toolbar">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Buscar por número o cliente..." />
+        </div>
+        <div class="filter-group">
+            <input type="date" id="filterFechaDesde" class="filter-select" />
+            <input type="date" id="filterFechaHasta" class="filter-select" />
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="module-alert module-alert-success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (Model.Ventas.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="9" cy="21" r="1"/>
+                <circle cx="20" cy="21" r="1"/>
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+            </svg>
+            <h3>No hay ventas registradas</h3>
+            <p>Usa el POS para empezar a vender</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="ventasTable">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Cliente</th>
+                        <th>Fecha</th>
+                        <th>Total</th>
+                        <th>Estado</th>
+                        <th style="width: 140px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var v in Model.Ventas)
+                    {
+                        var cliente = Model.Clientes.FirstOrDefault(c => c.Id == v.ClienteId);
+                        <tr data-numero="@v.Numero.ToLower()"
+                            data-cliente="@(cliente?.Nombre.ToLower() ?? "")"
+                            data-fecha="@v.Fecha.ToString("yyyy-MM-dd")">
+                            <td><strong>@v.Numero</strong></td>
+                            <td>@(cliente?.Nombre ?? "Consumidor final")</td>
+                            <td>@v.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td><strong>L. @v.Total.ToString("N2")</strong></td>
+                            <td>
+                                @if (v.Estado == "Completada")
+                                {
+                                    <span class="badge badge-success">Completada</span>
+                                }
+                                else if (v.Estado == "Anulada")
+                                {
+                                    <span class="badge badge-danger">Anulada</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-warning">@v.Estado</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    <a asp-page="/Ventas/Details" asp-route-id="@v.Id" class="btn-icon-action" title="Ver detalle">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
+                                    <a asp-page="/Facturas/CreateFromVenta" asp-route-ventaId="@v.Id" class="btn-icon-action" title="Facturar">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                            <polyline points="14 2 14 8 20 8"/>
+                                        </svg>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var desde = document.getElementById('filterFechaDesde');
+            var hasta = document.getElementById('filterFechaHasta');
+            var table = document.getElementById('ventasTable');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+
+            function filterRows() {
+                var search = (searchInput?.value || '').toLowerCase().trim();
+                var fDesde = desde?.value || '';
+                var fHasta = hasta?.value || '';
+
+                rows.forEach(function (row) {
+                    var numero = row.dataset.numero || '';
+                    var cliente = row.dataset.cliente || '';
+                    var fecha = row.dataset.fecha || '';
+
+                    var matchSearch = !search || numero.includes(search) || cliente.includes(search);
+                    var matchDesde = !fDesde || fecha >= fDesde;
+                    var matchHasta = !fHasta || fecha <= fHasta;
+
+                    row.style.display = (matchSearch && matchDesde && matchHasta) ? '' : 'none';
+                });
+            }
+
+            searchInput?.addEventListener('input', filterRows);
+            desde?.addEventListener('change', filterRows);
+            hasta?.addEventListener('change', filterRows);
+        })();
+    </script>
+}

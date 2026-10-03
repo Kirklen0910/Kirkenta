@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Kirkenta POS</title>
+    <link rel="icon" type="image/png" href="~/favicon.png?v=@DateTime.Now.Ticks" />
+    <link rel="apple-touch-icon" href="~/favicon.png" />
+    <link rel="shortcut icon" type="image/png" href="~/favicon.png" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/theme.css?v=@DateTime.Now.Ticks" />
+</head>
+<body class="pos-body">
+    @Html.AntiForgeryToken()
+    <div class="pos-container">
+        <header class="pos-header">
+            <div class="pos-header-left">
+                <a asp-page="/Index" class="pos-back-btn" title="Volver al sistema">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12"/>
+                        <polyline points="12 19 5 12 12 5"/>
+                    </svg>
+                </a>
+                <div class="pos-brand">
+                    <img src="~/images/logo.png" alt="Kirkenta" />
+                    <div>
+                        <h1>Punto de Venta</h1>
+                        <p>@DateTime.Now.ToString("dddd, dd MMMM yyyy HH:mm")</p>
+                    </div>
+                </div>
+            </div>
+            <div class="pos-header-right">
+                <div class="pos-user">
+                    <span class="pos-user-name">@User.Identity?.Name</span>
+                    <span class="pos-user-role">@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</span>
+                </div>
+            </div>
+        </header>
+
+        @RenderBody()
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,200 @@
+@page
+@model Kirkenta.Pages.Compras.IndexModel
+@{
+    ViewData["Title"] = "Compras";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Compras</h2>
+        <p>Resumen general del módulo de compras</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/OrdenesCompra/Create" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nueva orden
+        </a>
+    </div>
+</div>
+
+<!-- KPIs principales -->
+<div class="kpi-grid" style="margin-bottom: 24px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Compras del mes</span>
+        <span class="kpi-value">L. @Model.ComprasMes.ToString("N2")</span>
+        <span class="kpi-trend @(Model.ComprasMes >= Model.ComprasMesAnterior ? "up" : "down")">
+            @(Model.ComprasMes >= Model.ComprasMesAnterior ? "↑" : "↓")
+            @(Model.ComprasMesAnterior > 0 ? Math.Abs((Model.ComprasMes - Model.ComprasMesAnterior) / Model.ComprasMesAnterior * 100).ToString("N1") : "0")% vs mes anterior
+        </span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Órdenes activas</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.OrdenesActivas</span>
+        <span class="kpi-trend">Pendientes de recibir</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Cuentas por pagar</span>
+        <span class="kpi-value" style="color: var(--color-danger);">L. @Model.CuentasPorPagar.ToString("N2")</span>
+        <span class="kpi-trend down">@Model.OrdenesPendientesPago órdenes</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Proveedores activos</span>
+        <span class="kpi-value">@Model.ProveedoresActivos</span>
+        <span class="kpi-trend">De @Model.TotalProveedores en total</span>
+    </div>
+</div>
+
+<!-- Accesos rápidos -->
+<div class="section" style="margin-bottom: 24px;">
+    <h2 class="section-title">Accesos rápidos</h2>
+    <div class="quick-grid">
+        <a asp-page="/Proveedores/Index" class="quick-action">
+            <span class="quick-icon">🏢</span>
+            <span class="quick-label">Proveedores</span>
+        </a>
+        <a asp-page="/OrdenesCompra/Index" class="quick-action">
+            <span class="quick-icon">📦</span>
+            <span class="quick-label">Órdenes de compra</span>
+        </a>
+        <a asp-page="/PagosProveedor/Index" class="quick-action">
+            <span class="quick-icon">💳</span>
+            <span class="quick-label">Pagos</span>
+        </a>
+        <a asp-page="/PagosProveedor/Index" asp-route-tab="porpagar" class="quick-action">
+            <span class="quick-icon">💰</span>
+            <span class="quick-label">Cuentas por pagar</span>
+        </a>
+        <a asp-page="/Reportes/Compras" class="quick-action">
+            <span class="quick-icon">📊</span>
+            <span class="quick-label">Reportes</span>
+        </a>
+    </div>
+</div>
+
+<!-- Gráfico de compras últimos 6 meses -->
+<div class="module-card" style="padding: 20px; margin-bottom: 24px;">
+    <h3 class="panel-title" style="margin-bottom: 16px;">Compras de los últimos 6 meses</h3>
+    <div style="height: 300px;">
+        <canvas id="chartCompras6Meses"></canvas>
+    </div>
+</div>
+
+<!-- Panel doble: Top proveedores + Últimas órdenes -->
+<div class="panel-grid">
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">🏆 Top 5 proveedores (mes)</h3>
+        @if (Model.TopProveedoresMes.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 40px;">Sin compras este mes</p>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="erp-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Proveedor</th>
+                            <th style="text-align: right;">Órdenes</th>
+                            <th style="text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            var i = 1;
+                        }
+                        @foreach (var p in Model.TopProveedoresMes)
+                        {
+                            <tr>
+                                <td><strong>@i</strong></td>
+                                <td>@p.Nombre</td>
+                                <td style="text-align: right;">@p.CantidadOrdenes</td>
+                                <td style="text-align: right;"><strong>L. @p.Total.ToString("N2")</strong></td>
+                            </tr>
+                            i++;
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">📋 Últimas órdenes</h3>
+        @if (Model.UltimasOrdenes.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 40px;">Aún no hay órdenes</p>
+        }
+        else
+        {
+            <div class="timeline">
+                @foreach (var o in Model.UltimasOrdenes)
+                {
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <strong>@o.Numero</strong>
+                                <span class="timeline-date">@o.Fecha.ToString("dd/MM HH:mm")</span>
+                            </div>
+                            <p class="timeline-detail">@o.ProveedorNombre — <strong>L. @o.Total.ToString("N2")</strong></p>
+                            <span class="badge @(o.Estado == "Recibida" ? "badge-success" : o.Estado == "Cancelada" ? "badge-danger" : "badge-warning")" style="font-size: 10px; padding: 2px 8px; margin-top: 4px; display: inline-block;">
+                                @o.Estado
+                            </span>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            var data = JSON.parse('@Html.Raw(Model.Compras6MesesJson)');
+            var ctx = document.getElementById('chartCompras6Meses');
+            if (ctx && data.labels && data.labels.length > 0) {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Compras (L.)',
+                            data: data.data,
+                            backgroundColor: 'rgba(79, 70, 229, 0.85)',
+                            borderRadius: 8,
+                            borderSkipped: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        return 'L. ' + context.parsed.y.toLocaleString('es-HN', { minimumFractionDigits: 2 });
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (value) { return 'L. ' + value.toLocaleString(); }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        })();
+    </script>
+}

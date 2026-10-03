@@ -1,0 +1,80 @@
+/* Fondo corporativo */
+.login-container {
+    background: url('../images/erp-background.jpg') no-repeat center center fixed;
+    background-size: cover;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Tarjeta de login */
+.login-card {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+    width: 360px;
+    text-align: center;
+}
+
+/* Logo */
+.logo img {
+    width: 80px;
+    margin-bottom: 10px;
+}
+
+.logo h2 {
+    margin-bottom: 25px;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+/* Inputs */
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    font-size: 14px;
+}
+
+input:focus {
+    border-color: #1abc9c;
+    outline: none;
+    box-shadow: 0 0 4px rgba(26, 188, 156, 0.4);
+}
+
+/* Botón */
+.btn-login {
+    width: 100%;
+    padding: 12px;
+    background-color: #1abc9c;
+    color: #fff;
+    font-weight: 600;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-login:hover {
+    background-color: #16a085;
+}
+
+/* Link de registro */
+.register-link {
+    margin-top: 15px;
+    font-size: 14px;
+}
+.register-link a {
+    color: #1abc9c;
+    text-decoration: none;
+}
+.register-link a:hover {
+    text-decoration: underline;
+}

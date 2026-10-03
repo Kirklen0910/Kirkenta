@@ -1,0 +1,89 @@
+@page "{id:int}"
+@model Kirkenta.Pages.PagosProveedor.DetailsModel
+@{
+    ViewData["Title"] = $"Pago {Model.Pago.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/PagosProveedor/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a pagos
+        </a>
+        <h2>Pago @Model.Pago.Numero</h2>
+        <p>Registrado el @Model.Pago.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
+    </div>
+</div>
+
+<div class="module-card" style="padding: 40px;">
+    <div class="factura-header">
+        <div class="factura-empresa">
+            @if (!string.IsNullOrEmpty(Model.Empresa.LogoPath))
+            {
+                <img src="@Model.Empresa.LogoPath" alt="@Model.Empresa.Nombre" style="width: 70px; height: 70px; object-fit: contain;" />
+            }
+            <div>
+                <h3 style="font-size: 16px;">@Model.Empresa.Nombre</h3>
+                @if (!string.IsNullOrEmpty(Model.Empresa.RTN))
+                {
+                    <p style="color: var(--color-muted); font-size: 12px;">RTN: @Model.Empresa.RTN</p>
+                }
+            </div>
+        </div>
+        <div class="factura-numero">
+            <span class="factura-numero-label">COMPROBANTE DE PAGO</span>
+            <strong class="factura-numero-value">@Model.Pago.Numero</strong>
+        </div>
+    </div>
+
+    <div class="factura-info-grid">
+        <div>
+            <h4 class="factura-info-label">Proveedor</h4>
+            <p><strong>@Model.Proveedor.Nombre</strong></p>
+            @if (!string.IsNullOrEmpty(Model.Proveedor.RTN))
+            {
+                <p>RTN: @Model.Proveedor.RTN</p>
+            }
+            @if (!string.IsNullOrEmpty(Model.Proveedor.Telefono))
+            {
+                <p>Tel: @Model.Proveedor.Telefono</p>
+            }
+        </div>
+        <div>
+            <h4 class="factura-info-label">Detalles del pago</h4>
+            <p><strong>Fecha:</strong> @Model.Pago.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
+            @if (Model.Orden != null)
+            {
+                <p><strong>Orden:</strong> @Model.Orden.Numero</p>
+            }
+            @if (Model.MetodoPago != null)
+            {
+                <p><strong>Método:</strong> @Model.MetodoPago.Nombre</p>
+            }
+            @if (!string.IsNullOrEmpty(Model.Pago.Referencia))
+            {
+                <p><strong>Referencia:</strong> @Model.Pago.Referencia</p>
+            }
+        </div>
+    </div>
+
+    <div style="margin-top: 32px;">
+        <div class="totales-panel" style="max-width: 100%;">
+            <div class="totales-row totales-row-final" style="border-top: none; margin-top: 0; padding-top: 0;">
+                <span>MONTO PAGADO:</span>
+                <strong>L. @Model.Pago.Monto.ToString("N2")</strong>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Pago.Notas))
+    {
+        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-border);">
+            <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">Notas</h4>
+            <p style="color: var(--color-muted); font-size: 13px;">@Model.Pago.Notas</p>
+        </div>
+    }
+</div>

@@ -1,0 +1,255 @@
+@page
+@model Kirkenta.Pages.PagosProveedor.IndexModel
+@{
+    ViewData["Title"] = "Pagos a proveedores";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Pagos a proveedores</h2>
+        <p>Historial de pagos realizados y cuentas por pagar</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/PagosProveedor/Create" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Registrar pago
+        </a>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total pagado este mes</span>
+        <span class="kpi-value">L. @Model.TotalPagadoMes.ToString("N2")</span>
+        <span class="kpi-trend up">@Model.CantidadPagosMes pagos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Cuentas por pagar</span>
+        <span class="kpi-value" style="color: var(--color-danger);">L. @Model.TotalPorPagar.ToString("N2")</span>
+        <span class="kpi-trend down">@Model.OrdenesPendientes órdenes pendientes</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Proveedores con deuda</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.ProveedoresConDeuda</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Total histórico pagado</span>
+        <span class="kpi-value" style="font-size: 20px;">L. @Model.TotalHistorico.ToString("N2")</span>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="nomenclatura-tabs" style="margin-bottom: 20px;">
+    <a asp-page="/PagosProveedor/Index" asp-route-tab="pagos" class="nomenclatura-tab @(Model.TabActiva == "pagos" ? "is-active" : "")">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23"/>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+        Historial de pagos
+    </a>
+    <a asp-page="/PagosProveedor/Index" asp-route-tab="porpagar" class="nomenclatura-tab @(Model.TabActiva == "porpagar" ? "is-active" : "")">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Cuentas por pagar
+    </a>
+</div>
+
+@if (Model.TabActiva == "pagos")
+{
+    <!-- TAB: Historial de pagos -->
+    <div class="module-card">
+        <div class="module-toolbar">
+            <div class="search-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" id="searchInput" placeholder="Buscar por número o proveedor..." />
+            </div>
+            <div class="filter-group">
+                <select id="filterProveedor" class="filter-select">
+                    <option value="">Todos los proveedores</option>
+                    @foreach (var p in Model.Proveedores)
+                    {
+                        <option value="@p.Id">@p.Nombre</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        @if (Model.Pagos.Count == 0)
+        {
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                <h3>No hay pagos registrados</h3>
+                <p>Los pagos aparecen aquí cuando los registras</p>
+                <a asp-page="/PagosProveedor/Create" class="btn-primary">Registrar pago</a>
+            </div>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="erp-table" id="pagosTable">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Fecha</th>
+                            <th>Proveedor</th>
+                            <th>Orden</th>
+                            <th>Método</th>
+                            <th>Monto</th>
+                            <th>Referencia</th>
+                            <th style="width: 80px; text-align: right;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Model.Pagos)
+                        {
+                            var prov = Model.Proveedores.FirstOrDefault(x => x.Id == p.ProveedorId);
+                            var oc = p.OrdenCompraId.HasValue ? Model.OrdenesCompra.FirstOrDefault(o => o.Id == p.OrdenCompraId.Value) : null;
+                            var metodo = Model.MetodosPago.FirstOrDefault(m => m.Id == p.MetodoPagoId);
+                            <tr data-numero="@(p.Numero?.ToLower() ?? "")"
+                                data-proveedor="@(prov?.Nombre.ToLower() ?? "")"
+                                data-proveedorid="@p.ProveedorId">
+                                <td><strong>@(p.Numero ?? "—")</strong></td>
+                                <td>@p.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@(prov?.Nombre ?? "—")</td>
+                                <td>@(oc?.Numero ?? "—")</td>
+                                <td>@(metodo?.Nombre ?? "—")</td>
+                                <td><strong>L. @p.Monto.ToString("N2")</strong></td>
+                                <td>@(p.Referencia ?? "—")</td>
+                                <td>
+                                    <div class="table-actions">
+                                        <a asp-page="/PagosProveedor/Details" asp-route-id="@p.Id" class="btn-icon-action" title="Ver detalle">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                                <circle cx="12" cy="12" r="3"/>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <!-- TAB: Cuentas por pagar -->
+    <div class="module-card">
+        <div class="module-toolbar">
+            <div class="search-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" id="searchInputPorPagar" placeholder="Buscar por número o proveedor..." />
+            </div>
+        </div>
+
+        @if (Model.OrdenesPorPagar.Count == 0)
+        {
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <h3>¡Todo al día!</h3>
+                <p>No tienes cuentas pendientes de pago</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="erp-table" id="porPagarTable">
+                    <thead>
+                        <tr>
+                            <th>Orden</th>
+                            <th>Proveedor</th>
+                            <th>Fecha</th>
+                            <th>Total</th>
+                            <th>Pagado</th>
+                            <th>Saldo</th>
+                            <th style="width: 130px; text-align: right;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var o in Model.OrdenesPorPagar)
+                        {
+                            var prov = Model.Proveedores.FirstOrDefault(x => x.Id == o.ProveedorId);
+                            var pagado = o.Total - o.Saldo;
+                            <tr data-numero="@o.Numero.ToLower()"
+                                data-proveedor="@(prov?.Nombre.ToLower() ?? "")">
+                                <td><strong>@o.Numero</strong></td>
+                                <td>@(prov?.Nombre ?? "—")</td>
+                                <td>@o.Fecha.ToString("dd/MM/yyyy")</td>
+                                <td>L. @o.Total.ToString("N2")</td>
+                                <td style="color: var(--color-success);">L. @pagado.ToString("N2")</td>
+                                <td><strong style="color: var(--color-danger);">L. @o.Saldo.ToString("N2")</strong></td>
+                                <td>
+                                    <div class="table-actions">
+                                        <a asp-page="/PagosProveedor/Create" asp-route-ordenId="@o.Id" class="btn-primary btn-sm" title="Registrar pago">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                                                <line x1="12" y1="1" x2="12" y2="23"/>
+                                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                                            </svg>
+                                            Pagar
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            function setupFilter(searchId, proveedorId, tableId) {
+                var searchInput = document.getElementById(searchId);
+                var filterProveedor = document.getElementById(proveedorId);
+                var table = document.getElementById(tableId);
+                if (!table) return;
+                var rows = table.querySelectorAll('tbody tr');
+
+                function filterRows() {
+                    var search = (searchInput?.value || '').toLowerCase().trim();
+                    var proveedorId = filterProveedor?.value || '';
+
+                    rows.forEach(function (row) {
+                        var numero = row.dataset.numero || '';
+                        var proveedor = row.dataset.proveedor || '';
+                        var rowProveedorId = row.dataset.proveedorid || '';
+
+                        var matchSearch = !search || numero.includes(search) || proveedor.includes(search);
+                        var matchProveedor = !proveedorId || rowProveedorId === proveedorId;
+
+                        row.style.display = (matchSearch && matchProveedor) ? '' : 'none';
+                    });
+                }
+
+                searchInput?.addEventListener('input', filterRows);
+                filterProveedor?.addEventListener('change', filterRows);
+            }
+
+            setupFilter('searchInput', 'filterProveedor', 'pagosTable');
+            setupFilter('searchInputPorPagar', null, 'porPagarTable');
+        })();
+    </script>
+}

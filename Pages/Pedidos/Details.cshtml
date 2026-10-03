@@ -1,0 +1,91 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Pedidos.DetailsModel
+@{
+    ViewData["Title"] = $"Pedido {Model.Pedido.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Pedidos/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a pedidos
+        </a>
+        <h2>Pedido @Model.Pedido.Numero</h2>
+        <p>Creado el @Model.Pedido.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
+    </div>
+</div>
+
+<div class="module-card" style="padding: 28px;">
+    <div class="cotizacion-header">
+        <div class="cotizacion-info">
+            <h3>Cliente</h3>
+            <p><strong>@Model.Cliente.Nombre</strong></p>
+            @if (!string.IsNullOrEmpty(Model.Cliente.RTN))
+            {
+                <p>RTN: @Model.Cliente.RTN</p>
+            }
+            @if (Model.Pedido.FechaEntrega.HasValue)
+            {
+                <p style="margin-top:8px;"><strong>Fecha de entrega:</strong> @Model.Pedido.FechaEntrega.Value.ToString("dd/MM/yyyy")</p>
+            }
+        </div>
+        <div class="cotizacion-estado">
+            <span class="badge @(Model.Pedido.Estado switch {
+                "Entregado" => "badge-success",
+                "Cancelado" => "badge-danger",
+                "Enviado" => "badge-info",
+                "En preparacion" => "badge-info",
+                _ => "badge-warning"
+            })" style="font-size: 13px; padding: 6px 14px;">
+                @Model.Pedido.Estado
+            </span>
+        </div>
+    </div>
+
+    <div class="table-wrapper" style="margin-top: 24px;">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th style="text-align: right;">Cantidad</th>
+                    <th style="text-align: right;">Precio</th>
+                    <th style="text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    var prod = Model.Productos.FirstOrDefault(p => p.Id == item.ProductoId);
+                    <tr>
+                        <td>@(prod?.Nombre ?? "—")</td>
+                        <td style="text-align: right;">@item.Cantidad</td>
+                        <td style="text-align: right;">L. @item.PrecioUnitario.ToString("N2")</td>
+                        <td style="text-align: right;"><strong>L. @item.Total.ToString("N2")</strong></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="totales-panel" style="margin-top: 24px;">
+        <div class="totales-row">
+            <span>Subtotal:</span>
+            <strong>L. @Model.Pedido.Subtotal.ToString("N2")</strong>
+        </div>
+        <div class="totales-row">
+            <span>Descuento:</span>
+            <strong>L. @Model.Pedido.Descuento.ToString("N2")</strong>
+        </div>
+        <div class="totales-row">
+            <span>Impuestos:</span>
+            <strong>L. @Model.Pedido.Impuestos.ToString("N2")</strong>
+        </div>
+        <div class="totales-row totales-row-final">
+            <span>TOTAL:</span>
+            <strong>L. @Model.Pedido.Total.ToString("N2")</strong>
+        </div>
+    </div>
+</div>

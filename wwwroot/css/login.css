@@ -1,0 +1,24 @@
+.login-container {
+    background: url('../images/erp-background.jpg') no-repeat center center fixed;
+    background-size: cover;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-card {
+    width: 340px;
+    text-align: center;
+}
+
+.logo img {
+    width: 70px;
+    margin-bottom: 10px;
+}
+
+.logo h2 {
+    margin-bottom: 20px;
+    font-weight: 700;
+    color: var(--color-secondary);
+}

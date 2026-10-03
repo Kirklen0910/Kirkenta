@@ -1,0 +1,170 @@
+@page "{productoId:int}"
+@model Kirkenta.Pages.Compras.HistorialProductoModel
+@{
+    ViewData["Title"] = $"Historial de compras: {Model.Producto.Nombre}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Productos/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a productos
+        </a>
+        <h2>Historial de compras</h2>
+        <p>Producto: <strong>@Model.Producto.Nombre</strong>
+            @if (!string.IsNullOrEmpty(Model.Producto.SKU))
+            {
+                <span class="table-user-sub" style="font-family: monospace; margin-left: 8px;">@Model.Producto.SKU</span>
+            }
+        </p>
+    </div>
+</div>
+
+<!-- KPIs del producto -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total comprado</span>
+        <span class="kpi-value">@Model.CantidadTotalComprada</span>
+        <span class="kpi-trend">unidades en @Model.Compras.Count compras</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Total invertido</span>
+        <span class="kpi-value">L. @Model.TotalInvertido.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Precio promedio</span>
+        <span class="kpi-value">L. @Model.PrecioPromedio.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Precio actual</span>
+        <span class="kpi-value" style="color: var(--color-primary);">L. @Model.Producto.PrecioCompra.ToString("N2")</span>
+        @if (Model.VariacionPrecio != 0)
+        {
+            <span class="kpi-trend @(Model.VariacionPrecio > 0 ? "down" : "up")">
+                @(Model.VariacionPrecio > 0 ? "↑" : "↓") @Math.Abs(Model.VariacionPrecio).ToString("N1")%
+            </span>
+        }
+    </div>
+</div>
+
+<!-- Gráfico de evolución de precios -->
+<div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+    <h3 class="panel-title" style="margin-bottom: 16px;">Evolución del precio de compra</h3>
+    <div style="height: 300px;">
+        <canvas id="chartPrecios"></canvas>
+    </div>
+</div>
+
+<!-- Historial detallado -->
+<div class="module-card">
+    <div style="padding: 20px; border-bottom: 1px solid var(--color-border);">
+        <h3 class="panel-title">Historial detallado</h3>
+        <p class="panel-muted">Todas las compras de este producto</p>
+    </div>
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>Orden</th>
+                    <th>Fecha</th>
+                    <th>Proveedor</th>
+                    <th style="text-align: right;">Cantidad</th>
+                    <th style="text-align: right;">Precio unitario</th>
+                    <th style="text-align: right;">Total</th>
+                    <th style="text-align: right;">Estado</th>
+                    <th style="width: 80px; text-align: right;">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Compras.Count == 0)
+                {
+                    <tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--color-muted);">Sin compras registradas</td></tr>
+                }
+                else
+                {
+                    @foreach (var c in Model.Compras)
+                    {
+                        <tr>
+                            <td><strong>@c.NumeroOrden</strong></td>
+                            <td>@c.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@c.ProveedorNombre</td>
+                            <td style="text-align: right;">@c.Cantidad</td>
+                            <td style="text-align: right;">
+                                <strong>L. @c.PrecioUnitario.ToString("N2")</strong>
+                            </td>
+                            <td style="text-align: right;">L. @c.Total.ToString("N2")</td>
+                            <td style="text-align: right;">
+                                <span class="badge @(c.Estado == "Recibida" ? "badge-success" : c.Estado == "Cancelada" ? "badge-danger" : "badge-warning")">
+                                    @c.Estado
+                                </span>
+                            </td>
+                            <td style="text-align: right;">
+                                <a asp-page="/OrdenesCompra/Details" asp-route-id="@c.OrdenId" class="btn-icon-action" title="Ver orden">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            var data = @Html.Raw(Model.PreciosJson);
+            var ctx = document.getElementById('chartPrecios');
+            if (ctx && data.labels && data.labels.length > 0) {
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Precio unitario (L.)',
+                            data: data.data,
+                            borderColor: '#4f46e5',
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: '#4f46e5',
+                            pointRadius: 6,
+                            pointHoverRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        return 'L. ' + context.parsed.y.toFixed(2);
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (value) { return 'L. ' + value.toLocaleString(); }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        })();
+    </script>
+}

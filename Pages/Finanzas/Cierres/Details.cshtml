@@ -1,0 +1,410 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Finanzas.Cierres.DetailsModel
+@{
+    ViewData["Title"] = $"Cierre {Model.Cierre.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/Cierres/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a cierres
+        </a>
+        <h2>Cierre @Model.Cierre.Numero</h2>
+        <p>Fecha: @Model.Cierre.Fecha.ToString("dd/MM/yyyy") • Cerrado por @Model.UsuarioCierra.Username</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeAprobar && Model.Cierre.EstadoActa == "Cerrado")
+        {
+            <a asp-page="/Finanzas/Cierres/Aprobar" asp-route-id="@Model.Cierre.Id" class="btn-primary" style="background: var(--color-success);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Aprobar / Rechazar
+            </a>
+        }
+        <button type="button" class="btn-secondary" onclick="window.print()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <polyline points="6 9 6 2 18 2 18 9"/>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Imprimir
+        </button>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<div class="module-card" style="padding: 28px;">
+
+    <!-- Encabezado -->
+    <div class="factura-header">
+        <div class="factura-empresa">
+            @if (!string.IsNullOrEmpty(Model.Empresa.LogoPath))
+            {
+                <img src="@Model.Empresa.LogoPath" alt="@Model.Empresa.Nombre" style="width: 70px; height: 70px; object-fit: contain;" />
+            }
+            <div>
+                <h3 style="font-size: 16px;">@Model.Empresa.Nombre</h3>
+                @if (!string.IsNullOrEmpty(Model.Empresa.RTN))
+                {
+                    <p style="color: var(--color-muted); font-size: 12px;">RTN: @Model.Empresa.RTN</p>
+                }
+            </div>
+        </div>
+        <div class="factura-numero">
+            <span class="factura-numero-label">ACTA DE CIERRE DE CAJA</span>
+            <strong class="factura-numero-value">@Model.Cierre.Numero</strong>
+            <div style="display:flex; gap:6px; margin-top: 6px; justify-content: flex-end;">
+                @if (Model.Cierre.Resultado == "Cuadrado")
+                {
+                    <span class="badge badge-success">Cuadrado</span>
+                }
+                else if (Model.Cierre.Resultado == "Sobrante")
+                {
+                    <span class="badge badge-warning">Sobrante</span>
+                }
+                else
+                {
+                    <span class="badge badge-danger">Faltante</span>
+                }
+
+                @if (Model.Cierre.EstadoActa == "Aprobado")
+                {
+                    <span class="badge badge-success">✓ Aprobado</span>
+                }
+                else if (Model.Cierre.EstadoActa == "Rechazado")
+                {
+                    <span class="badge badge-danger">✗ Rechazado</span>
+                }
+                else
+                {
+                    <span class="badge badge-info">Pendiente aprobación</span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Info -->
+    <div class="factura-info-grid">
+        <div>
+            <h4 class="factura-info-label">Caja</h4>
+            <p><strong>@Model.Cuenta.Nombre</strong></p>
+            <p style="font-family: monospace; font-size: 12px;">@Model.Cuenta.Codigo</p>
+            @if (!string.IsNullOrEmpty(Model.Cuenta.Banco))
+            {
+                <p>@Model.Cuenta.Banco</p>
+            }
+        </div>
+        <div>
+            <h4 class="factura-info-label">Detalles</h4>
+            @if (Model.Apertura != null)
+            {
+                <p><strong>Apertura:</strong> @Model.Apertura.Numero</p>
+                <p><strong>Hora de apertura:</strong> @Model.Apertura.FechaApertura.ToString("dd/MM/yyyy HH:mm")</p>
+            }
+            <p><strong>Hora del cierre:</strong> @Model.Cierre.FechaCierre.ToString("dd/MM/yyyy HH:mm:ss")</p>
+            <p><strong>Usuario:</strong> @Model.UsuarioCierra.Username</p>
+        </div>
+    </div>
+
+    <!-- Arqueo -->
+    <div style="margin-top: 32px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">💰 Arqueo de caja</h3>
+
+        <div class="totales-panel" style="max-width: 500px; margin: 0 auto;">
+            <div class="totales-row">
+                <span>Saldo inicial (apertura):</span>
+                <strong>L. @Model.Cierre.SaldoInicialSistema.ToString("N2")</strong>
+            </div>
+            <div class="totales-row">
+                <span>(+) Ingresos en efectivo:</span>
+                <strong style="color: var(--color-success);">+ L. @Model.Cierre.TotalIngresosEfectivo.ToString("N2")</strong>
+            </div>
+            <div class="totales-row">
+                <span>(−) Egresos en efectivo:</span>
+                <strong style="color: var(--color-danger);">− L. @Model.Cierre.TotalEgresosEfectivo.ToString("N2")</strong>
+            </div>
+            <div class="totales-row" style="border-top: 1px solid var(--color-border); margin-top: 8px; padding-top: 12px;">
+                <span style="font-weight: 700;">= EFECTIVO ESPERADO:</span>
+                <strong style="font-size: 16px;">L. @Model.Cierre.EfectivoEsperado.ToString("N2")</strong>
+            </div>
+            <div class="totales-row" style="margin-top: 8px;">
+                <span style="font-weight: 700;">EFECTIVO CONTADO:</span>
+                <strong style="font-size: 16px; color: var(--color-primary);">L. @Model.Cierre.EfectivoContado.ToString("N2")</strong>
+            </div>
+
+            <div class="totales-row totales-row-final" style="border-top: 2px solid var(--color-border); margin-top: 12px; padding-top: 16px;">
+                <span>DIFERENCIA:</span>
+                <strong style="color: @(Model.Cierre.Diferencia == 0 ? "var(--color-muted)" : Model.Cierre.Diferencia > 0 ? "var(--color-success)" : "var(--color-danger)");">
+                    @(Model.Cierre.Diferencia > 0 ? "+" : "") L. @Model.Cierre.Diferencia.ToString("N2")
+                </strong>
+            </div>
+            <div style="text-align: center; margin-top: 12px; font-size: 12px; color: var(--color-muted);">
+                Tolerancia aceptada: L. @Model.Cierre.Tolerancia.ToString("N2")
+            </div>
+        </div>
+    </div>
+
+    <!-- Distribución del efectivo -->
+    <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--color-border);">
+        <h3 class="panel-title" style="margin-bottom: 16px;">🏦 Distribución del efectivo contado</h3>
+
+        @if (Model.Distribuciones.Count == 0)
+        {
+            <p style="text-align: center; padding: 30px; color: var(--color-muted); font-size: 13px;">
+                No hay distribuciones registradas
+            </p>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="erp-table">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Destino</th>
+                            <th>Referencia</th>
+                            <th>Recibe</th>
+                            <th style="text-align: right;">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var d in Model.Distribuciones)
+                        {
+                            <tr>
+                                <td>
+                                    @if (d.Tipo == "RetiroBanco")
+                                    {
+                                        <span class="badge badge-info">🏦 Retiro a banco</span>
+                                    }
+                                    else if (d.Tipo == "FondoCaja")
+                                    {
+                                        <span class="badge badge-warning">💰 Fondo de caja</span>
+                                    }
+                                    else if (d.Tipo == "EntregaAdmin")
+                                    {
+                                        <span class="badge" style="background: #ec489920; color: #ec4899;">👤 Entrega admin</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge">@d.Tipo</span>
+                                    }
+                                </td>
+                                <td>@(d.CuentaDestinoNombre ?? d.DestinoDescripcion ?? "—")</td>
+                                <td>@(d.Referencia ?? "—")</td>
+                                <td>@(d.NombreRecibe ?? "—")</td>
+                                <td style="text-align: right;"><strong>L. @d.Monto.ToString("N2")</strong></td>
+                            </tr>
+                        }
+                        <tr style="background: #f9fafb; font-weight: 700;">
+                            <td colspan="4">TOTAL DISTRIBUIDO</td>
+                            <td style="text-align: right;">L. @Model.Cierre.TotalDistribuido.ToString("N2")</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <!-- Notas -->
+    @if (!string.IsNullOrEmpty(Model.Cierre.Notas))
+    {
+        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-border);">
+            <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">Observaciones</h4>
+            <p style="color: var(--color-muted); font-size: 13px;">@Model.Cierre.Notas</p>
+        </div>
+    }
+
+    <!-- Ajuste -->
+    @if (Model.MovimientoAjuste != null)
+    {
+        <div style="margin-top: 24px; padding: 20px; background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); border-radius: var(--radius-md);">
+            <h4 style="font-size: 13px; font-weight: 700; color: var(--color-warning); margin-bottom: 8px;">
+                ⚠️ Movimiento de ajuste generado
+            </h4>
+            <p style="font-size: 13px; margin-bottom: 4px;">
+                <strong>@Model.MovimientoAjuste.Numero</strong> — @Model.MovimientoAjuste.Tipo de L. @Model.MovimientoAjuste.Monto.ToString("N2")
+            </p>
+            <p style="font-size: 12.5px; color: #92400e;">@Model.MovimientoAjuste.Concepto</p>
+        </div>
+    }
+
+    <!-- Aprobación -->
+    @if (Model.Cierre.EstadoActa == "Aprobado" && Model.UsuarioAprueba != null)
+    {
+        <div style="margin-top: 24px; padding: 20px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: var(--radius-md);">
+            <h4 style="font-size: 13px; font-weight: 700; color: #065f46; margin-bottom: 8px;">
+                ✅ Acta aprobada
+            </h4>
+            <p style="font-size: 13px; color: #065f46;">
+                Aprobado por <strong>@Model.UsuarioAprueba.Username</strong> el
+                @Model.Cierre.FechaAprobacion?.ToString("dd/MM/yyyy HH:mm")
+            </p>
+        </div>
+    }
+    else if (Model.Cierre.EstadoActa == "Rechazado")
+    {
+        <div style="margin-top: 24px; padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-md);">
+            <h4 style="font-size: 13px; font-weight: 700; color: #991b1b; margin-bottom: 8px;">
+                ❌ Acta rechazada
+            </h4>
+            <p style="font-size: 13px; color: #991b1b;">
+                <strong>Motivo:</strong> @Model.Cierre.MotivoRechazo
+            </p>
+        </div>
+    }
+
+    <!-- Adjuntos -->
+    <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--color-border);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 class="panel-title">📎 Comprobantes adjuntos</h3>
+            @if (Model.PuedeSubirAdjunto)
+            {
+                <form method="post" asp-page-handler="SubirAdjunto" asp-route-id="@Model.Cierre.Id" enctype="multipart/form-data" style="display: inline-flex; gap: 8px; align-items: center;">
+                    <input type="file" name="archivo" accept=".pdf,.jpg,.jpeg,.png" required style="font-size: 12px;" />
+                    <input type="text" name="descripcion" placeholder="Descripción (opcional)" class="filter-select" style="padding: 6px 10px; font-size: 12.5px; max-width: 200px;" />
+                    <button type="submit" class="btn-sm btn-secondary">Subir</button>
+                </form>
+            }
+        </div>
+
+        @if (Model.Adjuntos.Count == 0)
+        {
+            <p style="font-size: 13px; color: var(--color-muted); text-align: center; padding: 20px;">Sin comprobantes adjuntos</p>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="erp-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Descripción</th>
+                            <th>Tamaño</th>
+                            <th>Fecha</th>
+                            <th style="width: 120px; text-align: right;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var adj in Model.Adjuntos)
+                        {
+                            <tr>
+                                <td><strong>@adj.NombreArchivo</strong></td>
+                                <td>@(adj.Descripcion ?? "—")</td>
+                                <td>@adj.TamanoKB KB</td>
+                                <td>@adj.FechaSubida.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>
+                                    <div class="table-actions">
+                                        <a href="@adj.RutaArchivo" target="_blank" class="btn-icon-action" title="Ver">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                                <circle cx="12" cy="12" r="3"/>
+                                            </svg>
+                                        </a>
+                                        @if (Model.PuedeSubirAdjunto)
+                                        {
+                                            <form method="post" asp-page-handler="EliminarAdjunto" asp-route-id="@Model.Cierre.Id" asp-route-adjuntoId="@adj.Id" style="display:inline;" onsubmit="return confirm('¿Eliminar este adjunto?');">
+                                                <button type="submit" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <polyline points="3 6 5 6 21 6"/>
+                                                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <!-- Movimientos del día -->
+    <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--color-border);">
+        <h3 class="panel-title" style="margin-bottom: 16px;">📋 Movimientos del día</h3>
+
+        @if (Model.MovimientosDia.Count == 0)
+        {
+            <p style="text-align: center; padding: 30px; color: var(--color-muted); font-size: 13px;">
+                No hay movimientos registrados para esta fecha
+            </p>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="erp-table" style="font-size: 12.5px;">
+                    <thead>
+                        <tr>
+                            <th>Hora</th>
+                            <th>Número</th>
+                            <th>Tipo</th>
+                            <th>Concepto</th>
+                            <th>Forma de pago</th>
+                            <th style="text-align: right;">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in Model.MovimientosDia)
+                        {
+                            <tr>
+                                <td>@m.Fecha.ToString("HH:mm")</td>
+                                <td><span style="font-family: monospace;">@m.Numero</span></td>
+                                <td>
+                                    @if (m.Tipo == "Ingreso")
+                                    {
+                                        <span class="badge badge-success">Ingreso</span>
+                                    }
+                                    else if (m.Tipo == "Egreso")
+                                    {
+                                        <span class="badge badge-danger">Egreso</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-info">Transf.</span>
+                                    }
+                                </td>
+                                <td>@m.Concepto</td>
+                                <td>@(m.FormaPago ?? "—")</td>
+                                <td style="text-align: right;">
+                                    <strong style="color: @(m.Tipo == "Ingreso" ? "var(--color-success)" : "var(--color-danger)");">
+                                        @(m.Tipo == "Ingreso" ? "+" : "−") L. @m.Monto.ToString("N2")
+                                    </strong>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+</div>

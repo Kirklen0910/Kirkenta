@@ -1,0 +1,155 @@
+@page
+@model Kirkenta.Pages.Finanzas.Cierres.IndexModel
+@{
+    ViewData["Title"] = "Cierres de caja";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Cierres de caja</h2>
+        <p>Historial de arqueos y cuadres de caja</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/Finanzas/Cierres/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nuevo cierre
+            </a>
+        }
+        <a asp-page="/Finanzas/Index" class="btn-secondary">Volver a Finanzas</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Cuadrados</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.CantidadCuadrados</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Sobrantes</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.CantidadSobrantes</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Faltantes</span>
+        <span class="kpi-value" style="color: var(--color-danger);">@Model.CantidadFaltantes</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Pendientes de aprobar</span>
+        <span class="kpi-value" style="color: var(--color-primary);">@Model.CantidadPendientesAprobar</span>
+    </div>
+</div>
+
+<div class="module-card">
+    @if (Model.Cierres.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+            </svg>
+            <h3>No hay cierres registrados</h3>
+            <p>Registra el primer cierre de caja</p>
+            <a asp-page="/Finanzas/Cierres/Create" class="btn-primary">Nuevo cierre</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Fecha</th>
+                        <th>Cuenta</th>
+                        <th>Usuario</th>
+                        <th style="text-align: right;">Esperado</th>
+                        <th style="text-align: right;">Contado</th>
+                        <th style="text-align: right;">Diferencia</th>
+                        <th>Resultado</th>
+                        <th>Acta</th>
+                        <th style="width: 100px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.Cierres)
+                    {
+                        <tr>
+                            <td><span style="font-family: monospace;">@c.Numero</span></td>
+                            <td>@c.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@c.CuentaNombre</td>
+                            <td>@c.UsuarioNombre</td>
+                            <td style="text-align: right;">L. @c.EfectivoEsperado.ToString("N2")</td>
+                            <td style="text-align: right;"><strong>L. @c.EfectivoContado.ToString("N2")</strong></td>
+                            <td style="text-align: right;">
+                                <strong style="color: @(c.Diferencia == 0 ? "var(--color-muted)" : c.Diferencia > 0 ? "var(--color-success)" : "var(--color-danger)");">
+                                    @(c.Diferencia > 0 ? "+" : "") L. @c.Diferencia.ToString("N2")
+                                </strong>
+                            </td>
+                            <td>
+                                @if (c.Resultado == "Cuadrado")
+                                {
+                                    <span class="badge badge-success">Cuadrado</span>
+                                }
+                                else if (c.Resultado == "Sobrante")
+                                {
+                                    <span class="badge badge-warning">Sobrante</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-danger">Faltante</span>
+                                }
+                            </td>
+                            <td>
+                                @if (c.EstadoActa == "Aprobado")
+                                {
+                                    <span class="badge badge-success">Aprobado</span>
+                                }
+                                else if (c.EstadoActa == "Rechazado")
+                                {
+                                    <span class="badge badge-danger">Rechazado</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-info">Pendiente</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    <a asp-page="/Finanzas/Cierres/Details" asp-route-id="@c.Id" class="btn-icon-action" title="Ver detalle">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
+                                    @if (Model.PuedeAprobar && c.EstadoActa == "Cerrado")
+                                    {
+                                        <a asp-page="/Finanzas/Cierres/Aprobar" asp-route-id="@c.Id" class="btn-icon-action" title="Aprobar" style="color: var(--color-success);">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

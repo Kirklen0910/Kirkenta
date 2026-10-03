@@ -1,0 +1,37 @@
+@page
+@model Kirkenta.Pages.Nomenclatura.IndexModel
+@{
+    ViewData["Title"] = "Nomenclatura";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Nomenclatura</h2>
+        <p>Configura el formato de numeración de tus documentos</p>
+    </div>
+</div>
+
+<div class="nomenclatura-tabs">
+    <a asp-page="/Series/Index" class="nomenclatura-tab @(Model.TabActiva == "Series" ? "is-active" : "")">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 7V4h16v3M9 20h6M12 4v16"/>
+        </svg>
+        Series de documentos
+    </a>
+</div>
+
+<div class="module-card" style="padding: 40px; text-align: center;">
+    <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--color-text);">
+        Series de documentos
+    </h3>
+    <p style="color: var(--color-muted); margin-bottom: 24px;">
+        Configura el prefijo, formato y numeración correlativa de cada tipo de documento (Cotizaciones, Pedidos, Ventas, Facturas, Productos, etc.)
+    </p>
+    <a asp-page="/Series/Index" class="btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        Gestionar series
+    </a>
+</div>

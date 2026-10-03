@@ -1,0 +1,87 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Usuarios.ActividadModel
+@{
+    ViewData["Title"] = "Actividad del usuario";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Usuarios/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a usuarios
+        </a>
+        <h2>Actividad de @Model.Usuario.Username</h2>
+        <p>Historial de todas las acciones del usuario</p>
+    </div>
+</div>
+
+<div class="activity-header-card">
+    <div class="activity-user-info">
+        <div class="user-avatar-sm" style="background: @Model.RolColor; width: 52px; height: 52px; font-size: 20px;">
+            @(string.IsNullOrEmpty(Model.Usuario.Username) ? "?" : Model.Usuario.Username.Substring(0, 1).ToUpper())
+        </div>
+        <div class="activity-user-meta">
+            <h3>@Model.Usuario.Username</h3>
+            <p>@Model.Usuario.Email</p>
+        </div>
+    </div>
+    <div class="activity-stats">
+        <div class="activity-stat">
+            <span class="activity-stat-value">@Model.Actividades.Count</span>
+            <span class="activity-stat-label">Acciones registradas</span>
+        </div>
+    </div>
+</div>
+
+<div class="module-card">
+    @if (Model.Actividades.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            <h3>Sin actividad registrada</h3>
+            <p>Este usuario aún no ha realizado acciones en el sistema</p>
+        </div>
+    }
+    else
+    {
+        <div class="timeline">
+            @foreach (var act in Model.Actividades)
+            {
+                var iconColor = act.Accion switch
+                {
+                    var a when a.Contains("Inicio de sesión") => "#10b981",
+                    var a when a.Contains("Cierre de sesión") => "#6b7280",
+                    var a when a.Contains("Login fallido") => "#ef4444",
+                    var a when a.Contains("Crear") => "#3b82f6",
+                    var a when a.Contains("Editar") => "#f59e0b",
+                    var a when a.Contains("Eliminar") => "#ef4444",
+                    var a when a.Contains("Contraseña") => "#8b5cf6",
+                    _ => "#6b7280"
+                };
+
+                <div class="timeline-item">
+                    <div class="timeline-dot" style="background: @iconColor;"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-header">
+                            <strong>@act.Accion</strong>
+                            <span class="timeline-date">@act.Fecha.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(act.Detalle))
+                        {
+                            <p class="timeline-detail">@act.Detalle</p>
+                        }
+                        @if (!string.IsNullOrEmpty(act.Ip) && act.Ip != "N/A")
+                        {
+                            <span class="timeline-ip">IP: @act.Ip</span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

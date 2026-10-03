@@ -1,0 +1,132 @@
+@page
+@model Kirkenta.Pages.Auth.RegisterModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Crear cuenta";
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Kirkenta ERP</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/theme.css?v=@DateTime.Now.Ticks" />
+</head>
+<body class="auth-body">
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <img src="~/images/logo.png" alt="Kirkenta ERP" class="auth-logo" />
+                <h1 class="auth-title">Crear cuenta</h1>
+                <p class="auth-subtitle">Regístrate en Kirkenta ERP</p>
+            </div>
+
+            <!-- ⚠️ MENSAJE DE ERROR -->
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="auth-alert auth-alert-error" role="alert">
+                    <svg class="auth-alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <span asp-validation-summary="ModelOnly"></span>
+                </div>
+            }
+
+            <form method="post" class="auth-form">
+                <div class="form-field">
+                    <label asp-for="Username">Usuario</label>
+                    <input asp-for="Username" class="form-input" placeholder="tu.usuario" autocomplete="username" />
+                </div>
+                <div class="form-field">
+                    <label asp-for="Email">Email</label>
+                    <input asp-for="Email" type="email" class="form-input" placeholder="tu@correo.com" autocomplete="email" />
+                </div>
+                <div class="form-field">
+                    <label asp-for="Password">Contraseña</label>
+                    <div class="form-input-wrapper">
+                        <input asp-for="Password"
+                               id="passwordInput"
+                               type="password"
+                               class="form-input"
+                               autocomplete="new-password"
+                               placeholder="••••••••" />
+                        <button type="button"
+                                class="password-toggle"
+                                id="passwordToggle"
+                                aria-label="Mostrar contraseña"
+                                tabindex="-1">
+                            <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                <line x1="1" y1="1" x2="23" y2="23"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label asp-for="ConfirmPassword">Confirmar contraseña</label>
+                    <div class="form-input-wrapper">
+                        <input asp-for="ConfirmPassword"
+                               id="confirmInput"
+                               type="password"
+                               class="form-input"
+                               autocomplete="new-password"
+                               placeholder="••••••••" />
+                        <button type="button"
+                                class="password-toggle"
+                                id="confirmToggle"
+                                aria-label="Mostrar contraseña"
+                                tabindex="-1">
+                            <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                <line x1="1" y1="1" x2="23" y2="23"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-auth">Crear cuenta</button>
+            </form>
+
+            <div class="auth-footer">
+                ¿Ya tienes cuenta? <a asp-page="/Auth/Login">Inicia sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            function bindToggle(toggleId, inputId) {
+                var toggle = document.getElementById(toggleId);
+                var input = document.getElementById(inputId);
+                if (!toggle || !input) return;
+
+                var eyeOpen = toggle.querySelector('.eye-open');
+                var eyeClosed = toggle.querySelector('.eye-closed');
+
+                toggle.addEventListener('click', function () {
+                    var isPassword = input.type === 'password';
+                    input.type = isPassword ? 'text' : 'password';
+                    eyeOpen.style.display = isPassword ? 'none' : 'block';
+                    eyeClosed.style.display = isPassword ? 'block' : 'none';
+                    toggle.setAttribute('aria-label', isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña');
+                    input.focus();
+                });
+            }
+
+            bindToggle('passwordToggle', 'passwordInput');
+            bindToggle('confirmToggle', 'confirmInput');
+        })();
+    </script>
+</body>
+</html>

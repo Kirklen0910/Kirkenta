@@ -1,0 +1,248 @@
+@page
+@model Kirkenta.Pages.OrdenesCompra.IndexModel
+@{
+    ViewData["Title"] = "Órdenes de compra";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Órdenes de compra</h2>
+        <p>Administra tus órdenes de compra a proveedores</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/OrdenesCompra/Create" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nueva orden
+        </a>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total comprado (mes)</span>
+        <span class="kpi-value">L. @Model.TotalMes.ToString("N2")</span>
+        <span class="kpi-trend">@Model.CantidadMes órdenes este mes</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Saldo por pagar</span>
+        <span class="kpi-value" style="color: var(--color-danger);">L. @Model.SaldoTotal.ToString("N2")</span>
+        <span class="kpi-trend down">@Model.OrdenesPendientesPago pendientes de pago</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Recibidas</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.Recibidas</span>
+        <span class="kpi-trend up">Con stock actualizado</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Pendientes</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.Pendientes</span>
+        <span class="kpi-trend">En espera</span>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-toolbar">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Buscar por número o proveedor..." />
+        </div>
+        <div class="filter-group">
+            <select id="filterEstado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="Borrador">Borrador</option>
+                <option value="Enviada">Enviada</option>
+                <option value="RecibidaParcial">Recibida parcial</option>
+                <option value="Recibida">Recibida</option>
+                <option value="Cancelada">Cancelada</option>
+            </select>
+            <select id="filterProveedor" class="filter-select">
+                <option value="">Todos los proveedores</option>
+                @foreach (var p in Model.Proveedores)
+                {
+                    <option value="@p.Id">@p.Nombre</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="module-alert module-alert-success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="module-alert module-alert-error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            @TempData["Error"]
+        </div>
+    }
+
+    @if (Model.Ordenes.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="9" cy="21" r="1"/>
+                <circle cx="20" cy="21" r="1"/>
+                <path d="M1 1h15v13H1z"/>
+                <path d="M16 8h4l3 3v3h-7z"/>
+            </svg>
+            <h3>No hay órdenes de compra</h3>
+            <p>Crea tu primera orden para abastecer tu inventario</p>
+            <a asp-page="/OrdenesCompra/Create" class="btn-primary">Nueva orden</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="ordenesTable">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Proveedor</th>
+                        <th>Fecha</th>
+                        <th>Entrega estimada</th>
+                        <th>Total</th>
+                        <th>Saldo</th>
+                        <th>Estado</th>
+                        <th style="width: 180px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var o in Model.Ordenes)
+                    {
+                        var proveedor = Model.Proveedores.FirstOrDefault(p => p.Id == o.ProveedorId);
+                        var badgeClass = o.Estado switch
+                        {
+                            "Borrador" => "badge",
+                            "Enviada" => "badge badge-info",
+                            "RecibidaParcial" => "badge badge-warning",
+                            "Recibida" => "badge badge-success",
+                            "Cancelada" => "badge badge-danger",
+                            _ => "badge"
+                        };
+                        <tr data-numero="@o.Numero.ToLower()"
+                            data-proveedor="@(proveedor?.Nombre.ToLower() ?? "")"
+                            data-proveedorid="@o.ProveedorId"
+                            data-estado="@o.Estado">
+                            <td><strong>@o.Numero</strong></td>
+                            <td>@(proveedor?.Nombre ?? "—")</td>
+                            <td>@o.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@(o.FechaEntregaEstimada?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            <td><strong>L. @o.Total.ToString("N2")</strong></td>
+                            <td>
+                                @if (o.Saldo > 0)
+                                {
+                                    <span style="color: var(--color-danger); font-weight: 600;">L. @o.Saldo.ToString("N2")</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-success">Pagada</span>
+                                }
+                            </td>
+                            <td><span class="@badgeClass">@o.Estado</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <a asp-page="/OrdenesCompra/Details" asp-route-id="@o.Id" class="btn-icon-action" title="Ver detalle">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
+                                    @if (o.Estado == "Borrador" || o.Estado == "Enviada")
+                                    {
+                                        <a asp-page="/OrdenesCompra/Edit" asp-route-id="@o.Id" class="btn-icon-action" title="Editar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                    @if (o.Estado == "Enviada" || o.Estado == "RecibidaParcial")
+                                    {
+                                        <a asp-page="/OrdenesCompra/Recibir" asp-route-id="@o.Id" class="btn-icon-action" title="Recibir mercancía" style="color: var(--color-success);">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                    @if (o.Saldo > 0 && o.Estado == "Recibida")
+                                    {
+                                        <a asp-page="/PagosProveedor/Create" asp-route-ordenId="@o.Id" class="btn-icon-action" title="Registrar pago" style="color: var(--color-success);">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="12" y1="1" x2="12" y2="23"/>
+                                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                    @if (o.Estado == "Borrador")
+                                    {
+                                        <a asp-page="/OrdenesCompra/Delete" asp-route-id="@o.Id" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="3 6 5 6 21 6"/>
+                                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var filterEstado = document.getElementById('filterEstado');
+            var filterProveedor = document.getElementById('filterProveedor');
+            var table = document.getElementById('ordenesTable');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+
+            function filterRows() {
+                var search = (searchInput?.value || '').toLowerCase().trim();
+                var estado = filterEstado?.value || '';
+                var proveedorId = filterProveedor?.value || '';
+
+                rows.forEach(function (row) {
+                    var numero = row.dataset.numero || '';
+                    var proveedor = row.dataset.proveedor || '';
+                    var rowProveedorId = row.dataset.proveedorid || '';
+                    var rowEstado = row.dataset.estado || '';
+
+                    var matchSearch = !search || numero.includes(search) || proveedor.includes(search);
+                    var matchEstado = !estado || rowEstado === estado;
+                    var matchProveedor = !proveedorId || rowProveedorId === proveedorId;
+
+                    row.style.display = (matchSearch && matchEstado && matchProveedor) ? '' : 'none';
+                });
+            }
+
+            searchInput?.addEventListener('input', filterRows);
+            filterEstado?.addEventListener('change', filterRows);
+            filterProveedor?.addEventListener('change', filterRows);
+        })();
+    </script>
+}

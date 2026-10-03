@@ -1,0 +1,21 @@
+.register-container {
+    background-color: var(--color-bg);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.register-card {
+    width: 400px;
+    text-align: left;
+}
+
+.register-card h2 {
+    margin-bottom: 20px;
+    color: var(--color-secondary);
+}
+
+.register-card input {
+    margin-bottom: 15px;
+}

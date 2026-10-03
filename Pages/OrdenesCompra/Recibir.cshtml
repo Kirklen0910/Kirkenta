@@ -1,0 +1,151 @@
+@page "{id:int}"
+@model Kirkenta.Pages.OrdenesCompra.RecibirModel
+@{
+    ViewData["Title"] = "Recibir mercancía";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/OrdenesCompra/Details" asp-route-id="@Model.Orden.Id" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver al detalle
+        </a>
+        <h2>Recibir mercancía — Orden @Model.Orden.Numero</h2>
+        <p>Proveedor: <strong>@Model.Proveedor.Nombre</strong></p>
+    </div>
+</div>
+
+<form method="post">
+    <input type="hidden" asp-for="Input.OrdenId" />
+
+    <div class="module-card form-card-wide">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <div class="module-alert" style="background: var(--color-primary-soft); border: 1px solid #c7d2fe; color: var(--color-primary); margin: 0 0 18px 0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <span>Marca los productos que recibiste. El stock se actualizará automáticamente. Puedes recibir parcialmente si no llegó todo.</span>
+        </div>
+
+        <h3 class="form-section-title">Productos recibidos</h3>
+
+        <div class="table-wrapper" style="margin-top: 16px;">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">Recibir</th>
+                        <th>Producto</th>
+                        <th style="text-align: right;">Pedido</th>
+                        <th style="text-align: right;">Ya recibido</th>
+                        <th style="text-align: right;">Pendiente</th>
+                        <th style="width: 130px;">Cantidad a recibir</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < Model.Items.Count; i++)
+                    {
+                        var item = Model.Items[i];
+                        var prod = Model.Productos.FirstOrDefault(p => p.Id == item.ProductoId);
+                        var pendiente = item.Cantidad - item.CantidadRecibida;
+
+                        <tr>
+                            <td style="text-align: center;">
+                                <input type="checkbox"
+                                       asp-for="Input.Items[@i].Recibir"
+                                       class="recibir-checkbox"
+                                       data-idx="@i"
+                                       disabled="@(pendiente <= 0)" />
+                            </td>
+                            <td>
+                                <strong>@(prod?.Nombre ?? "—")</strong>
+                                @if (!string.IsNullOrEmpty(prod?.SKU))
+                                {
+                                    <br /><span class="table-user-sub" style="font-family: monospace;">@prod.SKU</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">@item.Cantidad</td>
+                            <td style="text-align: right;">@item.CantidadRecibida</td>
+                            <td style="text-align: right;"><strong>@pendiente</strong></td>
+                            <td>
+                                <input type="hidden" asp-for="Input.Items[@i].DetalleId" />
+                                <input type="hidden" asp-for="Input.Items[@i].ProductoId" />
+                                <input type="number"
+                                       asp-for="Input.Items[@i].CantidadRecibir"
+                                       min="0"
+                                       max="@pendiente"
+                                       step="0.01"
+                                       class="form-input cantidad-recibir"
+                                       data-idx="@i"
+                                       style="padding: 6px 8px; text-align: center;"
+                                       disabled="@(pendiente <= 0)" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <div class="form-field">
+            <label asp-for="Input.Notas">Notas de recepción</label>
+            <textarea asp-for="Input.Notas" class="form-input" rows="2" placeholder="Observaciones sobre la recepción (ej: llegó incompleto, producto dañado, etc.)..."></textarea>
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.RecalcularCosto" type="checkbox" checked />
+                <span>Recalcular el costo del producto con el precio de esta compra (convertido a moneda local)</span>
+            </label>
+            <small class="form-help">Si lo desmarcas, se conserva el costo anterior</small>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/OrdenesCompra/Details" asp-route-id="@Model.Orden.Id" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary" style="background: var(--color-success);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Confirmar recepción
+            </button>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        (function () {
+            document.querySelectorAll('.recibir-checkbox').forEach(function (cb) {
+                cb.addEventListener('change', function () {
+                    var idx = this.dataset.idx;
+                    var cantidad = document.querySelector('.cantidad-recibir[data-idx="' + idx + '"]');
+                    if (cantidad) {
+                        cantidad.disabled = !this.checked;
+                        if (this.checked && (!cantidad.value || parseFloat(cantidad.value) === 0)) {
+                            var max = parseFloat(cantidad.getAttribute('max')) || 0;
+                            cantidad.value = max;
+                        }
+                    }
+                });
+                // Estado inicial
+                cb.dispatchEvent(new Event('change'));
+            });
+        })();
+    </script>
+}

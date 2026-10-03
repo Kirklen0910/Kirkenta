@@ -1,0 +1,158 @@
+@page
+@model Kirkenta.Pages.Productos.ImportMapModel
+@{
+    ViewData["Title"] = "Mapear columnas";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Productos/Import" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver al paso anterior
+        </a>
+        <h2>Mapear columnas</h2>
+        <p>Asocia cada campo del sistema con una columna de tu archivo</p>
+    </div>
+</div>
+
+<div style="display:flex; gap:8px; margin-bottom:20px; align-items:center;">
+    <span style="background:var(--color-success); color:#fff; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">✓</span>
+    <span style="font-size:13px; color:var(--color-muted);">Subir archivo</span>
+    <span style="width:40px; height:2px; background:var(--color-primary);"></span>
+    <span style="background:var(--color-primary); color:#fff; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">2</span>
+    <span style="font-size:13px; font-weight:600; color:var(--color-primary);">Mapear columnas</span>
+    <span style="width:40px; height:2px; background:var(--color-border);"></span>
+    <span style="background:var(--color-border); color:var(--color-muted); width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">3</span>
+    <span style="font-size:13px; color:var(--color-muted);">Importar</span>
+</div>
+
+<form method="post">
+    <div class="module-card" style="padding: 28px; margin-bottom: 20px;">
+        <h3 class="form-section-title">Mapeo de columnas</h3>
+        <p class="form-section-desc">Hemos detectado <strong>@Model.HeadersArchivo.Count columnas</strong> y <strong>@Model.FilasArchivo.Count filas</strong>. Asigna cada campo del sistema a una columna de tu archivo.</p>
+
+        <div class="table-wrapper" style="margin-top: 16px;">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Campo del sistema</th>
+                        <th>Columna de tu archivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var campo in Model.Campos)
+                    {
+                        var sugerido = Model.MapaSugerido.GetValueOrDefault(campo.Key);
+                        <tr>
+                            <td>
+                                <strong>@campo.Label</strong>
+                                @if (campo.Requerido)
+                                {
+                                    <span style="color: var(--color-danger);">*</span>
+                                }
+                            </td>
+                            <td>
+                                <select name="Mapeo[@campo.Key]" class="form-input">
+                                    <option value="">— Ignorar este campo —</option>
+                                    @foreach (var header in Model.HeadersArchivo)
+                                    {
+                                        if (header == sugerido)
+                                        {
+                                            <option value="@header" selected>@header</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@header">@header</option>
+                                        }
+                                    }
+                                </select>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="module-card" style="padding: 28px; margin-bottom: 20px;">
+        <h3 class="form-section-title">Opciones de importación</h3>
+
+        <div class="form-field" style="margin-top: 12px;">
+            <label style="display:block; margin-bottom:8px;">¿Qué hacer si un producto ya existe?</label>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <label style="display:flex; align-items:center; gap:10px; font-size:13.5px; cursor:pointer;">
+                    <input type="radio" name="ModoImportacion" value="upsert" checked />
+                    <span><strong>Crear o actualizar</strong> — Si el SKU ya existe, actualiza. Si no, crea.</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:10px; font-size:13.5px; cursor:pointer;">
+                    <input type="radio" name="ModoImportacion" value="crear" />
+                    <span><strong>Solo crear nuevos</strong> — Ignora los productos que ya existan.</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:10px; font-size:13.5px; cursor:pointer;">
+                    <input type="radio" name="ModoImportacion" value="actualizar" />
+                    <span><strong>Solo actualizar existentes</strong> — Ignora los que no existan.</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <label class="form-checkbox" style="display:flex; align-items:center; gap:10px; font-size:13.5px; margin-bottom:12px;">
+            <input type="checkbox" name="CrearCategoriasAuto" value="true" checked />
+            <span>Crear automáticamente las categorías que no existan</span>
+        </label>
+
+        <label class="form-checkbox" style="display:flex; align-items:center; gap:10px; font-size:13.5px;">
+            <input type="checkbox" name="CrearImpuestosAuto" value="true" />
+            <span>Crear automáticamente los impuestos que no existan</span>
+        </label>
+    </div>
+
+    <div class="module-card" style="padding: 28px; margin-bottom: 20px;">
+        <h3 class="form-section-title">Vista previa (primeras 5 filas)</h3>
+        <p class="form-section-desc">Así se verán tus datos. Si algo está mal, ajusta el mapeo arriba.</p>
+
+        <div class="table-wrapper" style="margin-top: 16px;">
+            <table class="erp-table" style="font-size: 12.5px;">
+                <thead>
+                    <tr>
+                        @foreach (var header in Model.HeadersArchivo)
+                        {
+                            <th>@header</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var fila in Model.FilasArchivo.Take(5))
+                    {
+                        <tr>
+                            @foreach (var header in Model.HeadersArchivo)
+                            {
+                                <td>@fila.GetValueOrDefault(header)</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.FilasArchivo.Count > 5)
+        {
+            <p style="text-align:center; color:var(--color-muted); font-size:12.5px; margin-top:12px;">
+                ... y @(Model.FilasArchivo.Count - 5) filas más
+            </p>
+        }
+    </div>
+
+    <div class="form-actions" style="border-top:none; margin-top:0;">
+        <a asp-page="/Productos/Import" class="btn-secondary">Atrás</a>
+        <button type="submit" class="btn-primary" style="background: var(--color-success);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Importar @Model.FilasArchivo.Count productos
+        </button>
+    </div>
+</form>

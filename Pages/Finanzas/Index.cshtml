@@ -1,0 +1,265 @@
+@page
+@model Kirkenta.Pages.Finanzas.IndexModel
+@{
+    ViewData["Title"] = "Finanzas";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Finanzas</h2>
+        <p>Control de caja, bancos, ingresos y egresos</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Finanzas/Movimientos/Create" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nuevo movimiento
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+<!-- KPIs principales -->
+<div class="kpi-grid" style="margin-bottom: 24px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Saldo total</span>
+        <span class="kpi-value" style="color: var(--color-primary);">L. @Model.SaldoTotal.ToString("N2")</span>
+        <span class="kpi-trend">@Model.CantidadCuentas cuentas activas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">En cajas</span>
+        <span class="kpi-value">L. @Model.SaldoTotalCajas.ToString("N2")</span>
+        <span class="kpi-trend">Efectivo disponible</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">En bancos</span>
+        <span class="kpi-value">L. @Model.SaldoTotalBancos.ToString("N2")</span>
+        <span class="kpi-trend">Cuentas bancarias</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Vales pendientes</span>
+        <span class="kpi-value" style="color: var(--color-warning);">L. @Model.ValesPendientes.ToString("N2")</span>
+        <span class="kpi-trend">@Model.CantidadValesPendientes vales</span>
+    </div>
+</div>
+
+<!-- KPIs del mes -->
+<div class="kpi-grid" style="margin-bottom: 24px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Ingresos del mes</span>
+        <span class="kpi-value" style="color: var(--color-success);">+ L. @Model.IngresosMes.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Egresos del mes</span>
+        <span class="kpi-value" style="color: var(--color-danger);">- L. @Model.EgresosMes.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Balance del mes</span>
+        <span class="kpi-value" style="color: @(Model.BalanceMes >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+            L. @Model.BalanceMes.ToString("N2")
+        </span>
+        <span class="kpi-trend @(Model.BalanceMes >= 0 ? "up" : "down")">
+            @(Model.BalanceMes >= 0 ? "↑ Superávit" : "↓ Déficit")
+        </span>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="panel-grid" style="margin-bottom: 24px;">
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">Flujo de caja últimos 6 meses</h3>
+        <div style="height: 300px;">
+            <canvas id="chartFlujoMensual"></canvas>
+        </div>
+    </div>
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">Top egresos del mes</h3>
+        <div style="height: 300px;">
+            <canvas id="chartCategoriasEgresos"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Cuentas y movimientos -->
+<div class="panel-grid">
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">Saldos por cuenta</h3>
+
+        @if (Model.Cuentas.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 40px;">Sin cuentas registradas</p>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="erp-table">
+                    <thead>
+                        <tr>
+                            <th>Cuenta</th>
+                            <th>Tipo</th>
+                            <th style="text-align: right;">Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in Model.Cuentas)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@c.Nombre</strong>
+                                    @if (!string.IsNullOrEmpty(c.Banco))
+                                    {
+                                        <br /><span class="table-user-sub">@c.Banco</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (c.Tipo == "Banco")
+                                    {
+                                        <span class="badge badge-info">🏦 Banco</span>
+                                    }
+                                    else if (c.Subtipo == "Chica")
+                                    {
+                                        <span class="badge badge-warning">Caja chica</span>
+                                    }
+                                    else if (c.Subtipo == "POS")
+                                    {
+                                        <span class="badge" style="background: #ec489920; color: #ec4899;">Caja POS</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-success">Caja</span>
+                                    }
+                                </td>
+                                <td style="text-align: right;">
+                                    <strong style="color: @(c.SaldoActual >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+                                        L. @c.SaldoActual.ToString("N2")
+                                    </strong>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">Últimos movimientos</h3>
+
+        @if (Model.UltimosMovimientos.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 40px;">Sin movimientos</p>
+        }
+        else
+        {
+            <div class="timeline">
+                @foreach (var m in Model.UltimosMovimientos)
+                {
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background: @(m.Tipo == "Ingreso" ? "var(--color-success)" : m.Tipo == "Egreso" ? "var(--color-danger)" : "var(--color-primary)");"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <strong>@m.Numero</strong>
+                                <span class="timeline-date">@m.Fecha.ToString("dd/MM HH:mm")</span>
+                            </div>
+                            <p class="timeline-detail">@m.Concepto — <strong>L. @m.Monto.ToString("N2")</strong></p>
+                            <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px;">
+                                <span class="badge @(m.Tipo == "Ingreso" ? "badge-success" : "badge-danger")" style="font-size: 10px; padding: 2px 8px;">
+                                    @m.Tipo
+                                </span>
+                                <span class="table-user-sub">@m.CuentaNombre</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            // === Flujo mensual (barras) ===
+            var flujo = JSON.parse('@Html.Raw(Model.FlujoMensualJson)');
+            var ctxFlujo = document.getElementById('chartFlujoMensual');
+            if (ctxFlujo && flujo.labels && flujo.labels.length > 0) {
+                new Chart(ctxFlujo, {
+                    type: 'bar',
+                    data: {
+                        labels: flujo.labels,
+                        datasets: [
+                            {
+                                label: 'Ingresos',
+                                data: flujo.ingresos,
+                                backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                                borderRadius: 6
+                            },
+                            {
+                                label: 'Egresos',
+                                data: flujo.egresos,
+                                backgroundColor: 'rgba(239, 68, 68, 0.85)',
+                                borderRadius: 6
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (v) { return 'L. ' + v.toLocaleString(); }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // === Categorías egresos (doughnut) ===
+            var cats = JSON.parse('@Html.Raw(Model.CategoriasEgresosJson)');
+            var ctxCat = document.getElementById('chartCategoriasEgresos');
+            if (ctxCat && cats.labels && cats.labels.length > 0) {
+                new Chart(ctxCat, {
+                    type: 'doughnut',
+                    data: {
+                        labels: cats.labels,
+                        datasets: [{
+                            data: cats.data,
+                            backgroundColor: cats.colors,
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { boxWidth: 12, font: { size: 11 } }
+                            }
+                        }
+                    }
+                });
+            }
+        })();
+    </script>
+}
