@@ -1,0 +1,91 @@
+@page
+@model Kirkenta.Pages.RRHH.Feriados.CreateModel
+@{
+    ViewData["Title"] = "Nuevo feriado";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/RRHH/Feriados/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a feriados
+        </a>
+        <h2>Nuevo feriado</h2>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Nombre">Nombre *</label>
+                <input asp-for="Input.Nombre" class="form-input" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Fecha">Fecha *</label>
+                <input asp-for="Input.Fecha" type="date" class="form-input" required />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.PaisCodigo">País *</label>
+                <select asp-for="Input.PaisCodigo" class="form-input" required>
+                    <option value="HN">Honduras</option>
+                    <option value="GT">Guatemala</option>
+                    <option value="SV">El Salvador</option>
+                    <option value="CR">Costa Rica</option>
+                    <option value="NI">Nicaragua</option>
+                    <option value="PA">Panamá</option>
+                    <option value="MX">México</option>
+                    <option value="US">Estados Unidos</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Tipo">Tipo *</label>
+                <select asp-for="Input.Tipo" class="form-input" required>
+                    <option value="Nacional">Nacional</option>
+                    <option value="Religioso">Religioso</option>
+                    <option value="Civico">Cívico</option>
+                    <option value="Regional">Regional</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Descripcion">Descripción</label>
+            <textarea asp-for="Input.Descripcion" class="form-input" rows="2"></textarea>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <label class="form-checkbox">
+                <input asp-for="Input.EsRecurrente" type="checkbox" />
+                <span>Se repite cada año (misma fecha)</span>
+            </label>
+            <label class="form-checkbox">
+                <input asp-for="Input.EsMovil" type="checkbox" />
+                <span>Es móvil (ej: Semana Santa)</span>
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/RRHH/Feriados/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">Crear feriado</button>
+        </div>
+    </form>
+</div>

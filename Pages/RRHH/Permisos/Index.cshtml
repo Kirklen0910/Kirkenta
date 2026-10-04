@@ -1,0 +1,168 @@
+@page
+@model Kirkenta.Pages.RRHH.Permisos.IndexModel
+@{
+    ViewData["Title"] = "Permisos y licencias";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Permisos y licencias</h2>
+        <p>Solicitudes de permisos con o sin goce de sueldo</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/RRHH/Permisos/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nuevo permiso
+            </a>
+        }
+        <a asp-page="/RRHH/Index" class="btn-secondary">Volver a RRHH</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Solicitados</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.TotalSolicitados</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Aprobados</span>
+        <span class="kpi-value" style="color: var(--color-info);">@Model.TotalAprobados</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Con goce de sueldo</span>
+        <span class="kpi-value">@Model.DiasConGoce días</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Sin goce de sueldo</span>
+        <span class="kpi-value" style="color: var(--color-danger);">@Model.DiasSinGoce días</span>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-toolbar">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Buscar por número o empleado..." />
+        </div>
+        <div class="filter-group">
+            <select id="filterEstado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="Solicitado">Solicitados</option>
+                <option value="Aprobado">Aprobados</option>
+                <option value="Tomado">Tomados</option>
+                <option value="Rechazado">Rechazados</option>
+            </select>
+        </div>
+    </div>
+
+    @if (Model.Permisos.Count == 0)
+    {
+        <div class="empty-state">
+            <h3>No hay permisos registrados</h3>
+            <a asp-page="/RRHH/Permisos/Create" class="btn-primary">Nuevo permiso</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="permisosTable">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Empleado</th>
+                        <th>Tipo</th>
+                        <th>Período</th>
+                        <th style="text-align: right;">Días</th>
+                        <th>Goce sueldo</th>
+                        <th>Estado</th>
+                        <th style="width: 100px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model.Permisos)
+                    {
+                        <tr data-numero="@p.Numero.ToLower()" data-empleado="@p.EmpleadoNombre.ToLower()" data-estado="@p.Estado">
+                            <td><span style="font-family: monospace;">@p.Numero</span></td>
+                            <td>@p.EmpleadoNombre</td>
+                            <td>@p.Tipo</td>
+                            <td>@p.FechaInicio.ToString("dd/MM") al @p.FechaFin.ToString("dd/MM")</td>
+                            <td style="text-align: right;"><strong>@p.DiasSolicitados</strong></td>
+                            <td>
+                                @if (p.ConGoceSueldo) { <span class="badge badge-success">Sí</span> }
+                                else { <span class="badge badge-warning">No</span> }
+                            </td>
+                            <td>
+                                @if (p.Estado == "Solicitado") { <span class="badge badge-warning">Solicitado</span> }
+                                else if (p.Estado == "Aprobado") { <span class="badge badge-info">Aprobado</span> }
+                                else if (p.Estado == "Tomado") { <span class="badge badge-success">Tomado</span> }
+                                else { <span class="badge badge-danger">@p.Estado</span> }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    @if (Model.PuedeAprobar && p.Estado == "Solicitado")
+                                    {
+                                        <a asp-page="/RRHH/Permisos/Aprobar" asp-route-id="@p.Id" class="btn-icon-action" title="Aprobar/Rechazar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var filterEstado = document.getElementById('filterEstado');
+            var table = document.getElementById('permisosTable');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+
+            function filterRows() {
+                var search = (searchInput?.value || '').toLowerCase().trim();
+                var estado = filterEstado?.value || '';
+
+                rows.forEach(function (row) {
+                    var numero = row.dataset.numero || '';
+                    var empleado = row.dataset.empleado || '';
+                    var rowEstado = row.dataset.estado || '';
+
+                    var matchSearch = !search || numero.includes(search) || empleado.includes(search);
+                    var matchEstado = !estado || rowEstado === estado;
+
+                    row.style.display = (matchSearch && matchEstado) ? '' : 'none';
+                });
+            }
+
+            searchInput?.addEventListener('input', filterRows);
+            filterEstado?.addEventListener('change', filterRows);
+        })();
+    </script>
+}

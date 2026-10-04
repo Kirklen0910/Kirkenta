@@ -1,0 +1,215 @@
+@page
+@model Kirkenta.Pages.RRHH.Documentos.IndexModel
+@{
+    ViewData["Title"] = "Documentos";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Documentos</h2>
+        <p>Todos los documentos de los empleados</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/RRHH/Index" class="btn-secondary">Volver a RRHH</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total documentos</span>
+        <span class="kpi-value">@Model.TotalDocumentos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Vigentes</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.DocumentosVigentes</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Por vencer (30 días)</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.DocumentosPorVencer</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Vencidos</span>
+        <span class="kpi-value" style="color: var(--color-danger);">@Model.DocumentosVencidos</span>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-toolbar">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Buscar por empleado, código, archivo o tipo..." />
+        </div>
+        <div class="filter-group">
+            <select id="filterCategoria" class="filter-select">
+                <option value="">Todas las categorías</option>
+                <option value="Personales">Personales</option>
+                <option value="Antecedentes">Antecedentes</option>
+                <option value="Referencias">Referencias</option>
+                <option value="Academicos">Académicos</option>
+                <option value="Contrato">Contrato</option>
+                <option value="Medicos">Médicos</option>
+                <option value="Otros">Otros</option>
+            </select>
+            <select id="filterEstado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="Vigente">Vigentes</option>
+                <option value="PorVencer">Por vencer</option>
+                <option value="Vencido">Vencidos</option>
+            </select>
+        </div>
+    </div>
+
+    @if (Model.Documentos.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <h3>No hay documentos</h3>
+            <p>Los documentos se suben desde la hoja de vida de cada empleado</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="documentosTable">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;"></th>
+                        <th>Empleado</th>
+                        <th>Tipo</th>
+                        <th>Archivo</th>
+                        <th>Categoría</th>
+                        <th>Vence</th>
+                        <th>Estado</th>
+                        <th style="width: 120px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in Model.Documentos)
+                    {
+                        <tr data-empleado="@d.EmpleadoNombre.ToLower()"
+                            data-codigo="@d.EmpleadoCodigo.ToLower()"
+                            data-archivo="@d.NombreArchivo.ToLower()"
+                            data-tipo="@d.TipoDocumentoNombre.ToLower()"
+                            data-categoria="@d.TipoDocumentoCategoria"
+                            data-estado="@d.Estado">
+                            <td>
+                                @if (!string.IsNullOrEmpty(d.FotoPath))
+                                {
+                                    <img src="@d.FotoPath" alt="@d.EmpleadoNombre" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" />
+                                }
+                                else
+                                {
+                                    <div class="user-avatar-sm" style="width: 32px; height: 32px; font-size: 12px;">@d.EmpleadoNombre.Substring(0, 1).ToUpper()</div>
+                                }
+                            </td>
+                            <td>
+                                <a asp-page="/RRHH/Empleados/Details" asp-route-id="@d.EmpleadoId">
+                                    <strong>@d.EmpleadoNombre</strong>
+                                </a>
+                                <br /><span class="table-user-sub">@d.EmpleadoCodigo</span>
+                            </td>
+                            <td>@d.TipoDocumentoNombre</td>
+                            <td><strong>@d.NombreArchivo</strong> (@d.TamanoKB KB)</td>
+                            <td><span class="badge badge-info">@d.TipoDocumentoCategoria</span></td>
+                            <td>
+                                @if (d.FechaVencimiento.HasValue)
+                                {
+                                    @d.FechaVencimiento.Value.ToString("dd/MM/yyyy")
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">—</span>
+                                }
+                            </td>
+                            <td>
+                                @if (d.Estado == "Vigente") { <span class="badge badge-success">Vigente</span> }
+                                else if (d.Estado == "PorVencer") { <span class="badge badge-warning">Por vencer</span> }
+                                else { <span class="badge badge-danger">Vencido</span> }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    <a href="@d.RutaArchivo" target="_blank" class="btn-icon-action" title="Ver">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
+                                    <a href="@d.RutaArchivo" download class="btn-icon-action" title="Descargar">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="7 10 12 15 17 10"/>
+                                            <line x1="12" y1="15" x2="12" y2="3"/>
+                                        </svg>
+                                    </a>
+                                    <form method="post" asp-page-handler="Eliminar" asp-route-id="@d.Id" style="display:inline;" onsubmit="return confirm('¿Eliminar este documento?');">
+                                        <button type="submit" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="3 6 5 6 21 6"/>
+                                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var filterCategoria = document.getElementById('filterCategoria');
+            var filterEstado = document.getElementById('filterEstado');
+            var table = document.getElementById('documentosTable');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+
+            function filterRows() {
+                var search = (searchInput?.value || '').toLowerCase().trim();
+                var categoria = filterCategoria?.value || '';
+                var estado = filterEstado?.value || '';
+
+                rows.forEach(function (row) {
+                    var empleado = row.dataset.empleado || '';
+                    var codigo = row.dataset.codigo || '';
+                    var archivo = row.dataset.archivo || '';
+                    var tipo = row.dataset.tipo || '';
+                    var rowCategoria = row.dataset.categoria || '';
+                    var rowEstado = row.dataset.estado || '';
+
+                    var matchSearch = !search || empleado.includes(search) || codigo.includes(search) || archivo.includes(search) || tipo.includes(search);
+                    var matchCategoria = !categoria || rowCategoria === categoria;
+                    var matchEstado = !estado || rowEstado === estado;
+
+                    row.style.display = (matchSearch && matchCategoria && matchEstado) ? '' : 'none';
+                });
+            }
+
+            searchInput?.addEventListener('input', filterRows);
+            filterCategoria?.addEventListener('change', filterRows);
+            filterEstado?.addEventListener('change', filterRows);
+        })();
+    </script>
+}

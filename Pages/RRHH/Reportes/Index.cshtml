@@ -1,0 +1,415 @@
+@page
+@model Kirkenta.Pages.RRHH.Reportes.IndexModel
+@{
+    ViewData["Title"] = "Reportes de RRHH";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Reportes de Recursos Humanos</h2>
+        <p>Análisis de plantilla, nómina y ausencias</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/RRHH/Index" class="btn-secondary">Volver a RRHH</a>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+    <form method="get" class="reportes-filtros">
+        <div class="filtros-row">
+            <div class="form-field">
+                <label>Desde</label>
+                <input type="date" name="desde" class="form-input" value="@Model.Desde.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-field">
+                <label>Hasta</label>
+                <input type="date" name="hasta" class="form-input" value="@Model.Hasta.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-field">
+                <label>Departamento</label>
+                <select name="departamento" class="form-input">
+                    <option value="">Todos</option>
+                    @foreach (var d in Model.DepartamentosDisponibles)
+                    {
+                        if (d == Model.DepartamentoFiltro)
+                        {
+                            <option value="@d" selected>@d</option>
+                        }
+                        else
+                        {
+                            <option value="@d">@d</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn-primary">Aplicar filtros</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- KPIs generales -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total empleados</span>
+        <span class="kpi-value">@Model.TotalEmpleados</span>
+        <span class="kpi-trend">@Model.TotalActivos activos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Nómina mensual</span>
+        <span class="kpi-value" style="font-size: 20px;">L. @Model.NominaMensual.ToString("N2")</span>
+        <span class="kpi-trend">Salarios base activos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Salario promedio</span>
+        <span class="kpi-value" style="font-size: 20px;">L. @Model.SalarioPromedio.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Antigüedad promedio</span>
+        <span class="kpi-value">@Model.AntiguedadPromedio.ToString("N1") años</span>
+    </div>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Altas en el período</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.TotalAltas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Bajas en el período</span>
+        <span class="kpi-value" style="color: var(--color-danger);">@Model.TotalBajas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Días de vacaciones tomados</span>
+        <span class="kpi-value">@Model.DiasVacacionesTomados</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Rotación</span>
+        <span class="kpi-value" style="color: @(Model.TasaRotacion > 10 ? "var(--color-danger)" : "var(--color-success)");">
+            @Model.TasaRotacion.ToString("N1")%
+        </span>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="panel-grid" style="margin-bottom: 20px;">
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">👥 Empleados por departamento</h3>
+        @if (Model.EmpleadosPorDepartamento.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin datos</p>
+        }
+        else
+        {
+            <div style="position: relative; height: 280px; width: 100%;">
+                <canvas id="chartDepartamentos"></canvas>
+            </div>
+        }
+    </div>
+
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">📊 Distribución por estado</h3>
+        @if (Model.EmpleadosPorEstado.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin datos</p>
+        }
+        else
+        {
+            <div style="position: relative; height: 280px; width: 100%;">
+                <canvas id="chartEstados"></canvas>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="panel-grid" style="margin-bottom: 20px;">
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">💰 Nómina pagada por mes</h3>
+        @if (Model.NominaPorMes.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin nóminas pagadas en el período</p>
+        }
+        else
+        {
+            <div style="position: relative; height: 280px; width: 100%;">
+                <canvas id="chartNomina"></canvas>
+            </div>
+        }
+    </div>
+
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">🎂 Cumpleaños del mes</h3>
+        @if (Model.Cumpleanieros.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin cumpleaños este mes</p>
+        }
+        else
+        {
+            <div class="timeline">
+                @foreach (var c in Model.Cumpleanieros)
+                {
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background: #ec4899;"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <strong>@c.NombreCompleto</strong>
+                                <span class="timeline-date">@c.FechaNacimiento.ToString("dd/MM")</span>
+                            </div>
+                            <p class="timeline-detail">@c.Departamento</p>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Tabla por departamento -->
+<div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+    <h3 class="panel-title" style="margin-bottom: 16px;">📋 Detalle por departamento</h3>
+
+    @if (Model.EmpleadosPorDepartamento.Count == 0)
+    {
+        <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin datos</p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Departamento</th>
+                        <th style="text-align: right;">Empleados</th>
+                        <th style="text-align: right;">% del total</th>
+                        <th style="text-align: right;">Nómina mensual</th>
+                        <th style="text-align: right;">Salario promedio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in Model.EmpleadosPorDepartamento)
+                    {
+                        <tr>
+                            <td><strong>@d.Departamento</strong></td>
+                            <td style="text-align: right;">@d.Cantidad</td>
+                            <td style="text-align: right;">@d.Porcentaje.ToString("N1")%</td>
+                            <td style="text-align: right;">L. @d.Nomina.ToString("N2")</td>
+                            <td style="text-align: right;">L. @d.SalarioPromedio.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr style="background: #f9fafb; font-weight: 700; border-top: 2px solid var(--color-border);">
+                        <td>TOTAL</td>
+                        <td style="text-align: right;">@Model.TotalEmpleados</td>
+                        <td style="text-align: right;">100.0%</td>
+                        <td style="text-align: right;">L. @Model.NominaMensual.ToString("N2")</td>
+                        <td style="text-align: right;">L. @Model.SalarioPromedio.ToString("N2")</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- Top 10 empleados por antigüedad -->
+<div class="module-card" style="padding: 20px;">
+    <h3 class="panel-title" style="margin-bottom: 16px;">🏆 Top empleados por antigüedad</h3>
+
+    @if (Model.TopAntiguedad.Count == 0)
+    {
+        <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin datos</p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Empleado</th>
+                        <th>Puesto</th>
+                        <th>Departamento</th>
+                        <th>Ingreso</th>
+                        <th style="text-align: right;">Antigüedad</th>
+                        <th style="text-align: right;">Salario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{ int idx = 1; }
+                    @foreach (var e in Model.TopAntiguedad)
+                    {
+                        <tr>
+                            <td><strong>@idx</strong></td>
+                            <td><strong>@e.NombreCompleto</strong></td>
+                            <td>@(e.Puesto ?? "—")</td>
+                            <td>@(e.Departamento ?? "—")</td>
+                            <td>@e.FechaIngreso.ToString("dd/MM/yyyy")</td>
+                            <td style="text-align: right;"><span class="badge badge-info">@e.Anios años</span></td>
+                            <td style="text-align: right;">L. @e.SalarioBase.ToString("N2")</td>
+                        </tr>
+                        idx++;
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            var colores = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#0ea5e9'];
+
+            // Opciones globales de Chart.js para todos los gráficos
+            Chart.defaults.font.family = "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+            Chart.defaults.font.size = 12;
+            Chart.defaults.color = '#6b7280';
+
+            // ===== Chart: Empleados por departamento =====
+            var canvasDep = document.getElementById('chartDepartamentos');
+            if (canvasDep) {
+                var labelsDep = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.EmpleadosPorDepartamento.Select(d => d.Departamento)));
+                var dataDep = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.EmpleadosPorDepartamento.Select(d => d.Cantidad)));
+
+                new Chart(canvasDep, {
+                    type: 'bar',
+                    data: {
+                        labels: labelsDep,
+                        datasets: [{
+                            label: 'Empleados',
+                            data: dataDep,
+                            backgroundColor: colores,
+                            borderRadius: 6,
+                            maxBarThickness: 40
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 400 },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (ctx) { return ctx.parsed.y + ' empleado(s)'; }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    autoSkip: false,
+                                    maxRotation: 45,
+                                    minRotation: 0,
+                                    font: { size: 11 }
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { stepSize: 1, precision: 0 },
+                                grid: { color: '#f3f4f6' }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // ===== Chart: Estados =====
+            var canvasEst = document.getElementById('chartEstados');
+            if (canvasEst) {
+                var labelsEst = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.EmpleadosPorEstado.Select(e => e.Estado)));
+                var dataEst = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.EmpleadosPorEstado.Select(e => e.Cantidad)));
+
+                new Chart(canvasEst, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labelsEst,
+                        datasets: [{
+                            data: dataEst,
+                            backgroundColor: colores,
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 400 },
+                        cutout: '60%',
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { boxWidth: 12, padding: 10, font: { size: 12 } }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (ctx) {
+                                        var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                                        var pct = total > 0 ? (ctx.parsed / total * 100).toFixed(1) : 0;
+                                        return ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // ===== Chart: Nómina por mes =====
+            var canvasNom = document.getElementById('chartNomina');
+            if (canvasNom) {
+                var labelsNom = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.NominaPorMes.Select(n => n.Mes)));
+                var dataNom = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.NominaPorMes.Select(n => n.Monto)));
+
+                new Chart(canvasNom, {
+                    type: 'line',
+                    data: {
+                        labels: labelsNom,
+                        datasets: [{
+                            label: 'Total neto pagado (L.)',
+                            data: dataNom,
+                            borderColor: '#4f46e5',
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            pointBackgroundColor: '#4f46e5',
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 400 },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (ctx) { return 'L. ' + ctx.parsed.y.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (v) {
+                                        if (v >= 1000) return 'L. ' + (v / 1000).toFixed(0) + 'k';
+                                        return 'L. ' + v;
+                                    }
+                                },
+                                grid: { color: '#f3f4f6' }
+                            }
+                        }
+                    }
+                });
+            }
+        })();
+    </script>
+}

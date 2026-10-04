@@ -7,15 +7,16 @@ Cómo usar: Pega este archivo completo al inicio de un chat nuevo. Di: "Retomamo
 ================================================================================
 
 - Framework: ASP.NET Core Razor Pages
-- .NET: net10.0
-- ORM: Entity Framework Core 10
-- Base de datos: MySQL (Pomelo.EntityFrameworkCore.MySql)
-- Autenticación: Cookies (esquema "KirkentaAuth")
-- Sesión: "KirkentaSession" (30 min)
+- .NET: net10.0 (TargetFramework: net10.0)
+- ORM: Entity Framework Core 9.0.0
+- Base de datos: MySQL (Pomelo.EntityFrameworkCore.MySql 9.0.0)
+- Autenticación: Cookies (esquema "KirkentaAuth", 8 horas, sliding)
+- Sesión: "KirkentaSession" (30 min, para wizard de importación)
 - Frontend: Bootstrap 5 + CSS custom (wwwroot/css/theme.css)
 - Charts: Chart.js 4.4.0 (CDN jsdelivr)
-- Excel: ClosedXML
-- CSV: custom (sin dependencias)
+- Excel: ClosedXML 0.105.1
+- CSV: CsvHelper 33.1.0
+- Password hashing: BCrypt.Net-Next 4.2.0
 - Git: https://github.com/Kirklen0910/Kirkenta
 
 ================================================================================
@@ -26,36 +27,61 @@ Kirkenta/
 ├── Data/ApplicationDbContext.cs
 ├── Helpers/
 │   ├── Export/ (ExcelExporter, CsvExporter, JsonExporter, ExportColumn, ExportColumns)
-│   ├── Import/ (ExcelImporter, CsvImporter, ColumnMapper, ImportResult)
+│   ├── Import/ (ExcelImporter, CsvImporter, ColumnMapper, ImportResult, ImportFile)
 │   ├── Finanzas/ (AperturaHelper, CierreHelper, DistribucionHelper, MovimientoAutomaticoHelper, SaldoHelper, AdjuntoCierreHelper, FinanzasSeeder)
+│   ├── RRHH/ (EmpleadoHelper, AdjuntoEmpleadoHelper, NominaHelper, VacacionHelper, TipoDocumentoEmpleadoSeeder, FeriadoSeeder)
 │   ├── ActividadHelper.cs
 │   ├── ModulosERP.cs
 │   ├── NumeroDocumentoHelper.cs
 │   ├── PermisoHelper.cs
 │   └── PermisoSeeder.cs
-├── Migrations/
-├── Models/
+├── Migrations/ (desincronizado, ver sección 10)
+├── Models/ (todos los modelos)
 ├── Pages/
-│   ├── Auth/
-│   ├── Usuarios/
-│   ├── POS/
-│   ├── Ventas/
-│   ├── Clientes/
-│   ├── Cotizaciones/
-│   ├── Pedidos/
-│   ├── Facturas/
-│   ├── Devoluciones/
-│   ├── Productos/
-│   ├── Categorias/
-│   ├── UnidadesMedida/
-│   ├── Bajas/
-│   ├── Compras/
-│   ├── Proveedores/
-│   ├── OrdenesCompra/
-│   ├── PagosProveedor/
-│   ├── Finanzas/ (Index, Cuentas, Categorias, Movimientos, Aperturas, Cierres, Reportes)
-│   ├── Reportes/
-│   └── Shared/_Layout.cshtml
+│   ├── Auth/ (Login, Logout, Register)
+│   ├── Usuarios/ (Index, Create, Edit, Delete, Roles, RolesCreate, RolesEdit, RolesDelete, Perfil, CambiarPassword, Actividad)
+│   ├── POS/ (Index)
+│   ├── Ventas/ (Index, Details)
+│   ├── Clientes/ (Index, Create, Edit, Delete, Export, Import, ImportMap)
+│   ├── Cotizaciones/ (Index, Create, Edit, Delete, Details)
+│   ├── Pedidos/ (Index, Create, Edit, Details)
+│   ├── Facturas/ (Index, Details, RegistrarPago, CreateFromVenta)
+│   ├── Devoluciones/ (Index)
+│   ├── Productos/ (Index, Create, Edit, Delete, Export, Import, ImportMap)
+│   ├── Categorias/ (Index, Create, Edit, Delete)
+│   ├── UnidadesMedida/ (Index, Create, Edit, Delete)
+│   ├── Bajas/ (Index, Create, Details, Aprobar, Revertir)
+│   ├── Compras/ (Index, HistorialProducto)
+│   ├── Proveedores/ (Index, Create, Edit, Delete, Details, Export, Import, ImportMap)
+│   ├── OrdenesCompra/ (Index, Create, Edit, Delete, Details, Recibir)
+│   ├── PagosProveedor/ (Index, Create, Details)
+│   ├── Finanzas/
+│   │   ├── Index
+│   │   ├── Cuentas/ (Index, Create, Edit, Delete)
+│   │   ├── Categorias/ (Index, Create, Edit, Delete)
+│   │   ├── Movimientos/ (Index, Create, Edit, Anular)
+│   │   ├── Aperturas/ (Index, Create)
+│   │   ├── Cierres/ (Index, Create, Details, Aprobar)
+│   │   └── Reportes/ (Index)
+│   ├── RRHH/
+│   │   ├── Index
+│   │   ├── Empleados/ (Index, Create, Edit, Delete, Details)
+│   │   ├── Documentos/ (Index)
+│   │   ├── Expedientes/ (Index, Create)
+│   │   ├── Vales/ (Index, Create, Aprobar, Entregar)
+│   │   ├── Vacaciones/ (Index, Create, Aprobar)
+│   │   ├── Permisos/ (Index, Create, Aprobar)
+│   │   ├── Nomina/ (Index, Create, Details, Aprobar, Pagar, PagarEmpleado)
+│   │   ├── Feriados/ (Index, Create, Edit)
+│   │   ├── Alertas/ (Index, Create)
+│   │   └── Reportes/ (Index)
+│   ├── Reportes/ (Index, Ventas, Compras)
+│   ├── Configuracion/ (Index, Edit)
+│   ├── Impuestos/ (Index, Create, Edit, Delete)
+│   ├── MetodosPago/ (Index, Create, Edit, Delete)
+│   ├── Nomenclatura/ (Index)
+│   ├── Series/ (Index, Create, Edit, Delete)
+│   └── Shared/ (_Layout, _LayoutPOS, _ValidationScriptsPartial)
 ├── wwwroot/ (css, js, images, lib, uploads)
 ├── Program.cs
 ├── appsettings.json
@@ -68,13 +94,16 @@ Kirkenta/
 Diccionario en Helpers/ModulosERP.cs:
 
 Usuarios: Index, Create, Edit, Delete, Roles, RolesCreate, RolesEdit, RolesDelete, Perfil, CambiarPassword, Actividad
-Ventas: POS, Index, Cotizaciones, Pedidos, Facturas, Clientes (+Create/Edit/Delete/Export/Import), Devoluciones
-Inventario: Productos (+Create/Edit/Delete/Export/Import), Categorias, UnidadesMedida, Bajas
-Compras: Proveedores (+Create/Edit/Delete/Export/Import), Ordenes (+Create/Edit/Delete/Recibir), Pagos (+Create), CuentasPorPagar, Reportes
-Finanzas: Cuentas (+Create/Edit/Delete), Categorias (+Create/Edit/Delete), Movimientos (+Create/Edit/Anular), Aperturas (+Create), Cierres (+Create/Aprobar), Reportes
-RRHH: Index, Empleados, Nomina, Vales (PENDIENTE)
-Reportes: Ventas, Compras
-Configuracion: Empresa, Nomenclatura, Series, MetodosPago
+Ventas: POS, Index, Create, Edit, Delete, Cotizaciones, Pedidos, Facturas, Clientes, ClientesCreate, ClientesEdit, ClientesDelete, ClientesExport, ClientesImport, Devoluciones
+Inventario: Index, Productos (+Create/Edit/Delete/Export/Import), Categorias, UnidadesMedida, Entradas, Salidas, Bajas
+Compras: Index, Proveedores (+Create/Edit/Delete/Export/Import), Ordenes (+Create/Edit/Delete/Recibir), Pagos (+Create), CuentasPorPagar, Reportes
+Finanzas: Index, Cuentas (+Create/Edit/Delete), Categorias (+Create/Edit/Delete), Movimientos (+Create/Edit/Anular), Aperturas (+Create), Cierres (+Create/Aprobar), Reportes, FlujoCaja, EstadoResultados, BalanceGeneral, Conciliacion, ISV
+RRHH: Index, Empleados (+Create/Edit/Delete), Documentos (+Create/Delete), Expedientes (+Create/Delete), Vacaciones (+Create/Aprobar), Permisos (+Create/Aprobar), Vales (+Create/Aprobar/Entregar), Nomina (+Create/Aprobar/Pagar), Feriados (+Create), Alertas (+Create), Reportes
+Reportes: Index, Ventas, Compras
+Logistica: Index, Envios
+Activos: Index, Mantenimiento
+Seguridad: Index, Auditoria
+Configuracion: Index, Empresa, Nomenclatura, Series, MetodosPago
 
 ================================================================================
 4. PERMISOS
@@ -83,61 +112,105 @@ Configuracion: Empresa, Nomenclatura, Series, MetodosPago
 Tabla Permisos: RolId, Modulo, Submodulo (nullable), PuedeVer, PuedeCrear, PuedeEditar, PuedeEliminar
 Índice único en (RolId, Modulo, Submodulo)
 Submodulo = null → permiso del módulo padre
-Admin siempre tiene acceso total
+Admin siempre tiene acceso total (bypass en PermisoHelper)
 Pendiente = usuario sin rol
 
-Helpers:
-- PermisoHelper.TienePermiso(context, rol, modulo, submodulo, "ver|crear|editar|eliminar")
-- PermisoHelper.ModulosVisibles(context, rol)
-- PermisoHelper.SubmodulosVisibles(context, rol, modulo)
-- PermisoSeeder.MigrarPermisosFaltantes(db) → ejecutado al arrancar
+Helpers (PermisoHelper):
+- TienePermiso(context, rol, modulo, submodulo, "ver|crear|editar|eliminar")
+- ModulosVisibles(context, rol) → módulos con PuedeVer (padre o algún hijo)
+- SubmodulosVisibles(context, rol, modulo) → submódulos con PuedeVer
 
-Convención:
-- Padres: "Cuentas", "Movimientos", "Cierres", "Clientes", "Productos"
-- Hijos: "CuentasCreate", "CierresAprobar", etc.
+PermisoSeeder.MigrarPermisosFaltantes(db):
+- Se ejecuta al arrancar la app (Program.cs)
+- Para cada rol (excepto Admin), crea permisos faltantes copiando del módulo padre
+- Idempotente
+
+Convención de nombres:
+- Módulos padre: "Clientes", "Productos", "Cuentas", "Movimientos", "Cierres", "Empleados", "Vales", "Nomina", etc.
+- Submódulos (con acción): "ClientesCreate", "ClientesEdit", "ClientesDelete", "CuentasCreate", "CierresAprobar", "ValesEntregar", "NominaPagar"
+- Genéricos: "Index", "Create", "Edit", "Delete" (usados cuando aplican al módulo raíz, ej: "UsuariosCreate" no existe, pero "Usuarios/Index" sí como submódulo)
 
 ================================================================================
 5. HELPERS CLAVE
 ================================================================================
 
 NumeroDocumentoHelper
-- GenerarSiguiente(context, "Venta") → genera y avanza
-- PreviewSiguiente(context, "Venta") → solo muestra
-- Tipos: Venta, Factura, Cotizacion, Pedido, Devolucion, OrdenCompra, PagoProveedor, DevolucionProveedor, Proveedor, Producto, Baja, MovimientoFinanciero, ValeEmpleado, CierreCaja, AperturaCaja
+- GenerarSiguiente(context, tipo) → genera número y avanza el correlativo
+- PreviewSiguiente(context, tipo) → solo muestra el próximo
+- SincronizarSerie() → ajusta el correlativo si detecta desfase con la BD
+- Soporta formato personalizado: {PREFIX}, {SUFFIX}, {SEP}, {NUM}, {YEAR}, {MONTH}, {DAY}
+- Tipos soportados: Cotizacion, Pedido, Venta, Factura, Devolucion, Producto, Baja, Proveedor, OrdenCompra, PagoProveedor, DevolucionProveedor, MovimientoFinanciero, AperturaCaja, CierreCaja, Empleado, ValeEmpleado, Vacacion, PermisoEmpleado, Nomina, PagoNomina
 
 ActividadHelper
-- Registrar(context, usuarioId, "acción", "detalle", ipAddress)
-- Nunca lanza excepción
+- Registrar(context, usuarioId, "acción", "detalle", ipAddress, userAgent)
+- Nunca lanza excepción (silencioso si falla)
 
-SaldoHelper
-- Aplicar(context, movimiento) → ajusta saldo de cuentas
+SaldoHelper (Finanzas)
+- Aplicar(context, movimiento) → ajusta saldo de cuentas (Ingreso suma, Egreso resta, Transferencia resta origen y suma destino)
 - Revertir(context, movimiento) → revierte al anular
 
-MovimientoAutomaticoHelper
+MovimientoAutomaticoHelper (Finanzas)
 - RegistrarIngresoVenta(context, ventaId, numeroVenta, monto, usuarioId, formaPago, cuentaId)
 - RegistrarEgresoPagoProveedor(context, pagoId, numeroPago, monto, usuarioId, nombreProveedor, formaPago)
 - RegistrarEgresoNomina(context, nominaId, numeroNomina, monto, usuarioId)
+- Resuelve cuenta y categoría por defecto si no se especifican
 
-AperturaHelper
-- Abrir(context, cuentaId, saldoInicial, notas, usuarioId, fechaManual)
+AperturaHelper (Finanzas)
+- Abrir(context, cuentaId, saldoInicial, notas, usuarioId) → (apertura, error)
 - ObtenerAperturaActiva(context, cuentaId)
-- SugerirSaldoInicial(context, cuentaId) → basado en último cierre
+- HayAperturaActiva(context, cuentaId)
 - Cerrar(context, aperturaId, cierreId)
 
-CierreHelper
-- Calcular(context, cuentaId, fecha)
-- Registrar(context, cuentaId, fecha, efectivoContado, notas, tolerancia, usuarioId)
-- DeterminarResultado(diferencia, tolerancia) → Cuadrado/Sobrante/Faltante
+CierreHelper (Finanzas)
+- Calcular(context, cuentaId, fecha) → CalculoCierre (con Apertura, SaldoInicial, Ingresos, Egresos, EfectivoEsperado)
+- Registrar(context, cuentaId, fecha, efectivoContado, notas, tolerancia, usuarioId) → (cierre, error)
+- DeterminarResultado(diferencia, tolerancia) → "Cuadrado" | "Sobrante" | "Faltante"
+- Genera ajuste automático si hay diferencia (Ingreso/Egreso)
 
-DistribucionHelper
-- RegistrarDistribuciones(context, cierreId, cuentaOrigenId, efectivoContado, distribuciones, usuarioId)
-- ObtenerDistribuciones(context, cierreId)
-- Tipos: RetiroBanco (Transferencia), FondoCaja (sin movimiento), EntregaAdmin (Egreso), PagoDirecto (Egreso), Otro (Egreso)
+DistribucionHelper (Finanzas)
+- RegistrarDistribuciones(context, cierreId, cuentaOrigenId, efectivoContado, distribuciones, usuarioId) → (ok, error)
+- ObtenerDistribuciones(context, cierreId) → List<DistribucionView>
+- Tipos: "RetiroBanco" (Transferencia), "FondoCaja" (sin movimiento), "EntregaAdmin" (Egreso), "PagoDirecto" (Egreso), "Otro" (Egreso)
+- Validación: suma de distribuciones debe igualar efectivo contado
 
-AdjuntoCierreHelper
+AdjuntoCierreHelper (Finanzas)
 - Guardar(context, env, cierreId, archivo, descripcion, usuarioId)
 - Eliminar(context, env, adjuntoId)
 - Extensiones: .pdf, .jpg, .jpeg, .png. Máx 10 MB
+
+EmpleadoHelper (RRHH)
+- GenerarCodigo / PreviewCodigo
+- CalcularAniosAntiguedad(empleado, fechaRef) / CalcularMesesAntiguedad
+- CalcularDiasVacacionesPorAntiguedad(context, empleado, anioAntiguedad) → lee ConfiguracionEmpresa.RHTablaVacaciones
+- ProcesarAcumulacionVacaciones(context, empleado, fechaRef)
+- ProcesarAcumulacionGlobal(context) → llamada al arrancar la app
+- ObtenerFeriados(context, desde, hasta)
+
+AdjuntoEmpleadoHelper (RRHH)
+- Guardar(context, env, empleadoId, tipoDocumentoId, archivo, descripcion, fechaDoc, fechaVenc, usuarioId)
+- GuardarFotoPerfil(context, env, empleadoId, archivo)
+- Eliminar(context, env, adjuntoId)
+- ActualizarVigencias(context) → llamada al arrancar la app
+- Extensiones: .pdf, .jpg, .jpeg, .png, .docx, .doc. Máx 15 MB (foto 5 MB)
+
+NominaHelper (RRHH)
+- ObtenerConfiguracion(context, anio) → crea config por defecto si no existe
+- CalcularISRMensual(salarioBruto, tramos)
+- CalcularISRAcumulativo(context, empleadoId, salarioBrutoMes, anio, mesActual, config)
+- CalcularIHSS(salarioBase, config) / CalcularRAP(salarioBase, config)
+- CalcularSalarioProporcional(salarioBase, diasTrabajados, diasPeriodo)
+- CalcularPeriodo(frecuencia, referencia) → (inicio, fin, pago)
+- DiasPeriodo(frecuencia) → 7/14/15/30
+- ObtenerValesActivos(context, empleadoId)
+- CalcularDescuentoVales(context, empleadoId) → (total, valesAfectados)
+- CalcularDetalleEmpleado(context, empleado, tipoNomina, diasPeriodo, fechaInicio, fechaFin) → DetalleNomina
+
+VacacionHelper (RRHH)
+- CalcularDias(context, fechaInicio, fechaFin) → (diasHabiles, diasFeriados, feriados)
+  Excluye fines de semana y feriados del país
+- Solicitar(context, empleadoId, fechaInicio, fechaFin, motivo, usuarioSolicitaId) → (vacacion, error)
+- Aprobar(context, vacacionId, usuarioApruebaId) → descuenta saldo
+- Rechazar(context, vacacionId, usuarioApruebaId, motivo)
 
 Export
 - ExportColumns.Clientes() / .Productos(cats, imps) / .Proveedores()
@@ -148,9 +221,11 @@ Export
 Import
 - ExcelImporter.Read(stream) → ImportFile
 - CsvImporter.Read(stream) → ImportFile
-- ImportFile: Headers (List<string>), Rows (List<Dictionary<string,string>>)
+- ImportFile: Headers (List<string>), Rows (List<Dictionary<string,string>>), Ok, Error
 - ColumnMapper.Detectar(headers, aliasPorCampo) → Dictionary<string, string?>
+- ColumnMapper.Normalizar(texto) → sin acentos/espacios, lowercase
 - Wizard: /[Modulo]/Import → /[Modulo]/ImportMap → confirmar → Index
+- Modos de importación: "upsert" | "crear" | "actualizar"
 
 ================================================================================
 6. CONVENCIONES
@@ -185,6 +260,16 @@ TempData:
 Actividad (siempre registrar acciones importantes):
 ActividadHelper.Registrar(_context, currentUser?.Id ?? 0, "Verbo + objeto", $"Detalle L. {monto:N2}", HttpContext.Connection.RemoteIpAddress?.ToString());
 
+Estructura típica de página:
+- Vista .cshtml con layout principal (_Layout)
+- POS usa layout propio (_LayoutPOS)
+- Cabecera con breadcrumb (automática desde _Layout)
+- `module-header` con título + botones de acción
+- Banner TempData Success/Error
+- KPIs en `kpi-grid` (opcional)
+- Contenido principal en `module-card`
+- Modales con estilo `.pos-modal` reutilizado
+
 ================================================================================
 7. REGLAS CRÍTICAS
 ================================================================================
@@ -193,66 +278,109 @@ ActividadHelper.Registrar(_context, currentUser?.Id ?? 0, "Verbo + objeto", $"De
 2. Automatizar pero permitir modo manual (checkbox "Registrar en Finanzas").
 3. Movimientos NO se borran, se ANULAN.
 4. Cierres requieren APROBACIÓN.
-5. Nomenclatura personalizable desde /Nomenclatura.
+5. Nomenclatura personalizable desde /Nomenclatura → /Series.
 6. Si import trae SKU/Código → respetar. Si vacío → autogenerar.
 7. Apertura de caja OBLIGATORIA antes de vender en POS.
 8. Al cerrar → se cierra la apertura. Al día siguiente se sugiere saldo del último cierre.
 9. Distribución del efectivo: suma DEBE igualar efectivo contado.
 10. Cada distribución genera su movimiento (excepto FondoCaja).
+11. Nómina: flujo Calculada → Aprobada → Pagada (con pagos individuales o en lote).
+12. Vales: doble aprobación (Gerente + RRHH) → Entregado → Descontado en nómina.
+13. Vacaciones: cálculo excluye fines de semana y feriados del país configurado.
+14. Salario proporcional: se calcula sobre 30 días (base mensual estándar).
+15. ISR Honduras: método acumulativo anual por defecto (SAR).
+16. Vales: límite del 50% del salario mensual del empleado (validación al crear).
+17. Nómina: no se puede editar si tiene recepciones o pagos. Se anula.
+18. OrdenCompra: no se puede editar si tiene recepciones o pagos. Estados: Borrador → Enviada → RecibidaParcial → Recibida → Pagada.
 
 ================================================================================
 8. MÓDULOS COMPLETADOS
 ================================================================================
 
 Core:
-- Auth (Login, Register, Logout)
+- Auth (Login, Register, Logout) con BCrypt
 - Usuarios + Roles + Permisos (CRUD completo)
-- Perfil, Cambiar contraseña, Actividad
+- Perfil, Cambiar contraseña, Actividad (con IP y UserAgent)
 - Permisos con seeder automático
 - Menú lateral con iconos + permisos dinámicos
+- Breadcrumb automático desde ruta
 
 Ventas:
-- POS completo (búsqueda, carrito, cobro, modal)
-- Clientes (CRUD + Import + Export)
-- Cotizaciones, Pedidos, Facturas, Devoluciones
+- POS completo (búsqueda, carrito, cobro, modal, integración Finanzas con checkbox)
+- Clientes (CRUD + Import + Export con wizard)
+- Cotizaciones (CRUD + conversión a factura y a POS)
+- Pedidos (CRUD + estados)
+- Facturas (Index, Details, RegistrarPago, CreateFromVenta)
+- Devoluciones (Index)
 
 Inventario:
-- Productos (CRUD + Import + Export)
+- Productos (CRUD + Import + Export con wizard)
 - Categorías, Unidades de medida
-- Bajas (con aprobación y reversión)
+- Bajas (con aprobación y reversión + auditoría)
+- Historial de compras por producto (con gráfico de evolución de precios)
 
 Compras:
-- Proveedores (CRUD + Import + Export)
-- Órdenes de compra (Create, Edit, Recibir)
-- Pagos a proveedores + Cuentas por pagar
-- Reportes de compras
+- Proveedores (CRUD + Import + Export con wizard)
+- Órdenes de compra (Create, Edit, Recibir con recepción parcial)
+- Pagos a proveedores + Cuentas por pagar (con integración Finanzas)
+- Adjuntos a órdenes de compra (con validación IDOR)
+- Reportes de compras (gráficos + detalle por proveedor y producto)
 
 Finanzas:
-- Dashboard con gráficos
-- Cuentas financieras (Cajas + Bancos)
-- Categorías financieras
+- Dashboard con gráficos (Flujo mensual, Top categorías egresos)
+- Cuentas financieras (Cajas + Bancos, con saldo inicial y actual)
+- Categorías financieras (Ingreso/Egreso, sistema + custom)
 - Movimientos (Ingresos, Egresos, Transferencias, Anulaciones)
-- Reportes (Flujo, Resultados, Estado de cuenta)
-- Aperturas de caja
-- Cierres con distribución del efectivo
-- Aprobación de cierres
-- Adjuntos / comprobantes
-- Integración automática desde POS y PagosProveedor
+- Reportes (Flujo de caja, Estado de resultados, Estado de cuenta)
+- Aperturas de caja (una activa por cuenta)
+- Cierres con distribución del efectivo (RetiroBanco, FondoCaja, EntregaAdmin, PagoDirecto, Otro)
+- Aprobación de cierres (Cerrado → Aprobado/Rechazado)
+- Adjuntos / comprobantes (con validación)
+- Movimientos automáticos desde POS, PagosProveedor, Vales, Nómina
+- Ajuste automático por diferencia en cierre
+
+RRHH (100% completado):
+- Dashboard con KPIs + Cumpleaños + Aniversarios + Feriados + Vacaciones + Alertas + Empleados recientes
+- Empleados: CRUD + foto + documentos adjuntos + expediente + hoja de vida con 8 tabs
+- Categorías de documentos (TipoDocumentoEmpleado) con seeder
+- Expedientes (llamados, amonestaciones, suspensiones, méritos, reconocimientos)
+- Vacaciones con cálculo hábil (excluye fines de semana y feriados) y descuento automático de saldo
+- Permisos y licencias con/sin goce de sueldo
+- Vales con doble aprobación (Gerente + RRHH) → Entregado → Descontado en nómina
+- Nómina completa: cálculo ISR (acumulativo anual) + IHSS + RAP + vales + pago individual o en lote
+- Feriados multi-país con seeder (HN, GT, SV, CR, NI, PA, MX, US) + Semana Santa por algoritmo
+- Alertas personalizadas con dashboard y prioridades
+- Reportes: KPIs, gráficos (Chart.js), por departamento, nómina por mes, top antigüedad, cumpleaños, rotación
+- Integración con Finanzas (egresos automáticos por nómina y vales)
 
 Configuración:
-- Datos de la empresa, Nomenclatura, Métodos de pago, Impuestos
+- Datos de la empresa (con país, zona horaria, config RRHH, config alertas)
+- Nomenclatura → Series de documentos (con formato personalizable)
+- Métodos de pago
+- Impuestos
+
+Reportes:
+- Reportes de ventas (KPIs, gráficos, top productos, top clientes, menos vendidos, por día)
+- Reportes de compras (KPIs, gráficos, detalle por proveedor, detalle por producto, evolución de precios)
 
 ================================================================================
 9. MÓDULOS PENDIENTES
 ================================================================================
 
-- RRHH: Empleados, Nómina, Vales/Adelantos
+- Producción (Órdenes, Calidad)
+- Logística (Rutas, Envíos)
+- Activos (Inventario, Mantenimiento)
+- Seguridad (Index, Auditoría)
 - Import/Export de Categorías, Impuestos, Unidades de medida
 - Refactor del wizard a componente genérico
 - Conciliación bancaria
-- ISV/IVA automático
+- ISV/IVA automático (cálculo en facturas)
 - Presupuestos por categoría
 - Cierre contable mensual
+- Portal del empleado (login propio para ver recibos, solicitar vacaciones)
+- Evaluaciones de desempeño
+- Capacitaciones / Cursos
+- Reclutamiento / Vacantes
 
 ================================================================================
 10. NOTAS IMPORTANTES
@@ -271,6 +399,43 @@ Sobre OneDrive:
 Sobre .gitignore:
 - Excluye: bin/, obj/, .vs/, .vscode/, *.lnk, appsettings.Development.json
 - Excluye carpetas del proyecto PHP viejo: app/, config/, public/, storage/, vendor/, includes/, modules/, backups/, logs/, assets/, uploads/
+
+Sobre appsettings.json (NO SUBIR A GIT):
+- ConnectionStrings.DefaultConnection con password real
+- Versionar solo appsettings.json con placeholder
+
+Sobre ConfiguracionEmpresa (campos RRHH):
+- PaisCodigo (string, "HN")
+- ZonaHoraria (string, "America/Tegucigalpa")
+- RHFrecuenciaPagoDefault (string, "Mensual")
+- RHDiaPago1, RHDiaPago2, RHDiaSemanalPago (int)
+- RHAplicaIHSS, RHPorcentajeIHSS, RHTopeIHSS
+- RHAplicaRAP, RHPorcentajeRAP
+- RHAplicaISR, RHMetodoISRDefault
+- RHTablaVacaciones (string, "1:10,2:12,3:15,4:20,5:20")
+- RHAntiguedadMaxTabla (int, 5)
+- RHCargarFeriadosAuto (bool)
+- RHAlertaFeriadosProximos/Dias, RHAlertaVacacionesProximas/Dias,
+  RHAlertaCumpleanios, RHAlertaAniversarios, RHAlertaValesPorVencer,
+  RHAlertaContratosPorVencer/Dias, RHAlertaDocumentosVencidos
+
+Sobre el schema de ConfiguracionDeduccion (RRHH nómina):
+- Anio, AplicaIHSS, PorcentajeIHSS, TopeIHSS
+- AplicaRAP, PorcentajeRAP, TopeRAP
+- AplicaISR, TopeAnualExentoISR, MetodoISR ("Acumulativo" | "MensualSimple")
+- Se crea automáticamente con valores por defecto de Honduras 2024 si no existe
+- TramosISR asociados por ConfiguracionDeduccionId
+
+Sobre el flujo de ISR:
+- Método "Acumulativo" (SAR): acumula salario bruto del año, aplica tabla sobre acumulado, resta lo ya retenido
+- Método "MensualSimple": aplica tabla directo sobre el salario del mes
+
+Sobre tipos de nómina:
+- Semanal → 7 días
+- Catorcenal → 14 días
+- Quincenal → 15 días
+- Mensual → 30 días
+- Empleados filtrados por FrecuenciaPago
 
 ================================================================================
 11. FLUJO DE TRABAJO
@@ -297,5 +462,7 @@ Al pedir código:
 ================================================================================
 
 Fecha: 03/10/2026
-Estado: Finanzas 100% completado (Aperturas, Cierres, Distribución, Aprobación, Adjuntos)
-Próximo: RRHH (Empleados + Nómina + Vales) o probar flujo completo de Finanzas
+Estado: RRHH 100% completado. Módulos operativos: Usuarios, Ventas, POS, Inventario,
+        Compras, Finanzas, RRHH, Reportes, Configuración.
+Próximo: Producción, Logística, Activos, Seguridad, o cerrar pendientes de Finanzas
+         (conciliación bancaria, ISV, cierre contable).

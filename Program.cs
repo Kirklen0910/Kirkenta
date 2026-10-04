@@ -1,6 +1,7 @@
 using Kirkenta.Data;
 using Kirkenta.Helpers;
 using Kirkenta.Helpers.Finanzas;
+using Kirkenta.Helpers.RRHH;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 
@@ -58,11 +59,27 @@ using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        // Migrar permisos faltantes (por si se agregaron nuevos módulos)
+        // Migrar permisos faltantes
         PermisoSeeder.MigrarPermisosFaltantes(db);
 
-        // Seed de Finanzas (cajas y categorías por defecto)
+        // Seed de Finanzas (cajas y categorías)
         FinanzasSeeder.Seed(db);
+
+        // Seed de RRHH — Tipos de documentos
+        TipoDocumentoEmpleadoSeeder.Seed(db);
+
+        // Seed de Feriados (año actual)
+        FeriadoSeeder.Seed(db, DateTime.Today.Year);
+
+        // Acumulación de vacaciones anuales
+        var procesados = EmpleadoHelper.ProcesarAcumulacionGlobal(db);
+        if (procesados > 0)
+        {
+            Console.WriteLine($"[EmpleadoHelper] Se procesaron {procesados} empleados para acumulación de vacaciones");
+        }
+
+        // Actualizar vigencias de documentos
+        AdjuntoEmpleadoHelper.ActualizarVigencias(db);
     }
     catch (Exception ex)
     {

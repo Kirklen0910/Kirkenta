@@ -25,7 +25,12 @@
         // FINANZAS
         { "Cuentas", "Cuentas financieras" }, { "Movimientos", "Movimientos" },
         { "Vales", "Vales a empleados" }, { "CategoriasFinancieras", "Categorías financieras" },
-        { "Aperturas", "Aperturas de caja" }, { "Cierres", "Cierres de caja" }
+        { "Aperturas", "Aperturas de caja" }, { "Cierres", "Cierres de caja" },
+        // RRHH
+        { "Empleados", "Empleados" }, { "Documentos", "Documentos" },
+        { "Expedientes", "Expedientes" }, { "Vacaciones", "Vacaciones" },
+        { "Permisos", "Permisos y licencias" }, { "Nomina", "Nómina" },
+        { "Feriados", "Feriados" }, { "Alertas", "Alertas" }
     };
 
     var actionNames = new Dictionary<string, string>
@@ -39,7 +44,9 @@
         { "CreateFromVenta", "Generar factura" }, { "Aprobar", "Aprobar" },
         { "Revertir", "Revertir" }, { "Recibir", "Recibir" },
         { "HistorialProducto", "Historial de producto" },
-        { "Anular", "Anular" }, { "Entregar", "Entregar" }
+        { "Anular", "Anular" }, { "Entregar", "Entregar" },
+        { "Import", "Importar" }, { "ImportMap", "Mapear columnas" },
+        { "Export", "Exportar" }, { "Pagar", "Pagar" }
     };
 
     for (int i = 0; i < segments.Length; i++)
@@ -310,8 +317,13 @@
                         </span>
                     </button>
                     <div class="erp-nav-submenu" id="menu-rrhh">
-                        @if (puedeVerSubmodulo("RRHH", "Index")) { <a asp-page="/RRHH/Index">👥 Empleados</a> }
-                        @if (puedeVerSubmodulo("RRHH", "Nomina")) { <a asp-page="/RRHH/Nomina">💵 Nómina</a> }
+                        @if (puedeVerSubmodulo("RRHH", "Index")) { <a asp-page="/RRHH/Index">📊 Dashboard</a> }
+                        @if (puedeVerSubmodulo("RRHH", "Empleados")) { <a asp-page="/RRHH/Empleados/Index">👥 Empleados</a> }
+                        @if (puedeVerSubmodulo("RRHH", "Vales")) { <a asp-page="/RRHH/Vales/Index">🎫 Vales</a> }
+                        @if (puedeVerSubmodulo("RRHH", "Vacaciones")) { <a asp-page="/RRHH/Vacaciones/Index">🏖️ Vacaciones</a> }
+                        @if (puedeVerSubmodulo("RRHH", "Permisos")) { <a asp-page="/RRHH/Permisos/Index">📝 Permisos y licencias</a> }
+                        @if (puedeVerSubmodulo("RRHH", "Nomina")) { <a asp-page="/RRHH/Nomina/Index">💵 Nómina</a> }
+                        @if (puedeVerSubmodulo("RRHH", "Reportes")) { <a asp-page="/RRHH/Reportes/Index">📈 Reportes</a> }
                     </div>
                 </div>
             }

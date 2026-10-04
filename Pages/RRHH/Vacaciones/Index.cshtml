@@ -1,0 +1,223 @@
+@page
+@model Kirkenta.Pages.RRHH.Vacaciones.IndexModel
+@{
+    ViewData["Title"] = "Vacaciones";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Vacaciones</h2>
+        <p>Solicitudes y control de vacaciones de empleados</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/RRHH/Vacaciones/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nueva solicitud
+            </a>
+        }
+        <a asp-page="/RRHH/Index" class="btn-secondary">Volver a RRHH</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Solicitadas</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.TotalSolicitadas</span>
+        <span class="kpi-trend">Esperando aprobación</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Aprobadas</span>
+        <span class="kpi-value" style="color: var(--color-info);">@Model.TotalAprobadas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Tomadas</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.TotalTomadas</span>
+        <span class="kpi-trend">@Model.DiasTomadosAnio días en el año</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Días pendientes</span>
+        <span class="kpi-value" style="color: var(--color-primary);">@Model.DiasPendientes</span>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-toolbar">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Buscar por número, empleado o código..." />
+        </div>
+        <div class="filter-group">
+            <select id="filterEstado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="Solicitado">Solicitadas</option>
+                <option value="Aprobado">Aprobadas</option>
+                <option value="Tomado">Tomadas</option>
+                <option value="Rechazado">Rechazadas</option>
+                <option value="Cancelado">Canceladas</option>
+            </select>
+        </div>
+    </div>
+
+    @if (Model.Vacaciones.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <h3>No hay solicitudes de vacaciones</h3>
+            <p>Crea la primera solicitud de vacaciones</p>
+            <a asp-page="/RRHH/Vacaciones/Create" class="btn-primary">Nueva solicitud</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="vacacionesTable">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;"></th>
+                        <th>Número</th>
+                        <th>Empleado</th>
+                        <th>Período</th>
+                        <th style="text-align: right;">Días</th>
+                        <th>Estado</th>
+                        <th style="width: 140px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var v in Model.Vacaciones)
+                    {
+                        <tr data-numero="@v.Numero.ToLower()"
+                            data-empleado="@v.EmpleadoNombre.ToLower()"
+                            data-codigo="@v.EmpleadoCodigo.ToLower()"
+                            data-estado="@v.Estado">
+                            <td>
+                                @if (!string.IsNullOrEmpty(v.FotoPath))
+                                {
+                                    <img src="@v.FotoPath" alt="@v.EmpleadoNombre" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;" />
+                                }
+                                else
+                                {
+                                    <div class="user-avatar-sm">@v.EmpleadoNombre.Substring(0, 1).ToUpper()</div>
+                                }
+                            </td>
+                            <td><span style="font-family: monospace;">@v.Numero</span></td>
+                            <td>
+                                <div class="table-user-cell">
+                                    <span class="table-user-name">@v.EmpleadoNombre</span>
+                                    <span class="table-user-sub">@v.EmpleadoCodigo</span>
+                                </div>
+                            </td>
+                            <td>
+                                @v.FechaInicio.ToString("dd/MM/yyyy") al @v.FechaFin.ToString("dd/MM/yyyy")
+                                @if (v.DiasFeriados > 0)
+                                {
+                                    <br /><span class="table-user-sub">@v.DiasFeriados feriado(s) incluido(s)</span>
+                                }
+                            </td>
+                            <td style="text-align: right;"><strong>@v.DiasADescontar</strong></td>
+                            <td>
+                                @if (v.Estado == "Solicitado")
+                                {
+                                    <span class="badge badge-warning">Solicitado</span>
+                                }
+                                else if (v.Estado == "Aprobado")
+                                {
+                                    <span class="badge badge-info">Aprobado</span>
+                                }
+                                else if (v.Estado == "Tomado")
+                                {
+                                    <span class="badge badge-success">Tomado</span>
+                                }
+                                else if (v.Estado == "Rechazado")
+                                {
+                                    <span class="badge badge-danger">Rechazado</span>
+                                }
+                                else if (v.Estado == "Cancelado")
+                                {
+                                    <span class="badge badge-danger">Cancelado</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    @if (Model.PuedeAprobar && v.Estado == "Solicitado")
+                                    {
+                                        <a asp-page="/RRHH/Vacaciones/Aprobar" asp-route-id="@v.Id" class="btn-icon-action" title="Aprobar/Rechazar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var filterEstado = document.getElementById('filterEstado');
+            var table = document.getElementById('vacacionesTable');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+
+            function filterRows() {
+                var search = (searchInput?.value || '').toLowerCase().trim();
+                var estado = filterEstado?.value || '';
+
+                rows.forEach(function (row) {
+                    var numero = row.dataset.numero || '';
+                    var empleado = row.dataset.empleado || '';
+                    var codigo = row.dataset.codigo || '';
+                    var rowEstado = row.dataset.estado || '';
+
+                    var matchSearch = !search || numero.includes(search) || empleado.includes(search) || codigo.includes(search);
+                    var matchEstado = !estado || rowEstado === estado;
+
+                    row.style.display = (matchSearch && matchEstado) ? '' : 'none';
+                });
+            }
+
+            searchInput?.addEventListener('input', filterRows);
+            filterEstado?.addEventListener('change', filterRows);
+        })();
+    </script>
+}

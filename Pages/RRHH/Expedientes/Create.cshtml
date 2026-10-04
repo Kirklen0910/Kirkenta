@@ -1,0 +1,147 @@
+@page
+@model Kirkenta.Pages.RRHH.Expedientes.CreateModel
+@{
+    ViewData["Title"] = "Nuevo expediente";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/RRHH/Expedientes/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a expedientes
+        </a>
+        <h2>Nuevo expediente</h2>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <div class="form-field">
+            <label asp-for="Input.EmpleadoId">Empleado *</label>
+            <select asp-for="Input.EmpleadoId" class="form-input" required>
+                <option value="">— Selecciona un empleado —</option>
+                @foreach (var e in Model.Empleados)
+                {
+                    <option value="@e.Id">@e.Codigo — @e.Nombres @e.Apellidos</option>
+                }
+            </select>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Tipo">Tipo de expediente *</label>
+                <select asp-for="Input.Tipo" class="form-input" id="tipoSelect" required>
+                    <option value="LlamadoAtencion">Llamado de atención</option>
+                    <option value="AmonestacionVerbal">Amonestación verbal</option>
+                    <option value="AmonestacionEscrita">Amonestación escrita</option>
+                    <option value="Suspension">Suspensión</option>
+                    <option value="NotaMerito">Nota de mérito</option>
+                    <option value="Reconocimiento">Reconocimiento</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Gravedad">Gravedad</label>
+                <select asp-for="Input.Gravedad" class="form-input">
+                    <option value="">— No aplica —</option>
+                    <option value="Leve">Leve</option>
+                    <option value="Media">Media</option>
+                    <option value="Grave">Grave</option>
+                    <option value="MuyGrave">Muy grave</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Titulo">Título *</label>
+            <input asp-for="Input.Titulo" class="form-input" placeholder="Ej: Impuntualidad reiterada" required />
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Descripcion">Descripción *</label>
+            <textarea asp-for="Input.Descripcion" class="form-input" rows="4" placeholder="Detalle de lo ocurrido..." required></textarea>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Fecha">Fecha del hecho *</label>
+                <input asp-for="Input.Fecha" type="date" class="form-input" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Testigos">Testigos / Personas presentes</label>
+                <input asp-for="Input.Testigos" class="form-input" placeholder="Nombres separados por coma" />
+            </div>
+        </div>
+
+        <div id="suspensionFields" style="display: none;">
+            <div class="form-divider"></div>
+            <h3 class="form-section-title">Detalles de la suspensión</h3>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label asp-for="Input.FechaInicioSuspension">Fecha inicio</label>
+                    <input asp-for="Input.FechaInicioSuspension" type="date" class="form-input" />
+                </div>
+                <div class="form-field">
+                    <label asp-for="Input.FechaFinSuspension">Fecha fin</label>
+                    <input asp-for="Input.FechaFinSuspension" type="date" class="form-input" />
+                </div>
+            </div>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.EmpleadoFirmo" type="checkbox" />
+                <span>El empleado firmó de enterado</span>
+            </label>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Notas">Notas adicionales</label>
+            <textarea asp-for="Input.Notas" class="form-input" rows="2"></textarea>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/RRHH/Expedientes/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Crear expediente
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var tipoSelect = document.getElementById('tipoSelect');
+            var suspensionFields = document.getElementById('suspensionFields');
+
+            function actualizar() {
+                suspensionFields.style.display = tipoSelect.value === 'Suspension' ? '' : 'none';
+            }
+
+            tipoSelect?.addEventListener('change', actualizar);
+            actualizar();
+        })();
+    </script>
+}

@@ -8,13 +8,13 @@ namespace Kirkenta.Data
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options) { }
 
-        // Usuarios y permisos
+        // ===== USUARIOS Y PERMISOS =====
         public DbSet<Usuario> Usuarios { get; set; }
         public DbSet<Rol> Roles { get; set; }
         public DbSet<Permiso> Permisos { get; set; }
         public DbSet<ActividadUsuario> Actividades { get; set; }
 
-        // Ventas
+        // ===== VENTAS =====
         public DbSet<SerieDocumento> SeriesDocumentos { get; set; }
         public DbSet<Cliente> Clientes { get; set; }
         public DbSet<Categoria> Categorias { get; set; }
@@ -34,13 +34,13 @@ namespace Kirkenta.Data
         public DbSet<Devolucion> Devoluciones { get; set; }
         public DbSet<DetalleDevolucion> DetalleDevoluciones { get; set; }
 
-        // Configuración
+        // ===== CONFIGURACIÓN =====
         public DbSet<ConfiguracionEmpresa> ConfiguracionEmpresa { get; set; }
 
-        // Bajas
+        // ===== BAJAS =====
         public DbSet<BajaInventario> BajasInventario { get; set; }
 
-        // Compras
+        // ===== COMPRAS =====
         public DbSet<Moneda> Monedas { get; set; }
         public DbSet<Proveedor> Proveedores { get; set; }
         public DbSet<OrdenCompra> OrdenesCompra { get; set; }
@@ -50,22 +50,37 @@ namespace Kirkenta.Data
         public DbSet<DevolucionProveedor> DevolucionesProveedor { get; set; }
         public DbSet<DetalleDevolucionProveedor> DetalleDevolucionesProveedor { get; set; }
 
-        // Finanzas
+        // ===== FINANZAS =====
         public DbSet<CuentaFinanciera> CuentasFinancieras { get; set; }
         public DbSet<CategoriaFinanciera> CategoriasFinancieras { get; set; }
         public DbSet<MovimientoFinanciero> MovimientosFinancieros { get; set; }
-        public DbSet<ValeEmpleado> ValesEmpleado { get; set; }
-        public DbSet<ValeDescuento> ValesDescuentos { get; set; }
         public DbSet<CierreCaja> CierresCaja { get; set; }
         public DbSet<AperturaCaja> AperturasCaja { get; set; }
-        public DbSet<DistribucionCierre> DistribucionesCierre { get; set; }  // ⬅️ NUEVO
-        public DbSet<AdjuntoCierre> AdjuntosCierre { get; set; }              // ⬅️ NUEVO
+        public DbSet<DistribucionCierre> DistribucionesCierre { get; set; }
+        public DbSet<AdjuntoCierre> AdjuntosCierre { get; set; }
+
+        // ===== RRHH =====
+        public DbSet<Empleado> Empleados { get; set; }
+        public DbSet<TipoDocumentoEmpleado> TiposDocumentoEmpleado { get; set; }
+        public DbSet<AdjuntoEmpleado> AdjuntosEmpleado { get; set; }
+        public DbSet<ExpedienteEmpleado> ExpedientesEmpleado { get; set; }
+        public DbSet<VacacionEmpleado> VacacionesEmpleado { get; set; }
+        public DbSet<PermisoEmpleado> PermisosEmpleado { get; set; }
+        public DbSet<ValeEmpleado> ValesEmpleado { get; set; }
+        public DbSet<ValeDescuento> ValesDescuentos { get; set; }
+        public DbSet<Nomina> Nominas { get; set; }
+        public DbSet<DetalleNomina> DetalleNominas { get; set; }
+        public DbSet<Feriado> Feriados { get; set; }
+        public DbSet<AlertaPersonalizada> AlertasPersonalizadas { get; set; }
+        public DbSet<ConfiguracionDeduccion> ConfiguracionDeducciones { get; set; }
+        public DbSet<TramoISR> TramosISR { get; set; }
+        public DbSet<PagoNominaEmpleado> PagosNominaEmpleado { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Índices únicos
+            // ===== ÍNDICES ÚNICOS =====
             modelBuilder.Entity<Permiso>()
                 .HasIndex(p => new { p.RolId, p.Modulo, p.Submodulo })
                 .IsUnique();
@@ -88,9 +103,19 @@ namespace Kirkenta.Data
             // Finanzas
             modelBuilder.Entity<CuentaFinanciera>().HasIndex(c => c.Codigo).IsUnique();
             modelBuilder.Entity<MovimientoFinanciero>().HasIndex(m => m.Numero).IsUnique();
-            modelBuilder.Entity<ValeEmpleado>().HasIndex(v => v.Numero).IsUnique();
             modelBuilder.Entity<CierreCaja>().HasIndex(c => c.Numero).IsUnique();
             modelBuilder.Entity<AperturaCaja>().HasIndex(a => a.Numero).IsUnique();
+
+            // RRHH
+            modelBuilder.Entity<Empleado>().HasIndex(e => e.Codigo).IsUnique();
+            modelBuilder.Entity<VacacionEmpleado>().HasIndex(v => v.Numero).IsUnique();
+            modelBuilder.Entity<PermisoEmpleado>().HasIndex(p => p.Numero).IsUnique();
+            modelBuilder.Entity<ValeEmpleado>().HasIndex(v => v.Numero).IsUnique();
+            modelBuilder.Entity<Nomina>().HasIndex(n => n.Numero).IsUnique();
+            modelBuilder.Entity<PagoNominaEmpleado>().HasIndex(p => p.Numero).IsUnique();
+
+            // Config deducciones - único por año
+            modelBuilder.Entity<ConfiguracionDeduccion>().HasIndex(c => c.Anio).IsUnique();
         }
     }
 }
