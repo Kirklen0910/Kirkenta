@@ -1,0 +1,152 @@
+@page
+@model Kirkenta.Pages.Finanzas.Conciliacion.IndexModel
+@{
+    ViewData["Title"] = "Conciliación bancaria";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Conciliación bancaria</h2>
+        <p>Compara los movimientos del sistema con el estado de cuenta del banco</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/Finanzas/Conciliacion/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nueva conciliación
+            </a>
+        }
+        <a asp-page="/Finanzas/Index" class="btn-secondary">Volver a Finanzas</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Abiertas</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.TotalAbiertas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">En revisión</span>
+        <span class="kpi-value" style="color: var(--color-info);">@Model.TotalEnRevision</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Conciliadas</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.TotalConciliadas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Canceladas</span>
+        <span class="kpi-value" style="color: var(--color-muted);">@Model.TotalCanceladas</span>
+    </div>
+</div>
+
+<div class="module-card">
+    @if (Model.Conciliaciones.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <h3>No hay conciliaciones registradas</h3>
+            <p>Comienza creando una conciliación de una cuenta bancaria</p>
+            @if (Model.PuedeCrear)
+            {
+                <a asp-page="/Finanzas/Conciliacion/Create" class="btn-primary">Nueva conciliación</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Cuenta</th>
+                        <th>Período</th>
+                        <th style="text-align: right;">Saldo banco</th>
+                        <th style="text-align: right;">Saldo sistema</th>
+                        <th style="text-align: right;">Diferencia</th>
+                        <th style="text-align: center;">Matcheadas</th>
+                        <th>Estado</th>
+                        <th style="width: 140px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.Conciliaciones)
+                    {
+                        <tr>
+                            <td><span style="font-family: monospace;">@c.Numero</span></td>
+                            <td>
+                                <strong>@c.CuentaNombre</strong>
+                                @if (!string.IsNullOrEmpty(c.Banco))
+                                {
+                                    <br /><span class="table-user-sub">@c.Banco</span>
+                                }
+                            </td>
+                            <td>
+                                @c.FechaInicio.ToString("dd/MM/yyyy") al @c.FechaFin.ToString("dd/MM/yyyy")
+                            </td>
+                            <td style="text-align: right;">L. @c.SaldoBanco.ToString("N2")</td>
+                            <td style="text-align: right;">L. @c.SaldoSistema.ToString("N2")</td>
+                            <td style="text-align: right;">
+                                <strong style="color: @(Math.Abs(c.Diferencia) < 0.01m ? "var(--color-success)" : "var(--color-danger)");">
+                                    L. @c.Diferencia.ToString("N2")
+                                </strong>
+                            </td>
+                            <td style="text-align: center;">
+                                <span class="badge badge-success">@c.TotalMatcheadas</span>
+                                @if (c.TotalNoMatcheadas > 0)
+                                {
+                                    <span class="badge badge-warning">@c.TotalNoMatcheadas</span>
+                                }
+                            </td>
+                            <td>
+                                @if (c.Estado == "Abierta") { <span class="badge badge-warning">Abierta</span> }
+                                else if (c.Estado == "EnRevision") { <span class="badge badge-info">En revisión</span> }
+                                else if (c.Estado == "Conciliada") { <span class="badge badge-success">Conciliada</span> }
+                                else { <span class="badge badge-danger">Cancelada</span> }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    <a asp-page="/Finanzas/Conciliacion/Details" asp-route-id="@c.Id" class="btn-icon-action" title="Ver detalle">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

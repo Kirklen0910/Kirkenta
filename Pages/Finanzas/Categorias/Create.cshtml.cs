@@ -19,6 +19,9 @@ namespace Kirkenta.Pages.Finanzas.Categorias
         [BindProperty]
         public InputModel Input { get; set; } = new();
 
+        public List<PlanCuenta> CuentasIngreso { get; set; } = new();
+        public List<PlanCuenta> CuentasEgreso { get; set; } = new();
+
         public class InputModel
         {
             [Required(ErrorMessage = "El tipo es obligatorio")]
@@ -33,6 +36,8 @@ namespace Kirkenta.Pages.Finanzas.Categorias
 
             [StringLength(30)]
             public string? CuentaContable { get; set; }
+
+            public int? PlanCuentaId { get; set; }
 
             [StringLength(20)]
             public string Color { get; set; } = "#6b7280";
@@ -52,6 +57,7 @@ namespace Kirkenta.Pages.Finanzas.Categorias
                 return RedirectToPage("/Finanzas/Categorias/Index");
             }
 
+            CargarDatos();
             return Page();
         }
 
@@ -67,6 +73,8 @@ namespace Kirkenta.Pages.Finanzas.Categorias
                 return RedirectToPage("/Finanzas/Categorias/Index");
             }
 
+            CargarDatos();
+
             if (!ModelState.IsValid) return Page();
 
             if (_context.CategoriasFinancieras.Any(c => c.Tipo == Input.Tipo && c.Nombre == Input.Nombre))
@@ -75,12 +83,48 @@ namespace Kirkenta.Pages.Finanzas.Categorias
                 return Page();
             }
 
+            // Validar que la cuenta del plan pertenezca al tipo correcto
+            if (Input.PlanCuentaId.HasValue)
+            {
+                var cuenta = _context.PlanCuentas.FirstOrDefault(p => p.Id == Input.PlanCuentaId.Value);
+                if (cuenta == null)
+                {
+                    ModelState.AddModelError("Input.PlanCuentaId", "La cuenta contable seleccionada no existe");
+                    return Page();
+                }
+
+                if (!cuenta.Activa)
+                {
+                    ModelState.AddModelError("Input.PlanCuentaId", "La cuenta contable seleccionada está inactiva");
+                    return Page();
+                }
+
+                if (!cuenta.EsMovimiento)
+                {
+                    ModelState.AddModelError("Input.PlanCuentaId", "La cuenta contable seleccionada no permite movimientos directos");
+                    return Page();
+                }
+
+                // Validar coherencia tipo Categoria vs tipo PlanCuenta
+                var tiposValidos = Input.Tipo == "Ingreso"
+                    ? new[] { "Ingreso" }
+                    : new[] { "Costo", "Gasto" };
+
+                if (!tiposValidos.Contains(cuenta.Tipo))
+                {
+                    ModelState.AddModelError("Input.PlanCuentaId",
+                        $"El tipo de la categoría ({Input.Tipo}) no coincide con el tipo de la cuenta ({cuenta.Tipo})");
+                    return Page();
+                }
+            }
+
             var categoria = new CategoriaFinanciera
             {
                 Tipo = Input.Tipo,
                 Nombre = Input.Nombre,
                 Descripcion = Input.Descripcion,
                 CuentaContable = Input.CuentaContable,
+                PlanCuentaId = Input.PlanCuentaId,
                 Color = Input.Color,
                 EsSistema = false,
                 Activa = Input.Activa,
@@ -100,6 +144,19 @@ namespace Kirkenta.Pages.Finanzas.Categorias
 
             TempData["Success"] = $"Categoría '{categoria.Nombre}' creada";
             return RedirectToPage("/Finanzas/Categorias/Index");
+        }
+
+        private void CargarDatos()
+        {
+            CuentasIngreso = _context.PlanCuentas
+                .Where(c => c.Activa && c.EsMovimiento && c.Tipo == "Ingreso")
+                .OrderBy(c => c.Codigo)
+                .ToList();
+
+            CuentasEgreso = _context.PlanCuentas
+                .Where(c => c.Activa && c.EsMovimiento && (c.Tipo == "Costo" || c.Tipo == "Gasto"))
+                .OrderBy(c => c.Codigo)
+                .ToList();
         }
     }
 }

@@ -1,0 +1,303 @@
+@page
+@model Kirkenta.Pages.Finanzas.Contabilidad.BalanceGeneralModel
+@{
+    ViewData["Title"] = "Balance General";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Balance General</h2>
+        <p>Al @Model.FechaCorte.ToString("dd/MM/yyyy")</p>
+    </div>
+    <div class="module-header-right">
+        <button type="button" class="btn-secondary" onclick="window.print()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <polyline points="6 9 6 2 18 2 18 9"/>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Imprimir
+        </button>
+        <a asp-page="/Finanzas/Index" class="btn-secondary">Volver a Finanzas</a>
+    </div>
+</div>
+
+<!-- Filtro -->
+<div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+    <form method="get">
+        <div class="form-row" style="align-items: end;">
+            <div class="form-field" style="margin: 0;">
+                <label>Fecha de corte</label>
+                <input type="date" name="fecha" class="form-input" value="@Model.FechaCorte.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn-primary">Aplicar</button>
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>&nbsp;</label>
+                <a asp-page="/Finanzas/Contabilidad/BalanceGeneral" class="btn-secondary">Hoy</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Estado de cuadre -->
+@if (!Model.Reporte.Cuadra)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <div>
+            <strong>El balance no cuadra — diferencia de L. @Model.Reporte.Diferencia.ToString("N2")</strong>
+            <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                Esto puede deberse a: movimientos sin categoría contable, saldos iniciales de cuentas
+                financieras no registrados como movimientos, o categorías sin cuenta del plan asociada.
+            </p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <strong>El balance cuadra correctamente.</strong>
+    </div>
+}
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total Activos</span>
+        <span class="kpi-value" style="color: var(--color-primary);">L. @Model.Reporte.TotalActivos.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Total Pasivos</span>
+        <span class="kpi-value" style="color: var(--color-danger); font-size: 20px;">L. @Model.Reporte.TotalPasivos.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Total Patrimonio</span>
+        <span class="kpi-value" style="color: var(--color-success); font-size: 20px;">L. @Model.Reporte.TotalPatrimonio.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Resultado del Ejercicio</span>
+        <span class="kpi-value" style="color: @(Model.Reporte.ResultadoEjercicio >= 0 ? "var(--color-success)" : "var(--color-danger)"); font-size: 20px;">
+            L. @Model.Reporte.ResultadoEjercicio.ToString("N2")
+        </span>
+    </div>
+</div>
+
+<!-- Reporte -->
+<div class="module-card" style="padding: 40px;">
+    <div style="text-align: center; margin-bottom: 32px;">
+        @if (Model.Empresa != null && !string.IsNullOrEmpty(Model.Empresa.LogoPath))
+        {
+            <img src="@Model.Empresa.LogoPath" alt="@Model.Empresa.Nombre" style="width: 60px; height: 60px; object-fit: contain; margin-bottom: 8px;" />
+        }
+        <h2 style="font-size: 20px; margin-bottom: 4px;">@(Model.Empresa?.Nombre ?? "Mi Empresa")</h2>
+        @if (!string.IsNullOrEmpty(Model.Empresa?.RTN))
+        {
+            <p style="color: var(--color-muted); font-size: 13px;">RTN: @Model.Empresa.RTN</p>
+        }
+        <h3 style="font-size: 16px; font-weight: 700; margin-top: 16px; color: var(--color-primary);">
+            BALANCE GENERAL
+        </h3>
+        <p style="color: var(--color-muted); font-size: 13px;">
+            Al @Model.FechaCorte.ToString("dd 'de' MMMM 'de' yyyy")
+        </p>
+    </div>
+
+    <div class="balance-grid">
+        <!-- COLUMNA IZQUIERDA: ACTIVOS -->
+        <div>
+            <div class="reporte-seccion">
+                <h4 class="reporte-seccion-titulo" style="color: var(--color-primary);">ACTIVOS</h4>
+
+                @if (Model.Reporte.Activos.Count == 0)
+                {
+                    <p class="reporte-vacio">Sin movimientos en cuentas de activo</p>
+                }
+                else
+                {
+                    <table class="reporte-tabla">
+                        <tbody>
+                            @foreach (var l in Model.Reporte.Activos)
+                            {
+                                <tr>
+                                    <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
+                                    <td>@l.Cuenta</td>
+                                    <td style="text-align: right; width: 130px;">L. @l.Monto.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+
+            <div class="reporte-total-final" style="background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); border-color: var(--color-primary);">
+                <span style="font-size: 14px;">TOTAL ACTIVOS</span>
+                <strong style="font-size: 18px; color: var(--color-primary);">L. @Model.Reporte.TotalActivos.ToString("N2")</strong>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: PASIVO + PATRIMONIO -->
+        <div>
+            <div class="reporte-seccion">
+                <h4 class="reporte-seccion-titulo" style="color: var(--color-danger);">PASIVOS</h4>
+
+                @if (Model.Reporte.Pasivos.Count == 0)
+                {
+                    <p class="reporte-vacio">Sin movimientos en cuentas de pasivo</p>
+                }
+                else
+                {
+                    <table class="reporte-tabla">
+                        <tbody>
+                            @foreach (var l in Model.Reporte.Pasivos)
+                            {
+                                <tr>
+                                    <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
+                                    <td>@l.Cuenta</td>
+                                    <td style="text-align: right; width: 130px;">L. @l.Monto.ToString("N2")</td>
+                                </tr>
+                            }
+                            <tr class="reporte-total">
+                                <td></td>
+                                <td><strong>Total Pasivos</strong></td>
+                                <td style="text-align: right;">
+                                    <strong>L. @Model.Reporte.TotalPasivos.ToString("N2")</strong>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                }
+            </div>
+
+            <div class="reporte-seccion">
+                <h4 class="reporte-seccion-titulo" style="color: var(--color-success);">PATRIMONIO</h4>
+
+                <table class="reporte-tabla">
+                    <tbody>
+                        @foreach (var l in Model.Reporte.Patrimonio)
+                        {
+                            <tr>
+                                <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
+                                <td>@l.Cuenta</td>
+                                <td style="text-align: right; width: 130px;">L. @l.Monto.ToString("N2")</td>
+                            </tr>
+                        }
+
+                        @if (Model.Reporte.ResultadoEjercicio != 0)
+                        {
+                            <tr style="font-style: italic;">
+                                <td style="font-family: monospace; color: var(--color-muted);">—</td>
+                                <td>Resultado del Ejercicio</td>
+                                <td style="text-align: right; color: @(Model.Reporte.ResultadoEjercicio >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+                                    L. @Model.Reporte.ResultadoEjercicio.ToString("N2")
+                                </td>
+                            </tr>
+                        }
+
+                        <tr class="reporte-total">
+                            <td></td>
+                            <td><strong>Total Patrimonio</strong></td>
+                            <td style="text-align: right;">
+                                <strong>L. @Model.Reporte.TotalPatrimonio.ToString("N2")</strong>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="reporte-total-final" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-color: #f59e0b;">
+                <span style="font-size: 14px;">TOTAL PASIVO + PATRIMONIO</span>
+                <strong style="font-size: 18px; color: #92400e;">L. @Model.Reporte.TotalPasivoPatrimonio.ToString("N2")</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- Verificación final -->
+    <div style="margin-top: 32px; padding-top: 20px; border-top: 2px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 13px; color: var(--color-muted);">Verificación:</span>
+        <span style="font-size: 13px;">
+            Activos L. @Model.Reporte.TotalActivos.ToString("N2") &nbsp;
+            @(Model.Reporte.Cuadra ? "=" : "≠") &nbsp;
+            Pasivo + Patrimonio L. @Model.Reporte.TotalPasivoPatrimonio.ToString("N2")
+            @if (!Model.Reporte.Cuadra)
+            {
+                <span style="color: var(--color-danger); font-weight: 700;">
+                    (Diferencia: L. @Model.Reporte.Diferencia.ToString("N2"))
+                </span>
+            }
+        </span>
+    </div>
+</div>
+
+<style>
+    .balance-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+    }
+    @@media (max-width: 900px) {
+        .balance-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    .reporte-seccion {
+        margin-bottom: 24px;
+    }
+    .reporte-seccion-titulo {
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding-bottom: 8px;
+        border-bottom: 2px solid currentColor;
+        margin-bottom: 12px;
+    }
+    .reporte-tabla {
+        width: 100%;
+        font-size: 13.5px;
+        border-collapse: collapse;
+    }
+    .reporte-tabla td {
+        padding: 6px 8px;
+    }
+    .reporte-tabla tr:not(.reporte-total):hover {
+        background: #f9fafb;
+    }
+    .reporte-total td {
+        border-top: 1px solid var(--color-border);
+        padding-top: 10px;
+        font-size: 14px;
+    }
+    .reporte-vacio {
+        font-size: 13px;
+        color: var(--color-muted);
+        font-style: italic;
+        padding: 8px 0;
+    }
+    .reporte-total-final {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 22px;
+        border: 2px solid;
+        border-radius: 8px;
+        margin-top: 24px;
+        font-weight: 700;
+    }
+    @@media print {
+        .module-header, .module-card form, .module-alert, .erp-sidebar, .erp-topbar, .erp-footer { display: none !important; }
+        .erp-main-wrapper { margin-left: 0 !important; }
+        .module-card { box-shadow: none !important; border: none !important; }
+        .balance-grid { grid-template-columns: 1fr 1fr; }
+    }
+</style>

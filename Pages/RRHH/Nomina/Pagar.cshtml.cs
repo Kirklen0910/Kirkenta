@@ -81,6 +81,13 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 .OrderBy(c => c.Tipo).ThenBy(c => c.Nombre)
                 .ToList();
 
+            // ===== VALIDACIÓN: período contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
+            }
+
             if (!ModelState.IsValid) return Page();
 
             var cuenta = _context.CuentasFinancieras.FirstOrDefault(c => c.Id == CuentaId);
@@ -160,7 +167,7 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 nomina.Notas = (nomina.Notas ?? "") + $"\n[Pago {DateTime.Now:dd/MM HH:mm}] {Notas}";
             }
 
-            // ===== DESCONTAR VALES =====
+            // DESCONTAR VALES
             var detalles = _context.DetalleNominas.Where(d => d.NominaId == nomina.Id).ToList();
             foreach (var detalle in detalles)
             {

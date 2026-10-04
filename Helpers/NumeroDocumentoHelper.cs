@@ -224,6 +224,16 @@ namespace Kirkenta.Helpers
                             .Max();
                         break;
 
+                    case "ConciliacionBancaria":
+                        ultimoNumero = context.ConciliacionesBancarias
+                            .Where(c => c.Numero.StartsWith(prefijoConSep))
+                            .Select(c => c.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
                     // ===== RRHH =====
                     case "Empleado":
                         ultimoNumero = context.Empleados
@@ -347,6 +357,7 @@ namespace Kirkenta.Helpers
                 "MovimientoFinanciero" => context.MovimientosFinancieros.Count(),
                 "AperturaCaja" => context.AperturasCaja.Count(),
                 "CierreCaja" => context.CierresCaja.Count(),
+                "ConciliacionBancaria" => context.ConciliacionesBancarias.Count(),
 
                 // RRHH
                 "Empleado" => context.Empleados.Count(),

@@ -26,6 +26,9 @@
         { "Cuentas", "Cuentas financieras" }, { "Movimientos", "Movimientos" },
         { "Vales", "Vales a empleados" }, { "CategoriasFinancieras", "Categorías financieras" },
         { "Aperturas", "Aperturas de caja" }, { "Cierres", "Cierres de caja" },
+        { "CierresContables", "Cierres contables" },
+        { "PlanCuentas", "Plan de Cuentas" },
+        { "Contabilidad", "Contabilidad" },
         // RRHH
         { "Empleados", "Empleados" }, { "Documentos", "Documentos" },
         { "Expedientes", "Expedientes" }, { "Vacaciones", "Vacaciones" },
@@ -46,7 +49,10 @@
         { "HistorialProducto", "Historial de producto" },
         { "Anular", "Anular" }, { "Entregar", "Entregar" },
         { "Import", "Importar" }, { "ImportMap", "Mapear columnas" },
-        { "Export", "Exportar" }, { "Pagar", "Pagar" }
+        { "Export", "Exportar" }, { "Pagar", "Pagar" },
+        { "Reabrir", "Reabrir" },
+        { "EstadoResultados", "Estado de Resultados" },
+        { "BalanceGeneral", "Balance General" }
     };
 
     for (int i = 0; i < segments.Length; i++)
@@ -243,7 +249,7 @@
                         <a asp-page="/Proveedores/Index">🏢 Proveedores</a>
                         <a asp-page="/OrdenesCompra/Index">📦 Órdenes de compra</a>
                         <a asp-page="/PagosProveedor/Index">💳 Pagos a proveedores</a>
-                        <a asp-page="/PagosProveedor/Index" asp-route-tab="porpagar">💰 Cuentas por pagar</a>
+                        <a asp-page="/PagosProveedor/Index" asp-route-tab="porpagar">💸 Cuentas por pagar</a>
                         <a asp-page="/Reportes/Compras">📈 Reportes de compras</a>
                     </div>
                 </div>
@@ -271,7 +277,23 @@
                         @if (puedeVerSubmodulo("Finanzas", "Categorias")) { <a asp-page="/Finanzas/Categorias/Index">🏷️ Categorías</a> }
                         @if (puedeVerSubmodulo("Finanzas", "Movimientos")) { <a asp-page="/Finanzas/Movimientos/Index">💵 Movimientos</a> }
                         @if (puedeVerSubmodulo("Finanzas", "Aperturas")) { <a asp-page="/Finanzas/Aperturas/Index">🔓 Aperturas de caja</a> }
-                        @if (puedeVerSubmodulo("Finanzas", "Cierres")) { <a asp-page="/Finanzas/Cierres/Index">🔒 Cierres de caja</a> }
+                        @if (puedeVerSubmodulo("Finanzas", "Cierres")) { <a asp-page="/Finanzas/Cierres/Index">🔐 Cierres de caja</a> }
+                        @if (puedeVerSubmodulo("Finanzas", "CierresContables")) { <a asp-page="/Finanzas/CierresContables/Index">📅 Cierres contables</a> }
+
+                        @if (puedeVerSubmodulo("Finanzas", "PlanCuentas"))
+                        {
+                            <div class="erp-nav-submenu-divider"></div>
+                            <a asp-page="/Finanzas/PlanCuentas/Index">📒 Plan de Cuentas</a>
+                        }
+                        @if (puedeVerSubmodulo("Finanzas", "ContabilidadEstadoResultados"))
+                        {
+                            <a asp-page="/Finanzas/Contabilidad/EstadoResultados">📈 Estado de Resultados</a>
+                        }
+                        @if (puedeVerSubmodulo("Finanzas", "ContabilidadBalanceGeneral"))
+                        {
+                            <a asp-page="/Finanzas/Contabilidad/BalanceGeneral">⚖️ Balance General</a>
+                        }
+
                         @if (puedeVerSubmodulo("Finanzas", "Reportes")) { <a asp-page="/Finanzas/Reportes/Index">📈 Reportes</a> }
                     </div>
                 </div>

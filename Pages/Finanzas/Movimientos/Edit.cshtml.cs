@@ -1,5 +1,6 @@
 using Kirkenta.Data;
 using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -108,6 +109,13 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
 
             CargarDatos();
 
+            // ===== VALIDACIÓN: período contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, Input.Fecha);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
+            }
+
             if (!ModelState.IsValid) return Page();
 
             var mov = _context.MovimientosFinancieros.FirstOrDefault(m => m.Id == Input.Id);
@@ -117,8 +125,16 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 return RedirectToPage("/Finanzas/Movimientos/Index");
             }
 
+            // Validar que no se intente editar un movimiento de un mes cerrado
+            var (periodoOkViejo, periodoErrorViejo) = CierreContableHelper.ValidarFecha(_context, mov.Fecha);
+            if (!periodoOkViejo)
+            {
+                TempData["Error"] = $"No puedes editar este movimiento porque pertenece a un período cerrado. {periodoErrorViejo}";
+                return RedirectToPage("/Finanzas/Movimientos/Index");
+            }
+
             // Revertir saldo anterior
-            Helpers.Finanzas.SaldoHelper.Revertir(_context, mov);
+            SaldoHelper.Revertir(_context, mov);
 
             // Aplicar cambios
             mov.Fecha = Input.Fecha;
@@ -133,7 +149,7 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             _context.SaveChanges();
 
             // Aplicar nuevo saldo
-            Helpers.Finanzas.SaldoHelper.Aplicar(_context, mov);
+            SaldoHelper.Aplicar(_context, mov);
             _context.SaveChanges();
 
             ActividadHelper.Registrar(

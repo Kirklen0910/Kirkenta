@@ -1,0 +1,118 @@
+@page
+@model Kirkenta.Pages.Finanzas.PlanCuentas.CreateModel
+@{
+    ViewData["Title"] = "Nueva cuenta contable";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/PlanCuentas/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a Plan de Cuentas
+        </a>
+        <h2>Nueva cuenta contable</h2>
+        <p>Registra una cuenta en el catálogo contable</p>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <div class="module-alert" style="background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <div>
+                <strong>Nomenclatura jerárquica</strong>
+                <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                    Usa el sistema de códigos separados por punto. Ejemplo: <strong>1</strong> (Activo),
+                    <strong>1.1</strong> (Activo Corriente), <strong>1.1.01</strong> (Caja y Bancos),
+                    <strong>1.1.01.001</strong> (Caja General). El nivel se calcula automáticamente.
+                </p>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Codigo">Código contable *</label>
+                <input asp-for="Input.Codigo" class="form-input" placeholder="Ej: 1.1.01.001" required />
+                <small class="form-help">Único en todo el catálogo. Usa puntos para jerarquía.</small>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Tipo">Tipo contable *</label>
+                <select asp-for="Input.Tipo" class="form-input" id="tipoSelect" required>
+                    <option value="Activo">Activo</option>
+                    <option value="Pasivo">Pasivo</option>
+                    <option value="Patrimonio">Patrimonio</option>
+                    <option value="Ingreso">Ingreso</option>
+                    <option value="Costo">Costo</option>
+                    <option value="Gasto">Gasto</option>
+                </select>
+                <small class="form-help">Determina la naturaleza (deudora/acreedora).</small>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Nombre">Nombre de la cuenta *</label>
+            <input asp-for="Input.Nombre" class="form-input" placeholder="Ej: Caja General" required />
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.CodigoPadre">Cuenta padre</label>
+            <select asp-for="Input.CodigoPadre" class="form-input">
+                <option value="">— Cuenta de mayor (sin padre) —</option>
+                @foreach (var c in Model.CuentasPadre)
+                {
+                    <option value="@c.Codigo">@c.Codigo - @c.Nombre</option>
+                }
+            </select>
+            <small class="form-help">Solo se muestran cuentas que NO aceptan movimientos directos.</small>
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.EsMovimiento" type="checkbox" checked />
+                <span>Permite registrar movimientos directamente (cuenta hoja)</span>
+            </label>
+            <small class="form-help">Desmárcalo si es una cuenta de mayor/agrupadora.</small>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Descripcion">Descripción</label>
+            <textarea asp-for="Input.Descripcion" class="form-input" rows="2" placeholder="Notas o uso de esta cuenta..."></textarea>
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.Activa" type="checkbox" checked />
+                <span>Cuenta activa</span>
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Finanzas/PlanCuentas/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Crear cuenta
+            </button>
+        </div>
+    </form>
+</div>

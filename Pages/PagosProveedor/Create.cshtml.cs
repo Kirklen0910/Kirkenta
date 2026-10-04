@@ -50,7 +50,6 @@ namespace Kirkenta.Pages.PagosProveedor
             [StringLength(500)]
             public string? Notas { get; set; }
 
-            // ⬇️ NUEVO: controla si se registra en Finanzas
             public bool RegistrarEnFinanzas { get; set; } = true;
         }
 
@@ -127,6 +126,14 @@ namespace Kirkenta.Pages.PagosProveedor
                 return Page();
             }
 
+            // ===== VALIDACIÓN: período contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
+                return Page();
+            }
+
             var numero = NumeroDocumentoHelper.GenerarSiguiente(_context, "PagoProveedor");
 
             var pago = new Models.PagoProveedor
@@ -159,7 +166,7 @@ namespace Kirkenta.Pages.PagosProveedor
 
             _context.SaveChanges();
 
-            // ⬇️ REGISTRO AUTOMÁTICO EN FINANZAS
+            // REGISTRO AUTOMÁTICO EN FINANZAS
             string? movimientoError = null;
 
             if (Input.RegistrarEnFinanzas)

@@ -1,5 +1,6 @@
 using Kirkenta.Data;
 using Kirkenta.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kirkenta.Helpers.Finanzas
 {
@@ -8,6 +9,7 @@ namespace Kirkenta.Helpers.Finanzas
         /// <summary>
         /// Registra el ingreso por una venta del POS.
         /// Permite especificar la cuenta (usualmente la de la apertura activa).
+        /// Todo se ejecuta dentro de una transacción atómica.
         /// </summary>
         public static MovimientoFinanciero? RegistrarIngresoVenta(
             ApplicationDbContext context,
@@ -37,7 +39,7 @@ namespace Kirkenta.Helpers.Finanzas
                     return null;
                 }
 
-                return CrearMovimiento(
+                return CrearMovimientoAtomico(
                     context,
                     tipo: "Ingreso",
                     cuentaId: cuenta.Id,
@@ -83,7 +85,7 @@ namespace Kirkenta.Helpers.Finanzas
                     return null;
                 }
 
-                return CrearMovimiento(
+                return CrearMovimientoAtomico(
                     context,
                     tipo: "Egreso",
                     cuentaId: cuenta.Id,
@@ -119,7 +121,7 @@ namespace Kirkenta.Helpers.Finanzas
                 var categoria = ResolverCategoria(context, "Egreso", "Nómina");
                 if (categoria == null) return null;
 
-                return CrearMovimiento(
+                return CrearMovimientoAtomico(
                     context,
                     tipo: "Egreso",
                     cuentaId: cuenta.Id,
@@ -140,7 +142,11 @@ namespace Kirkenta.Helpers.Finanzas
             }
         }
 
-        private static MovimientoFinanciero CrearMovimiento(
+        /// <summary>
+        /// Crea el movimiento + aplica saldo + guarda todo dentro de una transacción atómica.
+        /// Si algo falla en el medio, se revierte TODO.
+        /// </summary>
+        private static MovimientoFinanciero? CrearMovimientoAtomico(
             ApplicationDbContext context,
             string tipo,
             int cuentaId,
@@ -153,39 +159,67 @@ namespace Kirkenta.Helpers.Finanzas
             int? origenId,
             int usuarioId)
         {
-            var numero = NumeroDocumentoHelper.GenerarSiguiente(context, "MovimientoFinanciero");
-            var monedaDefecto = context.Monedas.FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1;
-
-            var mov = new MovimientoFinanciero
+            using var transaction = context.Database.BeginTransaction();
+            try
             {
-                Numero = numero,
-                Tipo = tipo,
-                Fecha = DateTime.Now,
-                CuentaId = cuentaId,
-                CuentaDestinoId = null,
-                CategoriaId = categoriaId,
-                Monto = monto,
-                MonedaId = monedaDefecto,
-                TipoCambio = 1,
-                Concepto = concepto,
-                Referencia = referencia,
-                FormaPago = formaPago,
-                Origen = origen,
-                OrigenId = origenId,
-                EsAutomatico = true,
-                Estado = "Activo",
-                FechaCreacion = DateTime.Now,
-                UsuarioCreoId = usuarioId,
-                EmpresaId = 1
-            };
+                // Validar que la cuenta exista y esté activa
+                var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId);
+                if (cuenta == null)
+                {
+                    transaction.Rollback();
+                    Console.WriteLine($"[MovimientoAutomatico] Cuenta {cuentaId} no encontrada");
+                    return null;
+                }
 
-            context.MovimientosFinancieros.Add(mov);
-            context.SaveChanges();
+                if (!cuenta.Activa)
+                {
+                    transaction.Rollback();
+                    Console.WriteLine($"[MovimientoAutomatico] Cuenta {cuentaId} inactiva");
+                    return null;
+                }
 
-            SaldoHelper.Aplicar(context, mov);
-            context.SaveChanges();
+                var numero = NumeroDocumentoHelper.GenerarSiguiente(context, "MovimientoFinanciero");
+                var monedaDefecto = context.Monedas.FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1;
 
-            return mov;
+                var mov = new MovimientoFinanciero
+                {
+                    Numero = numero,
+                    Tipo = tipo,
+                    Fecha = DateTime.Now,
+                    CuentaId = cuentaId,
+                    CuentaDestinoId = null,
+                    CategoriaId = categoriaId,
+                    Monto = monto,
+                    MonedaId = monedaDefecto,
+                    TipoCambio = 1,
+                    Concepto = concepto,
+                    Referencia = referencia,
+                    FormaPago = formaPago,
+                    Origen = origen,
+                    OrigenId = origenId,
+                    EsAutomatico = true,
+                    Estado = "Activo",
+                    FechaCreacion = DateTime.Now,
+                    UsuarioCreoId = usuarioId,
+                    EmpresaId = 1
+                };
+
+                context.MovimientosFinancieros.Add(mov);
+                context.SaveChanges();
+
+                // Aplicar saldo
+                SaldoHelper.Aplicar(context, mov);
+                context.SaveChanges();
+
+                transaction.Commit();
+                return mov;
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                Console.WriteLine($"[MovimientoAutomatico] Error en transacción, rollback aplicado: {ex.Message}");
+                return null;
+            }
         }
 
         private static CuentaFinanciera? ResolverCuentaVentas(ApplicationDbContext context)

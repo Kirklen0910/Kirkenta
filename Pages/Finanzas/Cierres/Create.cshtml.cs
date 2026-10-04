@@ -43,7 +43,6 @@ namespace Kirkenta.Pages.Finanzas.Cierres
 
             public decimal Tolerancia { get; set; } = 20.00m;
 
-            // Distribuciones
             public decimal? MontoRetiroBanco { get; set; }
             public int? CuentaBancoDestinoId { get; set; }
             public string? ReferenciaRetiro { get; set; }
@@ -55,7 +54,6 @@ namespace Kirkenta.Pages.Finanzas.Cierres
             public string? NombreRecibeEntrega { get; set; }
             public string? ReferenciaEntrega { get; set; }
 
-            // Adjuntos
             public List<IFormFile>? Adjuntos { get; set; }
         }
 
@@ -98,6 +96,14 @@ namespace Kirkenta.Pages.Finanzas.Cierres
             {
                 ModelState.AddModelError(string.Empty,
                     $"La suma de las distribuciones (L. {totalDistribuido:N2}) no coincide con el efectivo contado (L. {Input.EfectivoContado:N2})");
+                return Page();
+            }
+
+            // ===== VALIDACIÓN: período contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, Input.Fecha);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
                 return Page();
             }
 

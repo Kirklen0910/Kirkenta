@@ -58,6 +58,10 @@ namespace Kirkenta.Data
         public DbSet<AperturaCaja> AperturasCaja { get; set; }
         public DbSet<DistribucionCierre> DistribucionesCierre { get; set; }
         public DbSet<AdjuntoCierre> AdjuntosCierre { get; set; }
+        public DbSet<CierreContable> CierresContables { get; set; }
+        public DbSet<ConciliacionBancaria> ConciliacionesBancarias { get; set; }
+        public DbSet<ConciliacionDetalle> ConciliacionesDetalle { get; set; }
+        public DbSet<PlanCuenta> PlanCuentas { get; set; }                          // ← NUEVO
 
         // ===== RRHH =====
         public DbSet<Empleado> Empleados { get; set; }
@@ -105,6 +109,17 @@ namespace Kirkenta.Data
             modelBuilder.Entity<MovimientoFinanciero>().HasIndex(m => m.Numero).IsUnique();
             modelBuilder.Entity<CierreCaja>().HasIndex(c => c.Numero).IsUnique();
             modelBuilder.Entity<AperturaCaja>().HasIndex(a => a.Numero).IsUnique();
+
+            // Un solo cierre contable por mes
+            modelBuilder.Entity<CierreContable>()
+                .HasIndex(c => new { c.Anio, c.Mes })
+                .IsUnique();
+
+            // Número de conciliación único
+            modelBuilder.Entity<ConciliacionBancaria>().HasIndex(c => c.Numero).IsUnique();
+
+            // Código de cuenta contable único
+            modelBuilder.Entity<PlanCuenta>().HasIndex(c => c.Codigo).IsUnique();       // ← NUEVO
 
             // RRHH
             modelBuilder.Entity<Empleado>().HasIndex(e => e.Codigo).IsUnique();

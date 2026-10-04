@@ -38,7 +38,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddAuthorization();
 
-// 📦 Sesión (necesaria para el wizard de importación)
+// 📦 Sesión
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
@@ -64,6 +64,9 @@ using (var scope = app.Services.CreateScope())
 
         // Seed de Finanzas (cajas y categorías)
         FinanzasSeeder.Seed(db);
+
+        // ⬇️ NUEVO: Seed del Plan de Cuentas contable
+        PlanCuentasHelper.Seed(db);
 
         // Seed de RRHH — Tipos de documentos
         TipoDocumentoEmpleadoSeeder.Seed(db);
