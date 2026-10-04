@@ -1,5 +1,493 @@
 ﻿
 
+===== FILE: \appsettings.json =====
+
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Port=3306;Database=Kirkenta;User=root;Password='Noacp0910';"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}
+
+
+===== FILE: \CONTEXTO.md =====
+
+# KIRKENTA ERP â€” CONTEXTO MAESTRO
+
+CÃ³mo usar: Pega este archivo completo al inicio de un chat nuevo. Di: "Retomamos Kirkenta ERP. Contexto: [pegas esto]". El asistente retomarÃ¡ al instante sin explicaciones adicionales.
+
+================================================================================
+1. STACK TÃ‰CNICO
+================================================================================
+
+- Framework: ASP.NET Core Razor Pages
+- .NET: net10.0 (TargetFramework: net10.0)
+- ORM: Entity Framework Core 9.0.0
+- Base de datos: MySQL (Pomelo.EntityFrameworkCore.MySql 9.0.0)
+- AutenticaciÃ³n: Cookies (esquema "KirkentaAuth", 8 horas, sliding)
+- SesiÃ³n: "KirkentaSession" (30 min, para wizard de importaciÃ³n)
+- Frontend: Bootstrap 5 + CSS custom (wwwroot/css/theme.css)
+- Charts: Chart.js 4.4.0 (CDN jsdelivr)
+- Excel: ClosedXML 0.105.1
+- CSV: CsvHelper 33.1.0
+- Password hashing: BCrypt.Net-Next 4.2.0
+- Git: https://github.com/Kirklen0910/Kirkenta
+
+================================================================================
+2. ESTRUCTURA DE CARPETAS
+================================================================================
+
+Kirkenta/
+â”œâ”€â”€ Data/ApplicationDbContext.cs
+â”œâ”€â”€ Helpers/
+â”‚   â”œâ”€â”€ Export/ (ExcelExporter, CsvExporter, JsonExporter, ExportColumn, ExportColumns)
+â”‚   â”œâ”€â”€ Import/ (ExcelImporter, CsvImporter, ColumnMapper, ImportResult, ImportFile)
+â”‚   â”œâ”€â”€ Finanzas/ (AperturaHelper, CierreHelper, DistribucionHelper, MovimientoAutomaticoHelper, SaldoHelper, AdjuntoCierreHelper, FinanzasSeeder)
+â”‚   â”œâ”€â”€ RRHH/ (EmpleadoHelper, AdjuntoEmpleadoHelper, NominaHelper, VacacionHelper, TipoDocumentoEmpleadoSeeder, FeriadoSeeder)
+â”‚   â”œâ”€â”€ ActividadHelper.cs
+â”‚   â”œâ”€â”€ ModulosERP.cs
+â”‚   â”œâ”€â”€ NumeroDocumentoHelper.cs
+â”‚   â”œâ”€â”€ PermisoHelper.cs
+â”‚   â””â”€â”€ PermisoSeeder.cs
+â”œâ”€â”€ Migrations/ (desincronizado, ver secciÃ³n 10)
+â”œâ”€â”€ Models/ (todos los modelos)
+â”œâ”€â”€ Pages/
+â”‚   â”œâ”€â”€ Auth/ (Login, Logout, Register)
+â”‚   â”œâ”€â”€ Usuarios/ (Index, Create, Edit, Delete, Roles, RolesCreate, RolesEdit, RolesDelete, Perfil, CambiarPassword, Actividad)
+â”‚   â”œâ”€â”€ POS/ (Index)
+â”‚   â”œâ”€â”€ Ventas/ (Index, Details)
+â”‚   â”œâ”€â”€ Clientes/ (Index, Create, Edit, Delete, Export, Import, ImportMap)
+â”‚   â”œâ”€â”€ Cotizaciones/ (Index, Create, Edit, Delete, Details)
+â”‚   â”œâ”€â”€ Pedidos/ (Index, Create, Edit, Details)
+â”‚   â”œâ”€â”€ Facturas/ (Index, Details, RegistrarPago, CreateFromVenta)
+â”‚   â”œâ”€â”€ Devoluciones/ (Index)
+â”‚   â”œâ”€â”€ Productos/ (Index, Create, Edit, Delete, Export, Import, ImportMap)
+â”‚   â”œâ”€â”€ Categorias/ (Index, Create, Edit, Delete)
+â”‚   â”œâ”€â”€ UnidadesMedida/ (Index, Create, Edit, Delete)
+â”‚   â”œâ”€â”€ Bajas/ (Index, Create, Details, Aprobar, Revertir)
+â”‚   â”œâ”€â”€ Compras/ (Index, HistorialProducto)
+â”‚   â”œâ”€â”€ Proveedores/ (Index, Create, Edit, Delete, Details, Export, Import, ImportMap)
+â”‚   â”œâ”€â”€ OrdenesCompra/ (Index, Create, Edit, Delete, Details, Recibir)
+â”‚   â”œâ”€â”€ PagosProveedor/ (Index, Create, Details)
+â”‚   â”œâ”€â”€ Finanzas/
+â”‚   â”‚   â”œâ”€â”€ Index
+â”‚   â”‚   â”œâ”€â”€ Cuentas/ (Index, Create, Edit, Delete)
+â”‚   â”‚   â”œâ”€â”€ Categorias/ (Index, Create, Edit, Delete)
+â”‚   â”‚   â”œâ”€â”€ Movimientos/ (Index, Create, Edit, Anular)
+â”‚   â”‚   â”œâ”€â”€ Aperturas/ (Index, Create)
+â”‚   â”‚   â”œâ”€â”€ Cierres/ (Index, Create, Details, Aprobar)
+â”‚   â”‚   â””â”€â”€ Reportes/ (Index)
+â”‚   â”œâ”€â”€ RRHH/
+â”‚   â”‚   â”œâ”€â”€ Index
+â”‚   â”‚   â”œâ”€â”€ Empleados/ (Index, Create, Edit, Delete, Details)
+â”‚   â”‚   â”œâ”€â”€ Documentos/ (Index)
+â”‚   â”‚   â”œâ”€â”€ Expedientes/ (Index, Create)
+â”‚   â”‚   â”œâ”€â”€ Vales/ (Index, Create, Aprobar, Entregar)
+â”‚   â”‚   â”œâ”€â”€ Vacaciones/ (Index, Create, Aprobar)
+â”‚   â”‚   â”œâ”€â”€ Permisos/ (Index, Create, Aprobar)
+â”‚   â”‚   â”œâ”€â”€ Nomina/ (Index, Create, Details, Aprobar, Pagar, PagarEmpleado)
+â”‚   â”‚   â”œâ”€â”€ Feriados/ (Index, Create, Edit)
+â”‚   â”‚   â”œâ”€â”€ Alertas/ (Index, Create)
+â”‚   â”‚   â””â”€â”€ Reportes/ (Index)
+â”‚   â”œâ”€â”€ Reportes/ (Index, Ventas, Compras)
+â”‚   â”œâ”€â”€ Configuracion/ (Index, Edit)
+â”‚   â”œâ”€â”€ Impuestos/ (Index, Create, Edit, Delete)
+â”‚   â”œâ”€â”€ MetodosPago/ (Index, Create, Edit, Delete)
+â”‚   â”œâ”€â”€ Nomenclatura/ (Index)
+â”‚   â”œâ”€â”€ Series/ (Index, Create, Edit, Delete)
+â”‚   â””â”€â”€ Shared/ (_Layout, _LayoutPOS, _ValidationScriptsPartial)
+â”œâ”€â”€ wwwroot/ (css, js, images, lib, uploads)
+â”œâ”€â”€ Program.cs
+â”œâ”€â”€ appsettings.json
+â””â”€â”€ CONTEXTO.md
+
+================================================================================
+3. MÃ“DULOS Y SUBMÃ“DULOS
+================================================================================
+
+Diccionario en Helpers/ModulosERP.cs:
+
+Usuarios: Index, Create, Edit, Delete, Roles, RolesCreate, RolesEdit, RolesDelete, Perfil, CambiarPassword, Actividad
+Ventas: POS, Index, Create, Edit, Delete, Cotizaciones, Pedidos, Facturas, Clientes, ClientesCreate, ClientesEdit, ClientesDelete, ClientesExport, ClientesImport, Devoluciones
+Inventario: Index, Productos (+Create/Edit/Delete/Export/Import), Categorias, UnidadesMedida, Entradas, Salidas, Bajas
+Compras: Index, Proveedores (+Create/Edit/Delete/Export/Import), Ordenes (+Create/Edit/Delete/Recibir), Pagos (+Create), CuentasPorPagar, Reportes
+Finanzas: Index, Cuentas (+Create/Edit/Delete), Categorias (+Create/Edit/Delete), Movimientos (+Create/Edit/Anular), Aperturas (+Create), Cierres (+Create/Aprobar), Reportes, FlujoCaja, EstadoResultados, BalanceGeneral, Conciliacion, ISV
+RRHH: Index, Empleados (+Create/Edit/Delete), Documentos (+Create/Delete), Expedientes (+Create/Delete), Vacaciones (+Create/Aprobar), Permisos (+Create/Aprobar), Vales (+Create/Aprobar/Entregar), Nomina (+Create/Aprobar/Pagar), Feriados (+Create), Alertas (+Create), Reportes
+Reportes: Index, Ventas, Compras
+Logistica: Index, Envios
+Activos: Index, Mantenimiento
+Seguridad: Index, Auditoria
+Configuracion: Index, Empresa, Nomenclatura, Series, MetodosPago
+
+================================================================================
+4. PERMISOS
+================================================================================
+
+Tabla Permisos: RolId, Modulo, Submodulo (nullable), PuedeVer, PuedeCrear, PuedeEditar, PuedeEliminar
+Ãndice Ãºnico en (RolId, Modulo, Submodulo)
+Submodulo = null â†’ permiso del mÃ³dulo padre
+Admin siempre tiene acceso total (bypass en PermisoHelper)
+Pendiente = usuario sin rol
+
+Helpers (PermisoHelper):
+- TienePermiso(context, rol, modulo, submodulo, "ver|crear|editar|eliminar")
+- ModulosVisibles(context, rol) â†’ mÃ³dulos con PuedeVer (padre o algÃºn hijo)
+- SubmodulosVisibles(context, rol, modulo) â†’ submÃ³dulos con PuedeVer
+
+PermisoSeeder.MigrarPermisosFaltantes(db):
+- Se ejecuta al arrancar la app (Program.cs)
+- Para cada rol (excepto Admin), crea permisos faltantes copiando del mÃ³dulo padre
+- Idempotente
+
+ConvenciÃ³n de nombres:
+- MÃ³dulos padre: "Clientes", "Productos", "Cuentas", "Movimientos", "Cierres", "Empleados", "Vales", "Nomina", etc.
+- SubmÃ³dulos (con acciÃ³n): "ClientesCreate", "ClientesEdit", "ClientesDelete", "CuentasCreate", "CierresAprobar", "ValesEntregar", "NominaPagar"
+- GenÃ©ricos: "Index", "Create", "Edit", "Delete" (usados cuando aplican al mÃ³dulo raÃ­z, ej: "UsuariosCreate" no existe, pero "Usuarios/Index" sÃ­ como submÃ³dulo)
+
+================================================================================
+5. HELPERS CLAVE
+================================================================================
+
+NumeroDocumentoHelper
+- GenerarSiguiente(context, tipo) â†’ genera nÃºmero y avanza el correlativo
+- PreviewSiguiente(context, tipo) â†’ solo muestra el prÃ³ximo
+- SincronizarSerie() â†’ ajusta el correlativo si detecta desfase con la BD
+- Soporta formato personalizado: {PREFIX}, {SUFFIX}, {SEP}, {NUM}, {YEAR}, {MONTH}, {DAY}
+- Tipos soportados: Cotizacion, Pedido, Venta, Factura, Devolucion, Producto, Baja, Proveedor, OrdenCompra, PagoProveedor, DevolucionProveedor, MovimientoFinanciero, AperturaCaja, CierreCaja, Empleado, ValeEmpleado, Vacacion, PermisoEmpleado, Nomina, PagoNomina
+
+ActividadHelper
+- Registrar(context, usuarioId, "acciÃ³n", "detalle", ipAddress, userAgent)
+- Nunca lanza excepciÃ³n (silencioso si falla)
+
+SaldoHelper (Finanzas)
+- Aplicar(context, movimiento) â†’ ajusta saldo de cuentas (Ingreso suma, Egreso resta, Transferencia resta origen y suma destino)
+- Revertir(context, movimiento) â†’ revierte al anular
+
+MovimientoAutomaticoHelper (Finanzas)
+- RegistrarIngresoVenta(context, ventaId, numeroVenta, monto, usuarioId, formaPago, cuentaId)
+- RegistrarEgresoPagoProveedor(context, pagoId, numeroPago, monto, usuarioId, nombreProveedor, formaPago)
+- RegistrarEgresoNomina(context, nominaId, numeroNomina, monto, usuarioId)
+- Resuelve cuenta y categorÃ­a por defecto si no se especifican
+
+AperturaHelper (Finanzas)
+- Abrir(context, cuentaId, saldoInicial, notas, usuarioId) â†’ (apertura, error)
+- ObtenerAperturaActiva(context, cuentaId)
+- HayAperturaActiva(context, cuentaId)
+- Cerrar(context, aperturaId, cierreId)
+
+CierreHelper (Finanzas)
+- Calcular(context, cuentaId, fecha) â†’ CalculoCierre (con Apertura, SaldoInicial, Ingresos, Egresos, EfectivoEsperado)
+- Registrar(context, cuentaId, fecha, efectivoContado, notas, tolerancia, usuarioId) â†’ (cierre, error)
+- DeterminarResultado(diferencia, tolerancia) â†’ "Cuadrado" | "Sobrante" | "Faltante"
+- Genera ajuste automÃ¡tico si hay diferencia (Ingreso/Egreso)
+
+DistribucionHelper (Finanzas)
+- RegistrarDistribuciones(context, cierreId, cuentaOrigenId, efectivoContado, distribuciones, usuarioId) â†’ (ok, error)
+- ObtenerDistribuciones(context, cierreId) â†’ List<DistribucionView>
+- Tipos: "RetiroBanco" (Transferencia), "FondoCaja" (sin movimiento), "EntregaAdmin" (Egreso), "PagoDirecto" (Egreso), "Otro" (Egreso)
+- ValidaciÃ³n: suma de distribuciones debe igualar efectivo contado
+
+AdjuntoCierreHelper (Finanzas)
+- Guardar(context, env, cierreId, archivo, descripcion, usuarioId)
+- Eliminar(context, env, adjuntoId)
+- Extensiones: .pdf, .jpg, .jpeg, .png. MÃ¡x 10 MB
+
+EmpleadoHelper (RRHH)
+- GenerarCodigo / PreviewCodigo
+- CalcularAniosAntiguedad(empleado, fechaRef) / CalcularMesesAntiguedad
+- CalcularDiasVacacionesPorAntiguedad(context, empleado, anioAntiguedad) â†’ lee ConfiguracionEmpresa.RHTablaVacaciones
+- ProcesarAcumulacionVacaciones(context, empleado, fechaRef)
+- ProcesarAcumulacionGlobal(context) â†’ llamada al arrancar la app
+- ObtenerFeriados(context, desde, hasta)
+
+AdjuntoEmpleadoHelper (RRHH)
+- Guardar(context, env, empleadoId, tipoDocumentoId, archivo, descripcion, fechaDoc, fechaVenc, usuarioId)
+- GuardarFotoPerfil(context, env, empleadoId, archivo)
+- Eliminar(context, env, adjuntoId)
+- ActualizarVigencias(context) â†’ llamada al arrancar la app
+- Extensiones: .pdf, .jpg, .jpeg, .png, .docx, .doc. MÃ¡x 15 MB (foto 5 MB)
+
+NominaHelper (RRHH)
+- ObtenerConfiguracion(context, anio) â†’ crea config por defecto si no existe
+- CalcularISRMensual(salarioBruto, tramos)
+- CalcularISRAcumulativo(context, empleadoId, salarioBrutoMes, anio, mesActual, config)
+- CalcularIHSS(salarioBase, config) / CalcularRAP(salarioBase, config)
+- CalcularSalarioProporcional(salarioBase, diasTrabajados, diasPeriodo)
+- CalcularPeriodo(frecuencia, referencia) â†’ (inicio, fin, pago)
+- DiasPeriodo(frecuencia) â†’ 7/14/15/30
+- ObtenerValesActivos(context, empleadoId)
+- CalcularDescuentoVales(context, empleadoId) â†’ (total, valesAfectados)
+- CalcularDetalleEmpleado(context, empleado, tipoNomina, diasPeriodo, fechaInicio, fechaFin) â†’ DetalleNomina
+
+VacacionHelper (RRHH)
+- CalcularDias(context, fechaInicio, fechaFin) â†’ (diasHabiles, diasFeriados, feriados)
+  Excluye fines de semana y feriados del paÃ­s
+- Solicitar(context, empleadoId, fechaInicio, fechaFin, motivo, usuarioSolicitaId) â†’ (vacacion, error)
+- Aprobar(context, vacacionId, usuarioApruebaId) â†’ descuenta saldo
+- Rechazar(context, vacacionId, usuarioApruebaId, motivo)
+
+Export
+- ExportColumns.Clientes() / .Productos(cats, imps) / .Proveedores()
+- ExcelExporter.Export(items, columns, "Sheet", "TÃ­tulo") â†’ byte[]
+- CsvExporter.Export(items, columns) â†’ byte[]
+- JsonExporter.Export(items) â†’ byte[]
+
+Import
+- ExcelImporter.Read(stream) â†’ ImportFile
+- CsvImporter.Read(stream) â†’ ImportFile
+- ImportFile: Headers (List<string>), Rows (List<Dictionary<string,string>>), Ok, Error
+- ColumnMapper.Detectar(headers, aliasPorCampo) â†’ Dictionary<string, string?>
+- ColumnMapper.Normalizar(texto) â†’ sin acentos/espacios, lowercase
+- Wizard: /[Modulo]/Import â†’ /[Modulo]/ImportMap â†’ confirmar â†’ Index
+- Modos de importaciÃ³n: "upsert" | "crear" | "actualizar"
+
+================================================================================
+6. CONVENCIONES
+================================================================================
+
+Nombres:
+- Modelos y propiedades en espaÃ±ol (Producto, PrecioVenta)
+- Namespace: Kirkenta.Pages.[Modulo] o Kirkenta.Pages.[Modulo].[Sub]
+- PageModels: IndexModel, CreateModel, EditModel, DeleteModel, DetailsModel
+
+PatrÃ³n de permisos en code-behind:
+var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+var currentRol = currentUser?.Rol ?? "Pendiente";
+if (currentRol != "Admin" && !PermisoHelper.TienePermiso(_context, currentRol, "Modulo", "Submodulo", "ver"))
+{
+    TempData["Error"] = "No tienes permiso";
+    return RedirectToPage("/Modulo/Index");
+}
+
+Exponer permisos a la vista:
+public bool PuedeCrear { get; set; }
+public bool PuedeEditar { get; set; }
+public bool PuedeEliminar { get; set; }
+// En OnGet:
+PuedeCrear = currentRol == "Admin" || PermisoHelper.TienePermiso(..., "crear");
+
+TempData:
+- TempData["Success"] â†’ banner verde
+- TempData["Error"] â†’ banner rojo
+- TempData["Warning"] â†’ banner amarillo
+
+Actividad (siempre registrar acciones importantes):
+ActividadHelper.Registrar(_context, currentUser?.Id ?? 0, "Verbo + objeto", $"Detalle L. {monto:N2}", HttpContext.Connection.RemoteIpAddress?.ToString());
+
+Estructura tÃ­pica de pÃ¡gina:
+- Vista .cshtml con layout principal (_Layout)
+- POS usa layout propio (_LayoutPOS)
+- Cabecera con breadcrumb (automÃ¡tica desde _Layout)
+- `module-header` con tÃ­tulo + botones de acciÃ³n
+- Banner TempData Success/Error
+- KPIs en `kpi-grid` (opcional)
+- Contenido principal en `module-card`
+- Modales con estilo `.pos-modal` reutilizado
+
+================================================================================
+7. REGLAS CRÃTICAS
+================================================================================
+
+1. SIEMPRE entregar archivos COMPLETOS, nunca fragmentos.
+2. Automatizar pero permitir modo manual (checkbox "Registrar en Finanzas").
+3. Movimientos NO se borran, se ANULAN.
+4. Cierres requieren APROBACIÃ“N.
+5. Nomenclatura personalizable desde /Nomenclatura â†’ /Series.
+6. Si import trae SKU/CÃ³digo â†’ respetar. Si vacÃ­o â†’ autogenerar.
+7. Apertura de caja OBLIGATORIA antes de vender en POS.
+8. Al cerrar â†’ se cierra la apertura. Al dÃ­a siguiente se sugiere saldo del Ãºltimo cierre.
+9. DistribuciÃ³n del efectivo: suma DEBE igualar efectivo contado.
+10. Cada distribuciÃ³n genera su movimiento (excepto FondoCaja).
+11. NÃ³mina: flujo Calculada â†’ Aprobada â†’ Pagada (con pagos individuales o en lote).
+12. Vales: doble aprobaciÃ³n (Gerente + RRHH) â†’ Entregado â†’ Descontado en nÃ³mina.
+13. Vacaciones: cÃ¡lculo excluye fines de semana y feriados del paÃ­s configurado.
+14. Salario proporcional: se calcula sobre 30 dÃ­as (base mensual estÃ¡ndar).
+15. ISR Honduras: mÃ©todo acumulativo anual por defecto (SAR).
+16. Vales: lÃ­mite del 50% del salario mensual del empleado (validaciÃ³n al crear).
+17. NÃ³mina: no se puede editar si tiene recepciones o pagos. Se anula.
+18. OrdenCompra: no se puede editar si tiene recepciones o pagos. Estados: Borrador â†’ Enviada â†’ RecibidaParcial â†’ Recibida â†’ Pagada.
+
+================================================================================
+8. MÃ“DULOS COMPLETADOS
+================================================================================
+
+Core:
+- Auth (Login, Register, Logout) con BCrypt
+- Usuarios + Roles + Permisos (CRUD completo)
+- Perfil, Cambiar contraseÃ±a, Actividad (con IP y UserAgent)
+- Permisos con seeder automÃ¡tico
+- MenÃº lateral con iconos + permisos dinÃ¡micos
+- Breadcrumb automÃ¡tico desde ruta
+
+Ventas:
+- POS completo (bÃºsqueda, carrito, cobro, modal, integraciÃ³n Finanzas con checkbox)
+- Clientes (CRUD + Import + Export con wizard)
+- Cotizaciones (CRUD + conversiÃ³n a factura y a POS)
+- Pedidos (CRUD + estados)
+- Facturas (Index, Details, RegistrarPago, CreateFromVenta)
+- Devoluciones (Index)
+
+Inventario:
+- Productos (CRUD + Import + Export con wizard)
+- CategorÃ­as, Unidades de medida
+- Bajas (con aprobaciÃ³n y reversiÃ³n + auditorÃ­a)
+- Historial de compras por producto (con grÃ¡fico de evoluciÃ³n de precios)
+
+Compras:
+- Proveedores (CRUD + Import + Export con wizard)
+- Ã“rdenes de compra (Create, Edit, Recibir con recepciÃ³n parcial)
+- Pagos a proveedores + Cuentas por pagar (con integraciÃ³n Finanzas)
+- Adjuntos a Ã³rdenes de compra (con validaciÃ³n IDOR)
+- Reportes de compras (grÃ¡ficos + detalle por proveedor y producto)
+
+Finanzas:
+- Dashboard con grÃ¡ficos (Flujo mensual, Top categorÃ­as egresos)
+- Cuentas financieras (Cajas + Bancos, con saldo inicial y actual)
+- CategorÃ­as financieras (Ingreso/Egreso, sistema + custom)
+- Movimientos (Ingresos, Egresos, Transferencias, Anulaciones)
+- Reportes (Flujo de caja, Estado de resultados, Estado de cuenta)
+- Aperturas de caja (una activa por cuenta)
+- Cierres con distribuciÃ³n del efectivo (RetiroBanco, FondoCaja, EntregaAdmin, PagoDirecto, Otro)
+- AprobaciÃ³n de cierres (Cerrado â†’ Aprobado/Rechazado)
+- Adjuntos / comprobantes (con validaciÃ³n)
+- Movimientos automÃ¡ticos desde POS, PagosProveedor, Vales, NÃ³mina
+- Ajuste automÃ¡tico por diferencia en cierre
+
+RRHH (100% completado):
+- Dashboard con KPIs + CumpleaÃ±os + Aniversarios + Feriados + Vacaciones + Alertas + Empleados recientes
+- Empleados: CRUD + foto + documentos adjuntos + expediente + hoja de vida con 8 tabs
+- CategorÃ­as de documentos (TipoDocumentoEmpleado) con seeder
+- Expedientes (llamados, amonestaciones, suspensiones, mÃ©ritos, reconocimientos)
+- Vacaciones con cÃ¡lculo hÃ¡bil (excluye fines de semana y feriados) y descuento automÃ¡tico de saldo
+- Permisos y licencias con/sin goce de sueldo
+- Vales con doble aprobaciÃ³n (Gerente + RRHH) â†’ Entregado â†’ Descontado en nÃ³mina
+- NÃ³mina completa: cÃ¡lculo ISR (acumulativo anual) + IHSS + RAP + vales + pago individual o en lote
+- Feriados multi-paÃ­s con seeder (HN, GT, SV, CR, NI, PA, MX, US) + Semana Santa por algoritmo
+- Alertas personalizadas con dashboard y prioridades
+- Reportes: KPIs, grÃ¡ficos (Chart.js), por departamento, nÃ³mina por mes, top antigÃ¼edad, cumpleaÃ±os, rotaciÃ³n
+- IntegraciÃ³n con Finanzas (egresos automÃ¡ticos por nÃ³mina y vales)
+
+ConfiguraciÃ³n:
+- Datos de la empresa (con paÃ­s, zona horaria, config RRHH, config alertas)
+- Nomenclatura â†’ Series de documentos (con formato personalizable)
+- MÃ©todos de pago
+- Impuestos
+
+Reportes:
+- Reportes de ventas (KPIs, grÃ¡ficos, top productos, top clientes, menos vendidos, por dÃ­a)
+- Reportes de compras (KPIs, grÃ¡ficos, detalle por proveedor, detalle por producto, evoluciÃ³n de precios)
+
+================================================================================
+9. MÃ“DULOS PENDIENTES
+================================================================================
+
+- ProducciÃ³n (Ã“rdenes, Calidad)
+- LogÃ­stica (Rutas, EnvÃ­os)
+- Activos (Inventario, Mantenimiento)
+- Seguridad (Index, AuditorÃ­a)
+- Import/Export de CategorÃ­as, Impuestos, Unidades de medida
+- Refactor del wizard a componente genÃ©rico
+- ConciliaciÃ³n bancaria
+- ISV/IVA automÃ¡tico (cÃ¡lculo en facturas)
+- Presupuestos por categorÃ­a
+- Cierre contable mensual
+- Portal del empleado (login propio para ver recibos, solicitar vacaciones)
+- Evaluaciones de desempeÃ±o
+- Capacitaciones / Cursos
+- Reclutamiento / Vacantes
+
+================================================================================
+10. NOTAS IMPORTANTES
+================================================================================
+
+Sobre migraciones:
+- ApplicationDbContextModelSnapshot estÃ¡ DESINCRONIZADO con la BD
+- Al generar migraciÃ³n, EF intenta crear TODAS las tablas
+- SoluciÃ³n actual: SQL manual + INSERT en __EFMigrationsHistory
+
+Sobre OneDrive:
+- Proyecto en C:\Users\crobe\OneDrive\Kirkenta
+- Archivos son symlinks de OneDrive
+- Recomendado mover a C:\Dev\Kirkenta
+
+Sobre .gitignore:
+- Excluye: bin/, obj/, .vs/, .vscode/, *.lnk, appsettings.Development.json
+- Excluye carpetas del proyecto PHP viejo: app/, config/, public/, storage/, vendor/, includes/, modules/, backups/, logs/, assets/, uploads/
+
+Sobre appsettings.json (NO SUBIR A GIT):
+- ConnectionStrings.DefaultConnection con password real
+- Versionar solo appsettings.json con placeholder
+
+Sobre ConfiguracionEmpresa (campos RRHH):
+- PaisCodigo (string, "HN")
+- ZonaHoraria (string, "America/Tegucigalpa")
+- RHFrecuenciaPagoDefault (string, "Mensual")
+- RHDiaPago1, RHDiaPago2, RHDiaSemanalPago (int)
+- RHAplicaIHSS, RHPorcentajeIHSS, RHTopeIHSS
+- RHAplicaRAP, RHPorcentajeRAP
+- RHAplicaISR, RHMetodoISRDefault
+- RHTablaVacaciones (string, "1:10,2:12,3:15,4:20,5:20")
+- RHAntiguedadMaxTabla (int, 5)
+- RHCargarFeriadosAuto (bool)
+- RHAlertaFeriadosProximos/Dias, RHAlertaVacacionesProximas/Dias,
+  RHAlertaCumpleanios, RHAlertaAniversarios, RHAlertaValesPorVencer,
+  RHAlertaContratosPorVencer/Dias, RHAlertaDocumentosVencidos
+
+Sobre el schema de ConfiguracionDeduccion (RRHH nÃ³mina):
+- Anio, AplicaIHSS, PorcentajeIHSS, TopeIHSS
+- AplicaRAP, PorcentajeRAP, TopeRAP
+- AplicaISR, TopeAnualExentoISR, MetodoISR ("Acumulativo" | "MensualSimple")
+- Se crea automÃ¡ticamente con valores por defecto de Honduras 2024 si no existe
+- TramosISR asociados por ConfiguracionDeduccionId
+
+Sobre el flujo de ISR:
+- MÃ©todo "Acumulativo" (SAR): acumula salario bruto del aÃ±o, aplica tabla sobre acumulado, resta lo ya retenido
+- MÃ©todo "MensualSimple": aplica tabla directo sobre el salario del mes
+
+Sobre tipos de nÃ³mina:
+- Semanal â†’ 7 dÃ­as
+- Catorcenal â†’ 14 dÃ­as
+- Quincenal â†’ 15 dÃ­as
+- Mensual â†’ 30 dÃ­as
+- Empleados filtrados por FrecuenciaPago
+
+================================================================================
+11. FLUJO DE TRABAJO
+================================================================================
+
+Al iniciar chat nuevo:
+1. Pega este archivo completo
+2. Di: "Retomamos Kirkenta ERP"
+3. Dime quÃ© mÃ³dulo vamos a trabajar
+4. Si vamos a tocar un archivo especÃ­fico, pÃ¡salo (solo ese)
+
+Al terminar sesiÃ³n:
+1. Actualizar este archivo si hubo cambios importantes
+2. Guardar
+3. git add . && git commit -m "..." && git push
+
+Al pedir cÃ³digo:
+- Archivos COMPLETOS, no fragmentos
+- Nombre del archivo + ruta
+- Un archivo por mensaje (o agrupados si son cortos)
+
+================================================================================
+ÃšLTIMA ACTUALIZACIÃ“N
+================================================================================
+
+Fecha: 03/10/2026
+Estado: RRHH 100% completado. MÃ³dulos operativos: Usuarios, Ventas, POS, Inventario,
+        Compras, Finanzas, RRHH, Reportes, ConfiguraciÃ³n.
+PrÃ³ximo: ProducciÃ³n, LogÃ­stica, Activos, Seguridad, o cerrar pendientes de Finanzas
+         (conciliaciÃ³n bancaria, ISV, cierre contable).
+
+
 ===== FILE: \Data\ApplicationDbContext.cs =====
 
 using Kirkenta.Models;
@@ -62,6 +550,9 @@ namespace Kirkenta.Data
         public DbSet<AperturaCaja> AperturasCaja { get; set; }
         public DbSet<DistribucionCierre> DistribucionesCierre { get; set; }
         public DbSet<AdjuntoCierre> AdjuntosCierre { get; set; }
+        public DbSet<CierreContable> CierresContables { get; set; }
+        public DbSet<ConciliacionBancaria> ConciliacionesBancarias { get; set; }       // â† NUEVO
+        public DbSet<ConciliacionDetalle> ConciliacionesDetalle { get; set; }          // â† NUEVO
 
         // ===== RRHH =====
         public DbSet<Empleado> Empleados { get; set; }
@@ -110,6 +601,14 @@ namespace Kirkenta.Data
             modelBuilder.Entity<CierreCaja>().HasIndex(c => c.Numero).IsUnique();
             modelBuilder.Entity<AperturaCaja>().HasIndex(a => a.Numero).IsUnique();
 
+            // Un solo cierre contable por mes
+            modelBuilder.Entity<CierreContable>()
+                .HasIndex(c => new { c.Anio, c.Mes })
+                .IsUnique();
+
+            // NÃºmero de conciliaciÃ³n Ãºnico
+            modelBuilder.Entity<ConciliacionBancaria>().HasIndex(c => c.Numero).IsUnique();  // â† NUEVO
+
             // RRHH
             modelBuilder.Entity<Empleado>().HasIndex(e => e.Codigo).IsUnique();
             modelBuilder.Entity<VacacionEmpleado>().HasIndex(v => v.Numero).IsUnique();
@@ -120,6 +619,54 @@ namespace Kirkenta.Data
 
             // Config deducciones - Ãºnico por aÃ±o
             modelBuilder.Entity<ConfiguracionDeduccion>().HasIndex(c => c.Anio).IsUnique();
+        }
+    }
+}
+
+
+===== FILE: \Helpers\ActividadHelper.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Models;
+
+namespace Kirkenta.Helpers
+{
+    public static class ActividadHelper
+    {
+        /// <summary>
+        /// Registra una actividad de usuario en la base de datos.
+        /// Nunca lanza excepciÃ³n (silencioso si falla).
+        /// </summary>
+        public static void Registrar(
+            ApplicationDbContext context,
+            int usuarioId,
+            string accion,
+            string? detalle = null,
+            string? ip = null,
+            string? userAgent = null)
+        {
+            try
+            {
+                if (usuarioId <= 0) return;
+
+                var actividad = new ActividadUsuario
+                {
+                    UsuarioId = usuarioId,
+                    Accion = accion,
+                    Detalle = detalle,
+                    Ip = string.IsNullOrEmpty(ip) ? "N/A" : ip,
+                    UserAgent = userAgent,
+                    Fecha = DateTime.Now
+                };
+
+                context.Actividades.Add(actividad);
+                context.SaveChanges();
+            }
+            catch (Exception ex)
+            {
+                // Log silencioso: no rompemos la app si falla el log
+                Console.WriteLine($"Error al registrar actividad: {ex.Message}");
+            }
         }
     }
 }
@@ -654,6 +1201,219 @@ namespace Kirkenta.Helpers.Finanzas
 }
 
 
+===== FILE: \Helpers\Finanzas\CierreContableHelper.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Models;
+
+namespace Kirkenta.Helpers.Finanzas
+{
+    /// <summary>
+    /// Gestiona el cierre contable mensual.
+    /// Al cerrar un mes, se bloquean todos los movimientos con fecha dentro de ese mes.
+    /// Se puede reabrir (con motivo) por un usuario con permiso.
+    /// </summary>
+    public static class CierreContableHelper
+    {
+        /// <summary>
+        /// Verifica si una fecha estÃ¡ dentro de un mes cerrado.
+        /// Devuelve true si el mes estÃ¡ cerrado (bloqueado).
+        /// </summary>
+        public static bool EstaCerrado(ApplicationDbContext context, DateTime fecha)
+        {
+            var anio = fecha.Year;
+            var mes = fecha.Month;
+
+            var cierre = context.CierresContables
+                .FirstOrDefault(c => c.Anio == anio && c.Mes == mes);
+
+            return cierre != null && cierre.Estado == "Cerrado";
+        }
+
+        /// <summary>
+        /// Valida si una fecha se puede usar para registrar movimientos.
+        /// Devuelve (ok, error). Si el mes estÃ¡ cerrado, ok=false.
+        /// </summary>
+        public static (bool ok, string? error) ValidarFecha(ApplicationDbContext context, DateTime fecha)
+        {
+            var cierre = context.CierresContables
+                .FirstOrDefault(c => c.Anio == fecha.Year && c.Mes == fecha.Month);
+
+            if (cierre == null || cierre.Estado == "Abierto")
+                return (true, null);
+
+            return (false,
+                $"El perÃ­odo {cierre.PeriodoTexto} estÃ¡ CERRADO contablemente. " +
+                $"Debes reabrirlo antes de registrar movimientos con esa fecha.");
+        }
+
+        /// <summary>
+        /// Obtiene el estado de un mes especÃ­fico. Devuelve null si no hay registro (mes abierto por defecto).
+        /// </summary>
+        public static CierreContable? Obtener(ApplicationDbContext context, int anio, int mes)
+        {
+            return context.CierresContables
+                .FirstOrDefault(c => c.Anio == anio && c.Mes == mes);
+        }
+
+        /// <summary>
+        /// Cierra un mes. Registra totales de ingresos, egresos y cantidad de movimientos
+        /// para auditorÃ­a. No permite cerrar un mes ya cerrado.
+        /// </summary>
+        public static (bool ok, string? error, CierreContable? cierre) Cerrar(
+            ApplicationDbContext context,
+            int anio,
+            int mes,
+            int usuarioId,
+            string? notas = null)
+        {
+            try
+            {
+                if (mes < 1 || mes > 12)
+                    return (false, "Mes invÃ¡lido", null);
+
+                // Verificar que no exista ya cerrado
+                var existente = context.CierresContables
+                    .FirstOrDefault(c => c.Anio == anio && c.Mes == mes);
+
+                if (existente != null && existente.Estado == "Cerrado")
+                    return (false, $"El perÃ­odo {existente.PeriodoTexto} ya estÃ¡ cerrado", null);
+
+                // Calcular totales del mes
+                var inicioMes = new DateTime(anio, mes, 1);
+                var finMes = inicioMes.AddMonths(1);
+
+                var movimientos = context.MovimientosFinancieros
+                    .Where(m => m.Estado == "Activo"
+                             && m.Fecha >= inicioMes
+                             && m.Fecha < finMes)
+                    .ToList();
+
+                var ingresos = movimientos.Where(m => m.Tipo == "Ingreso").Sum(m => m.Monto);
+                var egresos = movimientos.Where(m => m.Tipo == "Egreso").Sum(m => m.Monto);
+                var balance = ingresos - egresos;
+
+                CierreContable cierre;
+                if (existente != null)
+                {
+                    // Reutilizar la fila existente (estaba Abierto)
+                    cierre = existente;
+                }
+                else
+                {
+                    cierre = new CierreContable
+                    {
+                        Anio = anio,
+                        Mes = mes,
+                        FechaCreacion = DateTime.Now,
+                        EmpresaId = 1
+                    };
+                    context.CierresContables.Add(cierre);
+                }
+
+                cierre.Estado = "Cerrado";
+                cierre.FechaCierre = DateTime.Now;
+                cierre.UsuarioCierreId = usuarioId;
+                cierre.TotalIngresos = ingresos;
+                cierre.TotalEgresos = egresos;
+                cierre.Balance = balance;
+                cierre.CantidadMovimientos = movimientos.Count;
+                cierre.Notas = notas;
+
+                // Limpiar datos de reapertura si existÃ­an (por si se cerrÃ³, reabriÃ³ y volviÃ³ a cerrar)
+                cierre.FechaReapertura = null;
+                cierre.UsuarioReaperturaId = null;
+                cierre.MotivoReapertura = null;
+
+                context.SaveChanges();
+
+                return (true, null, cierre);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CierreContableHelper] Error al cerrar: {ex.Message}");
+                return (false, ex.Message, null);
+            }
+        }
+
+        /// <summary>
+        /// Reabre un mes previamente cerrado. Requiere motivo.
+        /// </summary>
+        public static (bool ok, string? error) Reabrir(
+            ApplicationDbContext context,
+            int anio,
+            int mes,
+            int usuarioId,
+            string motivo)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(motivo))
+                    return (false, "Debes indicar el motivo de la reapertura");
+
+                var cierre = context.CierresContables
+                    .FirstOrDefault(c => c.Anio == anio && c.Mes == mes);
+
+                if (cierre == null)
+                    return (false, "El perÃ­odo no tiene cierre registrado");
+
+                if (cierre.Estado != "Cerrado")
+                    return (false, $"El perÃ­odo {cierre.PeriodoTexto} no estÃ¡ cerrado");
+
+                cierre.Estado = "Abierto";
+                cierre.FechaReapertura = DateTime.Now;
+                cierre.UsuarioReaperturaId = usuarioId;
+                cierre.MotivoReapertura = motivo;
+
+                context.SaveChanges();
+
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CierreContableHelper] Error al reabrir: {ex.Message}");
+                return (false, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Devuelve todos los meses de un aÃ±o con su estado.
+        /// Los meses sin registro se consideran "Abierto".
+        /// </summary>
+        public static List<CierreContable> ObtenerEstadoAnual(ApplicationDbContext context, int anio)
+        {
+            var cierres = context.CierresContables
+                .Where(c => c.Anio == anio)
+                .ToList();
+
+            var resultado = new List<CierreContable>();
+
+            for (int mes = 1; mes <= 12; mes++)
+            {
+                var existente = cierres.FirstOrDefault(c => c.Mes == mes);
+
+                if (existente != null)
+                {
+                    resultado.Add(existente);
+                }
+                else
+                {
+                    resultado.Add(new CierreContable
+                    {
+                        Anio = anio,
+                        Mes = mes,
+                        Estado = "Abierto",
+                        EmpresaId = 1
+                    });
+                }
+            }
+
+            return resultado;
+        }
+    }
+}
+
+
 ===== FILE: \Helpers\Finanzas\CierreHelper.cs =====
 
 using Kirkenta.Data;
@@ -748,6 +1508,8 @@ namespace Kirkenta.Helpers.Finanzas
         /// <summary>
         /// Registra el cierre. Genera ajuste por diferencia si aplica.
         /// NO registra distribuciÃ³n todavÃ­a â€” eso lo hace el caller despuÃ©s.
+        /// Si el ajuste es un Egreso y la cuenta no tiene saldo suficiente, se registra
+        /// el cierre igual pero SIN ajuste, y se agrega advertencia a las notas.
         /// </summary>
         public static (CierreCaja cierre, string? error) Registrar(
             ApplicationDbContext context,
@@ -802,9 +1564,32 @@ namespace Kirkenta.Helpers.Finanzas
                 {
                     var tipoAjuste = resultado == "Sobrante" ? "Ingreso" : "Egreso";
                     var montoAjuste = Math.Abs(diferencia);
-                    GenerarAjuste(context, cuentaId, tipoAjuste, montoAjuste, numero, cierre.Id, usuarioId);
 
-                    // El ajuste actualiza el saldo, para que las distribuciones cuadren
+                    // ===== VALIDACIÃ“N: si es Egreso, verificar saldo =====
+                    if (tipoAjuste == "Egreso")
+                    {
+                        var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId);
+                        if (cuenta == null)
+                        {
+                            // Cuenta ya no existe (raro), no generar ajuste
+                            cierre.Notas = (string.IsNullOrWhiteSpace(cierre.Notas) ? "" : cierre.Notas + "\n") +
+                                $"[Advertencia] No se pudo generar el ajuste por FALTANTE: cuenta no encontrada.";
+                            context.SaveChanges();
+                            return (cierre, null);
+                        }
+
+                        if (cuenta.SaldoActual < montoAjuste)
+                        {
+                            // Saldo insuficiente: no generar ajuste, dejar constancia
+                            cierre.Notas = (string.IsNullOrWhiteSpace(cierre.Notas) ? "" : cierre.Notas + "\n") +
+                                $"[Advertencia] No se pudo generar el ajuste por FALTANTE de L. {montoAjuste:N2}: " +
+                                $"la cuenta '{cuenta.Nombre}' solo tiene L. {cuenta.SaldoActual:N2} disponible.";
+                            context.SaveChanges();
+                            return (cierre, null);
+                        }
+                    }
+
+                    GenerarAjuste(context, cuentaId, tipoAjuste, montoAjuste, numero, cierre.Id, usuarioId);
                 }
 
                 return (cierre, null);
@@ -899,6 +1684,426 @@ namespace Kirkenta.Helpers.Finanzas
 }
 
 
+===== FILE: \Helpers\Finanzas\ConciliacionHelper.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace Kirkenta.Helpers.Finanzas
+{
+    /// <summary>
+    /// LÃ³gica de conciliaciÃ³n bancaria: matching automÃ¡tico, cierre, cÃ¡lculo de diferencias.
+    /// </summary>
+    public static class ConciliacionHelper
+    {
+        /// <summary>
+        /// Rango de dÃ­as para considerar una fecha "parecida" en el matching automÃ¡tico.
+        /// </summary>
+        private const int DiasTolerancia = 3;
+
+        /// <summary>
+        /// Rango de diferencia de monto para considerar "parecido" (redondeos).
+        /// </summary>
+        private const decimal ToleranciaMonto = 0.01m;
+
+        /// <summary>
+        /// Crea una nueva conciliaciÃ³n con sus lÃ­neas del sistema cargadas automÃ¡ticamente
+        /// (movimientos activos de la cuenta en el perÃ­odo).
+        /// </summary>
+        public static (ConciliacionBancaria? conciliacion, string? error) Crear(
+            ApplicationDbContext context,
+            int cuentaId,
+            DateTime fechaInicio,
+            DateTime fechaFin,
+            decimal saldoBanco,
+            string? notas,
+            int usuarioId)
+        {
+            try
+            {
+                if (fechaFin < fechaInicio)
+                    return (null, "La fecha fin no puede ser anterior a la fecha inicio");
+
+                var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId);
+                if (cuenta == null)
+                    return (null, "Cuenta no encontrada");
+
+                if (cuenta.Tipo != "Banco")
+                    return (null, "Solo se pueden conciliar cuentas bancarias");
+
+                if (!cuenta.Activa)
+                    return (null, $"La cuenta '{cuenta.Nombre}' estÃ¡ inactiva");
+
+                // Verificar que no exista una conciliaciÃ³n abierta para la misma cuenta y perÃ­odo
+                var existente = context.ConciliacionesBancarias
+                    .Any(c => c.CuentaId == cuentaId
+                           && c.FechaInicio == fechaInicio.Date
+                           && c.FechaFin == fechaFin.Date
+                           && (c.Estado == "Abierta" || c.Estado == "EnRevision"));
+
+                if (existente)
+                    return (null, "Ya existe una conciliaciÃ³n abierta para esta cuenta y perÃ­odo");
+
+                // Calcular saldo del sistema al final del perÃ­odo
+                // Saldo sistema = saldo inicial del perÃ­odo + movimientos del perÃ­odo
+                // SimplificaciÃ³n: usamos el saldo actual y restamos los movimientos posteriores al perÃ­odo.
+                // Una implementaciÃ³n mÃ¡s robusta requerirÃ­a un registro histÃ³rico de saldos.
+                var movimientosPosteriores = context.MovimientosFinancieros
+                    .Where(m => m.Estado == "Activo"
+                             && m.Fecha > fechaFin.Date.AddDays(1).AddSeconds(-1)
+                             && (m.CuentaId == cuentaId || m.CuentaDestinoId == cuentaId))
+                    .ToList();
+
+                decimal efectoPosterior = 0;
+                foreach (var m in movimientosPosteriores)
+                {
+                    if (m.CuentaId == cuentaId)
+                    {
+                        if (m.Tipo == "Ingreso") efectoPosterior += m.Monto;
+                        else if (m.Tipo == "Egreso") efectoPosterior -= m.Monto;
+                        else if (m.Tipo == "Transferencia") efectoPosterior -= m.Monto;
+                    }
+                    if (m.CuentaDestinoId == cuentaId && m.Tipo == "Transferencia")
+                    {
+                        efectoPosterior += m.Monto;
+                    }
+                }
+
+                var saldoSistema = cuenta.SaldoActual - efectoPosterior;
+
+                var numero = NumeroDocumentoHelper.GenerarSiguiente(context, "ConciliacionBancaria");
+
+                var conciliacion = new ConciliacionBancaria
+                {
+                    Numero = numero,
+                    CuentaId = cuentaId,
+                    FechaInicio = fechaInicio.Date,
+                    FechaFin = fechaFin.Date,
+                    SaldoBanco = saldoBanco,
+                    SaldoSistema = saldoSistema,
+                    Diferencia = saldoBanco - saldoSistema,
+                    Estado = "Abierta",
+                    Notas = notas,
+                    FechaCreacion = DateTime.Now,
+                    UsuarioCreoId = usuarioId,
+                    EmpresaId = 1
+                };
+
+                context.ConciliacionesBancarias.Add(conciliacion);
+                context.SaveChanges();
+
+                // Cargar lÃ­neas del sistema (movimientos del perÃ­odo)
+                CargarLineasSistema(context, conciliacion);
+
+                // Recalcular totales
+                RecalcularTotales(context, conciliacion);
+
+                return (conciliacion, null);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ConciliacionHelper] Error al crear: {ex.Message}");
+                return (null, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Carga las lÃ­neas del sistema (movimientos del perÃ­odo) como detalles de la conciliaciÃ³n.
+        /// </summary>
+        public static void CargarLineasSistema(ApplicationDbContext context, ConciliacionBancaria conciliacion)
+        {
+            // Eliminar lÃ­neas del sistema existentes (para recargar)
+            var existentes = context.ConciliacionesDetalle
+                .Where(d => d.ConciliacionBancariaId == conciliacion.Id && d.Origen == "Sistema")
+                .ToList();
+
+            if (existentes.Any())
+            {
+                context.ConciliacionesDetalle.RemoveRange(existentes);
+                context.SaveChanges();
+            }
+
+            var movimientos = context.MovimientosFinancieros
+                .Where(m => m.Estado == "Activo"
+                         && m.Fecha >= conciliacion.FechaInicio
+                         && m.Fecha < conciliacion.FechaFin.AddDays(1)
+                         && (m.CuentaId == conciliacion.CuentaId || m.CuentaDestinoId == conciliacion.CuentaId))
+                .OrderBy(m => m.Fecha)
+                .ToList();
+
+            foreach (var m in movimientos)
+            {
+                decimal montoFirmado = 0;
+                if (m.CuentaId == conciliacion.CuentaId)
+                {
+                    if (m.Tipo == "Ingreso") montoFirmado = m.Monto;
+                    else if (m.Tipo == "Egreso") montoFirmado = -m.Monto;
+                    else if (m.Tipo == "Transferencia") montoFirmado = -m.Monto;
+                }
+                if (m.CuentaDestinoId == conciliacion.CuentaId && m.Tipo == "Transferencia")
+                {
+                    montoFirmado = m.Monto;
+                }
+
+                context.ConciliacionesDetalle.Add(new ConciliacionDetalle
+                {
+                    ConciliacionBancariaId = conciliacion.Id,
+                    Origen = "Sistema",
+                    MovimientoId = m.Id,
+                    Fecha = m.Fecha,
+                    Descripcion = m.Concepto,
+                    Referencia = m.Referencia,
+                    Monto = montoFirmado,
+                    Matcheada = false,
+                    FechaCreacion = DateTime.Now
+                });
+            }
+
+            context.SaveChanges();
+        }
+
+        /// <summary>
+        /// Ejecuta matching automÃ¡tico entre las lÃ­neas del sistema y las del banco.
+        /// Criterios: mismo monto (Â±tolerancia), fecha dentro de Â±DiasTolerancia, referencia similar.
+        /// </summary>
+        public static int MatchingAutomatico(ApplicationDbContext context, int conciliacionId)
+        {
+            var detalles = context.ConciliacionesDetalle
+                .Where(d => d.ConciliacionBancariaId == conciliacionId)
+                .ToList();
+
+            var sistema = detalles.Where(d => d.Origen == "Sistema" && !d.Matcheada).ToList();
+            var banco = detalles.Where(d => d.Origen == "Banco" && !d.Matcheada).ToList();
+
+            int matches = 0;
+
+            foreach (var s in sistema)
+            {
+                // Buscar la lÃ­nea del banco que mejor matchea
+                var candidatos = banco
+                    .Where(b => !b.Matcheada
+                             && Math.Abs(b.Monto - s.Monto) <= ToleranciaMonto
+                             && Math.Abs((b.Fecha - s.Fecha).TotalDays) <= DiasTolerancia)
+                    .OrderBy(b => Math.Abs((b.Fecha - s.Fecha).TotalDays))
+                    .ToList();
+
+                if (candidatos.Count == 0) continue;
+
+                // Si hay varios, preferir el que coincida en referencia
+                ConciliacionDetalle? mejor = null;
+                if (!string.IsNullOrWhiteSpace(s.Referencia))
+                {
+                    mejor = candidatos.FirstOrDefault(c =>
+                        !string.IsNullOrWhiteSpace(c.Referencia) &&
+                        c.Referencia.Trim().ToLower() == s.Referencia.Trim().ToLower());
+                }
+
+                mejor ??= candidatos.First();
+
+                // Marcar ambos
+                s.Matcheada = true;
+                s.MatcheadaConDetalleId = mejor.Id;
+                s.TipoMatch = "Automatico";
+
+                mejor.Matcheada = true;
+                mejor.MatcheadaConDetalleId = s.Id;
+                mejor.TipoMatch = "Automatico";
+
+                matches++;
+            }
+
+            context.SaveChanges();
+            return matches;
+        }
+
+        /// <summary>
+        /// Marca manualmente dos lÃ­neas como matcheadas.
+        /// </summary>
+        public static (bool ok, string? error) MatchingManual(
+            ApplicationDbContext context,
+            int detalleSistemaId,
+            int detalleBancoId)
+        {
+            try
+            {
+                var sistema = context.ConciliacionesDetalle.FirstOrDefault(d => d.Id == detalleSistemaId);
+                var banco = context.ConciliacionesDetalle.FirstOrDefault(d => d.Id == detalleBancoId);
+
+                if (sistema == null || banco == null)
+                    return (false, "Detalle no encontrado");
+
+                if (sistema.Origen != "Sistema" || banco.Origen != "Banco")
+                    return (false, "Debes emparejar una lÃ­nea del sistema con una del banco");
+
+                if (sistema.ConciliacionBancariaId != banco.ConciliacionBancariaId)
+                    return (false, "Las lÃ­neas pertenecen a conciliaciones diferentes");
+
+                if (sistema.Matcheada || banco.Matcheada)
+                    return (false, "Una de las lÃ­neas ya estÃ¡ matcheada");
+
+                if (Math.Abs(sistema.Monto - banco.Monto) > ToleranciaMonto)
+                    return (false, $"Los montos no coinciden: sistema L. {sistema.Monto:N2}, banco L. {banco.Monto:N2}");
+
+                sistema.Matcheada = true;
+                sistema.MatcheadaConDetalleId = banco.Id;
+                sistema.TipoMatch = "Manual";
+
+                banco.Matcheada = true;
+                banco.MatcheadaConDetalleId = sistema.Id;
+                banco.TipoMatch = "Manual";
+
+                context.SaveChanges();
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Deshace un match (manual o automÃ¡tico).
+        /// </summary>
+        public static (bool ok, string? error) DeshacerMatch(
+            ApplicationDbContext context,
+            int detalleId)
+        {
+            try
+            {
+                var detalle = context.ConciliacionesDetalle.FirstOrDefault(d => d.Id == detalleId);
+                if (detalle == null) return (false, "Detalle no encontrado");
+                if (!detalle.Matcheada) return (false, "Esta lÃ­nea no estÃ¡ matcheada");
+
+                var contraparte = detalle.MatcheadaConDetalleId.HasValue
+                    ? context.ConciliacionesDetalle.FirstOrDefault(d => d.Id == detalle.MatcheadaConDetalleId.Value)
+                    : null;
+
+                detalle.Matcheada = false;
+                detalle.MatcheadaConDetalleId = null;
+                detalle.TipoMatch = null;
+
+                if (contraparte != null)
+                {
+                    contraparte.Matcheada = false;
+                    contraparte.MatcheadaConDetalleId = null;
+                    contraparte.TipoMatch = null;
+                }
+
+                context.SaveChanges();
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Recalcula los totales de la conciliaciÃ³n (lÃ­neas y matcheadas).
+        /// </summary>
+        public static void RecalcularTotales(ApplicationDbContext context, ConciliacionBancaria conciliacion)
+        {
+            var detalles = context.ConciliacionesDetalle
+                .Where(d => d.ConciliacionBancariaId == conciliacion.Id)
+                .ToList();
+
+            conciliacion.TotalLineasSistema = detalles.Count(d => d.Origen == "Sistema");
+            conciliacion.TotalLineasBanco = detalles.Count(d => d.Origen == "Banco");
+            conciliacion.TotalMatcheadas = detalles.Count(d => d.Matcheada);
+            conciliacion.TotalNoMatcheadas = detalles.Count(d => !d.Matcheada);
+
+            context.SaveChanges();
+        }
+
+        /// <summary>
+        /// Marca la conciliaciÃ³n como "Conciliada" (cerrada).
+        /// Requiere que la diferencia sea 0.
+        /// </summary>
+        public static (bool ok, string? error) Cerrar(
+            ApplicationDbContext context,
+            int conciliacionId,
+            int usuarioId,
+            string? notasCierre)
+        {
+            try
+            {
+                var conciliacion = context.ConciliacionesBancarias
+                    .FirstOrDefault(c => c.Id == conciliacionId);
+
+                if (conciliacion == null) return (false, "ConciliaciÃ³n no encontrada");
+                if (conciliacion.Estado != "Abierta" && conciliacion.Estado != "EnRevision")
+                    return (false, "La conciliaciÃ³n no estÃ¡ abierta");
+
+                // Recalcular diferencia final
+                var detalles = context.ConciliacionesDetalle
+                    .Where(d => d.ConciliacionBancariaId == conciliacionId)
+                    .ToList();
+
+                var noMatcheadasSistema = detalles
+                    .Where(d => d.Origen == "Sistema" && !d.Matcheada)
+                    .Sum(d => d.Monto);
+
+                var noMatcheadasBanco = detalles
+                    .Where(d => d.Origen == "Banco" && !d.Matcheada)
+                    .Sum(d => d.Monto);
+
+                // Diferencia final = lo que quedÃ³ pendiente del sistema - lo que quedÃ³ pendiente del banco
+                var diferenciaFinal = noMatcheadasSistema - noMatcheadasBanco;
+
+                if (Math.Abs(diferenciaFinal) > ToleranciaMonto)
+                {
+                    return (false,
+                        $"No se puede cerrar: quedan diferencias por L. {Math.Abs(diferenciaFinal):N2}. " +
+                        $"Empareja o marca como revisadas las lÃ­neas pendientes.");
+                }
+
+                conciliacion.Estado = "Conciliada";
+                conciliacion.UsuarioCierraId = usuarioId;
+                conciliacion.FechaCierre = DateTime.Now;
+                conciliacion.NotasCierre = notasCierre;
+
+                context.SaveChanges();
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Cancela una conciliaciÃ³n (no se puede cancelar si estÃ¡ Conciliada).
+        /// </summary>
+        public static (bool ok, string? error) Cancelar(
+            ApplicationDbContext context,
+            int conciliacionId,
+            string motivo)
+        {
+            try
+            {
+                var conciliacion = context.ConciliacionesBancarias
+                    .FirstOrDefault(c => c.Id == conciliacionId);
+
+                if (conciliacion == null) return (false, "ConciliaciÃ³n no encontrada");
+                if (conciliacion.Estado == "Conciliada")
+                    return (false, "No se puede cancelar una conciliaciÃ³n ya cerrada");
+
+                conciliacion.Estado = "Cancelada";
+                conciliacion.Notas = (conciliacion.Notas ?? "") + $"\n[Cancelada] {motivo}";
+
+                context.SaveChanges();
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
+            }
+        }
+    }
+}
+
+
 ===== FILE: \Helpers\Finanzas\DistribucionHelper.cs =====
 
 using Kirkenta.Data;
@@ -914,7 +2119,8 @@ namespace Kirkenta.Helpers.Finanzas
     {
         /// <summary>
         /// Registra las distribuciones de un cierre y genera los movimientos financieros.
-        /// Valida que la suma coincida con el efectivo contado.
+        /// Valida que la suma coincida con el efectivo contado y que la cuenta origen
+        /// tenga saldo suficiente para cada distribuciÃ³n que sale de caja.
         /// </summary>
         public static (bool ok, string? error) RegistrarDistribuciones(
             ApplicationDbContext context,
@@ -934,6 +2140,62 @@ namespace Kirkenta.Helpers.Finanzas
                     return (false, $"La suma de las distribuciones (L. {totalDistribuido:N2}) no coincide con el efectivo contado (L. {efectivoContado:N2})");
                 }
 
+                // ===== VALIDACIÃ“N: cuenta origen existe y estÃ¡ activa =====
+                var cuentaOrigen = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaOrigenId);
+                if (cuentaOrigen == null)
+                {
+                    return (false, $"Cuenta origen (ID {cuentaOrigenId}) no encontrada");
+                }
+
+                if (!cuentaOrigen.Activa)
+                {
+                    return (false, $"La cuenta '{cuentaOrigen.Nombre}' estÃ¡ inactiva");
+                }
+
+                // ===== VALIDACIÃ“N: saldo suficiente para las distribuciones que SALEN de caja =====
+                // Las distribuciones que salen de caja son: RetiroBanco, EntregaAdmin, PagoDirecto, Otro
+                // (FondoCaja NO sale de caja, se queda como saldo)
+                decimal totalQueSale = distribuciones
+                    .Where(d => d.Tipo != "FondoCaja")
+                    .Sum(d => d.Monto);
+
+                if (cuentaOrigen.SaldoActual < totalQueSale)
+                {
+                    return (false,
+                        $"Saldo insuficiente en '{cuentaOrigen.Nombre}'. " +
+                        $"Disponible: L. {cuentaOrigen.SaldoActual:N2}, " +
+                        $"requerido para distribuir: L. {totalQueSale:N2}");
+                }
+
+                // ===== VALIDACIÃ“N: cuenta destino de RetiroBanco existe y estÃ¡ activa =====
+                var distribucionesBanco = distribuciones.Where(d => d.Tipo == "RetiroBanco").ToList();
+                foreach (var distBanco in distribucionesBanco)
+                {
+                    if (!distBanco.CuentaDestinoId.HasValue)
+                    {
+                        return (false, "Cada 'Retiro a banco' requiere una cuenta destino");
+                    }
+
+                    var cuentaDestino = context.CuentasFinancieras
+                        .FirstOrDefault(c => c.Id == distBanco.CuentaDestinoId.Value);
+
+                    if (cuentaDestino == null)
+                    {
+                        return (false, $"Cuenta destino (ID {distBanco.CuentaDestinoId}) no encontrada");
+                    }
+
+                    if (!cuentaDestino.Activa)
+                    {
+                        return (false, $"La cuenta destino '{cuentaDestino.Nombre}' estÃ¡ inactiva");
+                    }
+
+                    if (cuentaDestino.Id == cuentaOrigenId)
+                    {
+                        return (false, "La cuenta destino no puede ser la misma que la cuenta origen");
+                    }
+                }
+
+                // ===== TODO OK: procesar distribuciones =====
                 var monedaDefecto = context.Monedas.FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1;
 
                 foreach (var dist in distribuciones)
@@ -957,7 +2219,6 @@ namespace Kirkenta.Helpers.Finanzas
                     context.DistribucionesCierre.Add(distribucion);
                     context.SaveChanges();
 
-                    // Generar movimiento segÃºn tipo
                     MovimientoFinanciero? mov = null;
 
                     switch (dist.Tipo)
@@ -994,7 +2255,6 @@ namespace Kirkenta.Helpers.Finanzas
                             break;
 
                         case "Otro":
-                            // SegÃºn el monto: si sale de la caja, se registra egreso
                             mov = GenerarEgreso(
                                 context, cuentaOrigenId, dist.Monto,
                                 $"Salida de efectivo al cierre #{cierreId}",
@@ -1309,10 +2569,283 @@ namespace Kirkenta.Helpers.Finanzas
 }
 
 
+===== FILE: \Helpers\Finanzas\ISVHelper.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Models;
+
+namespace Kirkenta.Helpers.Finanzas
+{
+    /// <summary>
+    /// Helper para cÃ¡lculo y desglose de ISV/IVA.
+    /// NO hardcodea tasas: siempre lee del catÃ¡logo Impuestos.
+    /// Si el SAR activa una nueva tasa, se crea desde /Impuestos y ya queda disponible.
+    /// </summary>
+    public static class ISVHelper
+    {
+        /// <summary>
+        /// Resultado del cÃ¡lculo de ISV agrupado por tasa.
+        /// </summary>
+        public class ResultadoISV
+        {
+            /// <summary>
+            /// Base gravable por cada tasa (ej: {15: 1000, 18: 500})
+            /// </summary>
+            public Dictionary<decimal, decimal> BasePorTasa { get; set; } = new();
+
+            /// <summary>
+            /// Monto de ISV por cada tasa (ej: {15: 150, 18: 90})
+            /// </summary>
+            public Dictionary<decimal, decimal> ISVPorTasa { get; set; } = new();
+
+            /// <summary>
+            /// Base gravable total (suma de todas las bases)
+            /// </summary>
+            public decimal BaseGravableTotal { get; set; }
+
+            /// <summary>
+            /// Base exenta total (productos sin impuesto o con tasa 0)
+            /// </summary>
+            public decimal BaseExentaTotal { get; set; }
+
+            /// <summary>
+            /// ISV total a pagar (suma de todos los ISV por tasa)
+            /// </summary>
+            public decimal ISVTotal { get; set; }
+
+            /// <summary>
+            /// Subtotal antes de impuestos (base gravable + base exenta)
+            /// </summary>
+            public decimal Subtotal { get; set; }
+
+            /// <summary>
+            /// Total de la factura (subtotal + ISV - descuento)
+            /// </summary>
+            public decimal Total { get; set; }
+
+            /// <summary>
+            /// Descuento aplicado
+            /// </summary>
+            public decimal Descuento { get; set; }
+
+            /// <summary>
+            /// Lista de tasas que aplican en esta factura (para iterar en la vista)
+            /// </summary>
+            public List<decimal> TasasAplicadas => BasePorTasa.Keys.OrderBy(t => t).ToList();
+        }
+
+        /// <summary>
+        /// Calcula el ISV de una lista de items (a nivel de lÃ­nea).
+        /// Cada item debe traer: Cantidad, PrecioUnitario, Descuento, ImpuestoId del producto.
+        /// </summary>
+        public static ResultadoISV Calcular(
+            ApplicationDbContext context,
+            List<ItemParaISV> items,
+            decimal descuentoGlobal = 0)
+        {
+            var resultado = new ResultadoISV();
+            resultado.Descuento = descuentoGlobal;
+
+            // Cargar catÃ¡logo de impuestos en memoria
+            var impuestos = context.Impuestos
+                .Where(i => i.Activo)
+                .ToList();
+
+            var impuestosDict = impuestos.ToDictionary(i => i.Id, i => i.Porcentaje);
+
+            // Impuesto predeterminado (si el producto no tiene uno)
+            var impuestoPredeterminado = impuestos
+                .FirstOrDefault(i => i.EsPredeterminado)?.Porcentaje ?? 0m;
+
+            foreach (var item in items)
+            {
+                var bruto = item.Cantidad * item.PrecioUnitario;
+                var neto = bruto - item.Descuento;
+
+                if (neto <= 0) continue;
+
+                // Determinar la tasa de este item
+                decimal tasa = 0m;
+                if (item.ImpuestoId.HasValue && impuestosDict.ContainsKey(item.ImpuestoId.Value))
+                {
+                    tasa = impuestosDict[item.ImpuestoId.Value];
+                }
+                else
+                {
+                    tasa = impuestoPredeterminado;
+                }
+
+                // Acumular base
+                if (tasa > 0)
+                {
+                    if (!resultado.BasePorTasa.ContainsKey(tasa))
+                    {
+                        resultado.BasePorTasa[tasa] = 0;
+                        resultado.ISVPorTasa[tasa] = 0;
+                    }
+                    resultado.BasePorTasa[tasa] += neto;
+                    resultado.BaseGravableTotal += neto;
+                }
+                else
+                {
+                    resultado.BaseExentaTotal += neto;
+                }
+
+                resultado.Subtotal += neto;
+            }
+
+            // Calcular ISV por tasa
+            foreach (var tasa in resultado.BasePorTasa.Keys.ToList())
+            {
+                var baseTasa = resultado.BasePorTasa[tasa];
+                var isv = Math.Round(baseTasa * (tasa / 100m), 2);
+                resultado.ISVPorTasa[tasa] = isv;
+                resultado.ISVTotal += isv;
+            }
+
+            // Total final
+            resultado.Total = Math.Round(resultado.Subtotal + resultado.ISVTotal - descuentoGlobal, 2);
+            if (resultado.Total < 0) resultado.Total = 0;
+
+            return resultado;
+        }
+
+        /// <summary>
+        /// Calcula el ISV de un Ãºnico item (usado al agregar al carrito del POS).
+        /// Devuelve la tasa que aplica.
+        /// </summary>
+        public static decimal ObtenerTasaProducto(ApplicationDbContext context, int? impuestoId)
+        {
+            if (impuestoId.HasValue)
+            {
+                var imp = context.Impuestos
+                    .FirstOrDefault(i => i.Id == impuestoId.Value && i.Activo);
+                if (imp != null) return imp.Porcentaje;
+            }
+
+            // Fallback: predeterminado
+            var predeterminado = context.Impuestos
+                .FirstOrDefault(i => i.EsPredeterminado && i.Activo);
+            return predeterminado?.Porcentaje ?? 0m;
+        }
+
+        /// <summary>
+        /// Recalcula los items de una factura usando el catÃ¡logo de impuestos.
+        /// Se usa para sincronizar cuando un producto cambiÃ³ de tasa.
+        /// Devuelve true si hubo cambios.
+        /// </summary>
+        public static bool SincronizarItems(
+            ApplicationDbContext context,
+            List<DetalleFactura> items)
+        {
+            var productos = context.Productos
+                .Where(p => items.Select(i => i.ProductoId).Contains(p.Id))
+                .ToDictionary(p => p.Id, p => p.ImpuestoId);
+
+            var impuestos = context.Impuestos
+                .Where(i => i.Activo)
+                .ToDictionary(i => i.Id, i => i.Porcentaje);
+
+            var predeterminado = context.Impuestos
+                .FirstOrDefault(i => i.EsPredeterminado && i.Activo)?.Porcentaje ?? 0m;
+
+            bool cambio = false;
+            foreach (var item in items)
+            {
+                decimal tasaCorrecta = 0m;
+                var prodImpuestoId = productos.GetValueOrDefault(item.ProductoId);
+
+                if (prodImpuestoId.HasValue && impuestos.ContainsKey(prodImpuestoId.Value))
+                    tasaCorrecta = impuestos[prodImpuestoId.Value];
+                else
+                    tasaCorrecta = predeterminado;
+
+                if (item.ImpuestoPorcentaje != tasaCorrecta)
+                {
+                    item.ImpuestoPorcentaje = tasaCorrecta;
+                    cambio = true;
+                }
+            }
+
+            return cambio;
+        }
+
+        /// <summary>
+        /// Recalcula el ISV de una factura existente (re-sincronizando con el catÃ¡logo)
+        /// y devuelve true si hubo cambios que se deban guardar.
+        /// </summary>
+        public static bool RecalcularFactura(
+            ApplicationDbContext context,
+            Factura factura,
+            List<DetalleFactura> items)
+        {
+            bool cambio = SincronizarItems(context, items);
+
+            if (cambio)
+            {
+                decimal subtotal = 0, descuento = 0, impuestos = 0, total = 0;
+
+                foreach (var item in items)
+                {
+                    var bruto = item.Cantidad * item.PrecioUnitario;
+                    var neto = bruto - item.Descuento;
+                    var isv = Math.Round(neto * (item.ImpuestoPorcentaje / 100m), 2);
+
+                    item.Subtotal = neto;
+                    item.Total = neto + isv;
+
+                    subtotal += bruto;
+                    descuento += item.Descuento;
+                    impuestos += isv;
+                    total += item.Total;
+                }
+
+                factura.Subtotal = subtotal;
+                factura.Descuento = descuento;
+                factura.Impuestos = impuestos;
+                factura.Total = total;
+
+                // Ajustar el saldo si aÃºn no estÃ¡ pagada
+                if (factura.Estado == "Emitida" || factura.Estado == "PagadaParcial")
+                {
+                    factura.Saldo = total;
+                }
+            }
+
+            return cambio;
+        }
+
+        /// <summary>
+        /// Obtiene las tasas activas del catÃ¡logo (para iterar en la vista).
+        /// </summary>
+        public static List<Impuesto> ObtenerTasasActivas(ApplicationDbContext context)
+        {
+            return context.Impuestos
+                .Where(i => i.Activo)
+                .OrderBy(i => i.Porcentaje)
+                .ToList();
+        }
+    }
+
+    /// <summary>
+    /// Item mÃ­nimo para calcular ISV (se usa desde cualquier origen: factura, cotizaciÃ³n, venta).
+    /// </summary>
+    public class ItemParaISV
+    {
+        public int ProductoId { get; set; }
+        public decimal Cantidad { get; set; }
+        public decimal PrecioUnitario { get; set; }
+        public decimal Descuento { get; set; }
+        public int? ImpuestoId { get; set; }
+    }
+}
+
+
 ===== FILE: \Helpers\Finanzas\MovimientoAutomaticoHelper.cs =====
 
 using Kirkenta.Data;
 using Kirkenta.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kirkenta.Helpers.Finanzas
 {
@@ -1321,6 +2854,7 @@ namespace Kirkenta.Helpers.Finanzas
         /// <summary>
         /// Registra el ingreso por una venta del POS.
         /// Permite especificar la cuenta (usualmente la de la apertura activa).
+        /// Todo se ejecuta dentro de una transacciÃ³n atÃ³mica.
         /// </summary>
         public static MovimientoFinanciero? RegistrarIngresoVenta(
             ApplicationDbContext context,
@@ -1350,7 +2884,7 @@ namespace Kirkenta.Helpers.Finanzas
                     return null;
                 }
 
-                return CrearMovimiento(
+                return CrearMovimientoAtomico(
                     context,
                     tipo: "Ingreso",
                     cuentaId: cuenta.Id,
@@ -1396,7 +2930,7 @@ namespace Kirkenta.Helpers.Finanzas
                     return null;
                 }
 
-                return CrearMovimiento(
+                return CrearMovimientoAtomico(
                     context,
                     tipo: "Egreso",
                     cuentaId: cuenta.Id,
@@ -1432,7 +2966,7 @@ namespace Kirkenta.Helpers.Finanzas
                 var categoria = ResolverCategoria(context, "Egreso", "NÃ³mina");
                 if (categoria == null) return null;
 
-                return CrearMovimiento(
+                return CrearMovimientoAtomico(
                     context,
                     tipo: "Egreso",
                     cuentaId: cuenta.Id,
@@ -1453,7 +2987,11 @@ namespace Kirkenta.Helpers.Finanzas
             }
         }
 
-        private static MovimientoFinanciero CrearMovimiento(
+        /// <summary>
+        /// Crea el movimiento + aplica saldo + guarda todo dentro de una transacciÃ³n atÃ³mica.
+        /// Si algo falla en el medio, se revierte TODO.
+        /// </summary>
+        private static MovimientoFinanciero? CrearMovimientoAtomico(
             ApplicationDbContext context,
             string tipo,
             int cuentaId,
@@ -1466,39 +3004,67 @@ namespace Kirkenta.Helpers.Finanzas
             int? origenId,
             int usuarioId)
         {
-            var numero = NumeroDocumentoHelper.GenerarSiguiente(context, "MovimientoFinanciero");
-            var monedaDefecto = context.Monedas.FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1;
-
-            var mov = new MovimientoFinanciero
+            using var transaction = context.Database.BeginTransaction();
+            try
             {
-                Numero = numero,
-                Tipo = tipo,
-                Fecha = DateTime.Now,
-                CuentaId = cuentaId,
-                CuentaDestinoId = null,
-                CategoriaId = categoriaId,
-                Monto = monto,
-                MonedaId = monedaDefecto,
-                TipoCambio = 1,
-                Concepto = concepto,
-                Referencia = referencia,
-                FormaPago = formaPago,
-                Origen = origen,
-                OrigenId = origenId,
-                EsAutomatico = true,
-                Estado = "Activo",
-                FechaCreacion = DateTime.Now,
-                UsuarioCreoId = usuarioId,
-                EmpresaId = 1
-            };
+                // Validar que la cuenta exista y estÃ© activa
+                var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId);
+                if (cuenta == null)
+                {
+                    transaction.Rollback();
+                    Console.WriteLine($"[MovimientoAutomatico] Cuenta {cuentaId} no encontrada");
+                    return null;
+                }
 
-            context.MovimientosFinancieros.Add(mov);
-            context.SaveChanges();
+                if (!cuenta.Activa)
+                {
+                    transaction.Rollback();
+                    Console.WriteLine($"[MovimientoAutomatico] Cuenta {cuentaId} inactiva");
+                    return null;
+                }
 
-            SaldoHelper.Aplicar(context, mov);
-            context.SaveChanges();
+                var numero = NumeroDocumentoHelper.GenerarSiguiente(context, "MovimientoFinanciero");
+                var monedaDefecto = context.Monedas.FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1;
 
-            return mov;
+                var mov = new MovimientoFinanciero
+                {
+                    Numero = numero,
+                    Tipo = tipo,
+                    Fecha = DateTime.Now,
+                    CuentaId = cuentaId,
+                    CuentaDestinoId = null,
+                    CategoriaId = categoriaId,
+                    Monto = monto,
+                    MonedaId = monedaDefecto,
+                    TipoCambio = 1,
+                    Concepto = concepto,
+                    Referencia = referencia,
+                    FormaPago = formaPago,
+                    Origen = origen,
+                    OrigenId = origenId,
+                    EsAutomatico = true,
+                    Estado = "Activo",
+                    FechaCreacion = DateTime.Now,
+                    UsuarioCreoId = usuarioId,
+                    EmpresaId = 1
+                };
+
+                context.MovimientosFinancieros.Add(mov);
+                context.SaveChanges();
+
+                // Aplicar saldo
+                SaldoHelper.Aplicar(context, mov);
+                context.SaveChanges();
+
+                transaction.Commit();
+                return mov;
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                Console.WriteLine($"[MovimientoAutomatico] Error en transacciÃ³n, rollback aplicado: {ex.Message}");
+                return null;
+            }
         }
 
         private static CuentaFinanciera? ResolverCuentaVentas(ApplicationDbContext context)
@@ -1953,6 +3519,850 @@ namespace Kirkenta.Helpers.Import
     {
         public int NumeroFila { get; set; }
         public string Mensaje { get; set; } = "";
+    }
+}
+
+
+===== FILE: \Helpers\ModulosERP.cs =====
+
+namespace Kirkenta.Helpers
+{
+    public static class ModulosERP
+    {
+        public static readonly Dictionary<string, List<string>> Modulos = new()
+        {
+            { "Usuarios", new List<string> {
+                "Index", "Create", "Edit", "Delete",
+                "Roles", "RolesCreate", "RolesEdit", "RolesDelete",
+                "Perfil", "CambiarPassword", "Actividad"
+            } },
+            { "Ventas", new List<string> {
+                "POS", "Index", "Create", "Edit", "Delete",
+                "Cotizaciones", "Pedidos", "Facturas",
+                "Clientes", "ClientesCreate", "ClientesEdit", "ClientesDelete",
+                "ClientesExport", "ClientesImport",
+                "Devoluciones"
+            } },
+            { "Inventario", new List<string> {
+                "Index",
+                "Productos", "ProductosCreate", "ProductosEdit", "ProductosDelete",
+                "ProductosExport", "ProductosImport",
+                "Categorias", "UnidadesMedida",
+                "Entradas", "Salidas", "Bajas"
+            } },
+            { "Compras", new List<string> {
+                "Index",
+                "Proveedores", "ProveedoresCreate", "ProveedoresEdit", "ProveedoresDelete",
+                "ProveedoresExport", "ProveedoresImport",
+                "Ordenes", "OrdenesCreate", "OrdenesEdit", "OrdenesDelete", "OrdenesRecibir",
+                "Pagos", "PagosCreate",
+                "CuentasPorPagar",
+                "Reportes"
+            } },
+            { "Finanzas", new List<string> {
+                "Index",
+                "Cuentas", "CuentasCreate", "CuentasEdit", "CuentasDelete",
+                "Categorias", "CategoriasCreate", "CategoriasEdit", "CategoriasDelete",
+                "Movimientos", "MovimientosCreate", "MovimientosEdit", "MovimientosAnular",
+                "Aperturas", "AperturasCreate",
+                "Cierres", "CierresCreate", "CierresAprobar",
+                "CierresContables", "CierresContablesCreate", "CierresContablesReabrir",
+                "Conciliacion", "ConciliacionCreate", "ConciliacionDetails", "ConciliacionCerrar",
+                "Reportes", "FlujoCaja", "EstadoResultados", "BalanceGeneral",
+                "ISV"
+            } },
+            { "Produccion", new List<string> { "Index", "Calidad" } },
+            { "RRHH", new List<string> {
+                "Index",
+                "Empleados", "EmpleadosCreate", "EmpleadosEdit", "EmpleadosDelete",
+                "Documentos", "DocumentosCreate", "DocumentosDelete",
+                "Expedientes", "ExpedientesCreate", "ExpedientesDelete",
+                "Vacaciones", "VacacionesCreate", "VacacionesAprobar",
+                "Permisos", "PermisosCreate", "PermisosAprobar",
+                "Vales", "ValesCreate", "ValesAprobar", "ValesEntregar",
+                "Nomina", "NominaCreate", "NominaAprobar", "NominaPagar",
+                "Feriados", "FeriadosCreate",
+                "Alertas", "AlertasCreate",
+                "Reportes"
+            } },
+            { "Reportes", new List<string> { "Index", "Ventas", "Compras" } },
+            { "Logistica", new List<string> { "Index", "Envios" } },
+            { "Activos", new List<string> { "Index", "Mantenimiento" } },
+            { "Seguridad", new List<string> { "Index", "Auditoria" } },
+            { "Configuracion", new List<string> {
+                "Index", "Empresa", "Nomenclatura", "Series", "MetodosPago"
+            } }
+        };
+
+        public static string NombreBonito(string modulo)
+        {
+            return modulo switch
+            {
+                "Usuarios" => "Usuarios",
+                "Ventas" => "Ventas",
+                "Inventario" => "Inventario",
+                "Compras" => "Compras",
+                "Finanzas" => "Finanzas",
+                "Produccion" => "ProducciÃ³n",
+                "RRHH" => "Recursos Humanos",
+                "Reportes" => "Reportes",
+                "Logistica" => "LogÃ­stica",
+                "Activos" => "Activos",
+                "Seguridad" => "Seguridad",
+                "Configuracion" => "ConfiguraciÃ³n",
+                _ => modulo
+            };
+        }
+
+        public static string NombreBonitoSub(string submodulo)
+        {
+            return submodulo switch
+            {
+                "Index" => "Lista / Vista",
+                "Create" => "Crear",
+                "Edit" => "Editar",
+                "Delete" => "Eliminar",
+                "Roles" => "Roles",
+                "RolesCreate" => "Nuevo rol",
+                "RolesEdit" => "Editar rol",
+                "RolesDelete" => "Eliminar rol",
+                "Perfil" => "Mi perfil",
+                "CambiarPassword" => "Cambiar contraseÃ±a",
+                "Actividad" => "Historial de actividad",
+                "POS" => "Punto de venta",
+                "Cotizaciones" => "Cotizaciones",
+                "Pedidos" => "Pedidos",
+                "Facturas" => "Facturas",
+                "Clientes" => "Clientes",
+                "ClientesCreate" => "Nuevo cliente",
+                "ClientesEdit" => "Editar cliente",
+                "ClientesDelete" => "Eliminar cliente",
+                "ClientesExport" => "Exportar clientes",
+                "ClientesImport" => "Importar clientes",
+                "Devoluciones" => "Devoluciones",
+                "Productos" => "Productos",
+                "ProductosCreate" => "Nuevo producto",
+                "ProductosEdit" => "Editar producto",
+                "ProductosDelete" => "Eliminar producto",
+                "ProductosExport" => "Exportar productos",
+                "ProductosImport" => "Importar productos",
+                "Categorias" => "CategorÃ­as",
+                "UnidadesMedida" => "Unidades de medida",
+                "Entradas" => "Entradas",
+                "Salidas" => "Salidas",
+                "Bajas" => "Bajas de inventario",
+                "Proveedores" => "Proveedores",
+                "ProveedoresCreate" => "Nuevo proveedor",
+                "ProveedoresEdit" => "Editar proveedor",
+                "ProveedoresDelete" => "Eliminar proveedor",
+                "ProveedoresExport" => "Exportar proveedores",
+                "ProveedoresImport" => "Importar proveedores",
+                "Ordenes" => "Ã“rdenes de compra",
+                "OrdenesCreate" => "Nueva orden",
+                "OrdenesEdit" => "Editar orden",
+                "OrdenesDelete" => "Eliminar orden",
+                "OrdenesRecibir" => "Recibir mercancÃ­a",
+                "Pagos" => "Pagos a proveedores",
+                "PagosCreate" => "Registrar pago",
+                "CuentasPorPagar" => "Cuentas por pagar",
+                // FINANZAS
+                "Cuentas" => "Cuentas financieras",
+                "CuentasCreate" => "Nueva cuenta",
+                "CuentasEdit" => "Editar cuenta",
+                "CuentasDelete" => "Eliminar cuenta",
+                "CategoriasFinancieras" => "CategorÃ­as financieras",
+                "CategoriasCreateFin" => "Nueva categorÃ­a financiera",
+                "CategoriasEditFin" => "Editar categorÃ­a financiera",
+                "CategoriasDeleteFin" => "Eliminar categorÃ­a financiera",
+                "Movimientos" => "Movimientos",
+                "MovimientosCreate" => "Nuevo movimiento",
+                "MovimientosEdit" => "Editar movimiento",
+                "MovimientosAnular" => "Anular movimiento",
+                "Aperturas" => "Aperturas de caja",
+                "AperturasCreate" => "Nueva apertura",
+                "Cierres" => "Cierres de caja",
+                "CierresCreate" => "Nuevo cierre",
+                "CierresAprobar" => "Aprobar cierre",
+                "CierresContables" => "Cierres contables",
+                "CierresContablesCreate" => "Cerrar mes",
+                "CierresContablesReabrir" => "Reabrir mes",
+                "Conciliacion" => "ConciliaciÃ³n bancaria",
+                "ConciliacionCreate" => "Nueva conciliaciÃ³n",
+                "ConciliacionDetails" => "Detalle de conciliaciÃ³n",
+                "ConciliacionCerrar" => "Cerrar conciliaciÃ³n",
+                "FlujoCaja" => "Flujo de caja",
+                "EstadoResultados" => "Estado de resultados",
+                "BalanceGeneral" => "Balance general",
+                "ISV" => "ISV / IVA",
+                // RRHH
+                "Empleados" => "Empleados",
+                "EmpleadosCreate" => "Nuevo empleado",
+                "EmpleadosEdit" => "Editar empleado",
+                "EmpleadosDelete" => "Eliminar empleado",
+                "Documentos" => "Documentos",
+                "DocumentosCreate" => "Subir documento",
+                "DocumentosDelete" => "Eliminar documento",
+                "Expedientes" => "Expedientes",
+                "ExpedientesCreate" => "Nuevo expediente",
+                "ExpedientesDelete" => "Eliminar expediente",
+                "Vacaciones" => "Vacaciones",
+                "VacacionesCreate" => "Nueva solicitud",
+                "VacacionesAprobar" => "Aprobar vacaciones",
+                "Permisos" => "Permisos y licencias",
+                "PermisosCreate" => "Nueva solicitud",
+                "PermisosAprobar" => "Aprobar permiso",
+                "Vales" => "Vales a empleados",
+                "ValesCreate" => "Nuevo vale",
+                "ValesAprobar" => "Aprobar vale",
+                "ValesEntregar" => "Entregar vale",
+                "Nomina" => "NÃ³mina",
+                "NominaCreate" => "Generar nÃ³mina",
+                "NominaAprobar" => "Aprobar nÃ³mina",
+                "NominaPagar" => "Pagar nÃ³mina",
+                "Feriados" => "Feriados",
+                "FeriadosCreate" => "Nuevo feriado",
+                "Alertas" => "Alertas",
+                "AlertasCreate" => "Nueva alerta",
+                // GenÃ©ricos
+                "Ingresos" => "Ingresos",
+                "Egresos" => "Egresos",
+                "Impuestos" => "Impuestos",
+                "Calidad" => "Calidad",
+                "Envios" => "EnvÃ­os",
+                "Mantenimiento" => "Mantenimiento",
+                "Auditoria" => "AuditorÃ­a",
+                "Empresa" => "Datos de la empresa",
+                "Nomenclatura" => "Nomenclatura",
+                "Series" => "Series de documentos",
+                "MetodosPago" => "MÃ©todos de pago",
+                _ => submodulo
+            };
+        }
+    }
+}
+
+
+===== FILE: \Helpers\NumeroDocumentoHelper.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Models;
+
+namespace Kirkenta.Helpers
+{
+    public static class NumeroDocumentoHelper
+    {
+        public static string GenerarSiguiente(ApplicationDbContext context, string tipo)
+        {
+            var serie = context.SeriesDocumentos
+                .FirstOrDefault(s => s.Tipo == tipo && s.EsPredeterminada && s.Activa);
+
+            if (serie == null)
+            {
+                var count = ContarDocumentos(context, tipo);
+                var prefijo = tipo.Substring(0, Math.Min(3, tipo.Length)).ToUpper();
+                return $"{prefijo}-{(count + 1):D4}";
+            }
+
+            SincronizarSerie(context, serie, tipo);
+
+            var numero = GenerarNumero(serie);
+            serie.SiguienteNumero++;
+            context.SaveChanges();
+
+            return numero;
+        }
+
+        public static string PreviewSiguiente(ApplicationDbContext context, string tipo)
+        {
+            var serie = context.SeriesDocumentos
+                .FirstOrDefault(s => s.Tipo == tipo && s.EsPredeterminada && s.Activa);
+
+            if (serie == null)
+            {
+                var prefijo = tipo.Substring(0, Math.Min(3, tipo.Length)).ToUpper();
+                return $"{prefijo}-0001";
+            }
+
+            SincronizarSerie(context, serie, tipo);
+            return GenerarNumero(serie);
+        }
+
+        private static string GenerarNumero(SerieDocumento serie)
+        {
+            var numero = serie.SiguienteNumero.ToString().PadLeft(serie.LongitudNumero, '0');
+            var prefijo = serie.Prefijo ?? "";
+            var sufijo = serie.Sufijo ?? "";
+            var sep = serie.Separador ?? "-";
+            var anio = DateTime.Now.Year.ToString();
+            var mes = DateTime.Now.Month.ToString("D2");
+            var dia = DateTime.Now.Day.ToString("D2");
+
+            if (!string.IsNullOrWhiteSpace(serie.FormatoPersonalizado))
+            {
+                return serie.FormatoPersonalizado
+                    .Replace("{PREFIX}", prefijo)
+                    .Replace("{PREFIJO}", prefijo)
+                    .Replace("{SUFFIX}", sufijo)
+                    .Replace("{SUFIJO}", sufijo)
+                    .Replace("{SEP}", sep)
+                    .Replace("{YEAR}", anio)
+                    .Replace("{ANIO}", anio)
+                    .Replace("{MONTH}", mes)
+                    .Replace("{MES}", mes)
+                    .Replace("{DAY}", dia)
+                    .Replace("{DIA}", dia)
+                    .Replace("{NUM}", numero);
+            }
+
+            return $"{prefijo}{sep}{numero}";
+        }
+
+        private static void SincronizarSerie(ApplicationDbContext context, SerieDocumento serie, string tipo)
+        {
+            try
+            {
+                int ultimoNumero = 0;
+                var prefijoConSep = (serie.Prefijo ?? "") + (serie.Separador ?? "-");
+
+                switch (tipo)
+                {
+                    // ===== VENTAS =====
+                    case "Cotizacion":
+                        ultimoNumero = context.Cotizaciones
+                            .Where(c => c.Numero.StartsWith(prefijoConSep))
+                            .Select(c => c.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "Pedido":
+                        ultimoNumero = context.Pedidos
+                            .Where(p => p.Numero.StartsWith(prefijoConSep))
+                            .Select(p => p.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "Venta":
+                        ultimoNumero = context.Ventas
+                            .Where(v => v.Numero.StartsWith(prefijoConSep))
+                            .Select(v => v.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "Factura":
+                        ultimoNumero = context.Facturas
+                            .Where(f => f.Numero.StartsWith(prefijoConSep))
+                            .Select(f => f.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "Devolucion":
+                        ultimoNumero = context.Devoluciones
+                            .Where(d => d.Numero.StartsWith(prefijoConSep))
+                            .Select(d => d.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    // ===== INVENTARIO =====
+                    case "Producto":
+                        ultimoNumero = context.Productos
+                            .Where(p => p.SKU != null && p.SKU.StartsWith(prefijoConSep))
+                            .Select(p => p.SKU)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "Baja":
+                        ultimoNumero = context.BajasInventario
+                            .Where(b => b.Numero.StartsWith(prefijoConSep))
+                            .Select(b => b.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    // ===== COMPRAS =====
+                    case "Proveedor":
+                        ultimoNumero = context.Proveedores
+                            .Where(p => p.Codigo != null && p.Codigo.StartsWith(prefijoConSep))
+                            .Select(p => p.Codigo!)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "OrdenCompra":
+                        ultimoNumero = context.OrdenesCompra
+                            .Where(o => o.Numero.StartsWith(prefijoConSep))
+                            .Select(o => o.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "PagoProveedor":
+                        ultimoNumero = context.PagosProveedor
+                            .Where(p => p.Numero != null && p.Numero.StartsWith(prefijoConSep))
+                            .Select(p => p.Numero!)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "DevolucionProveedor":
+                        ultimoNumero = context.DevolucionesProveedor
+                            .Where(d => d.Numero.StartsWith(prefijoConSep))
+                            .Select(d => d.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    // ===== FINANZAS =====
+                    case "MovimientoFinanciero":
+                        ultimoNumero = context.MovimientosFinancieros
+                            .Where(m => m.Numero.StartsWith(prefijoConSep))
+                            .Select(m => m.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "AperturaCaja":
+                        ultimoNumero = context.AperturasCaja
+                            .Where(a => a.Numero.StartsWith(prefijoConSep))
+                            .Select(a => a.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "CierreCaja":
+                        ultimoNumero = context.CierresCaja
+                            .Where(c => c.Numero.StartsWith(prefijoConSep))
+                            .Select(c => c.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "ConciliacionBancaria":
+                        ultimoNumero = context.ConciliacionesBancarias
+                            .Where(c => c.Numero.StartsWith(prefijoConSep))
+                            .Select(c => c.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    // ===== RRHH =====
+                    case "Empleado":
+                        ultimoNumero = context.Empleados
+                            .Where(e => e.Codigo.StartsWith(prefijoConSep))
+                            .Select(e => e.Codigo)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "ValeEmpleado":
+                        ultimoNumero = context.ValesEmpleado
+                            .Where(v => v.Numero.StartsWith(prefijoConSep))
+                            .Select(v => v.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "Vacacion":
+                        ultimoNumero = context.VacacionesEmpleado
+                            .Where(v => v.Numero.StartsWith(prefijoConSep))
+                            .Select(v => v.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "PermisoEmpleado":
+                        ultimoNumero = context.PermisosEmpleado
+                            .Where(p => p.Numero.StartsWith(prefijoConSep))
+                            .Select(p => p.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "Nomina":
+                        ultimoNumero = context.Nominas
+                            .Where(n => n.Numero.StartsWith(prefijoConSep))
+                            .Select(n => n.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "PagoNomina":
+                        ultimoNumero = context.PagosNominaEmpleado
+                            .Where(p => p.Numero.StartsWith(prefijoConSep))
+                            .Select(p => p.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+                }
+
+                if (ultimoNumero >= serie.SiguienteNumero)
+                {
+                    serie.SiguienteNumero = ultimoNumero + 1;
+                    context.SaveChanges();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Aviso al sincronizar serie {tipo}: {ex.Message}");
+            }
+        }
+
+        private static int ExtraerNumero(string texto, string prefijoConSep)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(texto)) return 0;
+
+                var sinPrefijo = texto;
+                if (!string.IsNullOrEmpty(prefijoConSep) && texto.StartsWith(prefijoConSep))
+                {
+                    sinPrefijo = texto.Substring(prefijoConSep.Length);
+                }
+
+                var match = System.Text.RegularExpressions.Regex.Match(sinPrefijo, @"(\d+)(?!.*\d)");
+                if (match.Success && int.TryParse(match.Value, out var num))
+                    return num;
+
+                return 0;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        private static int ContarDocumentos(ApplicationDbContext context, string tipo)
+        {
+            return tipo switch
+            {
+                // Ventas
+                "Cotizacion" => context.Cotizaciones.Count(),
+                "Pedido" => context.Pedidos.Count(),
+                "Venta" => context.Ventas.Count(),
+                "Factura" => context.Facturas.Count(),
+                "Devolucion" => context.Devoluciones.Count(),
+
+                // Inventario
+                "Producto" => context.Productos.Count(),
+                "Baja" => context.BajasInventario.Count(),
+
+                // Compras
+                "Proveedor" => context.Proveedores.Count(),
+                "OrdenCompra" => context.OrdenesCompra.Count(),
+                "PagoProveedor" => context.PagosProveedor.Count(),
+                "DevolucionProveedor" => context.DevolucionesProveedor.Count(),
+
+                // Finanzas
+                "MovimientoFinanciero" => context.MovimientosFinancieros.Count(),
+                "AperturaCaja" => context.AperturasCaja.Count(),
+                "CierreCaja" => context.CierresCaja.Count(),
+                "ConciliacionBancaria" => context.ConciliacionesBancarias.Count(),
+
+                // RRHH
+                "Empleado" => context.Empleados.Count(),
+                "ValeEmpleado" => context.ValesEmpleado.Count(),
+                "Vacacion" => context.VacacionesEmpleado.Count(),
+                "PermisoEmpleado" => context.PermisosEmpleado.Count(),
+                "Nomina" => context.Nominas.Count(),
+                "PagoNomina" => context.PagosNominaEmpleado.Count(),
+
+                _ => 0
+            };
+        }
+    }
+}
+
+
+===== FILE: \Helpers\PermisoHelper.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Models;
+
+namespace Kirkenta.Helpers
+{
+    public static class PermisoHelper
+    {
+        /// <summary>
+        /// Verifica si un rol tiene un permiso especÃ­fico sobre un mÃ³dulo/submÃ³dulo.
+        /// </summary>
+        /// <param name="accion">"ver" | "crear" | "editar" | "eliminar"</param>
+        public static bool TienePermiso(
+            ApplicationDbContext context,
+            string rolNombre,
+            string modulo,
+            string? submodulo,
+            string accion)
+        {
+            // Admin siempre tiene todos los permisos
+            if (rolNombre == "Admin")
+                return true;
+
+            var rol = context.Roles.FirstOrDefault(r => r.Nombre == rolNombre);
+            if (rol == null)
+                return false;
+
+            var permiso = context.Permisos
+                .FirstOrDefault(p => p.RolId == rol.Id
+                    && p.Modulo == modulo
+                    && p.Submodulo == submodulo);
+
+            if (permiso == null)
+                return false;
+
+            return accion.ToLower() switch
+            {
+                "ver" => permiso.PuedeVer,
+                "crear" => permiso.PuedeCrear,
+                "editar" => permiso.PuedeEditar,
+                "eliminar" => permiso.PuedeEliminar,
+                _ => false
+            };
+        }
+
+        /// <summary>
+        /// Devuelve la lista de mÃ³dulos donde el rol tiene acceso de "ver".
+        /// </summary>
+        public static List<string> ModulosVisibles(ApplicationDbContext context, string rolNombre)
+        {
+            // Admin ve todos los mÃ³dulos definidos en ModulosERP
+            if (rolNombre == "Admin")
+            {
+                return ModulosERP.Modulos.Keys.ToList();
+            }
+
+            var rol = context.Roles.FirstOrDefault(r => r.Nombre == rolNombre);
+            if (rol == null)
+                return new List<string>();
+
+            // Un mÃ³dulo es visible si:
+            // - Tiene un permiso a nivel mÃ³dulo (submodulo == null) con PuedeVer=true
+            // - O si tiene al menos un permiso de submÃ³dulo con PuedeVer=true
+            var modulosPorPadre = context.Permisos
+                .Where(p => p.RolId == rol.Id && p.Submodulo == null && p.PuedeVer)
+                .Select(p => p.Modulo)
+                .ToList();
+
+            var modulosPorHijo = context.Permisos
+                .Where(p => p.RolId == rol.Id && p.Submodulo != null && p.PuedeVer)
+                .Select(p => p.Modulo)
+                .ToList();
+
+            return modulosPorPadre
+                .Union(modulosPorHijo)
+                .Distinct()
+                .ToList();
+        }
+
+        /// <summary>
+        /// Devuelve la lista de submÃ³dulos visibles para un mÃ³dulo especÃ­fico.
+        /// Lista vacÃ­a = sin restricciones (Admin).
+        /// </summary>
+        public static List<string> SubmodulosVisibles(
+            ApplicationDbContext context,
+            string rolNombre,
+            string modulo)
+        {
+            if (rolNombre == "Admin")
+            {
+                return new List<string>(); // Lista vacÃ­a = mostrar todo
+            }
+
+            var rol = context.Roles.FirstOrDefault(r => r.Nombre == rolNombre);
+            if (rol == null)
+                return new List<string>();
+
+            return context.Permisos
+                .Where(p => p.RolId == rol.Id
+                    && p.Modulo == modulo
+                    && p.Submodulo != null
+                    && p.PuedeVer)
+                .Select(p => p.Submodulo!)
+                .ToList();
+        }
+    }
+}
+
+
+===== FILE: \Helpers\PermisoSeeder.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Models;
+
+namespace Kirkenta.Helpers
+{
+    /// <summary>
+    /// Seeder de migraciÃ³n de permisos.
+    /// Cuando se agregan nuevos submÃ³dulos a ModulosERP.Modulos, los roles
+    /// existentes no tienen permisos para ellos. Este helper los crea copiando
+    /// los permisos del mÃ³dulo padre.
+    /// Es idempotente: se puede ejecutar mÃºltiples veces sin duplicar.
+    /// </summary>
+    public static class PermisoSeeder
+    {
+        /// <summary>
+        /// Migra los permisos de todos los roles existentes hacia los submÃ³dulos
+        /// definidos en ModulosERP que aÃºn no tienen permiso en la BD.
+        /// </summary>
+        /// <param name="soloSiHayNuevos">
+        /// Si es true, solo actÃºa cuando detecta submÃ³dulos faltantes.
+        /// Si es false, recorre todo siempre.
+        /// </param>
+        public static void MigrarPermisosFaltantes(ApplicationDbContext context, bool soloSiHayNuevos = true)
+        {
+            try
+            {
+                var roles = context.Roles.ToList();
+                if (roles.Count == 0) return;
+
+                int permisosCreados = 0;
+                int rolesProcesados = 0;
+
+                foreach (var rol in roles)
+                {
+                    // El Admin no necesita permisos en BD (bypass en PermisoHelper)
+                    if (rol.Nombre == "Admin") continue;
+
+                    var permisosExistentes = context.Permisos
+                        .Where(p => p.RolId == rol.Id)
+                        .ToList();
+
+                    // Convertimos a un HashSet para bÃºsquedas O(1)
+                    var clavesExistentes = permisosExistentes
+                        .Select(p => ClavePermiso(p.Modulo, p.Submodulo))
+                        .ToHashSet();
+
+                    bool rolModificado = false;
+
+                    foreach (var moduloKvp in ModulosERP.Modulos)
+                    {
+                        var modulo = moduloKvp.Key;
+                        var submodulos = moduloKvp.Value;
+
+                        // Buscar el permiso del mÃ³dulo padre
+                        var permisoPadre = permisosExistentes
+                            .FirstOrDefault(p => p.Modulo == modulo && p.Submodulo == null);
+
+                        // Si no existe permiso padre, no podemos migrar (nada que copiar)
+                        if (permisoPadre == null)
+                        {
+                            // Crear uno por defecto con solo "Ver"
+                            permisoPadre = new Permiso
+                            {
+                                RolId = rol.Id,
+                                Modulo = modulo,
+                                Submodulo = null,
+                                PuedeVer = false,
+                                PuedeCrear = false,
+                                PuedeEditar = false,
+                                PuedeEliminar = false
+                            };
+                            context.Permisos.Add(permisoPadre);
+                            permisosExistentes.Add(permisoPadre);
+                            clavesExistentes.Add(ClavePermiso(modulo, null));
+                            permisosCreados++;
+                            rolModificado = true;
+                        }
+
+                        // Para cada submÃ³dulo del mÃ³dulo, crear el permiso si no existe
+                        foreach (var submodulo in submodulos)
+                        {
+                            var clave = ClavePermiso(modulo, submodulo);
+                            if (clavesExistentes.Contains(clave)) continue;
+
+                            // Copia los permisos del padre (excepto "Ver" que se toma tal cual)
+                            var nuevoPermiso = new Permiso
+                            {
+                                RolId = rol.Id,
+                                Modulo = modulo,
+                                Submodulo = submodulo,
+                                PuedeVer = permisoPadre.PuedeVer,
+                                PuedeCrear = permisoPadre.PuedeCrear,
+                                PuedeEditar = permisoPadre.PuedeEditar,
+                                PuedeEliminar = permisoPadre.PuedeEliminar
+                            };
+
+                            context.Permisos.Add(nuevoPermiso);
+                            clavesExistentes.Add(clave);
+                            permisosCreados++;
+                            rolModificado = true;
+                        }
+                    }
+
+                    if (rolModificado)
+                    {
+                        rolesProcesados++;
+                    }
+                }
+
+                if (permisosCreados > 0)
+                {
+                    context.SaveChanges();
+                    Console.WriteLine($"[PermisoSeeder] âœ… MigraciÃ³n completada: " +
+                        $"{permisosCreados} permisos creados en {rolesProcesados} roles.");
+                }
+                else if (!soloSiHayNuevos)
+                {
+                    Console.WriteLine("[PermisoSeeder] â„¹ï¸ No habÃ­a permisos nuevos por crear. Todo al dÃ­a.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PermisoSeeder] âŒ Error al migrar permisos: {ex.Message}");
+                // No relanzamos: si falla la migraciÃ³n, la app debe seguir funcionando
+            }
+        }
+
+        private static string ClavePermiso(string modulo, string? submodulo)
+        {
+            return $"{modulo}|{submodulo ?? ""}";
+        }
     }
 }
 
@@ -3268,877 +5678,35 @@ namespace Kirkenta.Helpers.RRHH
 }
 
 
-===== FILE: \Helpers\ActividadHelper.cs =====
+===== FILE: \Kirkenta.csproj =====
+
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="CsvHelper" Version="33.1.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>
 
-using Kirkenta.Data;
-using Kirkenta.Models;
-
-namespace Kirkenta.Helpers
-{
-    public static class ActividadHelper
-    {
-        /// <summary>
-        /// Registra una actividad de usuario en la base de datos.
-        /// Nunca lanza excepciÃ³n (silencioso si falla).
-        /// </summary>
-        public static void Registrar(
-            ApplicationDbContext context,
-            int usuarioId,
-            string accion,
-            string? detalle = null,
-            string? ip = null,
-            string? userAgent = null)
-        {
-            try
-            {
-                if (usuarioId <= 0) return;
-
-                var actividad = new ActividadUsuario
-                {
-                    UsuarioId = usuarioId,
-                    Accion = accion,
-                    Detalle = detalle,
-                    Ip = string.IsNullOrEmpty(ip) ? "N/A" : ip,
-                    UserAgent = userAgent,
-                    Fecha = DateTime.Now
-                };
-
-                context.Actividades.Add(actividad);
-                context.SaveChanges();
-            }
-            catch (Exception ex)
-            {
-                // Log silencioso: no rompemos la app si falla el log
-                Console.WriteLine($"Error al registrar actividad: {ex.Message}");
-            }
-        }
-    }
-}
-
-
-===== FILE: \Helpers\ModulosERP.cs =====
-
-namespace Kirkenta.Helpers
-{
-    public static class ModulosERP
-    {
-        public static readonly Dictionary<string, List<string>> Modulos = new()
-        {
-            { "Usuarios", new List<string> {
-                "Index", "Create", "Edit", "Delete",
-                "Roles", "RolesCreate", "RolesEdit", "RolesDelete",
-                "Perfil", "CambiarPassword", "Actividad"
-            } },
-            { "Ventas", new List<string> {
-                "POS", "Index", "Create", "Edit", "Delete",
-                "Cotizaciones", "Pedidos", "Facturas",
-                "Clientes", "ClientesCreate", "ClientesEdit", "ClientesDelete",
-                "ClientesExport", "ClientesImport",
-                "Devoluciones"
-            } },
-            { "Inventario", new List<string> {
-                "Index",
-                "Productos", "ProductosCreate", "ProductosEdit", "ProductosDelete",
-                "ProductosExport", "ProductosImport",
-                "Categorias", "UnidadesMedida",
-                "Entradas", "Salidas", "Bajas"
-            } },
-            { "Compras", new List<string> {
-                "Index",
-                "Proveedores", "ProveedoresCreate", "ProveedoresEdit", "ProveedoresDelete",
-                "ProveedoresExport", "ProveedoresImport",
-                "Ordenes", "OrdenesCreate", "OrdenesEdit", "OrdenesDelete", "OrdenesRecibir",
-                "Pagos", "PagosCreate",
-                "CuentasPorPagar",
-                "Reportes"
-            } },
-            { "Finanzas", new List<string> {
-                "Index",
-                "Cuentas", "CuentasCreate", "CuentasEdit", "CuentasDelete",
-                "Categorias", "CategoriasCreate", "CategoriasEdit", "CategoriasDelete",
-                "Movimientos", "MovimientosCreate", "MovimientosEdit", "MovimientosAnular",
-                "Aperturas", "AperturasCreate",
-                "Cierres", "CierresCreate", "CierresAprobar",
-                "Reportes", "FlujoCaja", "EstadoResultados", "BalanceGeneral",
-                "Conciliacion", "ISV"
-            } },
-            { "Produccion", new List<string> { "Index", "Calidad" } },
-            { "RRHH", new List<string> {
-                "Index",
-                "Empleados", "EmpleadosCreate", "EmpleadosEdit", "EmpleadosDelete",
-                "Documentos", "DocumentosCreate", "DocumentosDelete",
-                "Expedientes", "ExpedientesCreate", "ExpedientesDelete",
-                "Vacaciones", "VacacionesCreate", "VacacionesAprobar",
-                "Permisos", "PermisosCreate", "PermisosAprobar",
-                "Vales", "ValesCreate", "ValesAprobar", "ValesEntregar",
-                "Nomina", "NominaCreate", "NominaAprobar", "NominaPagar",
-                "Feriados", "FeriadosCreate",
-                "Alertas", "AlertasCreate",
-                "Reportes"
-            } },
-            { "Reportes", new List<string> { "Index", "Ventas", "Compras" } },
-            { "Logistica", new List<string> { "Index", "Envios" } },
-            { "Activos", new List<string> { "Index", "Mantenimiento" } },
-            { "Seguridad", new List<string> { "Index", "Auditoria" } },
-            { "Configuracion", new List<string> {
-                "Index", "Empresa", "Nomenclatura", "Series", "MetodosPago"
-            } }
-        };
-
-        public static string NombreBonito(string modulo)
-        {
-            return modulo switch
-            {
-                "Usuarios" => "Usuarios",
-                "Ventas" => "Ventas",
-                "Inventario" => "Inventario",
-                "Compras" => "Compras",
-                "Finanzas" => "Finanzas",
-                "Produccion" => "ProducciÃ³n",
-                "RRHH" => "Recursos Humanos",
-                "Reportes" => "Reportes",
-                "Logistica" => "LogÃ­stica",
-                "Activos" => "Activos",
-                "Seguridad" => "Seguridad",
-                "Configuracion" => "ConfiguraciÃ³n",
-                _ => modulo
-            };
-        }
-
-        public static string NombreBonitoSub(string submodulo)
-        {
-            return submodulo switch
-            {
-                "Index" => "Lista / Vista",
-                "Create" => "Crear",
-                "Edit" => "Editar",
-                "Delete" => "Eliminar",
-                "Roles" => "Roles",
-                "RolesCreate" => "Nuevo rol",
-                "RolesEdit" => "Editar rol",
-                "RolesDelete" => "Eliminar rol",
-                "Perfil" => "Mi perfil",
-                "CambiarPassword" => "Cambiar contraseÃ±a",
-                "Actividad" => "Historial de actividad",
-                "POS" => "Punto de venta",
-                "Cotizaciones" => "Cotizaciones",
-                "Pedidos" => "Pedidos",
-                "Facturas" => "Facturas",
-                "Clientes" => "Clientes",
-                "ClientesCreate" => "Nuevo cliente",
-                "ClientesEdit" => "Editar cliente",
-                "ClientesDelete" => "Eliminar cliente",
-                "ClientesExport" => "Exportar clientes",
-                "ClientesImport" => "Importar clientes",
-                "Devoluciones" => "Devoluciones",
-                "Productos" => "Productos",
-                "ProductosCreate" => "Nuevo producto",
-                "ProductosEdit" => "Editar producto",
-                "ProductosDelete" => "Eliminar producto",
-                "ProductosExport" => "Exportar productos",
-                "ProductosImport" => "Importar productos",
-                "Categorias" => "CategorÃ­as",
-                "UnidadesMedida" => "Unidades de medida",
-                "Entradas" => "Entradas",
-                "Salidas" => "Salidas",
-                "Bajas" => "Bajas de inventario",
-                "Proveedores" => "Proveedores",
-                "ProveedoresCreate" => "Nuevo proveedor",
-                "ProveedoresEdit" => "Editar proveedor",
-                "ProveedoresDelete" => "Eliminar proveedor",
-                "ProveedoresExport" => "Exportar proveedores",
-                "ProveedoresImport" => "Importar proveedores",
-                "Ordenes" => "Ã“rdenes de compra",
-                "OrdenesCreate" => "Nueva orden",
-                "OrdenesEdit" => "Editar orden",
-                "OrdenesDelete" => "Eliminar orden",
-                "OrdenesRecibir" => "Recibir mercancÃ­a",
-                "Pagos" => "Pagos a proveedores",
-                "PagosCreate" => "Registrar pago",
-                "CuentasPorPagar" => "Cuentas por pagar",
-                // FINANZAS
-                "Cuentas" => "Cuentas financieras",
-                "CuentasCreate" => "Nueva cuenta",
-                "CuentasEdit" => "Editar cuenta",
-                "CuentasDelete" => "Eliminar cuenta",
-                "CategoriasFinancieras" => "CategorÃ­as financieras",
-                "CategoriasCreateFin" => "Nueva categorÃ­a financiera",
-                "CategoriasEditFin" => "Editar categorÃ­a financiera",
-                "CategoriasDeleteFin" => "Eliminar categorÃ­a financiera",
-                "Movimientos" => "Movimientos",
-                "MovimientosCreate" => "Nuevo movimiento",
-                "MovimientosEdit" => "Editar movimiento",
-                "MovimientosAnular" => "Anular movimiento",
-                "Aperturas" => "Aperturas de caja",
-                "AperturasCreate" => "Nueva apertura",
-                "Cierres" => "Cierres de caja",
-                "CierresCreate" => "Nuevo cierre",
-                "CierresAprobar" => "Aprobar cierre",
-                "FlujoCaja" => "Flujo de caja",
-                "EstadoResultados" => "Estado de resultados",
-                "BalanceGeneral" => "Balance general",
-                "Conciliacion" => "ConciliaciÃ³n bancaria",
-                "ISV" => "ISV / IVA",
-                // RRHH
-                "Empleados" => "Empleados",
-                "EmpleadosCreate" => "Nuevo empleado",
-                "EmpleadosEdit" => "Editar empleado",
-                "EmpleadosDelete" => "Eliminar empleado",
-                "Documentos" => "Documentos",
-                "DocumentosCreate" => "Subir documento",
-                "DocumentosDelete" => "Eliminar documento",
-                "Expedientes" => "Expedientes",
-                "ExpedientesCreate" => "Nuevo expediente",
-                "ExpedientesDelete" => "Eliminar expediente",
-                "Vacaciones" => "Vacaciones",
-                "VacacionesCreate" => "Nueva solicitud",
-                "VacacionesAprobar" => "Aprobar vacaciones",
-                "Permisos" => "Permisos y licencias",
-                "PermisosCreate" => "Nueva solicitud",
-                "PermisosAprobar" => "Aprobar permiso",
-                "Vales" => "Vales a empleados",
-                "ValesCreate" => "Nuevo vale",
-                "ValesAprobar" => "Aprobar vale",
-                "ValesEntregar" => "Entregar vale",
-                "Nomina" => "NÃ³mina",
-                "NominaCreate" => "Generar nÃ³mina",
-                "NominaAprobar" => "Aprobar nÃ³mina",
-                "NominaPagar" => "Pagar nÃ³mina",
-                "Feriados" => "Feriados",
-                "FeriadosCreate" => "Nuevo feriado",
-                "Alertas" => "Alertas",
-                "AlertasCreate" => "Nueva alerta",
-                // GenÃ©ricos
-                "Ingresos" => "Ingresos",
-                "Egresos" => "Egresos",
-                "Impuestos" => "Impuestos",
-                "Calidad" => "Calidad",
-                "Envios" => "EnvÃ­os",
-                "Mantenimiento" => "Mantenimiento",
-                "Auditoria" => "AuditorÃ­a",
-                "Empresa" => "Datos de la empresa",
-                "Nomenclatura" => "Nomenclatura",
-                "Series" => "Series de documentos",
-                "MetodosPago" => "MÃ©todos de pago",
-                _ => submodulo
-            };
-        }
-    }
-}
-
-
-===== FILE: \Helpers\NumeroDocumentoHelper.cs =====
-
-using Kirkenta.Data;
-using Kirkenta.Models;
-
-namespace Kirkenta.Helpers
-{
-    public static class NumeroDocumentoHelper
-    {
-        public static string GenerarSiguiente(ApplicationDbContext context, string tipo)
-        {
-            var serie = context.SeriesDocumentos
-                .FirstOrDefault(s => s.Tipo == tipo && s.EsPredeterminada && s.Activa);
-
-            if (serie == null)
-            {
-                var count = ContarDocumentos(context, tipo);
-                var prefijo = tipo.Substring(0, Math.Min(3, tipo.Length)).ToUpper();
-                return $"{prefijo}-{(count + 1):D4}";
-            }
-
-            SincronizarSerie(context, serie, tipo);
-
-            var numero = GenerarNumero(serie);
-            serie.SiguienteNumero++;
-            context.SaveChanges();
-
-            return numero;
-        }
-
-        public static string PreviewSiguiente(ApplicationDbContext context, string tipo)
-        {
-            var serie = context.SeriesDocumentos
-                .FirstOrDefault(s => s.Tipo == tipo && s.EsPredeterminada && s.Activa);
-
-            if (serie == null)
-            {
-                var prefijo = tipo.Substring(0, Math.Min(3, tipo.Length)).ToUpper();
-                return $"{prefijo}-0001";
-            }
-
-            SincronizarSerie(context, serie, tipo);
-            return GenerarNumero(serie);
-        }
-
-        private static string GenerarNumero(SerieDocumento serie)
-        {
-            var numero = serie.SiguienteNumero.ToString().PadLeft(serie.LongitudNumero, '0');
-            var prefijo = serie.Prefijo ?? "";
-            var sufijo = serie.Sufijo ?? "";
-            var sep = serie.Separador ?? "-";
-            var anio = DateTime.Now.Year.ToString();
-            var mes = DateTime.Now.Month.ToString("D2");
-            var dia = DateTime.Now.Day.ToString("D2");
-
-            if (!string.IsNullOrWhiteSpace(serie.FormatoPersonalizado))
-            {
-                return serie.FormatoPersonalizado
-                    .Replace("{PREFIX}", prefijo)
-                    .Replace("{PREFIJO}", prefijo)
-                    .Replace("{SUFFIX}", sufijo)
-                    .Replace("{SUFIJO}", sufijo)
-                    .Replace("{SEP}", sep)
-                    .Replace("{YEAR}", anio)
-                    .Replace("{ANIO}", anio)
-                    .Replace("{MONTH}", mes)
-                    .Replace("{MES}", mes)
-                    .Replace("{DAY}", dia)
-                    .Replace("{DIA}", dia)
-                    .Replace("{NUM}", numero);
-            }
-
-            return $"{prefijo}{sep}{numero}";
-        }
-
-        private static void SincronizarSerie(ApplicationDbContext context, SerieDocumento serie, string tipo)
-        {
-            try
-            {
-                int ultimoNumero = 0;
-                var prefijoConSep = (serie.Prefijo ?? "") + (serie.Separador ?? "-");
-
-                switch (tipo)
-                {
-                    // ===== VENTAS =====
-                    case "Cotizacion":
-                        ultimoNumero = context.Cotizaciones
-                            .Where(c => c.Numero.StartsWith(prefijoConSep))
-                            .Select(c => c.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "Pedido":
-                        ultimoNumero = context.Pedidos
-                            .Where(p => p.Numero.StartsWith(prefijoConSep))
-                            .Select(p => p.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "Venta":
-                        ultimoNumero = context.Ventas
-                            .Where(v => v.Numero.StartsWith(prefijoConSep))
-                            .Select(v => v.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "Factura":
-                        ultimoNumero = context.Facturas
-                            .Where(f => f.Numero.StartsWith(prefijoConSep))
-                            .Select(f => f.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "Devolucion":
-                        ultimoNumero = context.Devoluciones
-                            .Where(d => d.Numero.StartsWith(prefijoConSep))
-                            .Select(d => d.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    // ===== INVENTARIO =====
-                    case "Producto":
-                        ultimoNumero = context.Productos
-                            .Where(p => p.SKU != null && p.SKU.StartsWith(prefijoConSep))
-                            .Select(p => p.SKU)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "Baja":
-                        ultimoNumero = context.BajasInventario
-                            .Where(b => b.Numero.StartsWith(prefijoConSep))
-                            .Select(b => b.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    // ===== COMPRAS =====
-                    case "Proveedor":
-                        ultimoNumero = context.Proveedores
-                            .Where(p => p.Codigo != null && p.Codigo.StartsWith(prefijoConSep))
-                            .Select(p => p.Codigo!)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "OrdenCompra":
-                        ultimoNumero = context.OrdenesCompra
-                            .Where(o => o.Numero.StartsWith(prefijoConSep))
-                            .Select(o => o.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "PagoProveedor":
-                        ultimoNumero = context.PagosProveedor
-                            .Where(p => p.Numero != null && p.Numero.StartsWith(prefijoConSep))
-                            .Select(p => p.Numero!)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "DevolucionProveedor":
-                        ultimoNumero = context.DevolucionesProveedor
-                            .Where(d => d.Numero.StartsWith(prefijoConSep))
-                            .Select(d => d.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    // ===== FINANZAS =====
-                    case "MovimientoFinanciero":
-                        ultimoNumero = context.MovimientosFinancieros
-                            .Where(m => m.Numero.StartsWith(prefijoConSep))
-                            .Select(m => m.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "AperturaCaja":
-                        ultimoNumero = context.AperturasCaja
-                            .Where(a => a.Numero.StartsWith(prefijoConSep))
-                            .Select(a => a.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "CierreCaja":
-                        ultimoNumero = context.CierresCaja
-                            .Where(c => c.Numero.StartsWith(prefijoConSep))
-                            .Select(c => c.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    // ===== RRHH =====
-                    case "Empleado":
-                        ultimoNumero = context.Empleados
-                            .Where(e => e.Codigo.StartsWith(prefijoConSep))
-                            .Select(e => e.Codigo)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "ValeEmpleado":
-                        ultimoNumero = context.ValesEmpleado
-                            .Where(v => v.Numero.StartsWith(prefijoConSep))
-                            .Select(v => v.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "Vacacion":
-                        ultimoNumero = context.VacacionesEmpleado
-                            .Where(v => v.Numero.StartsWith(prefijoConSep))
-                            .Select(v => v.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "PermisoEmpleado":
-                        ultimoNumero = context.PermisosEmpleado
-                            .Where(p => p.Numero.StartsWith(prefijoConSep))
-                            .Select(p => p.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "Nomina":
-                        ultimoNumero = context.Nominas
-                            .Where(n => n.Numero.StartsWith(prefijoConSep))
-                            .Select(n => n.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
-                    case "PagoNomina":
-                        ultimoNumero = context.PagosNominaEmpleado
-                            .Where(p => p.Numero.StartsWith(prefijoConSep))
-                            .Select(p => p.Numero)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-                }
-
-                if (ultimoNumero >= serie.SiguienteNumero)
-                {
-                    serie.SiguienteNumero = ultimoNumero + 1;
-                    context.SaveChanges();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Aviso al sincronizar serie {tipo}: {ex.Message}");
-            }
-        }
-
-        private static int ExtraerNumero(string texto, string prefijoConSep)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(texto)) return 0;
-
-                var sinPrefijo = texto;
-                if (!string.IsNullOrEmpty(prefijoConSep) && texto.StartsWith(prefijoConSep))
-                {
-                    sinPrefijo = texto.Substring(prefijoConSep.Length);
-                }
-
-                var match = System.Text.RegularExpressions.Regex.Match(sinPrefijo, @"(\d+)(?!.*\d)");
-                if (match.Success && int.TryParse(match.Value, out var num))
-                    return num;
-
-                return 0;
-            }
-            catch
-            {
-                return 0;
-            }
-        }
-
-        private static int ContarDocumentos(ApplicationDbContext context, string tipo)
-        {
-            return tipo switch
-            {
-                // Ventas
-                "Cotizacion" => context.Cotizaciones.Count(),
-                "Pedido" => context.Pedidos.Count(),
-                "Venta" => context.Ventas.Count(),
-                "Factura" => context.Facturas.Count(),
-                "Devolucion" => context.Devoluciones.Count(),
-
-                // Inventario
-                "Producto" => context.Productos.Count(),
-                "Baja" => context.BajasInventario.Count(),
-
-                // Compras
-                "Proveedor" => context.Proveedores.Count(),
-                "OrdenCompra" => context.OrdenesCompra.Count(),
-                "PagoProveedor" => context.PagosProveedor.Count(),
-                "DevolucionProveedor" => context.DevolucionesProveedor.Count(),
-
-                // Finanzas
-                "MovimientoFinanciero" => context.MovimientosFinancieros.Count(),
-                "AperturaCaja" => context.AperturasCaja.Count(),
-                "CierreCaja" => context.CierresCaja.Count(),
-
-                // RRHH
-                "Empleado" => context.Empleados.Count(),
-                "ValeEmpleado" => context.ValesEmpleado.Count(),
-                "Vacacion" => context.VacacionesEmpleado.Count(),
-                "PermisoEmpleado" => context.PermisosEmpleado.Count(),
-                "Nomina" => context.Nominas.Count(),
-                "PagoNomina" => context.PagosNominaEmpleado.Count(),
-
-                _ => 0
-            };
-        }
-    }
-}
-
-
-===== FILE: \Helpers\PermisoHelper.cs =====
-
-using Kirkenta.Data;
-using Kirkenta.Models;
-
-namespace Kirkenta.Helpers
-{
-    public static class PermisoHelper
-    {
-        /// <summary>
-        /// Verifica si un rol tiene un permiso especÃ­fico sobre un mÃ³dulo/submÃ³dulo.
-        /// </summary>
-        /// <param name="accion">"ver" | "crear" | "editar" | "eliminar"</param>
-        public static bool TienePermiso(
-            ApplicationDbContext context,
-            string rolNombre,
-            string modulo,
-            string? submodulo,
-            string accion)
-        {
-            // Admin siempre tiene todos los permisos
-            if (rolNombre == "Admin")
-                return true;
-
-            var rol = context.Roles.FirstOrDefault(r => r.Nombre == rolNombre);
-            if (rol == null)
-                return false;
-
-            var permiso = context.Permisos
-                .FirstOrDefault(p => p.RolId == rol.Id
-                    && p.Modulo == modulo
-                    && p.Submodulo == submodulo);
-
-            if (permiso == null)
-                return false;
-
-            return accion.ToLower() switch
-            {
-                "ver" => permiso.PuedeVer,
-                "crear" => permiso.PuedeCrear,
-                "editar" => permiso.PuedeEditar,
-                "eliminar" => permiso.PuedeEliminar,
-                _ => false
-            };
-        }
-
-        /// <summary>
-        /// Devuelve la lista de mÃ³dulos donde el rol tiene acceso de "ver".
-        /// </summary>
-        public static List<string> ModulosVisibles(ApplicationDbContext context, string rolNombre)
-        {
-            // Admin ve todos los mÃ³dulos definidos en ModulosERP
-            if (rolNombre == "Admin")
-            {
-                return ModulosERP.Modulos.Keys.ToList();
-            }
-
-            var rol = context.Roles.FirstOrDefault(r => r.Nombre == rolNombre);
-            if (rol == null)
-                return new List<string>();
-
-            // Un mÃ³dulo es visible si:
-            // - Tiene un permiso a nivel mÃ³dulo (submodulo == null) con PuedeVer=true
-            // - O si tiene al menos un permiso de submÃ³dulo con PuedeVer=true
-            var modulosPorPadre = context.Permisos
-                .Where(p => p.RolId == rol.Id && p.Submodulo == null && p.PuedeVer)
-                .Select(p => p.Modulo)
-                .ToList();
-
-            var modulosPorHijo = context.Permisos
-                .Where(p => p.RolId == rol.Id && p.Submodulo != null && p.PuedeVer)
-                .Select(p => p.Modulo)
-                .ToList();
-
-            return modulosPorPadre
-                .Union(modulosPorHijo)
-                .Distinct()
-                .ToList();
-        }
-
-        /// <summary>
-        /// Devuelve la lista de submÃ³dulos visibles para un mÃ³dulo especÃ­fico.
-        /// Lista vacÃ­a = sin restricciones (Admin).
-        /// </summary>
-        public static List<string> SubmodulosVisibles(
-            ApplicationDbContext context,
-            string rolNombre,
-            string modulo)
-        {
-            if (rolNombre == "Admin")
-            {
-                return new List<string>(); // Lista vacÃ­a = mostrar todo
-            }
-
-            var rol = context.Roles.FirstOrDefault(r => r.Nombre == rolNombre);
-            if (rol == null)
-                return new List<string>();
-
-            return context.Permisos
-                .Where(p => p.RolId == rol.Id
-                    && p.Modulo == modulo
-                    && p.Submodulo != null
-                    && p.PuedeVer)
-                .Select(p => p.Submodulo!)
-                .ToList();
-        }
-    }
-}
-
-
-===== FILE: \Helpers\PermisoSeeder.cs =====
-
-using Kirkenta.Data;
-using Kirkenta.Models;
-
-namespace Kirkenta.Helpers
-{
-    /// <summary>
-    /// Seeder de migraciÃ³n de permisos.
-    /// Cuando se agregan nuevos submÃ³dulos a ModulosERP.Modulos, los roles
-    /// existentes no tienen permisos para ellos. Este helper los crea copiando
-    /// los permisos del mÃ³dulo padre.
-    /// Es idempotente: se puede ejecutar mÃºltiples veces sin duplicar.
-    /// </summary>
-    public static class PermisoSeeder
-    {
-        /// <summary>
-        /// Migra los permisos de todos los roles existentes hacia los submÃ³dulos
-        /// definidos en ModulosERP que aÃºn no tienen permiso en la BD.
-        /// </summary>
-        /// <param name="soloSiHayNuevos">
-        /// Si es true, solo actÃºa cuando detecta submÃ³dulos faltantes.
-        /// Si es false, recorre todo siempre.
-        /// </param>
-        public static void MigrarPermisosFaltantes(ApplicationDbContext context, bool soloSiHayNuevos = true)
-        {
-            try
-            {
-                var roles = context.Roles.ToList();
-                if (roles.Count == 0) return;
-
-                int permisosCreados = 0;
-                int rolesProcesados = 0;
-
-                foreach (var rol in roles)
-                {
-                    // El Admin no necesita permisos en BD (bypass en PermisoHelper)
-                    if (rol.Nombre == "Admin") continue;
-
-                    var permisosExistentes = context.Permisos
-                        .Where(p => p.RolId == rol.Id)
-                        .ToList();
-
-                    // Convertimos a un HashSet para bÃºsquedas O(1)
-                    var clavesExistentes = permisosExistentes
-                        .Select(p => ClavePermiso(p.Modulo, p.Submodulo))
-                        .ToHashSet();
-
-                    bool rolModificado = false;
-
-                    foreach (var moduloKvp in ModulosERP.Modulos)
-                    {
-                        var modulo = moduloKvp.Key;
-                        var submodulos = moduloKvp.Value;
-
-                        // Buscar el permiso del mÃ³dulo padre
-                        var permisoPadre = permisosExistentes
-                            .FirstOrDefault(p => p.Modulo == modulo && p.Submodulo == null);
-
-                        // Si no existe permiso padre, no podemos migrar (nada que copiar)
-                        if (permisoPadre == null)
-                        {
-                            // Crear uno por defecto con solo "Ver"
-                            permisoPadre = new Permiso
-                            {
-                                RolId = rol.Id,
-                                Modulo = modulo,
-                                Submodulo = null,
-                                PuedeVer = false,
-                                PuedeCrear = false,
-                                PuedeEditar = false,
-                                PuedeEliminar = false
-                            };
-                            context.Permisos.Add(permisoPadre);
-                            permisosExistentes.Add(permisoPadre);
-                            clavesExistentes.Add(ClavePermiso(modulo, null));
-                            permisosCreados++;
-                            rolModificado = true;
-                        }
-
-                        // Para cada submÃ³dulo del mÃ³dulo, crear el permiso si no existe
-                        foreach (var submodulo in submodulos)
-                        {
-                            var clave = ClavePermiso(modulo, submodulo);
-                            if (clavesExistentes.Contains(clave)) continue;
-
-                            // Copia los permisos del padre (excepto "Ver" que se toma tal cual)
-                            var nuevoPermiso = new Permiso
-                            {
-                                RolId = rol.Id,
-                                Modulo = modulo,
-                                Submodulo = submodulo,
-                                PuedeVer = permisoPadre.PuedeVer,
-                                PuedeCrear = permisoPadre.PuedeCrear,
-                                PuedeEditar = permisoPadre.PuedeEditar,
-                                PuedeEliminar = permisoPadre.PuedeEliminar
-                            };
-
-                            context.Permisos.Add(nuevoPermiso);
-                            clavesExistentes.Add(clave);
-                            permisosCreados++;
-                            rolModificado = true;
-                        }
-                    }
-
-                    if (rolModificado)
-                    {
-                        rolesProcesados++;
-                    }
-                }
-
-                if (permisosCreados > 0)
-                {
-                    context.SaveChanges();
-                    Console.WriteLine($"[PermisoSeeder] âœ… MigraciÃ³n completada: " +
-                        $"{permisosCreados} permisos creados en {rolesProcesados} roles.");
-                }
-                else if (!soloSiHayNuevos)
-                {
-                    Console.WriteLine("[PermisoSeeder] â„¹ï¸ No habÃ­a permisos nuevos por crear. Todo al dÃ­a.");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[PermisoSeeder] âŒ Error al migrar permisos: {ex.Message}");
-                // No relanzamos: si falla la migraciÃ³n, la app debe seguir funcionando
-            }
-        }
-
-        private static string ClavePermiso(string modulo, string? submodulo)
-        {
-            return $"{modulo}|{submodulo ?? ""}";
-        }
-    }
-}
 
 
 ===== FILE: \Models\ActividadUsuario.cs =====
@@ -4544,6 +6112,70 @@ namespace Kirkenta.Models
 }
 
 
+===== FILE: \Models\CierreContable.cs =====
+
+using System.ComponentModel.DataAnnotations;
+
+namespace Kirkenta.Models
+{
+    /// <summary>
+    /// Cierre contable mensual. Al cerrar un mes, se bloquean todos los movimientos
+    /// financieros, aperturas, cierres de caja y ventas con fecha dentro de ese mes.
+    /// Solo se puede reabrir (con motivo) por un usuario con permiso.
+    /// Anio + Mes es Ãºnico: una sola fila por mes.
+    /// </summary>
+    public class CierreContable
+    {
+        public int Id { get; set; }
+
+        [Required]
+        public int Anio { get; set; }
+
+        [Required]
+        [Range(1, 12)]
+        public int Mes { get; set; }
+
+        /// <summary>
+        /// Estado: "Abierto" | "Cerrado"
+        /// </summary>
+        [Required]
+        [StringLength(20)]
+        public string Estado { get; set; } = "Abierto";
+
+        // ===== CIERRE =====
+        public DateTime? FechaCierre { get; set; }
+        public int? UsuarioCierreId { get; set; }
+
+        // ===== REAPERTURA =====
+        public DateTime? FechaReapertura { get; set; }
+        public int? UsuarioReaperturaId { get; set; }
+
+        [StringLength(500)]
+        public string? MotivoReapertura { get; set; }
+
+        // ===== TOTALES AL MOMENTO DEL CIERRE (auditorÃ­a) =====
+        public decimal TotalIngresos { get; set; }
+        public decimal TotalEgresos { get; set; }
+        public decimal Balance { get; set; }
+        public int CantidadMovimientos { get; set; }
+
+        [StringLength(500)]
+        public string? Notas { get; set; }
+
+        public DateTime FechaCreacion { get; set; } = DateTime.Now;
+        public int EmpresaId { get; set; } = 1;
+
+        // ===== HELPERS =====
+        public string MesNombre => System.Globalization.CultureInfo
+            .GetCultureInfo("es-HN")
+            .DateTimeFormat
+            .GetMonthName(Mes);
+
+        public string PeriodoTexto => $"{MesNombre} {Anio}";
+    }
+}
+
+
 ===== FILE: \Models\Cliente.cs =====
 
 using System.ComponentModel.DataAnnotations;
@@ -4593,6 +6225,144 @@ namespace Kirkenta.Models
         public bool Activo { get; set; } = true;
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
         public int? UsuarioCreoId { get; set; }
+    }
+}
+
+
+===== FILE: \Models\ConciliacionBancaria.cs =====
+
+using System.ComponentModel.DataAnnotations;
+
+namespace Kirkenta.Models
+{
+    /// <summary>
+    /// ConciliaciÃ³n bancaria: compara los movimientos del sistema en una cuenta bancaria
+    /// contra el estado de cuenta real del banco, para un perÃ­odo dado.
+    /// </summary>
+    public class ConciliacionBancaria
+    {
+        public int Id { get; set; }
+
+        [Required]
+        [StringLength(30)]
+        public string Numero { get; set; } = string.Empty;
+
+        public int CuentaId { get; set; }
+
+        public DateTime FechaInicio { get; set; }
+        public DateTime FechaFin { get; set; }
+
+        /// <summary>
+        /// Saldo que reporta el banco al final del perÃ­odo.
+        /// </summary>
+        public decimal SaldoBanco { get; set; }
+
+        /// <summary>
+        /// Saldo que el sistema calcula al final del perÃ­odo (saldo contable).
+        /// </summary>
+        public decimal SaldoSistema { get; set; }
+
+        /// <summary>
+        /// Diferencia = SaldoBanco - SaldoSistema. DeberÃ­a ser 0 si todo cuadra.
+        /// </summary>
+        public decimal Diferencia { get; set; }
+
+        /// <summary>
+        /// Abierta | EnRevision | Conciliada | Cancelada
+        /// </summary>
+        [Required]
+        [StringLength(20)]
+        public string Estado { get; set; } = "Abierta";
+
+        // ===== CIERRE =====
+        public int? UsuarioCierraId { get; set; }
+        public DateTime? FechaCierre { get; set; }
+
+        [StringLength(500)]
+        public string? NotasCierre { get; set; }
+
+        // ===== TOTALES (para listados rÃ¡pidos) =====
+        public int TotalLineasSistema { get; set; }
+        public int TotalLineasBanco { get; set; }
+        public int TotalMatcheadas { get; set; }
+        public int TotalNoMatcheadas { get; set; }
+
+        [StringLength(500)]
+        public string? Notas { get; set; }
+
+        public DateTime FechaCreacion { get; set; } = DateTime.Now;
+        public int? UsuarioCreoId { get; set; }
+        public int EmpresaId { get; set; } = 1;
+    }
+
+    /// <summary>
+    /// Detalle de la conciliaciÃ³n: cada lÃ­nea es un movimiento del sistema
+    /// o una lÃ­nea del estado de cuenta bancario.
+    /// </summary>
+    public class ConciliacionDetalle
+    {
+        public int Id { get; set; }
+
+        public int ConciliacionBancariaId { get; set; }
+
+        /// <summary>
+        /// Origen: "Sistema" | "Banco"
+        /// </summary>
+        [Required]
+        [StringLength(20)]
+        public string Origen { get; set; } = "Sistema";
+
+        /// <summary>
+        /// Si origen = Sistema: ID del MovimientoFinanciero.
+        /// </summary>
+        public int? MovimientoId { get; set; }
+
+        /// <summary>
+        /// Fecha de la lÃ­nea (del movimiento o del estado de cuenta).
+        /// </summary>
+        public DateTime Fecha { get; set; }
+
+        /// <summary>
+        /// DescripciÃ³n/concepto de la lÃ­nea.
+        /// </summary>
+        [StringLength(300)]
+        public string Descripcion { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Referencia externa (nÂº de cheque, transferencia, etc.).
+        /// </summary>
+        [StringLength(100)]
+        public string? Referencia { get; set; }
+
+        /// <summary>
+        /// Monto de la lÃ­nea. Positivo = crÃ©dito/ingreso, negativo = dÃ©bito/egreso.
+        /// </summary>
+        public decimal Monto { get; set; }
+
+        /// <summary>
+        /// Si la lÃ­nea ya fue matcheada con su contraparte.
+        /// </summary>
+        public bool Matcheada { get; set; } = false;
+
+        /// <summary>
+        /// Si matcheada, ID de la lÃ­nea contraparte (del banco si esta es del sistema,
+        /// o del sistema si esta es del banco).
+        /// </summary>
+        public int? MatcheadaConDetalleId { get; set; }
+
+        /// <summary>
+        /// Si el match fue automÃ¡tico o manual.
+        /// </summary>
+        [StringLength(20)]
+        public string? TipoMatch { get; set; } // "Automatico" | "Manual"
+
+        /// <summary>
+        /// Notas de revisiÃ³n.
+        /// </summary>
+        [StringLength(500)]
+        public string? Notas { get; set; }
+
+        public DateTime FechaCreacion { get; set; } = DateTime.Now;
     }
 }
 
@@ -6549,6 +8319,28 @@ namespace Kirkenta.Models
 }
 
 
+===== FILE: \Pages\_ViewImports.cshtml =====
+
+@using Kirkenta
+@namespace Kirkenta.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+
+
+===== FILE: \Pages\_ViewStart.cshtml =====
+
+@{
+    Layout = "_Layout";
+}
+
+
+===== FILE: \Pages\Auth\_ViewStart.cshtml =====
+
+@{
+    Layout = null;
+}
+
+
 ===== FILE: \Pages\Auth\Login.cshtml =====
 
 @page
@@ -7047,13 +8839,6 @@ namespace Kirkenta.Pages.Auth
             return RedirectToPage("/Auth/Login");
         }
     }
-}
-
-
-===== FILE: \Pages\Auth\_ViewStart.cshtml =====
-
-@{
-    Layout = null;
 }
 
 
@@ -13995,6 +15780,62 @@ namespace Kirkenta.Pages.Devoluciones
 }
 
 
+===== FILE: \Pages\Error.cshtml =====
+
+@page
+@model ErrorModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<h1 class="text-danger">Error.</h1>
+<h2 class="text-danger">An error occurred while processing your request.</h2>
+
+@if (Model.ShowRequestId)
+{
+    <p>
+        <strong>Request ID:</strong> <code>@Model.RequestId</code>
+    </p>
+}
+
+<h3>Development Mode</h3>
+<p>
+    Swapping to the <strong>Development</strong> environment displays detailed information about the error that occurred.
+</p>
+<p>
+    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
+    It can result in displaying sensitive information from exceptions to end users.
+    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
+    and restarting the app.
+</p>
+
+
+
+===== FILE: \Pages\Error.cshtml.cs =====
+
+using System.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+
+namespace Kirkenta.Pages;
+
+[ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+[IgnoreAntiforgeryToken]
+public class ErrorModel : PageModel
+{
+    public string? RequestId { get; set; }
+
+    public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    public void OnGet()
+    {
+        RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier;
+    }
+}
+
+
+
+
 ===== FILE: \Pages\Facturas\CreateFromVenta.cshtml =====
 
 @page
@@ -14241,6 +16082,52 @@ namespace Kirkenta.Pages.Facturas
     </div>
 }
 
+@* ===== ALERTAS CAI ===== *@
+@if (Model.CaiVencido)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <div>
+            <strong>âš ï¸ CAI VENCIDO</strong> â€” La fecha lÃ­mite de emisiÃ³n fue
+            @Model.Empresa.FechaLimiteEmision?.ToString("dd/MM/yyyy").
+            Solicita un nuevo CAI al SAR.
+        </div>
+    </div>
+}
+else if (Model.CaiPorVencer)
+{
+    <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <div>
+            <strong>âš ï¸ CAI por vencer</strong> â€” Vence en <strong>@Model.DiasParaVencerCai dÃ­a(s)</strong>
+            (@Model.Empresa.FechaLimiteEmision?.ToString("dd/MM/yyyy")).
+        </div>
+    </div>
+}
+
+@if (Model.RangoCaiAgotado)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <div>
+            <strong>âš ï¸ Rango CAI agotado</strong> â€” El nÃºmero de esta factura estÃ¡ fuera del rango autorizado
+            (@Model.Empresa.RangoInicial â€” @Model.Empresa.RangoFinal).
+        </div>
+    </div>
+}
+
 <div class="module-card" style="padding: 40px;">
     <div class="factura-header">
         <div class="factura-empresa">
@@ -14357,7 +16244,51 @@ namespace Kirkenta.Pages.Facturas
         </table>
     </div>
 
-    <div class="totales-panel" style="margin-top: 24px;">
+    @* ===== DESGLOSE ISV POR TASA ===== *@
+    @if (Model.DesgloseISV != null && Model.DesgloseISV.BaseGravableTotal + Model.DesgloseISV.BaseExentaTotal > 0)
+    {
+        <div style="margin-top: 24px; padding: 16px 20px; background: #f9fafb; border-radius: 8px; border: 1px solid var(--color-border);">
+            <h4 style="font-size: 12px; font-weight: 700; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">
+                Desglose de ISV
+            </h4>
+            <table style="width: 100%; font-size: 13px;">
+                <tbody>
+                    @foreach (var tasa in Model.DesgloseISV.TasasAplicadas)
+                    {
+                        <tr>
+                            <td style="padding: 4px 0;">
+                                Base gravable <strong>@tasa.ToString("N0")%</strong>:
+                            </td>
+                            <td style="padding: 4px 0; text-align: right;">
+                                L. @Model.DesgloseISV.BasePorTasa[tasa].ToString("N2")
+                            </td>
+                            <td style="padding: 4px 0 4px 24px;">
+                                ISV <strong>@tasa.ToString("N0")%</strong>:
+                            </td>
+                            <td style="padding: 4px 0; text-align: right; font-weight: 600;">
+                                L. @Model.DesgloseISV.ISVPorTasa[tasa].ToString("N2")
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.DesgloseISV.BaseExentaTotal > 0)
+                    {
+                        <tr>
+                            <td style="padding: 4px 0;">
+                                Base <strong>exenta</strong>:
+                            </td>
+                            <td style="padding: 4px 0; text-align: right;">
+                                L. @Model.DesgloseISV.BaseExentaTotal.ToString("N2")
+                            </td>
+                            <td colspan="2"></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @* ===== TOTALES ===== *@
+    <div class="totales-panel" style="margin-top: 16px;">
         <div class="totales-row">
             <span>Subtotal:</span>
             <strong>L. @Model.Factura.Subtotal.ToString("N2")</strong>
@@ -14367,7 +16298,7 @@ namespace Kirkenta.Pages.Facturas
             <strong>L. @Model.Factura.Descuento.ToString("N2")</strong>
         </div>
         <div class="totales-row">
-            <span>Impuestos:</span>
+            <span>ISV total:</span>
             <strong>L. @Model.Factura.Impuestos.ToString("N2")</strong>
         </div>
         <div class="totales-row totales-row-final">
@@ -14426,6 +16357,8 @@ namespace Kirkenta.Pages.Facturas
 ===== FILE: \Pages\Facturas\Details.cshtml.cs =====
 
 using Kirkenta.Data;
+using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -14449,6 +16382,16 @@ namespace Kirkenta.Pages.Facturas
         public List<MetodoPago> MetodosPago { get; set; } = new();
         public ConfiguracionEmpresa Empresa { get; set; } = new();
 
+        // ===== DESGLOSE ISV =====
+        public ISVHelper.ResultadoISV DesgloseISV { get; set; } = new();
+        public List<Impuesto> ImpuestosActivos { get; set; } = new();
+
+        // ===== ALERTAS CAI =====
+        public bool CaiPorVencer { get; set; }
+        public bool CaiVencido { get; set; }
+        public int DiasParaVencerCai { get; set; }
+        public bool RangoCaiAgotado { get; set; }
+
         public IActionResult OnGet(int id)
         {
             var factura = _context.Facturas.FirstOrDefault(f => f.Id == id);
@@ -14464,9 +16407,70 @@ namespace Kirkenta.Pages.Facturas
             Productos = _context.Productos.ToList();
             Pagos = _context.Pagos.Where(p => p.FacturaId == id).ToList();
             MetodosPago = _context.MetodosPago.ToList();
-            Empresa = _context.ConfiguracionEmpresa.FirstOrDefault() ?? new ConfiguracionEmpresa { Nombre = "Mi Empresa" };
+            Empresa = _context.ConfiguracionEmpresa.FirstOrDefault()
+                ?? new ConfiguracionEmpresa { Nombre = "Mi Empresa" };
+
+            // ===== CARGAR DESGLOSE ISV =====
+            ImpuestosActivos = ISVHelper.ObtenerTasasActivas(_context);
+
+            var itemsParaISV = Items.Select(i => new ItemParaISV
+            {
+                ProductoId = i.ProductoId,
+                Cantidad = i.Cantidad,
+                PrecioUnitario = i.PrecioUnitario,
+                Descuento = i.Descuento,
+                // Buscamos el ImpuestoId real del producto, no el % del detalle
+                ImpuestoId = Productos.FirstOrDefault(p => p.Id == i.ProductoId)?.ImpuestoId
+            }).ToList();
+
+            DesgloseISV = ISVHelper.Calcular(_context, itemsParaISV, factura.Descuento);
+
+            // ===== VALIDAR CAI =====
+            if (!string.IsNullOrEmpty(Empresa.CAI) && Empresa.FechaLimiteEmision.HasValue)
+            {
+                var dias = (Empresa.FechaLimiteEmision.Value.Date - DateTime.Today).Days;
+                DiasParaVencerCai = dias;
+                CaiPorVencer = dias >= 0 && dias <= 30;
+                CaiVencido = dias < 0;
+            }
+
+            // Validar si el rango CAI se agotÃ³
+            if (!string.IsNullOrEmpty(Empresa.RangoInicial) && !string.IsNullOrEmpty(Empresa.RangoFinal))
+            {
+                var facturaEnRango = EstaEnRango(factura.Numero, Empresa.RangoInicial, Empresa.RangoFinal);
+                RangoCaiAgotado = !facturaEnRango;
+            }
 
             return Page();
+        }
+
+        /// <summary>
+        /// Valida si un nÃºmero de factura estÃ¡ dentro del rango CAI autorizado.
+        /// Compara solo los dÃ­gitos finales del nÃºmero.
+        /// </summary>
+        private static bool EstaEnRango(string numeroFactura, string rangoInicial, string rangoFinal)
+        {
+            try
+            {
+                var numFactura = ExtraerDigitos(numeroFactura);
+                var numInicial = ExtraerDigitos(rangoInicial);
+                var numFinal = ExtraerDigitos(rangoFinal);
+
+                if (numFactura == 0 || numInicial == 0 || numFinal == 0) return true;
+
+                return numFactura >= numInicial && numFactura <= numFinal;
+            }
+            catch
+            {
+                return true; // Si no se puede validar, asumimos OK
+            }
+        }
+
+        private static long ExtraerDigitos(string texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto)) return 0;
+            var soloDigitos = new string(texto.Where(char.IsDigit).ToArray());
+            return long.TryParse(soloDigitos, out var num) ? num : 0;
         }
     }
 }
@@ -15015,6 +17019,13 @@ namespace Kirkenta.Pages.Finanzas.Aperturas
             }
 
             CargarDatos();
+
+            // ===== VALIDACIÃ“N: perÃ­odo contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
+            }
 
             if (!ModelState.IsValid) return Page();
 
@@ -16680,7 +18691,6 @@ namespace Kirkenta.Pages.Finanzas.Cierres
 
             public decimal Tolerancia { get; set; } = 20.00m;
 
-            // Distribuciones
             public decimal? MontoRetiroBanco { get; set; }
             public int? CuentaBancoDestinoId { get; set; }
             public string? ReferenciaRetiro { get; set; }
@@ -16692,7 +18702,6 @@ namespace Kirkenta.Pages.Finanzas.Cierres
             public string? NombreRecibeEntrega { get; set; }
             public string? ReferenciaEntrega { get; set; }
 
-            // Adjuntos
             public List<IFormFile>? Adjuntos { get; set; }
         }
 
@@ -16735,6 +18744,14 @@ namespace Kirkenta.Pages.Finanzas.Cierres
             {
                 ModelState.AddModelError(string.Empty,
                     $"La suma de las distribuciones (L. {totalDistribuido:N2}) no coincide con el efectivo contado (L. {Input.EfectivoContado:N2})");
+                return Page();
+            }
+
+            // ===== VALIDACIÃ“N: perÃ­odo contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, Input.Fecha);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
                 return Page();
             }
 
@@ -17702,6 +19719,2022 @@ namespace Kirkenta.Pages.Finanzas.Cierres
             CantidadFaltantes = lista.Count(c => c.Resultado == "Faltante");
             CantidadCuadrados = lista.Count(c => c.Resultado == "Cuadrado");
             CantidadPendientesAprobar = lista.Count(c => c.EstadoActa == "Cerrado");
+
+            return Page();
+        }
+    }
+}
+
+
+===== FILE: \Pages\Finanzas\CierresContables\Create.cshtml =====
+
+@page
+@model Kirkenta.Pages.Finanzas.CierresContables.CreateModel
+@{
+    ViewData["Title"] = $"Cerrar perÃ­odo {Model.PeriodoTexto}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/CierresContables/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a cierres contables
+        </a>
+        <h2>Cerrar perÃ­odo contable</h2>
+        <p>PerÃ­odo: <strong>@Model.PeriodoTexto</strong></p>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <input type="hidden" asp-for="Input.Anio" />
+        <input type="hidden" asp-for="Input.Mes" />
+
+        <div class="kpi-grid" style="margin-bottom: 20px;">
+            <div class="kpi-card">
+                <span class="kpi-label">Movimientos</span>
+                <span class="kpi-value">@Model.CantidadMovimientos</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Ingresos</span>
+                <span class="kpi-value" style="color: var(--color-success); font-size: 20px;">L. @Model.TotalIngresos.ToString("N2")</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Egresos</span>
+                <span class="kpi-value" style="color: var(--color-danger); font-size: 20px;">L. @Model.TotalEgresos.ToString("N2")</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Balance</span>
+                <span class="kpi-value" style="color: @(Model.Balance >= 0 ? "var(--color-success)" : "var(--color-danger)"); font-size: 20px;">
+                    L. @Model.Balance.ToString("N2")
+                </span>
+            </div>
+        </div>
+
+        <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <div>
+                <strong>Impacto del cierre</strong>
+                <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                    Al cerrar el perÃ­odo <strong>@Model.PeriodoTexto</strong>:
+                </p>
+                <ul style="margin: 6px 0 0 16px; font-size: 12.5px; padding: 0;">
+                    <li>No se podrÃ¡n crear ni editar movimientos con fecha dentro de este mes.</li>
+                    <li>No se podrÃ¡n crear aperturas, cierres de caja, ventas, pagos a proveedores, nÃ³minas o vales con fecha dentro del mes.</li>
+                    <li>Los movimientos existentes se mantienen, solo se bloquean las operaciones nuevas.</li>
+                    <li>Si necesitas operar de nuevo, deberÃ¡s reabrir el perÃ­odo (queda registrado quiÃ©n, cuÃ¡ndo y por quÃ©).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Notas">Notas del cierre</label>
+            <textarea asp-for="Input.Notas" class="form-input" rows="2" placeholder="Ej: Cierre mensual correspondiente a octubre 2026"></textarea>
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.Confirmado" type="checkbox" />
+                <span><strong>Confirmo que entiendo el impacto del cierre y quiero proceder</strong></span>
+            </label>
+            <span asp-validation-for="Input.Confirmado" style="color: var(--color-danger); font-size: 12px;"></span>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Finanzas/CierresContables/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary" style="background: var(--color-danger);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                Cerrar perÃ­odo
+            </button>
+        </div>
+    </form>
+</div>
+
+
+===== FILE: \Pages\Finanzas\CierresContables\Create.cshtml.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.ComponentModel.DataAnnotations;
+
+namespace Kirkenta.Pages.Finanzas.CierresContables
+{
+    public class CreateModel : PageModel
+    {
+        private readonly ApplicationDbContext _context;
+
+        public CreateModel(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [BindProperty]
+        public InputModel Input { get; set; } = new();
+
+        public string PeriodoTexto { get; set; } = "";
+        public decimal TotalIngresos { get; set; }
+        public decimal TotalEgresos { get; set; }
+        public decimal Balance { get; set; }
+        public int CantidadMovimientos { get; set; }
+
+        public class InputModel
+        {
+            [Required]
+            public int Anio { get; set; }
+
+            [Required]
+            [Range(1, 12)]
+            public int Mes { get; set; }
+
+            [StringLength(500)]
+            public string? Notas { get; set; }
+
+            [Required(ErrorMessage = "Debes confirmar que entiendes el impacto")]
+            public bool Confirmado { get; set; }
+        }
+
+        public IActionResult OnGet(int anio, int mes)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "CierresContablesCreate", "crear"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/CierresContables/Index");
+            }
+
+            if (mes < 1 || mes > 12)
+            {
+                TempData["Error"] = "Mes invÃ¡lido";
+                return RedirectToPage("/Finanzas/CierresContables/Index");
+            }
+
+            var estado = CierreContableHelper.Obtener(_context, anio, mes);
+            if (estado != null && estado.Estado == "Cerrado")
+            {
+                TempData["Error"] = $"El perÃ­odo {estado.PeriodoTexto} ya estÃ¡ cerrado";
+                return RedirectToPage("/Finanzas/CierresContables/Index");
+            }
+
+            Input.Anio = anio;
+            Input.Mes = mes;
+            CargarDatos(anio, mes);
+
+            return Page();
+        }
+
+        public IActionResult OnPost()
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "CierresContablesCreate", "crear"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/CierresContables/Index");
+            }
+
+            CargarDatos(Input.Anio, Input.Mes);
+
+            if (!Input.Confirmado)
+            {
+                ModelState.AddModelError("Input.Confirmado", "Debes confirmar que entiendes el impacto del cierre");
+            }
+
+            if (!ModelState.IsValid) return Page();
+
+            var (ok, error, cierre) = CierreContableHelper.Cerrar(
+                _context, Input.Anio, Input.Mes, currentUser!.Id, Input.Notas);
+
+            if (!ok)
+            {
+                ModelState.AddModelError(string.Empty, error ?? "Error al cerrar el perÃ­odo");
+                return Page();
+            }
+
+            ActividadHelper.Registrar(
+                _context,
+                currentUser.Id,
+                "Cerrar perÃ­odo contable",
+                $"CerrÃ³ el perÃ­odo {cierre!.PeriodoTexto}. " +
+                $"Movimientos: {cierre.CantidadMovimientos}, Ingresos: L. {cierre.TotalIngresos:N2}, " +
+                $"Egresos: L. {cierre.TotalEgresos:N2}, Balance: L. {cierre.Balance:N2}",
+                HttpContext.Connection.RemoteIpAddress?.ToString());
+
+            TempData["Success"] = $"PerÃ­odo {cierre.PeriodoTexto} cerrado correctamente";
+            return RedirectToPage("/Finanzas/CierresContables/Index", new { anio = Input.Anio });
+        }
+
+        private void CargarDatos(int anio, int mes)
+        {
+            var cultura = System.Globalization.CultureInfo.GetCultureInfo("es-HN");
+            PeriodoTexto = $"{cultura.DateTimeFormat.GetMonthName(mes)} {anio}";
+
+            var inicio = new DateTime(anio, mes, 1);
+            var fin = inicio.AddMonths(1);
+
+            var movimientos = _context.MovimientosFinancieros
+                .Where(m => m.Estado == "Activo" && m.Fecha >= inicio && m.Fecha < fin)
+                .ToList();
+
+            TotalIngresos = movimientos.Where(m => m.Tipo == "Ingreso").Sum(m => m.Monto);
+            TotalEgresos = movimientos.Where(m => m.Tipo == "Egreso").Sum(m => m.Monto);
+            Balance = TotalIngresos - TotalEgresos;
+            CantidadMovimientos = movimientos.Count;
+        }
+    }
+}
+
+
+===== FILE: \Pages\Finanzas\CierresContables\Index.cshtml =====
+
+@page
+@model Kirkenta.Pages.Finanzas.CierresContables.IndexModel
+@{
+    ViewData["Title"] = "Cierres contables mensuales";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Cierres contables mensuales</h2>
+        <p>Bloquea los movimientos de un mes para auditorÃ­a</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Finanzas/Index" class="btn-secondary">Volver a Finanzas</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<!-- Selector de aÃ±o -->
+<div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+    <form method="get" style="display: flex; align-items: end; gap: 12px; flex-wrap: wrap;">
+        <div class="form-field" style="margin: 0; max-width: 200px;">
+            <label>AÃ±o</label>
+            <select name="anio" class="form-input" onchange="this.form.submit()">
+                @for (int a = DateTime.Today.Year - 3; a <= DateTime.Today.Year + 1; a++)
+                {
+                    if (a == Model.AnioSeleccionado)
+                    {
+                        <option value="@a" selected>@a</option>
+                    }
+                    else
+                    {
+                        <option value="@a">@a</option>
+                    }
+                }
+            </select>
+        </div>
+    </form>
+</div>
+
+<div class="module-card">
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>PerÃ­odo</th>
+                    <th>Estado</th>
+                    <th style="text-align: right;">Movimientos</th>
+                    <th style="text-align: right;">Ingresos</th>
+                    <th style="text-align: right;">Egresos</th>
+                    <th style="text-align: right;">Balance</th>
+                    <th>Cerrado el</th>
+                    <th style="width: 200px; text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in Model.Meses)
+                {
+                    var esCerrado = m.Estado == "Cerrado";
+                    <tr>
+                        <td><strong>@m.PeriodoTexto</strong></td>
+                        <td>
+                            @if (esCerrado)
+                            {
+                                <span class="badge badge-danger">Cerrado</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-success">Abierto</span>
+                            }
+                        </td>
+                        <td style="text-align: right;">
+                            @if (esCerrado)
+                            {
+                                @m.CantidadMovimientos
+                            }
+                            else
+                            {
+                                <span class="table-user-sub">â€”</span>
+                            }
+                        </td>
+                        <td style="text-align: right;">
+                            @if (esCerrado)
+                            {
+                                <span style="color: var(--color-success); font-weight: 600;">L. @m.TotalIngresos.ToString("N2")</span>
+                            }
+                            else
+                            {
+                                <span class="table-user-sub">â€”</span>
+                            }
+                        </td>
+                        <td style="text-align: right;">
+                            @if (esCerrado)
+                            {
+                                <span style="color: var(--color-danger); font-weight: 600;">L. @m.TotalEgresos.ToString("N2")</span>
+                            }
+                            else
+                            {
+                                <span class="table-user-sub">â€”</span>
+                            }
+                        </td>
+                        <td style="text-align: right;">
+                            @if (esCerrado)
+                            {
+                                <strong style="color: @(m.Balance >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+                                    L. @m.Balance.ToString("N2")
+                                </strong>
+                            }
+                            else
+                            {
+                                <span class="table-user-sub">â€”</span>
+                            }
+                        </td>
+                        <td>
+                            @if (esCerrado && m.FechaCierre.HasValue)
+                            {
+                                @m.FechaCierre.Value.ToString("dd/MM/yyyy HH:mm")
+                            }
+                            else if (m.FechaReapertura.HasValue)
+                            {
+                                <span class="table-user-sub">
+                                    Reabierto: @m.FechaReapertura.Value.ToString("dd/MM/yyyy")
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="table-user-sub">â€”</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="table-actions">
+                                @if (!esCerrado && Model.PuedeCerrar)
+                                {
+                                    <a asp-page="/Finanzas/CierresContables/Create"
+                                       asp-route-anio="@m.Anio"
+                                       asp-route-mes="@m.Mes"
+                                       class="btn-sm btn-primary">
+                                        Cerrar mes
+                                    </a>
+                                }
+                                @if (esCerrado && Model.PuedeReabrir)
+                                {
+                                    <a asp-page="/Finanzas/CierresContables/Reabrir"
+                                       asp-route-anio="@m.Anio"
+                                       asp-route-mes="@m.Mes"
+                                       class="btn-sm btn-secondary">
+                                        Reabrir
+                                    </a>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="module-card" style="padding: 20px; margin-top: 20px; background: #fffbeb; border: 1px solid var(--color-warning-border);">
+    <div style="display: flex; gap: 12px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; color: var(--color-warning); flex-shrink: 0; margin-top: 2px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+        </svg>
+        <div>
+            <strong style="font-size: 13px;">Â¿QuÃ© hace el cierre contable?</strong>
+            <p style="font-size: 12.5px; color: #92400e; margin: 4px 0 0 0;">
+                Al cerrar un mes, <strong>se bloquean todos los movimientos financieros, aperturas, cierres de caja, ventas, pagos a proveedores, nÃ³minas y vales</strong>
+                con fecha dentro de ese mes. Si necesitas operar de nuevo, reabre el mes (queda registrado quiÃ©n, cuÃ¡ndo y por quÃ©).
+            </p>
+        </div>
+    </div>
+</div>
+
+
+===== FILE: \Pages\Finanzas\CierresContables\Index.cshtml.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
+using Kirkenta.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+
+namespace Kirkenta.Pages.Finanzas.CierresContables
+{
+    public class IndexModel : PageModel
+    {
+        private readonly ApplicationDbContext _context;
+
+        public IndexModel(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public List<CierreContable> Meses { get; set; } = new();
+        public int AnioSeleccionado { get; set; }
+
+        public bool PuedeCerrar { get; set; }
+        public bool PuedeReabrir { get; set; }
+
+        public IActionResult OnGet(int? anio)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "CierresContables", "ver"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/Index");
+            }
+
+            PuedeCerrar = currentRol == "Admin" ||
+                PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "CierresContablesCreate", "crear");
+            PuedeReabrir = currentRol == "Admin" ||
+                PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "CierresContablesReabrir", "editar");
+
+            AnioSeleccionado = anio ?? DateTime.Today.Year;
+            Meses = CierreContableHelper.ObtenerEstadoAnual(_context, AnioSeleccionado);
+
+            return Page();
+        }
+    }
+}
+
+
+===== FILE: \Pages\Finanzas\CierresContables\Reabrir.cshtml =====
+
+@page
+@model Kirkenta.Pages.Finanzas.CierresContables.ReabrirModel
+@{
+    ViewData["Title"] = $"Reabrir perÃ­odo {Model.PeriodoTexto}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/CierresContables/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a cierres contables
+        </a>
+        <h2>Reabrir perÃ­odo contable</h2>
+        <p>PerÃ­odo: <strong>@Model.PeriodoTexto</strong></p>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <input type="hidden" asp-for="Input.Anio" />
+        <input type="hidden" asp-for="Input.Mes" />
+
+        <div class="kpi-grid" style="margin-bottom: 20px;">
+            <div class="kpi-card">
+                <span class="kpi-label">Movimientos</span>
+                <span class="kpi-value">@Model.CantidadMovimientos</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Ingresos</span>
+                <span class="kpi-value" style="color: var(--color-success); font-size: 20px;">L. @Model.TotalIngresos.ToString("N2")</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Egresos</span>
+                <span class="kpi-value" style="color: var(--color-danger); font-size: 20px;">L. @Model.TotalEgresos.ToString("N2")</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Balance</span>
+                <span class="kpi-value" style="color: @(Model.Balance >= 0 ? "var(--color-success)" : "var(--color-danger)"); font-size: 20px;">
+                    L. @Model.Balance.ToString("N2")
+                </span>
+            </div>
+        </div>
+
+        @if (Model.FechaCierre.HasValue)
+        {
+            <div style="padding: 12px 16px; background: #f9fafb; border-radius: 6px; font-size: 13px; margin-bottom: 20px;">
+                <strong>Cerrado el:</strong> @Model.FechaCierre.Value.ToString("dd/MM/yyyy HH:mm")
+                @if (!string.IsNullOrEmpty(Model.UsuarioCierre))
+                {
+                    <span style="margin-left: 12px;"><strong>Por:</strong> @Model.UsuarioCierre</span>
+                }
+            </div>
+        }
+
+        <div class="module-alert" style="background: var(--color-danger-bg); border: 1px solid var(--color-danger-border); color: var(--color-danger);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <div>
+                <strong>AcciÃ³n sensible</strong>
+                <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                    Al reabrir este perÃ­odo, <strong>se podrÃ¡n crear y editar movimientos nuevamente</strong> con fecha dentro del mes.
+                    Queda registrado en la auditorÃ­a quiÃ©n reabriÃ³, cuÃ¡ndo y por quÃ©.
+                </p>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Motivo">Motivo de la reapertura *</label>
+            <textarea asp-for="Input.Motivo" class="form-input" rows="3"
+                      placeholder="Explica por quÃ© necesitas reabrir este perÃ­odo (ej: correcciÃ³n de un movimiento mal registrado, ajuste contable, etc.)..."
+                      required></textarea>
+            <small class="form-help">Este motivo queda en el registro de auditorÃ­a del sistema.</small>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Password">ContraseÃ±a *</label>
+            <div class="form-input-wrapper">
+                <input asp-for="Input.Password" id="passwordInput" type="password" class="form-input" required placeholder="Ingresa tu contraseÃ±a para confirmar" />
+                <button type="button" class="password-toggle" id="passwordToggle" tabindex="-1">
+                    <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Finanzas/CierresContables/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-danger">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                </svg>
+                Reabrir perÃ­odo
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var toggle = document.getElementById('passwordToggle');
+            var input = document.getElementById('passwordInput');
+            if (!toggle || !input) return;
+            var eyeOpen = toggle.querySelector('.eye-open');
+            var eyeClosed = toggle.querySelector('.eye-closed');
+            toggle.addEventListener('click', function () {
+                var isPassword = input.type === 'password';
+                input.type = isPassword ? 'text' : 'password';
+                eyeOpen.style.display = isPassword ? 'none' : 'block';
+                eyeClosed.style.display = isPassword ? 'block' : 'none';
+                input.focus();
+            });
+        })();
+    </script>
+}
+
+
+===== FILE: \Pages\Finanzas\CierresContables\Reabrir.cshtml.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.ComponentModel.DataAnnotations;
+
+namespace Kirkenta.Pages.Finanzas.CierresContables
+{
+    public class ReabrirModel : PageModel
+    {
+        private readonly ApplicationDbContext _context;
+
+        public ReabrirModel(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [BindProperty]
+        public InputModel Input { get; set; } = new();
+
+        public string PeriodoTexto { get; set; } = "";
+        public decimal TotalIngresos { get; set; }
+        public decimal TotalEgresos { get; set; }
+        public decimal Balance { get; set; }
+        public int CantidadMovimientos { get; set; }
+        public DateTime? FechaCierre { get; set; }
+        public string? UsuarioCierre { get; set; }
+
+        public class InputModel
+        {
+            [Required]
+            public int Anio { get; set; }
+
+            [Required]
+            [Range(1, 12)]
+            public int Mes { get; set; }
+
+            [Required(ErrorMessage = "Debes indicar el motivo de la reapertura")]
+            [StringLength(500, MinimumLength = 10, ErrorMessage = "El motivo debe tener al menos 10 caracteres")]
+            public string Motivo { get; set; } = "";
+
+            [Required(ErrorMessage = "Debes ingresar tu contraseÃ±a para confirmar")]
+            public string Password { get; set; } = "";
+        }
+
+        public IActionResult OnGet(int anio, int mes)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "CierresContablesReabrir", "editar"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/CierresContables/Index");
+            }
+
+            if (mes < 1 || mes > 12)
+            {
+                TempData["Error"] = "Mes invÃ¡lido";
+                return RedirectToPage("/Finanzas/CierresContables/Index");
+            }
+
+            var cierre = CierreContableHelper.Obtener(_context, anio, mes);
+            if (cierre == null || cierre.Estado != "Cerrado")
+            {
+                TempData["Error"] = "El perÃ­odo no estÃ¡ cerrado";
+                return RedirectToPage("/Finanzas/CierresContables/Index");
+            }
+
+            Input.Anio = anio;
+            Input.Mes = mes;
+            CargarDatos(cierre);
+
+            return Page();
+        }
+
+        public IActionResult OnPost()
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "CierresContablesReabrir", "editar"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/CierresContables/Index");
+            }
+
+            var cierre = CierreContableHelper.Obtener(_context, Input.Anio, Input.Mes);
+            if (cierre == null || cierre.Estado != "Cerrado")
+            {
+                TempData["Error"] = "El perÃ­odo no estÃ¡ cerrado";
+                return RedirectToPage("/Finanzas/CierresContables/Index");
+            }
+
+            CargarDatos(cierre);
+
+            // Validar contraseÃ±a
+            if (currentUser == null || !BCrypt.Net.BCrypt.Verify(Input.Password, currentUser.PasswordHash))
+            {
+                ModelState.AddModelError("Input.Password", "ContraseÃ±a incorrecta");
+            }
+
+            if (!ModelState.IsValid) return Page();
+
+            var (ok, error) = CierreContableHelper.Reabrir(
+                _context, Input.Anio, Input.Mes, currentUser!.Id, Input.Motivo);
+
+            if (!ok)
+            {
+                ModelState.AddModelError(string.Empty, error ?? "Error al reabrir el perÃ­odo");
+                return Page();
+            }
+
+            ActividadHelper.Registrar(
+                _context,
+                currentUser.Id,
+                "Reabrir perÃ­odo contable",
+                $"ReabriÃ³ el perÃ­odo {cierre.PeriodoTexto}. Motivo: {Input.Motivo}",
+                HttpContext.Connection.RemoteIpAddress?.ToString());
+
+            TempData["Success"] = $"PerÃ­odo {cierre.PeriodoTexto} reabierto correctamente";
+            return RedirectToPage("/Finanzas/CierresContables/Index", new { anio = Input.Anio });
+        }
+
+        private void CargarDatos(Models.CierreContable cierre)
+        {
+            PeriodoTexto = cierre.PeriodoTexto;
+            TotalIngresos = cierre.TotalIngresos;
+            TotalEgresos = cierre.TotalEgresos;
+            Balance = cierre.Balance;
+            CantidadMovimientos = cierre.CantidadMovimientos;
+            FechaCierre = cierre.FechaCierre;
+
+            UsuarioCierre = cierre.UsuarioCierreId.HasValue
+                ? _context.Usuarios.FirstOrDefault(u => u.Id == cierre.UsuarioCierreId.Value)?.Username
+                : null;
+        }
+    }
+}
+
+
+===== FILE: \Pages\Finanzas\Conciliacion\Create.cshtml =====
+
+@page
+@model Kirkenta.Pages.Finanzas.Conciliacion.CreateModel
+@{
+    ViewData["Title"] = "Nueva conciliaciÃ³n bancaria";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/Conciliacion/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a conciliaciones
+        </a>
+        <h2>Nueva conciliaciÃ³n bancaria</h2>
+        <p>NÃºmero: <strong>@Model.NumeroPreview</strong></p>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <div class="module-alert" style="background: var(--color-primary-soft); border: 1px solid #c7d2fe; color: var(--color-primary);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <div>
+                <strong>Â¿CÃ³mo funciona?</strong>
+                <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                    Al crear la conciliaciÃ³n, el sistema carga automÃ¡ticamente los movimientos del perÃ­odo.
+                    Luego vos cargÃ¡s las lÃ­neas del estado de cuenta del banco, y el sistema hace el matching automÃ¡tico.
+                </p>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.CuentaId">Cuenta bancaria *</label>
+            <select asp-for="Input.CuentaId" class="form-input" required>
+                <option value="">â€” Selecciona una cuenta â€”</option>
+                @foreach (var c in Model.CuentasBancarias)
+                {
+                    <option value="@c.Id">@c.Nombre â€” @c.Banco (@c.NumeroCuenta)</option>
+                }
+            </select>
+            <small class="form-help">Solo se muestran cuentas de tipo Banco activas</small>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.FechaInicio">Fecha inicio *</label>
+                <input asp-for="Input.FechaInicio" type="date" class="form-input" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.FechaFin">Fecha fin *</label>
+                <input asp-for="Input.FechaFin" type="date" class="form-input" required />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.SaldoBanco">Saldo reportado por el banco *</label>
+            <input asp-for="Input.SaldoBanco" type="number" step="0.01" class="form-input" required placeholder="0.00" />
+            <small class="form-help">Es el saldo final que aparece en tu estado de cuenta bancario</small>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Notas">Notas</label>
+            <textarea asp-for="Input.Notas" class="form-input" rows="2" placeholder="Ej: ConciliaciÃ³n mensual de octubre"></textarea>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Finanzas/Conciliacion/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Crear conciliaciÃ³n
+            </button>
+        </div>
+    </form>
+</div>
+
+
+===== FILE: \Pages\Finanzas\Conciliacion\Create.cshtml.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
+using Kirkenta.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.ComponentModel.DataAnnotations;
+
+namespace Kirkenta.Pages.Finanzas.Conciliacion
+{
+    public class CreateModel : PageModel
+    {
+        private readonly ApplicationDbContext _context;
+
+        public CreateModel(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [BindProperty]
+        public InputModel Input { get; set; } = new();
+
+        public List<CuentaFinanciera> CuentasBancarias { get; set; } = new();
+        public string NumeroPreview { get; set; } = "";
+
+        public class InputModel
+        {
+            [Required(ErrorMessage = "Debes seleccionar una cuenta bancaria")]
+            public int CuentaId { get; set; }
+
+            [Required]
+            public DateTime FechaInicio { get; set; } = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+
+            [Required]
+            public DateTime FechaFin { get; set; } = DateTime.Today;
+
+            [Required(ErrorMessage = "Debes ingresar el saldo del banco")]
+            public decimal SaldoBanco { get; set; }
+
+            [StringLength(500)]
+            public string? Notas { get; set; }
+        }
+
+        public IActionResult OnGet()
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCreate", "crear"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/Conciliacion/Index");
+            }
+
+            CargarDatos();
+            return Page();
+        }
+
+        public IActionResult OnPost()
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCreate", "crear"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/Conciliacion/Index");
+            }
+
+            CargarDatos();
+
+            if (!ModelState.IsValid) return Page();
+
+            var (conciliacion, error) = ConciliacionHelper.Crear(
+                _context,
+                Input.CuentaId,
+                Input.FechaInicio,
+                Input.FechaFin,
+                Input.SaldoBanco,
+                Input.Notas,
+                currentUser!.Id);
+
+            if (error != null || conciliacion == null)
+            {
+                ModelState.AddModelError(string.Empty, error ?? "Error al crear la conciliaciÃ³n");
+                return Page();
+            }
+
+            ActividadHelper.Registrar(
+                _context,
+                currentUser.Id,
+                "Crear conciliaciÃ³n bancaria",
+                $"CreÃ³ conciliaciÃ³n {conciliacion.Numero} para cuenta #{conciliacion.CuentaId}, " +
+                $"perÃ­odo {conciliacion.FechaInicio:dd/MM/yyyy} - {conciliacion.FechaFin:dd/MM/yyyy}",
+                HttpContext.Connection.RemoteIpAddress?.ToString());
+
+            TempData["Success"] = $"ConciliaciÃ³n {conciliacion.Numero} creada. Las lÃ­neas del sistema ya estÃ¡n cargadas.";
+            return RedirectToPage("/Finanzas/Conciliacion/Details", new { id = conciliacion.Id });
+        }
+
+        private void CargarDatos()
+        {
+            CuentasBancarias = _context.CuentasFinancieras
+                .Where(c => c.Tipo == "Banco" && c.Activa)
+                .OrderBy(c => c.Nombre)
+                .ToList();
+
+            NumeroPreview = NumeroDocumentoHelper.PreviewSiguiente(_context, "ConciliacionBancaria");
+        }
+    }
+}
+
+
+===== FILE: \Pages\Finanzas\Conciliacion\Details.cshtml =====
+
+@page "{id:int}"
+@model Kirkenta.Pages.Finanzas.Conciliacion.DetailsModel
+@{
+    ViewData["Title"] = $"ConciliaciÃ³n {Model.Conciliacion.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/Conciliacion/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a conciliaciones
+        </a>
+        <h2>ConciliaciÃ³n @Model.Conciliacion.Numero</h2>
+        <p>
+            @Model.Cuenta.Nombre
+            @if (!string.IsNullOrEmpty(Model.Cuenta.Banco))
+            {
+                <span> â€” @Model.Cuenta.Banco</span>
+            }
+            â€” @Model.Conciliacion.FechaInicio.ToString("dd/MM/yyyy") al @Model.Conciliacion.FechaFin.ToString("dd/MM/yyyy")
+        </p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCerrar && (Model.Conciliacion.Estado == "Abierta" || Model.Conciliacion.Estado == "EnRevision"))
+        {
+            <button type="button" class="btn-primary" style="background: var(--color-success);" onclick="document.getElementById('modalCerrar').style.display='flex'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Cerrar conciliaciÃ³n
+            </button>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Saldo banco</span>
+        <span class="kpi-value" style="font-size: 20px;">L. @Model.Conciliacion.SaldoBanco.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Saldo sistema</span>
+        <span class="kpi-value" style="font-size: 20px;">L. @Model.Conciliacion.SaldoSistema.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Diferencia</span>
+        <span class="kpi-value" style="font-size: 20px; color: @(Math.Abs(Model.Conciliacion.Diferencia) < 0.01m ? "var(--color-success)" : "var(--color-danger)");">
+            L. @Model.Conciliacion.Diferencia.ToString("N2")
+        </span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Estado</span>
+        <span class="kpi-value" style="font-size: 16px;">
+            @if (Model.Conciliacion.Estado == "Abierta") { <span class="badge badge-warning">Abierta</span> }
+            else if (Model.Conciliacion.Estado == "EnRevision") { <span class="badge badge-info">En revisiÃ³n</span> }
+            else if (Model.Conciliacion.Estado == "Conciliada") { <span class="badge badge-success">Conciliada</span> }
+            else { <span class="badge badge-danger">Cancelada</span> }
+        </span>
+    </div>
+</div>
+
+<!-- Toolbar -->
+<div class="module-card" style="padding: 16px 20px; margin-bottom: 20px;">
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+        @if (Model.Conciliacion.Estado == "Abierta" || Model.Conciliacion.Estado == "EnRevision")
+        {
+            <form method="post" asp-page-handler="MatchingAuto" asp-route-id="@Model.Conciliacion.Id" style="display:inline;">
+                <button type="submit" class="btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                        <path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/>
+                    </svg>
+                    Matching automÃ¡tico
+                </button>
+            </form>
+            <form method="post" asp-page-handler="RecargarSistema" asp-route-id="@Model.Conciliacion.Id" style="display:inline;" onsubmit="return confirm('Â¿Recargar las lÃ­neas del sistema? Se perderÃ¡n los matches actuales.');">
+                <button type="submit" class="btn-secondary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                        <polyline points="1 4 1 10 7 10"/>
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                    </svg>
+                    Recargar lÃ­neas del sistema
+                </button>
+            </form>
+        }
+        <div style="margin-left: auto; font-size: 13px; color: var(--color-muted);">
+            <strong>@Model.LineasSistema.Count</strong> lÃ­neas sistema |
+            <strong>@Model.LineasBanco.Count</strong> lÃ­neas banco |
+            <strong style="color: var(--color-success);">@Model.Conciliacion.TotalMatcheadas</strong> matcheadas
+        </div>
+    </div>
+</div>
+
+<!-- LÃ­neas del sistema -->
+<div class="module-card" style="margin-bottom: 20px;">
+    <div style="padding: 16px 20px; border-bottom: 1px solid var(--color-border);">
+        <h3 class="panel-title" style="margin: 0;">ðŸ“‹ LÃ­neas del sistema (@Model.LineasSistema.Count)</h3>
+    </div>
+    @if (Model.LineasSistema.Count == 0)
+    {
+        <p style="text-align: center; padding: 40px; color: var(--color-muted); font-size: 13px;">
+            No hay movimientos del sistema en el perÃ­odo
+        </p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>DescripciÃ³n</th>
+                        <th>Referencia</th>
+                        <th style="text-align: right;">Monto</th>
+                        <th style="text-align: center;">Match</th>
+                        <th style="width: 120px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in Model.LineasSistema)
+                    {
+                        <tr style="@(d.Matcheada ? "background: #ecfdf5;" : "")">
+                            <td>@d.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@d.Descripcion</td>
+                            <td>@(d.Referencia ?? "â€”")</td>
+                            <td style="text-align: right;">
+                                <strong style="color: @(d.Monto >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+                                    L. @d.Monto.ToString("N2")
+                                </strong>
+                            </td>
+                            <td style="text-align: center;">
+                                @if (d.Matcheada)
+                                {
+                                    <span class="badge badge-success">
+                                        âœ“ @(d.TipoMatch == "Manual" ? "Manual" : "Auto")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-warning">Pendiente</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    @if (d.Matcheada && (Model.Conciliacion.Estado == "Abierta" || Model.Conciliacion.Estado == "EnRevision"))
+                                    {
+                                        <form method="post" asp-page-handler="DeshacerMatch" asp-route-id="@Model.Conciliacion.Id" asp-route-detalleId="@d.Id" style="display:inline;">
+                                            <button type="submit" class="btn-icon-action" title="Deshacer match" style="color: var(--color-warning);">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- LÃ­neas del banco -->
+<div class="module-card" style="margin-bottom: 20px;">
+    <div style="padding: 16px 20px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="panel-title" style="margin: 0;">ðŸ¦ LÃ­neas del banco (@Model.LineasBanco.Count)</h3>
+        @if (Model.PuedeEditar && (Model.Conciliacion.Estado == "Abierta" || Model.Conciliacion.Estado == "EnRevision"))
+        {
+            <button type="button" class="btn-primary btn-sm" onclick="document.getElementById('modalAgregarBanco').style.display='flex'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Agregar lÃ­nea
+            </button>
+        }
+    </div>
+    @if (Model.LineasBanco.Count == 0)
+    {
+        <p style="text-align: center; padding: 40px; color: var(--color-muted); font-size: 13px;">
+            AÃºn no has cargado las lÃ­neas del estado de cuenta bancario
+        </p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>DescripciÃ³n</th>
+                        <th>Referencia</th>
+                        <th style="text-align: right;">Monto</th>
+                        <th style="text-align: center;">Match</th>
+                        <th style="width: 120px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in Model.LineasBanco)
+                    {
+                        <tr style="@(d.Matcheada ? "background: #ecfdf5;" : "")">
+                            <td>@d.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@d.Descripcion</td>
+                            <td>@(d.Referencia ?? "â€”")</td>
+                            <td style="text-align: right;">
+                                <strong style="color: @(d.Monto >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+                                    L. @d.Monto.ToString("N2")
+                                </strong>
+                            </td>
+                            <td style="text-align: center;">
+                                @if (d.Matcheada)
+                                {
+                                    <span class="badge badge-success">
+                                        âœ“ @(d.TipoMatch == "Manual" ? "Manual" : "Auto")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-warning">Pendiente</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    @if (d.Matcheada && (Model.Conciliacion.Estado == "Abierta" || Model.Conciliacion.Estado == "EnRevision"))
+                                    {
+                                        <form method="post" asp-page-handler="DeshacerMatch" asp-route-id="@Model.Conciliacion.Id" asp-route-detalleId="@d.Id" style="display:inline;">
+                                            <button type="submit" class="btn-icon-action" title="Deshacer match" style="color: var(--color-warning);">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    }
+                                    @if (!d.Matcheada && Model.PuedeEditar && (Model.Conciliacion.Estado == "Abierta" || Model.Conciliacion.Estado == "EnRevision"))
+                                    {
+                                        <form method="post" asp-page-handler="EliminarBanco" asp-route-id="@Model.Conciliacion.Id" asp-route-detalleId="@d.Id" style="display:inline;" onsubmit="return confirm('Â¿Eliminar esta lÃ­nea?');">
+                                            <button type="submit" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <polyline points="3 6 5 6 21 6"/>
+                                                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Conciliacion.Notas))
+{
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 8px;">Notas</h3>
+        <p style="font-size: 13px; color: var(--color-muted);">@Model.Conciliacion.Notas</p>
+    </div>
+}
+
+<!-- Modal agregar banco -->
+<div id="modalAgregarBanco" class="pos-modal">
+    <div class="pos-modal-content">
+        <form method="post" asp-page-handler="AgregarBanco" asp-route-id="@Model.Conciliacion.Id">
+            <div class="pos-modal-header">
+                <h3>Agregar lÃ­nea del banco</h3>
+                <button type="button" class="btn-icon-action" onclick="document.getElementById('modalAgregarBanco').style.display='none'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="pos-modal-body">
+                <div class="form-field">
+                    <label>Fecha *</label>
+                    <input asp-for="NuevoBanco.Fecha" type="date" class="form-input" required />
+                </div>
+                <div class="form-field">
+                    <label>DescripciÃ³n *</label>
+                    <input asp-for="NuevoBanco.Descripcion" class="form-input" required placeholder="Ej: Transferencia recibida de cliente" />
+                </div>
+                <div class="form-field">
+                    <label>Referencia</label>
+                    <input asp-for="NuevoBanco.Referencia" class="form-input" placeholder="NÂº de documento, cheque, etc." />
+                </div>
+                <div class="form-field">
+                    <label>Monto *</label>
+                    <input asp-for="NuevoBanco.Monto" type="number" step="0.01" class="form-input" required placeholder="Positivo = crÃ©dito, Negativo = dÃ©bito" />
+                    <small class="form-help">Usa valores negativos para dÃ©bitos (egresos)</small>
+                </div>
+            </div>
+            <div class="pos-modal-footer">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('modalAgregarBanco').style.display='none'">Cancelar</button>
+                <button type="submit" class="btn-primary">Agregar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal cerrar -->
+<div id="modalCerrar" class="pos-modal">
+    <div class="pos-modal-content">
+        <form method="post" asp-page-handler="Cerrar" asp-route-id="@Model.Conciliacion.Id">
+            <div class="pos-modal-header">
+                <h3>Cerrar conciliaciÃ³n</h3>
+                <button type="button" class="btn-icon-action" onclick="document.getElementById('modalCerrar').style.display='none'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="pos-modal-body">
+                <div class="module-alert" style="background: var(--color-primary-soft); border: 1px solid #c7d2fe; color: var(--color-primary); margin: 0;">
+                    <div>
+                        <strong>VerificaciÃ³n previa</strong>
+                        <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                            Solo se puede cerrar si todas las lÃ­neas estÃ¡n matcheadas o si la diferencia es cero.
+                        </p>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>Notas de cierre</label>
+                    <textarea name="notasCierre" class="form-input" rows="3" placeholder="Observaciones finales..."></textarea>
+                </div>
+            </div>
+            <div class="pos-modal-footer">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('modalCerrar').style.display='none'">Cancelar</button>
+                <button type="submit" class="btn-primary" style="background: var(--color-success);">Confirmar cierre</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+===== FILE: \Pages\Finanzas\Conciliacion\Details.cshtml.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
+using Kirkenta.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.ComponentModel.DataAnnotations;
+
+namespace Kirkenta.Pages.Finanzas.Conciliacion
+{
+    public class DetailsModel : PageModel
+    {
+        private readonly ApplicationDbContext _context;
+
+        public DetailsModel(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public ConciliacionBancaria Conciliacion { get; set; } = new();
+        public CuentaFinanciera Cuenta { get; set; } = new();
+        public List<ConciliacionDetalle> LineasSistema { get; set; } = new();
+        public List<ConciliacionDetalle> LineasBanco { get; set; } = new();
+
+        public string? UsuarioCierra { get; set; }
+        public string? UsuarioCreo { get; set; }
+
+        public bool PuedeCerrar { get; set; }
+        public bool PuedeEditar { get; set; }
+
+        [BindProperty]
+        public InputBanco NuevoBanco { get; set; } = new();
+
+        public class InputBanco
+        {
+            [Required(ErrorMessage = "La fecha es obligatoria")]
+            public DateTime Fecha { get; set; } = DateTime.Today;
+
+            [Required(ErrorMessage = "La descripciÃ³n es obligatoria")]
+            [StringLength(300)]
+            public string Descripcion { get; set; } = "";
+
+            [StringLength(100)]
+            public string? Referencia { get; set; }
+
+            [Required(ErrorMessage = "El monto es obligatorio")]
+            public decimal Monto { get; set; }
+        }
+
+        public IActionResult OnGet(int id)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "Conciliacion", "ver"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/Conciliacion/Index");
+            }
+
+            if (!CargarConciliacion(id)) return RedirectToPage("/Finanzas/Conciliacion/Index");
+
+            PuedeCerrar = currentRol == "Admin" ||
+                PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCerrar", "editar");
+            PuedeEditar = currentRol == "Admin" ||
+                PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCreate", "editar");
+
+            return Page();
+        }
+
+        public IActionResult OnPostAgregarBanco(int id)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCreate", "editar"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
+            var conciliacion = _context.ConciliacionesBancarias.FirstOrDefault(c => c.Id == id);
+            if (conciliacion == null)
+            {
+                TempData["Error"] = "ConciliaciÃ³n no encontrada";
+                return RedirectToPage("/Finanzas/Conciliacion/Index");
+            }
+
+            if (conciliacion.Estado == "Conciliada" || conciliacion.Estado == "Cancelada")
+            {
+                TempData["Error"] = "La conciliaciÃ³n ya estÃ¡ cerrada o cancelada";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                if (!CargarConciliacion(id)) return RedirectToPage("/Finanzas/Conciliacion/Index");
+                PuedeCerrar = currentRol == "Admin" ||
+                    PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCerrar", "editar");
+                PuedeEditar = currentRol == "Admin" ||
+                    PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCreate", "editar");
+                return Page();
+            }
+
+            var detalle = new ConciliacionDetalle
+            {
+                ConciliacionBancariaId = id,
+                Origen = "Banco",
+                Fecha = NuevoBanco.Fecha,
+                Descripcion = NuevoBanco.Descripcion,
+                Referencia = NuevoBanco.Referencia,
+                Monto = NuevoBanco.Monto,
+                Matcheada = false,
+                FechaCreacion = DateTime.Now
+            };
+
+            _context.ConciliacionesDetalle.Add(detalle);
+            _context.SaveChanges();
+
+            ConciliacionHelper.RecalcularTotales(_context, conciliacion);
+
+            // Intentar matching automÃ¡tico con la nueva lÃ­nea
+            var matches = ConciliacionHelper.MatchingAutomatico(_context, id);
+            if (matches > 0)
+            {
+                TempData["Success"] = $"LÃ­nea agregada. Se matchearon {matches} lÃ­nea(s) automÃ¡ticamente.";
+            }
+            else
+            {
+                TempData["Success"] = "LÃ­nea del banco agregada";
+            }
+
+            return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+        }
+
+        public IActionResult OnPostEliminarBanco(int id, int detalleId)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCreate", "editar"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
+            var detalle = _context.ConciliacionesDetalle
+                .FirstOrDefault(d => d.Id == detalleId && d.ConciliacionBancariaId == id);
+
+            if (detalle == null)
+            {
+                TempData["Error"] = "Detalle no encontrado";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
+            if (detalle.Matcheada)
+            {
+                TempData["Error"] = "No puedes eliminar una lÃ­nea que ya estÃ¡ matcheada. Primero deshaz el match.";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
+            _context.ConciliacionesDetalle.Remove(detalle);
+            _context.SaveChanges();
+
+            var conciliacion = _context.ConciliacionesBancarias.FirstOrDefault(c => c.Id == id);
+            if (conciliacion != null)
+            {
+                ConciliacionHelper.RecalcularTotales(_context, conciliacion);
+            }
+
+            TempData["Success"] = "LÃ­nea eliminada";
+            return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+        }
+
+        public IActionResult OnPostMatchingAuto(int id)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCreate", "editar"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
+            var matches = ConciliacionHelper.MatchingAutomatico(_context, id);
+
+            var conciliacion = _context.ConciliacionesBancarias.FirstOrDefault(c => c.Id == id);
+            if (conciliacion != null)
+            {
+                ConciliacionHelper.RecalcularTotales(_context, conciliacion);
+            }
+
+            TempData["Success"] = $"Matching automÃ¡tico ejecutado. {matches} lÃ­nea(s) matcheadas.";
+            return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+        }
+
+        public IActionResult OnPostMatchingManual(int id, int detalleSistemaId, int detalleBancoId)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCreate", "editar"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
+            var (ok, error) = ConciliacionHelper.MatchingManual(_context, detalleSistemaId, detalleBancoId);
+
+            if (!ok)
+            {
+                TempData["Error"] = error;
+            }
+            else
+            {
+                var conciliacion = _context.ConciliacionesBancarias.FirstOrDefault(c => c.Id == id);
+                if (conciliacion != null)
+                {
+                    ConciliacionHelper.RecalcularTotales(_context, conciliacion);
+                }
+                TempData["Success"] = "LÃ­neas matcheadas manualmente";
+            }
+
+            return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+        }
+
+        public IActionResult OnPostDeshacerMatch(int id, int detalleId)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCreate", "editar"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
+            var (ok, error) = ConciliacionHelper.DeshacerMatch(_context, detalleId);
+
+            if (!ok)
+            {
+                TempData["Error"] = error;
+            }
+            else
+            {
+                var conciliacion = _context.ConciliacionesBancarias.FirstOrDefault(c => c.Id == id);
+                if (conciliacion != null)
+                {
+                    ConciliacionHelper.RecalcularTotales(_context, conciliacion);
+                }
+                TempData["Success"] = "Match deshecho";
+            }
+
+            return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+        }
+
+        public IActionResult OnPostRecargarSistema(int id)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCreate", "editar"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
+            var conciliacion = _context.ConciliacionesBancarias.FirstOrDefault(c => c.Id == id);
+            if (conciliacion == null)
+            {
+                TempData["Error"] = "ConciliaciÃ³n no encontrada";
+                return RedirectToPage("/Finanzas/Conciliacion/Index");
+            }
+
+            if (conciliacion.Estado == "Conciliada" || conciliacion.Estado == "Cancelada")
+            {
+                TempData["Error"] = "La conciliaciÃ³n ya estÃ¡ cerrada o cancelada";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
+            ConciliacionHelper.CargarLineasSistema(_context, conciliacion);
+            ConciliacionHelper.RecalcularTotales(_context, conciliacion);
+
+            TempData["Success"] = "LÃ­neas del sistema recargadas";
+            return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+        }
+
+        public IActionResult OnPostCerrar(int id, string? notasCierre)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCerrar", "editar"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
+            var (ok, error) = ConciliacionHelper.Cerrar(_context, id, currentUser!.Id, notasCierre);
+
+            if (!ok)
+            {
+                TempData["Error"] = error;
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
+            ActividadHelper.Registrar(
+                _context,
+                currentUser.Id,
+                "Cerrar conciliaciÃ³n bancaria",
+                $"CerrÃ³ la conciliaciÃ³n #{id}",
+                HttpContext.Connection.RemoteIpAddress?.ToString());
+
+            TempData["Success"] = "ConciliaciÃ³n cerrada correctamente";
+            return RedirectToPage("/Finanzas/Conciliacion/Index");
+        }
+
+        public IActionResult OnPostCancelar(int id, string motivo)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCerrar", "eliminar"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
+            var (ok, error) = ConciliacionHelper.Cancelar(_context, id, motivo ?? "Sin motivo");
+
+            if (!ok)
+            {
+                TempData["Error"] = error;
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
+            TempData["Success"] = "ConciliaciÃ³n cancelada";
+            return RedirectToPage("/Finanzas/Conciliacion/Index");
+        }
+
+        private bool CargarConciliacion(int id)
+        {
+            var conciliacion = _context.ConciliacionesBancarias.FirstOrDefault(c => c.Id == id);
+            if (conciliacion == null)
+            {
+                TempData["Error"] = "ConciliaciÃ³n no encontrada";
+                return false;
+            }
+
+            Conciliacion = conciliacion;
+            Cuenta = _context.CuentasFinancieras.FirstOrDefault(c => c.Id == conciliacion.CuentaId) ?? new CuentaFinanciera();
+
+            var detalles = _context.ConciliacionesDetalle
+                .Where(d => d.ConciliacionBancariaId == id)
+                .OrderBy(d => d.Fecha)
+                .ToList();
+
+            LineasSistema = detalles.Where(d => d.Origen == "Sistema").ToList();
+            LineasBanco = detalles.Where(d => d.Origen == "Banco").ToList();
+
+            UsuarioCreo = conciliacion.UsuarioCreoId.HasValue
+                ? _context.Usuarios.FirstOrDefault(u => u.Id == conciliacion.UsuarioCreoId.Value)?.Username
+                : null;
+
+            UsuarioCierra = conciliacion.UsuarioCierraId.HasValue
+                ? _context.Usuarios.FirstOrDefault(u => u.Id == conciliacion.UsuarioCierraId.Value)?.Username
+                : null;
+
+            return true;
+        }
+    }
+}
+
+
+===== FILE: \Pages\Finanzas\Conciliacion\Index.cshtml =====
+
+@page
+@model Kirkenta.Pages.Finanzas.Conciliacion.IndexModel
+@{
+    ViewData["Title"] = "ConciliaciÃ³n bancaria";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>ConciliaciÃ³n bancaria</h2>
+        <p>Compara los movimientos del sistema con el estado de cuenta del banco</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/Finanzas/Conciliacion/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nueva conciliaciÃ³n
+            </a>
+        }
+        <a asp-page="/Finanzas/Index" class="btn-secondary">Volver a Finanzas</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Abiertas</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.TotalAbiertas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">En revisiÃ³n</span>
+        <span class="kpi-value" style="color: var(--color-info);">@Model.TotalEnRevision</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Conciliadas</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.TotalConciliadas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Canceladas</span>
+        <span class="kpi-value" style="color: var(--color-muted);">@Model.TotalCanceladas</span>
+    </div>
+</div>
+
+<div class="module-card">
+    @if (Model.Conciliaciones.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <h3>No hay conciliaciones registradas</h3>
+            <p>Comienza creando una conciliaciÃ³n de una cuenta bancaria</p>
+            @if (Model.PuedeCrear)
+            {
+                <a asp-page="/Finanzas/Conciliacion/Create" class="btn-primary">Nueva conciliaciÃ³n</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>NÃºmero</th>
+                        <th>Cuenta</th>
+                        <th>PerÃ­odo</th>
+                        <th style="text-align: right;">Saldo banco</th>
+                        <th style="text-align: right;">Saldo sistema</th>
+                        <th style="text-align: right;">Diferencia</th>
+                        <th style="text-align: center;">Matcheadas</th>
+                        <th>Estado</th>
+                        <th style="width: 140px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.Conciliaciones)
+                    {
+                        <tr>
+                            <td><span style="font-family: monospace;">@c.Numero</span></td>
+                            <td>
+                                <strong>@c.CuentaNombre</strong>
+                                @if (!string.IsNullOrEmpty(c.Banco))
+                                {
+                                    <br /><span class="table-user-sub">@c.Banco</span>
+                                }
+                            </td>
+                            <td>
+                                @c.FechaInicio.ToString("dd/MM/yyyy") al @c.FechaFin.ToString("dd/MM/yyyy")
+                            </td>
+                            <td style="text-align: right;">L. @c.SaldoBanco.ToString("N2")</td>
+                            <td style="text-align: right;">L. @c.SaldoSistema.ToString("N2")</td>
+                            <td style="text-align: right;">
+                                <strong style="color: @(Math.Abs(c.Diferencia) < 0.01m ? "var(--color-success)" : "var(--color-danger)");">
+                                    L. @c.Diferencia.ToString("N2")
+                                </strong>
+                            </td>
+                            <td style="text-align: center;">
+                                <span class="badge badge-success">@c.TotalMatcheadas</span>
+                                @if (c.TotalNoMatcheadas > 0)
+                                {
+                                    <span class="badge badge-warning">@c.TotalNoMatcheadas</span>
+                                }
+                            </td>
+                            <td>
+                                @if (c.Estado == "Abierta") { <span class="badge badge-warning">Abierta</span> }
+                                else if (c.Estado == "EnRevision") { <span class="badge badge-info">En revisiÃ³n</span> }
+                                else if (c.Estado == "Conciliada") { <span class="badge badge-success">Conciliada</span> }
+                                else { <span class="badge badge-danger">Cancelada</span> }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    <a asp-page="/Finanzas/Conciliacion/Details" asp-route-id="@c.Id" class="btn-icon-action" title="Ver detalle">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+
+===== FILE: \Pages\Finanzas\Conciliacion\Index.cshtml.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Helpers;
+using Kirkenta.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+
+namespace Kirkenta.Pages.Finanzas.Conciliacion
+{
+    public class IndexModel : PageModel
+    {
+        private readonly ApplicationDbContext _context;
+
+        public IndexModel(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public List<ConciliacionItem> Conciliaciones { get; set; } = new();
+
+        public int TotalAbiertas { get; set; }
+        public int TotalEnRevision { get; set; }
+        public int TotalConciliadas { get; set; }
+        public int TotalCanceladas { get; set; }
+
+        public bool PuedeCrear { get; set; }
+        public bool PuedeCerrar { get; set; }
+
+        public class ConciliacionItem
+        {
+            public int Id { get; set; }
+            public string Numero { get; set; } = "";
+            public string CuentaNombre { get; set; } = "";
+            public string Banco { get; set; } = "";
+            public DateTime FechaInicio { get; set; }
+            public DateTime FechaFin { get; set; }
+            public decimal SaldoBanco { get; set; }
+            public decimal SaldoSistema { get; set; }
+            public decimal Diferencia { get; set; }
+            public string Estado { get; set; } = "";
+            public int TotalMatcheadas { get; set; }
+            public int TotalNoMatcheadas { get; set; }
+            public DateTime FechaCreacion { get; set; }
+        }
+
+        public IActionResult OnGet()
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "Conciliacion", "ver"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/Index");
+            }
+
+            PuedeCrear = currentRol == "Admin" ||
+                PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCreate", "crear");
+            PuedeCerrar = currentRol == "Admin" ||
+                PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "ConciliacionCerrar", "editar");
+
+            var cuentasDict = _context.CuentasFinancieras
+                .AsNoTracking()
+                .ToDictionary(c => c.Id, c => new { c.Nombre, c.Banco });
+
+            var lista = _context.ConciliacionesBancarias                .AsNoTracking()
+                .OrderByDescending(c => c.FechaCreacion)
+                .ToList();
+
+            Conciliaciones = lista.Select(c => new ConciliacionItem
+            {
+                Id = c.Id,
+                Numero = c.Numero,
+                CuentaNombre = cuentasDict.GetValueOrDefault(c.CuentaId)?.Nombre ?? "â€”",
+                Banco = cuentasDict.GetValueOrDefault(c.CuentaId)?.Banco ?? "",
+                FechaInicio = c.FechaInicio,
+                FechaFin = c.FechaFin,
+                SaldoBanco = c.SaldoBanco,
+                SaldoSistema = c.SaldoSistema,
+                Diferencia = c.Diferencia,
+                Estado = c.Estado,
+                TotalMatcheadas = c.TotalMatcheadas,
+                TotalNoMatcheadas = c.TotalNoMatcheadas,
+                FechaCreacion = c.FechaCreacion
+            }).ToList();
+
+            TotalAbiertas = lista.Count(c => c.Estado == "Abierta");
+            TotalEnRevision = lista.Count(c => c.Estado == "EnRevision");
+            TotalConciliadas = lista.Count(c => c.Estado == "Conciliada");
+            TotalCanceladas = lista.Count(c => c.Estado == "Cancelada");
 
             return Page();
         }
@@ -18704,6 +22737,488 @@ namespace Kirkenta.Pages.Finanzas.Cuentas
 }
 
 
+===== FILE: \Pages\Finanzas\Index.cshtml =====
+
+@page
+@model Kirkenta.Pages.Finanzas.IndexModel
+@{
+    ViewData["Title"] = "Finanzas";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Finanzas</h2>
+        <p>Control de caja, bancos, ingresos y egresos</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Finanzas/Movimientos/Create" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nuevo movimiento
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+<!-- KPIs principales -->
+<div class="kpi-grid" style="margin-bottom: 24px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Saldo total</span>
+        <span class="kpi-value" style="color: var(--color-primary);">L. @Model.SaldoTotal.ToString("N2")</span>
+        <span class="kpi-trend">@Model.CantidadCuentas cuentas activas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">En cajas</span>
+        <span class="kpi-value">L. @Model.SaldoTotalCajas.ToString("N2")</span>
+        <span class="kpi-trend">Efectivo disponible</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">En bancos</span>
+        <span class="kpi-value">L. @Model.SaldoTotalBancos.ToString("N2")</span>
+        <span class="kpi-trend">Cuentas bancarias</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Vales pendientes</span>
+        <span class="kpi-value" style="color: var(--color-warning);">L. @Model.ValesPendientes.ToString("N2")</span>
+        <span class="kpi-trend">@Model.CantidadValesPendientes vales</span>
+    </div>
+</div>
+
+<!-- KPIs del mes -->
+<div class="kpi-grid" style="margin-bottom: 24px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Ingresos del mes</span>
+        <span class="kpi-value" style="color: var(--color-success);">+ L. @Model.IngresosMes.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Egresos del mes</span>
+        <span class="kpi-value" style="color: var(--color-danger);">- L. @Model.EgresosMes.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Balance del mes</span>
+        <span class="kpi-value" style="color: @(Model.BalanceMes >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+            L. @Model.BalanceMes.ToString("N2")
+        </span>
+        <span class="kpi-trend @(Model.BalanceMes >= 0 ? "up" : "down")">
+            @(Model.BalanceMes >= 0 ? "â†‘ SuperÃ¡vit" : "â†“ DÃ©ficit")
+        </span>
+    </div>
+</div>
+
+<!-- GrÃ¡ficos -->
+<div class="panel-grid" style="margin-bottom: 24px;">
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">Flujo de caja Ãºltimos 6 meses</h3>
+        <div style="height: 300px;">
+            <canvas id="chartFlujoMensual"></canvas>
+        </div>
+    </div>
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">Top egresos del mes</h3>
+        <div style="height: 300px;">
+            <canvas id="chartCategoriasEgresos"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Cuentas y movimientos -->
+<div class="panel-grid">
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">Saldos por cuenta</h3>
+
+        @if (Model.Cuentas.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 40px;">Sin cuentas registradas</p>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="erp-table">
+                    <thead>
+                        <tr>
+                            <th>Cuenta</th>
+                            <th>Tipo</th>
+                            <th style="text-align: right;">Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in Model.Cuentas)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@c.Nombre</strong>
+                                    @if (!string.IsNullOrEmpty(c.Banco))
+                                    {
+                                        <br /><span class="table-user-sub">@c.Banco</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (c.Tipo == "Banco")
+                                    {
+                                        <span class="badge badge-info">ðŸ¦ Banco</span>
+                                    }
+                                    else if (c.Subtipo == "Chica")
+                                    {
+                                        <span class="badge badge-warning">Caja chica</span>
+                                    }
+                                    else if (c.Subtipo == "POS")
+                                    {
+                                        <span class="badge" style="background: #ec489920; color: #ec4899;">Caja POS</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-success">Caja</span>
+                                    }
+                                </td>
+                                <td style="text-align: right;">
+                                    <strong style="color: @(c.SaldoActual >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+                                        L. @c.SaldoActual.ToString("N2")
+                                    </strong>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">Ãšltimos movimientos</h3>
+
+        @if (Model.UltimosMovimientos.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 40px;">Sin movimientos</p>
+        }
+        else
+        {
+            <div class="timeline">
+                @foreach (var m in Model.UltimosMovimientos)
+                {
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background: @(m.Tipo == "Ingreso" ? "var(--color-success)" : m.Tipo == "Egreso" ? "var(--color-danger)" : "var(--color-primary)");"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <strong>@m.Numero</strong>
+                                <span class="timeline-date">@m.Fecha.ToString("dd/MM HH:mm")</span>
+                            </div>
+                            <p class="timeline-detail">@m.Concepto â€” <strong>L. @m.Monto.ToString("N2")</strong></p>
+                            <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px;">
+                                <span class="badge @(m.Tipo == "Ingreso" ? "badge-success" : "badge-danger")" style="font-size: 10px; padding: 2px 8px;">
+                                    @m.Tipo
+                                </span>
+                                <span class="table-user-sub">@m.CuentaNombre</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            // === Flujo mensual (barras) ===
+            var flujo = JSON.parse('@Html.Raw(Model.FlujoMensualJson)');
+            var ctxFlujo = document.getElementById('chartFlujoMensual');
+            if (ctxFlujo && flujo.labels && flujo.labels.length > 0) {
+                new Chart(ctxFlujo, {
+                    type: 'bar',
+                    data: {
+                        labels: flujo.labels,
+                        datasets: [
+                            {
+                                label: 'Ingresos',
+                                data: flujo.ingresos,
+                                backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                                borderRadius: 6
+                            },
+                            {
+                                label: 'Egresos',
+                                data: flujo.egresos,
+                                backgroundColor: 'rgba(239, 68, 68, 0.85)',
+                                borderRadius: 6
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (v) { return 'L. ' + v.toLocaleString(); }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // === CategorÃ­as egresos (doughnut) ===
+            var cats = JSON.parse('@Html.Raw(Model.CategoriasEgresosJson)');
+            var ctxCat = document.getElementById('chartCategoriasEgresos');
+            if (ctxCat && cats.labels && cats.labels.length > 0) {
+                new Chart(ctxCat, {
+                    type: 'doughnut',
+                    data: {
+                        labels: cats.labels,
+                        datasets: [{
+                            data: cats.data,
+                            backgroundColor: cats.colors,
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { boxWidth: 12, font: { size: 11 } }
+                            }
+                        }
+                    }
+                });
+            }
+        })();
+    </script>
+}
+
+
+===== FILE: \Pages\Finanzas\Index.cshtml.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Helpers;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+
+namespace Kirkenta.Pages.Finanzas
+{
+    public class IndexModel : PageModel
+    {
+        private readonly ApplicationDbContext _context;
+
+        public IndexModel(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        // KPIs
+        public decimal SaldoTotalCajas { get; set; }
+        public decimal SaldoTotalBancos { get; set; }
+        public decimal SaldoTotal { get; set; }
+
+        public decimal IngresosMes { get; set; }
+        public decimal EgresosMes { get; set; }
+        public decimal BalanceMes { get; set; }
+
+        public decimal ValesPendientes { get; set; }
+        public int CantidadValesPendientes { get; set; }
+
+        public int CantidadCuentas { get; set; }
+
+        // Listas
+        public List<CuentaResumen> Cuentas { get; set; } = new();
+        public List<MovimientoItem> UltimosMovimientos { get; set; } = new();
+
+        public string FlujoMensualJson { get; set; } = "{}";
+        public string CategoriasEgresosJson { get; set; } = "{}";
+
+        public class CuentaResumen
+        {
+            public int Id { get; set; }
+            public string Nombre { get; set; } = "";
+            public string Tipo { get; set; } = "";
+            public string? Subtipo { get; set; }
+            public string? Banco { get; set; }
+            public decimal SaldoActual { get; set; }
+        }
+
+        public class MovimientoItem
+        {
+            public int Id { get; set; }
+            public string Numero { get; set; } = "";
+            public DateTime Fecha { get; set; }
+            public string Tipo { get; set; } = "";
+            public string Concepto { get; set; } = "";
+            public decimal Monto { get; set; }
+            public string CuentaNombre { get; set; } = "";
+            public string? CategoriaNombre { get; set; }
+            public string? CategoriaColor { get; set; }
+        }
+
+        public IActionResult OnGet()
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "Index", "ver"))
+            {
+                TempData["Error"] = "No tienes permiso para ver Finanzas";
+                return RedirectToPage("/Index");
+            }
+
+            // Cuentas
+            var cuentas = _context.CuentasFinancieras
+                .AsNoTracking()
+                .Where(c => c.Activa)
+                .OrderBy(c => c.Tipo).ThenBy(c => c.Nombre)
+                .ToList();
+
+            CantidadCuentas = cuentas.Count;
+            SaldoTotalCajas = cuentas.Where(c => c.Tipo == "Caja").Sum(c => c.SaldoActual);
+            SaldoTotalBancos = cuentas.Where(c => c.Tipo == "Banco").Sum(c => c.SaldoActual);
+            SaldoTotal = SaldoTotalCajas + SaldoTotalBancos;
+
+            Cuentas = cuentas.Select(c => new CuentaResumen
+            {
+                Id = c.Id,
+                Nombre = c.Nombre,
+                Tipo = c.Tipo,
+                Subtipo = c.Subtipo,
+                Banco = c.Banco,
+                SaldoActual = c.SaldoActual
+            }).ToList();
+
+            // Movimientos del mes
+            var hoy = DateTime.Today;
+            var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
+            var finMes = inicioMes.AddMonths(1);
+
+            var movimientosMes = _context.MovimientosFinancieros
+                .AsNoTracking()
+                .Where(m => m.Fecha >= inicioMes && m.Fecha < finMes && m.Estado == "Activo")
+                .ToList();
+
+            IngresosMes = movimientosMes.Where(m => m.Tipo == "Ingreso").Sum(m => m.Monto);
+            EgresosMes = movimientosMes.Where(m => m.Tipo == "Egreso").Sum(m => m.Monto);
+            BalanceMes = IngresosMes - EgresosMes;
+
+            // Vales pendientes
+            var valesPendientes = _context.ValesEmpleado
+                .AsNoTracking()
+                .Where(v => v.Estado == "Entregado" && v.SaldoPendiente > 0)
+                .ToList();
+
+            ValesPendientes = valesPendientes.Sum(v => v.SaldoPendiente);
+            CantidadValesPendientes = valesPendientes.Count;
+
+            // Ãšltimos 10 movimientos
+            var cuentasDict = cuentas.ToDictionary(c => c.Id, c => c.Nombre);
+            var categoriasDict = _context.CategoriasFinancieras
+                .AsNoTracking()
+                .ToDictionary(c => c.Id, c => new { c.Nombre, c.Color });
+
+            UltimosMovimientos = _context.MovimientosFinancieros
+                .AsNoTracking()
+                .Where(m => m.Estado == "Activo")
+                .OrderByDescending(m => m.Fecha)
+                .ThenByDescending(m => m.Id)
+                .Take(10)
+                .ToList()
+                .Select(m => new MovimientoItem
+                {
+                    Id = m.Id,
+                    Numero = m.Numero,
+                    Fecha = m.Fecha,
+                    Tipo = m.Tipo,
+                    Concepto = m.Concepto,
+                    Monto = m.Monto,
+                    CuentaNombre = cuentasDict.GetValueOrDefault(m.CuentaId, "â€”"),
+                    CategoriaNombre = m.CategoriaId.HasValue
+                        ? categoriasDict.GetValueOrDefault(m.CategoriaId.Value)?.Nombre
+                        : null,
+                    CategoriaColor = m.CategoriaId.HasValue
+                        ? categoriasDict.GetValueOrDefault(m.CategoriaId.Value)?.Color
+                        : null
+                })
+                .ToList();
+
+            // GrÃ¡fico: Ãºltimos 6 meses (ingresos vs egresos)
+            var inicioRango = new DateTime(hoy.Year, hoy.Month, 1).AddMonths(-5);
+            var movimientosRango = _context.MovimientosFinancieros
+                .AsNoTracking()
+                .Where(m => m.Fecha >= inicioRango && m.Fecha < finMes && m.Estado == "Activo")
+                .Select(m => new { m.Fecha, m.Tipo, m.Monto })
+                .ToList();
+
+            var labels = new List<string>();
+            var ingresos = new List<decimal>();
+            var egresos = new List<decimal>();
+
+            for (int i = 5; i >= 0; i--)
+            {
+                var fecha = hoy.AddMonths(-i);
+                var ini = new DateTime(fecha.Year, fecha.Month, 1);
+                var fin = ini.AddMonths(1);
+
+                labels.Add(ini.ToString("MMM yyyy"));
+                ingresos.Add(movimientosRango
+                    .Where(m => m.Fecha >= ini && m.Fecha < fin && m.Tipo == "Ingreso")
+                    .Sum(m => m.Monto));
+                egresos.Add(movimientosRango
+                    .Where(m => m.Fecha >= ini && m.Fecha < fin && m.Tipo == "Egreso")
+                    .Sum(m => m.Monto));
+            }
+
+            FlujoMensualJson = JsonSerializer.Serialize(new
+            {
+                labels = labels.ToArray(),
+                ingresos = ingresos.ToArray(),
+                egresos = egresos.ToArray()
+            });
+
+            // GrÃ¡fico: top categorÃ­as de egresos del mes
+            var categoriasEgresos = movimientosMes
+                .Where(m => m.Tipo == "Egreso" && m.CategoriaId.HasValue)
+                .GroupBy(m => m.CategoriaId!.Value)
+                .Select(g => new
+                {
+                    Nombre = categoriasDict.GetValueOrDefault(g.Key)?.Nombre ?? "â€”",
+                    Color = categoriasDict.GetValueOrDefault(g.Key)?.Color ?? "#6b7280",
+                    Total = g.Sum(m => m.Monto)
+                })
+                .OrderByDescending(x => x.Total)
+                .Take(8)
+                .ToList();
+
+            CategoriasEgresosJson = JsonSerializer.Serialize(new
+            {
+                labels = categoriasEgresos.Select(x => x.Nombre).ToArray(),
+                data = categoriasEgresos.Select(x => x.Total).ToArray(),
+                colors = categoriasEgresos.Select(x => x.Color).ToArray()
+            });
+
+            return Page();
+        }
+    }
+}
+
+
 ===== FILE: \Pages\Finanzas\Movimientos\Anular.cshtml =====
 
 @page "{id:int}"
@@ -18819,6 +23334,14 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 return RedirectToPage("/Finanzas/Movimientos/Index");
             }
 
+            // ===== VALIDACIÃ“N: perÃ­odo contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, mov.Fecha);
+            if (!periodoOk)
+            {
+                TempData["Error"] = $"No puedes anular este movimiento porque pertenece a un perÃ­odo cerrado. {periodoError}";
+                return RedirectToPage("/Finanzas/Movimientos/Index");
+            }
+
             Movimiento = mov;
             CuentaNombre = _context.CuentasFinancieras
                 .FirstOrDefault(c => c.Id == mov.CuentaId)?.Nombre ?? "â€”";
@@ -18847,6 +23370,14 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             if (mov == null || mov.Estado != "Activo")
             {
                 TempData["Error"] = "Movimiento no vÃ¡lido";
+                return RedirectToPage("/Finanzas/Movimientos/Index");
+            }
+
+            // ===== VALIDACIÃ“N: perÃ­odo contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, mov.Fecha);
+            if (!periodoOk)
+            {
+                TempData["Error"] = $"No puedes anular este movimiento porque pertenece a un perÃ­odo cerrado. {periodoError}";
                 return RedirectToPage("/Finanzas/Movimientos/Index");
             }
 
@@ -19164,6 +23695,13 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 }
             }
 
+            // ===== VALIDACIÃ“N: perÃ­odo contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, Input.Fecha);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
+            }
+
             if (!ModelState.IsValid) return Page();
 
             // Verificar saldo suficiente para egresos y transferencias
@@ -19172,7 +23710,6 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 var cuentaOrigen = _context.CuentasFinancieras.FirstOrDefault(c => c.Id == Input.CuentaId);
                 if (cuentaOrigen != null && cuentaOrigen.SaldoActual < Input.Monto)
                 {
-                    // Advertencia, no bloqueo. Algunas empresas permiten sobregiros.
                     TempData["Warning"] = $"AtenciÃ³n: el saldo de '{cuentaOrigen.Nombre}' quedarÃ¡ en negativo (L. {(cuentaOrigen.SaldoActual - Input.Monto):N2})";
                 }
             }
@@ -19206,7 +23743,6 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             _context.MovimientosFinancieros.Add(mov);
             _context.SaveChanges();
 
-            // Aplicar saldo
             SaldoHelper.Aplicar(_context, mov);
             _context.SaveChanges();
 
@@ -19359,6 +23895,7 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
 
 using Kirkenta.Data;
 using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -19467,6 +24004,13 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
 
             CargarDatos();
 
+            // ===== VALIDACIÃ“N: perÃ­odo contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, Input.Fecha);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
+            }
+
             if (!ModelState.IsValid) return Page();
 
             var mov = _context.MovimientosFinancieros.FirstOrDefault(m => m.Id == Input.Id);
@@ -19476,8 +24020,16 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 return RedirectToPage("/Finanzas/Movimientos/Index");
             }
 
+            // Validar que no se intente editar un movimiento de un mes cerrado
+            var (periodoOkViejo, periodoErrorViejo) = CierreContableHelper.ValidarFecha(_context, mov.Fecha);
+            if (!periodoOkViejo)
+            {
+                TempData["Error"] = $"No puedes editar este movimiento porque pertenece a un perÃ­odo cerrado. {periodoErrorViejo}";
+                return RedirectToPage("/Finanzas/Movimientos/Index");
+            }
+
             // Revertir saldo anterior
-            Helpers.Finanzas.SaldoHelper.Revertir(_context, mov);
+            SaldoHelper.Revertir(_context, mov);
 
             // Aplicar cambios
             mov.Fecha = Input.Fecha;
@@ -19492,7 +24044,7 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             _context.SaveChanges();
 
             // Aplicar nuevo saldo
-            Helpers.Finanzas.SaldoHelper.Aplicar(_context, mov);
+            SaldoHelper.Aplicar(_context, mov);
             _context.SaveChanges();
 
             ActividadHelper.Registrar(
@@ -20679,488 +25231,6 @@ namespace Kirkenta.Pages.Finanzas.Reportes
 }
 
 
-===== FILE: \Pages\Finanzas\Index.cshtml =====
-
-@page
-@model Kirkenta.Pages.Finanzas.IndexModel
-@{
-    ViewData["Title"] = "Finanzas";
-}
-
-<div class="module-header">
-    <div class="module-header-left">
-        <h2>Finanzas</h2>
-        <p>Control de caja, bancos, ingresos y egresos</p>
-    </div>
-    <div class="module-header-right">
-        <a asp-page="/Finanzas/Movimientos/Create" class="btn-primary">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Nuevo movimiento
-        </a>
-    </div>
-</div>
-
-@if (TempData["Success"] != null)
-{
-    <div class="module-alert module-alert-success">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-            <polyline points="22 4 12 14.01 9 11.01"/>
-        </svg>
-        @TempData["Success"]
-    </div>
-}
-
-<!-- KPIs principales -->
-<div class="kpi-grid" style="margin-bottom: 24px;">
-    <div class="kpi-card">
-        <span class="kpi-label">Saldo total</span>
-        <span class="kpi-value" style="color: var(--color-primary);">L. @Model.SaldoTotal.ToString("N2")</span>
-        <span class="kpi-trend">@Model.CantidadCuentas cuentas activas</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">En cajas</span>
-        <span class="kpi-value">L. @Model.SaldoTotalCajas.ToString("N2")</span>
-        <span class="kpi-trend">Efectivo disponible</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">En bancos</span>
-        <span class="kpi-value">L. @Model.SaldoTotalBancos.ToString("N2")</span>
-        <span class="kpi-trend">Cuentas bancarias</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">Vales pendientes</span>
-        <span class="kpi-value" style="color: var(--color-warning);">L. @Model.ValesPendientes.ToString("N2")</span>
-        <span class="kpi-trend">@Model.CantidadValesPendientes vales</span>
-    </div>
-</div>
-
-<!-- KPIs del mes -->
-<div class="kpi-grid" style="margin-bottom: 24px;">
-    <div class="kpi-card">
-        <span class="kpi-label">Ingresos del mes</span>
-        <span class="kpi-value" style="color: var(--color-success);">+ L. @Model.IngresosMes.ToString("N2")</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">Egresos del mes</span>
-        <span class="kpi-value" style="color: var(--color-danger);">- L. @Model.EgresosMes.ToString("N2")</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">Balance del mes</span>
-        <span class="kpi-value" style="color: @(Model.BalanceMes >= 0 ? "var(--color-success)" : "var(--color-danger)");">
-            L. @Model.BalanceMes.ToString("N2")
-        </span>
-        <span class="kpi-trend @(Model.BalanceMes >= 0 ? "up" : "down")">
-            @(Model.BalanceMes >= 0 ? "â†‘ SuperÃ¡vit" : "â†“ DÃ©ficit")
-        </span>
-    </div>
-</div>
-
-<!-- GrÃ¡ficos -->
-<div class="panel-grid" style="margin-bottom: 24px;">
-    <div class="module-card" style="padding: 20px;">
-        <h3 class="panel-title" style="margin-bottom: 16px;">Flujo de caja Ãºltimos 6 meses</h3>
-        <div style="height: 300px;">
-            <canvas id="chartFlujoMensual"></canvas>
-        </div>
-    </div>
-    <div class="module-card" style="padding: 20px;">
-        <h3 class="panel-title" style="margin-bottom: 16px;">Top egresos del mes</h3>
-        <div style="height: 300px;">
-            <canvas id="chartCategoriasEgresos"></canvas>
-        </div>
-    </div>
-</div>
-
-<!-- Cuentas y movimientos -->
-<div class="panel-grid">
-    <div class="module-card" style="padding: 20px;">
-        <h3 class="panel-title" style="margin-bottom: 16px;">Saldos por cuenta</h3>
-
-        @if (Model.Cuentas.Count == 0)
-        {
-            <p style="color: var(--color-muted); text-align: center; padding: 40px;">Sin cuentas registradas</p>
-        }
-        else
-        {
-            <div class="table-wrapper">
-                <table class="erp-table">
-                    <thead>
-                        <tr>
-                            <th>Cuenta</th>
-                            <th>Tipo</th>
-                            <th style="text-align: right;">Saldo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var c in Model.Cuentas)
-                        {
-                            <tr>
-                                <td>
-                                    <strong>@c.Nombre</strong>
-                                    @if (!string.IsNullOrEmpty(c.Banco))
-                                    {
-                                        <br /><span class="table-user-sub">@c.Banco</span>
-                                    }
-                                </td>
-                                <td>
-                                    @if (c.Tipo == "Banco")
-                                    {
-                                        <span class="badge badge-info">ðŸ¦ Banco</span>
-                                    }
-                                    else if (c.Subtipo == "Chica")
-                                    {
-                                        <span class="badge badge-warning">Caja chica</span>
-                                    }
-                                    else if (c.Subtipo == "POS")
-                                    {
-                                        <span class="badge" style="background: #ec489920; color: #ec4899;">Caja POS</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge badge-success">Caja</span>
-                                    }
-                                </td>
-                                <td style="text-align: right;">
-                                    <strong style="color: @(c.SaldoActual >= 0 ? "var(--color-success)" : "var(--color-danger)");">
-                                        L. @c.SaldoActual.ToString("N2")
-                                    </strong>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-    </div>
-
-    <div class="module-card" style="padding: 20px;">
-        <h3 class="panel-title" style="margin-bottom: 16px;">Ãšltimos movimientos</h3>
-
-        @if (Model.UltimosMovimientos.Count == 0)
-        {
-            <p style="color: var(--color-muted); text-align: center; padding: 40px;">Sin movimientos</p>
-        }
-        else
-        {
-            <div class="timeline">
-                @foreach (var m in Model.UltimosMovimientos)
-                {
-                    <div class="timeline-item">
-                        <div class="timeline-dot" style="background: @(m.Tipo == "Ingreso" ? "var(--color-success)" : m.Tipo == "Egreso" ? "var(--color-danger)" : "var(--color-primary)");"></div>
-                        <div class="timeline-content">
-                            <div class="timeline-header">
-                                <strong>@m.Numero</strong>
-                                <span class="timeline-date">@m.Fecha.ToString("dd/MM HH:mm")</span>
-                            </div>
-                            <p class="timeline-detail">@m.Concepto â€” <strong>L. @m.Monto.ToString("N2")</strong></p>
-                            <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px;">
-                                <span class="badge @(m.Tipo == "Ingreso" ? "badge-success" : "badge-danger")" style="font-size: 10px; padding: 2px 8px;">
-                                    @m.Tipo
-                                </span>
-                                <span class="table-user-sub">@m.CuentaNombre</span>
-                            </div>
-                        </div>
-                    </div>
-                }
-            </div>
-        }
-    </div>
-</div>
-
-@section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script>
-        (function () {
-            // === Flujo mensual (barras) ===
-            var flujo = JSON.parse('@Html.Raw(Model.FlujoMensualJson)');
-            var ctxFlujo = document.getElementById('chartFlujoMensual');
-            if (ctxFlujo && flujo.labels && flujo.labels.length > 0) {
-                new Chart(ctxFlujo, {
-                    type: 'bar',
-                    data: {
-                        labels: flujo.labels,
-                        datasets: [
-                            {
-                                label: 'Ingresos',
-                                data: flujo.ingresos,
-                                backgroundColor: 'rgba(16, 185, 129, 0.85)',
-                                borderRadius: 6
-                            },
-                            {
-                                label: 'Egresos',
-                                data: flujo.egresos,
-                                backgroundColor: 'rgba(239, 68, 68, 0.85)',
-                                borderRadius: 6
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    callback: function (v) { return 'L. ' + v.toLocaleString(); }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            // === CategorÃ­as egresos (doughnut) ===
-            var cats = JSON.parse('@Html.Raw(Model.CategoriasEgresosJson)');
-            var ctxCat = document.getElementById('chartCategoriasEgresos');
-            if (ctxCat && cats.labels && cats.labels.length > 0) {
-                new Chart(ctxCat, {
-                    type: 'doughnut',
-                    data: {
-                        labels: cats.labels,
-                        datasets: [{
-                            data: cats.data,
-                            backgroundColor: cats.colors,
-                            borderWidth: 2,
-                            borderColor: '#ffffff'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'right',
-                                labels: { boxWidth: 12, font: { size: 11 } }
-                            }
-                        }
-                    }
-                });
-            }
-        })();
-    </script>
-}
-
-
-===== FILE: \Pages\Finanzas\Index.cshtml.cs =====
-
-using Kirkenta.Data;
-using Kirkenta.Helpers;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
-
-namespace Kirkenta.Pages.Finanzas
-{
-    public class IndexModel : PageModel
-    {
-        private readonly ApplicationDbContext _context;
-
-        public IndexModel(ApplicationDbContext context)
-        {
-            _context = context;
-        }
-
-        // KPIs
-        public decimal SaldoTotalCajas { get; set; }
-        public decimal SaldoTotalBancos { get; set; }
-        public decimal SaldoTotal { get; set; }
-
-        public decimal IngresosMes { get; set; }
-        public decimal EgresosMes { get; set; }
-        public decimal BalanceMes { get; set; }
-
-        public decimal ValesPendientes { get; set; }
-        public int CantidadValesPendientes { get; set; }
-
-        public int CantidadCuentas { get; set; }
-
-        // Listas
-        public List<CuentaResumen> Cuentas { get; set; } = new();
-        public List<MovimientoItem> UltimosMovimientos { get; set; } = new();
-
-        public string FlujoMensualJson { get; set; } = "{}";
-        public string CategoriasEgresosJson { get; set; } = "{}";
-
-        public class CuentaResumen
-        {
-            public int Id { get; set; }
-            public string Nombre { get; set; } = "";
-            public string Tipo { get; set; } = "";
-            public string? Subtipo { get; set; }
-            public string? Banco { get; set; }
-            public decimal SaldoActual { get; set; }
-        }
-
-        public class MovimientoItem
-        {
-            public int Id { get; set; }
-            public string Numero { get; set; } = "";
-            public DateTime Fecha { get; set; }
-            public string Tipo { get; set; } = "";
-            public string Concepto { get; set; } = "";
-            public decimal Monto { get; set; }
-            public string CuentaNombre { get; set; } = "";
-            public string? CategoriaNombre { get; set; }
-            public string? CategoriaColor { get; set; }
-        }
-
-        public IActionResult OnGet()
-        {
-            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
-            var currentRol = currentUser?.Rol ?? "Pendiente";
-
-            if (currentRol != "Admin" &&
-                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "Index", "ver"))
-            {
-                TempData["Error"] = "No tienes permiso para ver Finanzas";
-                return RedirectToPage("/Index");
-            }
-
-            // Cuentas
-            var cuentas = _context.CuentasFinancieras
-                .AsNoTracking()
-                .Where(c => c.Activa)
-                .OrderBy(c => c.Tipo).ThenBy(c => c.Nombre)
-                .ToList();
-
-            CantidadCuentas = cuentas.Count;
-            SaldoTotalCajas = cuentas.Where(c => c.Tipo == "Caja").Sum(c => c.SaldoActual);
-            SaldoTotalBancos = cuentas.Where(c => c.Tipo == "Banco").Sum(c => c.SaldoActual);
-            SaldoTotal = SaldoTotalCajas + SaldoTotalBancos;
-
-            Cuentas = cuentas.Select(c => new CuentaResumen
-            {
-                Id = c.Id,
-                Nombre = c.Nombre,
-                Tipo = c.Tipo,
-                Subtipo = c.Subtipo,
-                Banco = c.Banco,
-                SaldoActual = c.SaldoActual
-            }).ToList();
-
-            // Movimientos del mes
-            var hoy = DateTime.Today;
-            var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
-            var finMes = inicioMes.AddMonths(1);
-
-            var movimientosMes = _context.MovimientosFinancieros
-                .AsNoTracking()
-                .Where(m => m.Fecha >= inicioMes && m.Fecha < finMes && m.Estado == "Activo")
-                .ToList();
-
-            IngresosMes = movimientosMes.Where(m => m.Tipo == "Ingreso").Sum(m => m.Monto);
-            EgresosMes = movimientosMes.Where(m => m.Tipo == "Egreso").Sum(m => m.Monto);
-            BalanceMes = IngresosMes - EgresosMes;
-
-            // Vales pendientes
-            var valesPendientes = _context.ValesEmpleado
-                .AsNoTracking()
-                .Where(v => v.Estado == "Entregado" && v.SaldoPendiente > 0)
-                .ToList();
-
-            ValesPendientes = valesPendientes.Sum(v => v.SaldoPendiente);
-            CantidadValesPendientes = valesPendientes.Count;
-
-            // Ãšltimos 10 movimientos
-            var cuentasDict = cuentas.ToDictionary(c => c.Id, c => c.Nombre);
-            var categoriasDict = _context.CategoriasFinancieras
-                .AsNoTracking()
-                .ToDictionary(c => c.Id, c => new { c.Nombre, c.Color });
-
-            UltimosMovimientos = _context.MovimientosFinancieros
-                .AsNoTracking()
-                .Where(m => m.Estado == "Activo")
-                .OrderByDescending(m => m.Fecha)
-                .ThenByDescending(m => m.Id)
-                .Take(10)
-                .ToList()
-                .Select(m => new MovimientoItem
-                {
-                    Id = m.Id,
-                    Numero = m.Numero,
-                    Fecha = m.Fecha,
-                    Tipo = m.Tipo,
-                    Concepto = m.Concepto,
-                    Monto = m.Monto,
-                    CuentaNombre = cuentasDict.GetValueOrDefault(m.CuentaId, "â€”"),
-                    CategoriaNombre = m.CategoriaId.HasValue
-                        ? categoriasDict.GetValueOrDefault(m.CategoriaId.Value)?.Nombre
-                        : null,
-                    CategoriaColor = m.CategoriaId.HasValue
-                        ? categoriasDict.GetValueOrDefault(m.CategoriaId.Value)?.Color
-                        : null
-                })
-                .ToList();
-
-            // GrÃ¡fico: Ãºltimos 6 meses (ingresos vs egresos)
-            var inicioRango = new DateTime(hoy.Year, hoy.Month, 1).AddMonths(-5);
-            var movimientosRango = _context.MovimientosFinancieros
-                .AsNoTracking()
-                .Where(m => m.Fecha >= inicioRango && m.Fecha < finMes && m.Estado == "Activo")
-                .Select(m => new { m.Fecha, m.Tipo, m.Monto })
-                .ToList();
-
-            var labels = new List<string>();
-            var ingresos = new List<decimal>();
-            var egresos = new List<decimal>();
-
-            for (int i = 5; i >= 0; i--)
-            {
-                var fecha = hoy.AddMonths(-i);
-                var ini = new DateTime(fecha.Year, fecha.Month, 1);
-                var fin = ini.AddMonths(1);
-
-                labels.Add(ini.ToString("MMM yyyy"));
-                ingresos.Add(movimientosRango
-                    .Where(m => m.Fecha >= ini && m.Fecha < fin && m.Tipo == "Ingreso")
-                    .Sum(m => m.Monto));
-                egresos.Add(movimientosRango
-                    .Where(m => m.Fecha >= ini && m.Fecha < fin && m.Tipo == "Egreso")
-                    .Sum(m => m.Monto));
-            }
-
-            FlujoMensualJson = JsonSerializer.Serialize(new
-            {
-                labels = labels.ToArray(),
-                ingresos = ingresos.ToArray(),
-                egresos = egresos.ToArray()
-            });
-
-            // GrÃ¡fico: top categorÃ­as de egresos del mes
-            var categoriasEgresos = movimientosMes
-                .Where(m => m.Tipo == "Egreso" && m.CategoriaId.HasValue)
-                .GroupBy(m => m.CategoriaId!.Value)
-                .Select(g => new
-                {
-                    Nombre = categoriasDict.GetValueOrDefault(g.Key)?.Nombre ?? "â€”",
-                    Color = categoriasDict.GetValueOrDefault(g.Key)?.Color ?? "#6b7280",
-                    Total = g.Sum(m => m.Monto)
-                })
-                .OrderByDescending(x => x.Total)
-                .Take(8)
-                .ToList();
-
-            CategoriasEgresosJson = JsonSerializer.Serialize(new
-            {
-                labels = categoriasEgresos.Select(x => x.Nombre).ToArray(),
-                data = categoriasEgresos.Select(x => x.Total).ToArray(),
-                colors = categoriasEgresos.Select(x => x.Color).ToArray()
-            });
-
-            return Page();
-        }
-    }
-}
-
-
 ===== FILE: \Pages\Impuestos\Create.cshtml =====
 
 @page
@@ -21838,6 +25908,364 @@ namespace Kirkenta.Pages.Impuestos
 
             Impuestos = _context.Impuestos.OrderBy(i => i.Porcentaje).ToList();
             return Page();
+        }
+    }
+}
+
+
+===== FILE: \Pages\Index.cshtml =====
+
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="dashboard">
+    <div class="dashboard-header">
+        <h1>Hola, @User.Identity?.Name 👋</h1>
+        <p>Este es el resumen de tu operación</p>
+    </div>
+
+    <!-- KPIs reales -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <span class="kpi-label">Ventas de hoy</span>
+            <span class="kpi-value">L. @Model.VentasHoy.ToString("N2")</span>
+            <span class="kpi-trend @(Model.VentasHoy >= Model.VentasAyer ? "up" : "down")">
+                @(Model.VentasHoy >= Model.VentasAyer ? "↑" : "↓")
+                @(Model.VentasAyer > 0 ? Math.Abs((Model.VentasHoy - Model.VentasAyer) / Model.VentasAyer * 100).ToString("N1") : "0")% vs ayer
+            </span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Ventas del mes</span>
+            <span class="kpi-value">L. @Model.VentasMes.ToString("N2")</span>
+            <span class="kpi-trend @(Model.VentasMes >= Model.VentasMesAnterior ? "up" : "down")">
+                @(Model.VentasMes >= Model.VentasMesAnterior ? "↑" : "↓")
+                @(Model.VentasMesAnterior > 0 ? Math.Abs((Model.VentasMes - Model.VentasMesAnterior) / Model.VentasMesAnterior * 100).ToString("N1") : "0")% vs mes anterior
+            </span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Clientes activos</span>
+            <span class="kpi-value">@Model.ClientesActivos</span>
+            <span class="kpi-trend">Total registrados: @Model.ClientesTotal</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Productos en stock</span>
+            <span class="kpi-value">@Model.ProductosTotal</span>
+            <span class="kpi-trend @(Model.ProductosStockBajo > 0 ? "down" : "up")">
+                @if (Model.ProductosStockBajo > 0)
+                {
+                    <span>⚠️ @Model.ProductosStockBajo con stock bajo</span>
+                }
+                else
+                {
+                    <span>✅ Stock saludable</span>
+                }
+            </span>
+        </div>
+    </div>
+
+    <!-- Accesos rápidos -->
+    <div class="section">
+        <h2 class="section-title">Accesos rápidos</h2>
+        <div class="quick-grid">
+            <a asp-page="/POS/Index" class="quick-action">
+                <span class="quick-icon">🛒</span>
+                <span class="quick-label">Punto de venta</span>
+            </a>
+            <a asp-page="/Productos/Create" class="quick-action">
+                <span class="quick-icon">📦</span>
+                <span class="quick-label">Nuevo producto</span>
+            </a>
+            <a asp-page="/Clientes/Create" class="quick-action">
+                <span class="quick-icon">👤</span>
+                <span class="quick-label">Nuevo cliente</span>
+            </a>
+            <a asp-page="/Cotizaciones/Create" class="quick-action">
+                <span class="quick-icon">📝</span>
+                <span class="quick-label">Nueva cotización</span>
+            </a>
+            <a asp-page="/Reportes/Ventas" class="quick-action">
+                <span class="quick-icon">📊</span>
+                <span class="quick-label">Reportes</span>
+            </a>
+            <a asp-page="/Facturas/Index" class="quick-action">
+                <span class="quick-icon">🧾</span>
+                <span class="quick-label">Facturas</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Gráfico de ventas últimos 7 días -->
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">Ventas de los últimos 7 días</h3>
+        <div style="height: 300px;">
+            <canvas id="chartDashboardVentas"></canvas>
+        </div>
+    </div>
+
+    <!-- Panel doble: Top productos + Últimas ventas -->
+    <div class="panel-grid">
+        <div class="module-card" style="padding: 20px;">
+            <h3 class="panel-title" style="margin-bottom: 16px;">🏆 Top 5 productos del mes</h3>
+            @if (Model.TopProductosMes.Count == 0)
+            {
+                <p style="color: var(--color-muted); text-align: center; padding: 40px;">Sin ventas este mes</p>
+            }
+            else
+            {
+                <div class="table-wrapper">
+                    <table class="erp-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Producto</th>
+                                <th style="text-align: right;">Cantidad</th>
+                                <th style="text-align: right;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                var i = 1;
+                            }
+                            @foreach (var p in Model.TopProductosMes)
+                            {
+                                <tr>
+                                    <td><strong>@i</strong></td>
+                                    <td>@p.Nombre</td>
+                                    <td style="text-align: right;">@p.Cantidad</td>
+                                    <td style="text-align: right;"><strong>L. @p.Total.ToString("N2")</strong></td>
+                                </tr>
+                                i++;
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <div class="module-card" style="padding: 20px;">
+            <h3 class="panel-title" style="margin-bottom: 16px;">📋 Últimas ventas</h3>
+            @if (Model.UltimasVentas.Count == 0)
+            {
+                <p style="color: var(--color-muted); text-align: center; padding: 40px;">Aún no hay ventas</p>
+            }
+            else
+            {
+                <div class="timeline">
+                    @foreach (var v in Model.UltimasVentas)
+                    {
+                        <div class="timeline-item">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <strong>@v.Numero</strong>
+                                    <span class="timeline-date">@v.Fecha.ToString("dd/MM HH:mm")</span>
+                                </div>
+                                <p class="timeline-detail">@v.ClienteNombre — <strong>L. @v.Total.ToString("N2")</strong></p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            var ventasData = @Html.Raw(Model.Ventas7DiasJson);
+            var ctx = document.getElementById('chartDashboardVentas');
+            if (ctx && ventasData.labels && ventasData.labels.length > 0) {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ventasData.labels,
+                        datasets: [{
+                            label: 'Ventas (L.)',
+                            data: ventasData.data,
+                            backgroundColor: 'rgba(79, 70, 229, 0.85)',
+                            borderRadius: 8,
+                            borderSkipped: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        return 'L. ' + context.parsed.y.toLocaleString('es-HN', { minimumFractionDigits: 2 });
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (value) { return 'L. ' + value.toLocaleString(); }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        })();
+    </script>
+}
+
+
+===== FILE: \Pages\Index.cshtml.cs =====
+
+using Kirkenta.Data;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.Text.Json;
+
+namespace Kirkenta.Pages
+{
+    public class IndexModel : PageModel
+    {
+        private readonly ApplicationDbContext _context;
+
+        public IndexModel(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        // KPIs
+        public decimal VentasHoy { get; set; }
+        public decimal VentasAyer { get; set; }
+        public decimal VentasMes { get; set; }
+        public decimal VentasMesAnterior { get; set; }
+
+        public int ClientesActivos { get; set; }
+        public int ClientesTotal { get; set; }
+        public int ProductosTotal { get; set; }
+        public int ProductosStockBajo { get; set; }
+
+        // Datos para grÃ¡ficos y paneles
+        public string Ventas7DiasJson { get; set; } = "{}";
+        public List<TopProductoMes> TopProductosMes { get; set; } = new();
+        public List<VentaReciente> UltimasVentas { get; set; } = new();
+
+        public class TopProductoMes
+        {
+            public string Nombre { get; set; } = "";
+            public decimal Cantidad { get; set; }
+            public decimal Total { get; set; }
+        }
+
+        public class VentaReciente
+        {
+            public string Numero { get; set; } = "";
+            public DateTime Fecha { get; set; }
+            public decimal Total { get; set; }
+            public string ClienteNombre { get; set; } = "Consumidor final";
+        }
+
+        public void OnGet()
+        {
+            var hoy = DateTime.Today;
+            var ayer = hoy.AddDays(-1);
+            var manana = hoy.AddDays(1);
+
+            var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
+            var finMes = inicioMes.AddMonths(1);
+            var inicioMesAnterior = inicioMes.AddMonths(-1);
+            var finMesAnterior = inicioMes;
+
+            // === KPIs ===
+            VentasHoy = _context.Ventas
+                .Where(v => v.Fecha >= hoy && v.Fecha < manana && v.Estado == "Completada")
+                .Sum(v => (decimal?)v.Total) ?? 0;
+
+            VentasAyer = _context.Ventas
+                .Where(v => v.Fecha >= ayer && v.Fecha < hoy && v.Estado == "Completada")
+                .Sum(v => (decimal?)v.Total) ?? 0;
+
+            VentasMes = _context.Ventas
+                .Where(v => v.Fecha >= inicioMes && v.Fecha < finMes && v.Estado == "Completada")
+                .Sum(v => (decimal?)v.Total) ?? 0;
+
+            VentasMesAnterior = _context.Ventas
+                .Where(v => v.Fecha >= inicioMesAnterior && v.Fecha < finMesAnterior && v.Estado == "Completada")
+                .Sum(v => (decimal?)v.Total) ?? 0;
+
+            ClientesActivos = _context.Clientes.Count(c => c.Activo);
+            ClientesTotal = _context.Clientes.Count();
+            ProductosTotal = _context.Productos.Count(p => p.Activo);
+            ProductosStockBajo = _context.Productos.Count(p => p.Activo && p.Stock <= p.StockMinimo);
+
+            // === Ventas Ãºltimos 7 dÃ­as ===
+            var hace7Dias = hoy.AddDays(-6);
+            var ventas7 = _context.Ventas
+                .Where(v => v.Fecha >= hace7Dias && v.Estado == "Completada")
+                .ToList();
+
+            var porDia = new List<(string Label, decimal Total)>();
+            for (int i = 0; i < 7; i++)
+            {
+                var dia = hace7Dias.AddDays(i);
+                var totalDia = ventas7
+                    .Where(v => v.Fecha.Date == dia.Date)
+                    .Sum(v => v.Total);
+                porDia.Add((dia.ToString("ddd dd/MM"), totalDia));
+            }
+
+            Ventas7DiasJson = JsonSerializer.Serialize(new
+            {
+                labels = porDia.Select(x => x.Label).ToArray(),
+                data = porDia.Select(x => x.Total).ToArray()
+            });
+
+            // === Top 5 productos del mes ===
+            var ventaIdsMes = _context.Ventas
+                .Where(v => v.Fecha >= inicioMes && v.Fecha < finMes && v.Estado == "Completada")
+                .Select(v => v.Id)
+                .ToList();
+
+            var detallesMes = _context.DetalleVentas
+                .Where(d => ventaIdsMes.Contains(d.VentaId))
+                .ToList();
+
+            var productos = _context.Productos.ToList();
+
+            TopProductosMes = detallesMes
+                .GroupBy(d => d.ProductoId)
+                .Select(g => new TopProductoMes
+                {
+                    Nombre = productos.FirstOrDefault(p => p.Id == g.Key)?.Nombre ?? "â€”",
+                    Cantidad = g.Sum(d => d.Cantidad),
+                    Total = g.Sum(d => d.Total)
+                })
+                .OrderByDescending(x => x.Total)
+                .Take(5)
+                .ToList();
+
+            // === Ãšltimas 5 ventas ===
+            var ultimas = _context.Ventas
+                .Where(v => v.Estado == "Completada")
+                .OrderByDescending(v => v.Fecha)
+                .Take(5)
+                .ToList();
+
+            var clientes = _context.Clientes.ToList();
+
+            UltimasVentas = ultimas.Select(v => new VentaReciente
+            {
+                Numero = v.Numero,
+                Fecha = v.Fecha,
+                Total = v.Total,
+                ClienteNombre = v.ClienteId.HasValue
+                    ? (clientes.FirstOrDefault(c => c.Id == v.ClienteId.Value)?.Nombre ?? "Consumidor final")
+                    : "Consumidor final"
+            }).ToList();
         }
     }
 }
@@ -25202,7 +29630,6 @@ namespace Kirkenta.Pages.PagosProveedor
             [StringLength(500)]
             public string? Notas { get; set; }
 
-            // â¬‡ï¸ NUEVO: controla si se registra en Finanzas
             public bool RegistrarEnFinanzas { get; set; } = true;
         }
 
@@ -25279,6 +29706,14 @@ namespace Kirkenta.Pages.PagosProveedor
                 return Page();
             }
 
+            // ===== VALIDACIÃ“N: perÃ­odo contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
+                return Page();
+            }
+
             var numero = NumeroDocumentoHelper.GenerarSiguiente(_context, "PagoProveedor");
 
             var pago = new Models.PagoProveedor
@@ -25311,7 +29746,7 @@ namespace Kirkenta.Pages.PagosProveedor
 
             _context.SaveChanges();
 
-            // â¬‡ï¸ REGISTRO AUTOMÃTICO EN FINANZAS
+            // REGISTRO AUTOMÃTICO EN FINANZAS
             string? movimientoError = null;
 
             if (Input.RegistrarEnFinanzas)
@@ -26797,6 +31232,7 @@ namespace Kirkenta.Pages.Pedidos
                         data-nombre="@prod.Nombre"
                         data-precio="@prod.PrecioVenta"
                         data-stock="@prod.Stock"
+                        data-impuestoid="@(prod.ImpuestoId?.ToString() ?? "")"
                         data-impuesto="@impuestoPct"
                         data-sku="@prod.SKU"
                         data-categoria="@(prod.CategoriaId?.ToString() ?? "")"
@@ -26958,7 +31394,6 @@ namespace Kirkenta.Pages.Pedidos
                 <strong id="modalCambio">L. 0.00</strong>
             </div>
 
-            <!-- â¬‡ï¸ NUEVO: Checkbox de registro automÃ¡tico en Finanzas â¬‡ï¸ -->
             <div class="form-field" style="margin-top: 8px;">
                 <label class="form-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                     <input type="checkbox" id="registrarEnFinanzas" checked />
@@ -26993,7 +31428,6 @@ namespace Kirkenta.Pages.Pedidos
             <strong id="ventaTotal"></strong>
         </div>
 
-        <!-- â¬‡ï¸ NUEVO: Aviso si el movimiento financiero fallÃ³ â¬‡ï¸ -->
         <div id="avisoMovimiento" style="display: none; background: #fffbeb; border: 1px solid #fde68a; color: #d97706; padding: 10px 14px; border-radius: 8px; font-size: 12.5px; margin-bottom: 16px; text-align: left;">
             <strong>âš ï¸ Aviso:</strong> <span id="avisoTexto"></span>
         </div>
@@ -27032,7 +31466,6 @@ namespace Kirkenta.Pages.Pedidos
             var clienteIdInput = document.getElementById('posClienteId');
             var descuentoGlobal = 0;
 
-            // Cargar items iniciales (si viene desde cotizaciÃ³n)
             if (itemsIniciales && itemsIniciales.length > 0) {
                 carrito = itemsIniciales;
             }
@@ -27094,6 +31527,7 @@ namespace Kirkenta.Pages.Pedidos
                     var id = parseInt(this.dataset.id);
                     var nombre = this.dataset.nombre;
                     var precio = parseFloat(this.dataset.precio);
+                    var impuestoId = this.dataset.impuestoid ? parseInt(this.dataset.impuestoid) : null;
                     var impuesto = parseFloat(this.dataset.impuesto) || 0;
                     var stock = parseFloat(this.dataset.stock);
 
@@ -27110,6 +31544,7 @@ namespace Kirkenta.Pages.Pedidos
                             nombre: nombre,
                             precio: precio,
                             cantidad: 1,
+                            impuestoId: impuestoId,
                             impuesto: impuesto,
                             stock: stock
                         });
@@ -27176,7 +31611,7 @@ namespace Kirkenta.Pages.Pedidos
                 carrito.forEach(function (item) {
                     var sub = item.precio * item.cantidad;
                     subtotal += sub;
-                    impuestos += sub * (item.impuesto / 100);
+                    impuestos += sub * ((item.impuesto || 0) / 100);
                 });
 
                 var total = subtotal + impuestos - descuentoGlobal;
@@ -27250,8 +31685,6 @@ namespace Kirkenta.Pages.Pedidos
                 var metodoId = parseInt(modalMetodo.value);
                 var monto = parseFloat(modalMonto.value) || 0;
                 var referencia = document.getElementById('modalReferencia').value;
-
-                // â¬‡ï¸ NUEVO: leer el checkbox de Finanzas
                 var registrarEnFinanzas = document.getElementById('registrarEnFinanzas').checked;
 
                 var payload = {
@@ -27261,7 +31694,7 @@ namespace Kirkenta.Pages.Pedidos
                     referencia: referencia,
                     descuento: descuentoGlobal,
                     cotizacionId: cotizacionId ? parseInt(cotizacionId) : null,
-                    registrarEnFinanzas: registrarEnFinanzas, // â¬…ï¸ NUEVO
+                    registrarEnFinanzas: registrarEnFinanzas,
                     items: carrito.map(function (i) {
                         return {
                             productoId: i.productoId,
@@ -27305,7 +31738,6 @@ namespace Kirkenta.Pages.Pedidos
                         document.getElementById('ventaNumero').textContent = 'Venta ' + data.numero;
                         document.getElementById('ventaTotal').textContent = formatMoney(data.total);
 
-                        // â¬‡ï¸ NUEVO: Mostrar aviso si el movimiento financiero fallÃ³
                         var avisoBox = document.getElementById('avisoMovimiento');
                         if (data.movimientoRegistrado === false && data.movimientoError) {
                             document.getElementById('avisoTexto').textContent = data.movimientoError;
@@ -27351,7 +31783,6 @@ namespace Kirkenta.Pages.Pedidos
                 });
             });
 
-            // Render inicial
             renderCarrito();
         })();
     </script>
@@ -27390,7 +31821,6 @@ namespace Kirkenta.Pages.POS
         public int? ClienteInicialId { get; set; }
         public string ClienteInicialNombre { get; set; } = "";
 
-        // â¬‡ï¸ NUEVO: informaciÃ³n de la caja abierta
         public bool HayApertura { get; set; }
         public string CuentaCajaNombre { get; set; } = "";
         public decimal SaldoApertura { get; set; }
@@ -27407,7 +31837,7 @@ namespace Kirkenta.Pages.POS
                 return RedirectToPage("/Index");
             }
 
-            // â¬‡ï¸ VALIDAR APERTURA DE CAJA
+            // VALIDAR APERTURA DE CAJA
             var apertura = _context.AperturasCaja
                 .FirstOrDefault(a => a.Activa);
 
@@ -27426,7 +31856,7 @@ namespace Kirkenta.Pages.POS
             Productos = _context.Productos.Where(p => p.Activo).OrderBy(p => p.Nombre).ToList();
             Categorias = _context.Categorias.Where(c => c.Activa).OrderBy(c => c.Nombre).ToList();
             MetodosPago = _context.MetodosPago.Where(m => m.Activo).OrderBy(m => m.Nombre).ToList();
-            ImpuestosDict = _context.Impuestos.ToDictionary(i => i.Id, i => i.Porcentaje);
+            ImpuestosDict = _context.Impuestos.Where(i => i.Activo).ToDictionary(i => i.Id, i => i.Porcentaje);
 
             var clientes = _context.Clientes.Where(c => c.Activo).OrderBy(c => c.Nombre).ToList();
             var clientesList = clientes.Select(c => new
@@ -27449,17 +31879,34 @@ namespace Kirkenta.Pages.POS
                     ClienteInicialNombre = _context.Clientes.FirstOrDefault(c => c.Id == cot.ClienteId)?.Nombre ?? "";
 
                     var detalles = _context.DetalleCotizaciones.Where(d => d.CotizacionId == cot.Id).ToList();
-                    var productos = _context.Productos.ToList();
+                    var productosIds = detalles.Select(d => d.ProductoId).Distinct().ToList();
+                    var productosDict = _context.Productos
+                        .Where(p => productosIds.Contains(p.Id))
+                        .ToDictionary(p => p.Id, p => new { p.Nombre, p.Stock, p.ImpuestoId });
 
-                    var itemsIniciales = detalles.Select(d => new
+                    // Impuesto predeterminado (por si el producto no tiene uno)
+                    var impuestoPredeterminadoId = _context.Impuestos
+                        .FirstOrDefault(i => i.EsPredeterminado && i.Activo)?.Id;
+
+                    var itemsIniciales = detalles.Select(d =>
                     {
-                        productoId = d.ProductoId,
-                        nombre = productos.FirstOrDefault(p => p.Id == d.ProductoId)?.Nombre ?? "â€”",
-                        precio = d.PrecioUnitario,
-                        cantidad = d.Cantidad,
-                        descuento = d.Descuento,
-                        impuesto = d.ImpuestoPorcentaje,
-                        stock = productos.FirstOrDefault(p => p.Id == d.ProductoId)?.Stock ?? 0
+                        var prod = productosDict.GetValueOrDefault(d.ProductoId);
+                        // Tasa correcta segÃºn el producto
+                        int? impuestoId = prod?.ImpuestoId ?? impuestoPredeterminadoId;
+                        decimal tasa = impuestoId.HasValue && ImpuestosDict.ContainsKey(impuestoId.Value)
+                            ? ImpuestosDict[impuestoId.Value] : 0m;
+
+                        return new
+                        {
+                            productoId = d.ProductoId,
+                            nombre = prod?.Nombre ?? "â€”",
+                            precio = d.PrecioUnitario,
+                            cantidad = d.Cantidad,
+                            descuento = d.Descuento,
+                            impuestoId = impuestoId,
+                            impuesto = tasa,
+                            stock = prod?.Stock ?? 0
+                        };
                     }).ToList();
 
                     ItemsInicialesJson = JsonSerializer.Serialize(itemsIniciales);
@@ -27486,7 +31933,7 @@ namespace Kirkenta.Pages.POS
             public int ProductoId { get; set; }
             public decimal Cantidad { get; set; }
             public decimal PrecioUnitario { get; set; }
-            public decimal ImpuestoPorcentaje { get; set; }
+            public decimal ImpuestoPorcentaje { get; set; } // puede venir del cliente, pero se valida
             public decimal Descuento { get; set; }
         }
 
@@ -27503,38 +31950,95 @@ namespace Kirkenta.Pages.POS
                 if (apertura == null)
                     return new JsonResult(new { success = false, error = "No hay caja abierta. Contacta al administrador." });
 
+                // ===== VALIDACIÃ“N: perÃ­odo contable cerrado =====
+                var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
+                if (!periodoOk)
+                    return new JsonResult(new { success = false, error = periodoError });
+
                 if (request == null || request.Items == null || request.Items.Count == 0)
                     return new JsonResult(new { success = false, error = "Carrito vacÃ­o" });
 
-                decimal subtotal = 0, impuestos = 0, total = 0;
-                var detalles = new List<DetalleVenta>();
+                // ===== VALIDAR Y RECALCULAR IMPUESTOS CON ISVHelper =====
+                var productoIds = request.Items.Select(i => i.ProductoId).Distinct().ToList();
+                var productosDict = _context.Productos
+                    .Where(p => productoIds.Contains(p.Id))
+                    .ToDictionary(p => p.Id, p => new { p.Nombre, p.ImpuestoId, p.Stock });
+
+                var impuestosActivos = _context.Impuestos
+                    .Where(i => i.Activo)
+                    .ToDictionary(i => i.Id, i => i.Porcentaje);
+
+                var impuestoPredeterminadoId = _context.Impuestos
+                    .FirstOrDefault(i => i.EsPredeterminado && i.Activo)?.Id;
+
+                // Reconstruir items con tasa correcta (no confiamos en el cliente)
+                var itemsValidados = new List<ItemParaISV>();
+                var itemsConTasa = new List<(ItemRequest original, int productoId, decimal tasa)>();
 
                 foreach (var item in request.Items)
                 {
-                    var st = item.Cantidad * item.PrecioUnitario;
-                    var stConDesc = st - item.Descuento;
-                    var iv = stConDesc * (item.ImpuestoPorcentaje / 100);
-                    var tot = stConDesc + iv;
+                    if (!productosDict.ContainsKey(item.ProductoId))
+                        return new JsonResult(new { success = false, error = $"Producto {item.ProductoId} no encontrado o inactivo" });
 
-                    subtotal += st;
-                    impuestos += iv;
-                    total += tot;
+                    if (item.Cantidad <= 0)
+                        return new JsonResult(new { success = false, error = "Cantidad invÃ¡lida" });
 
-                    detalles.Add(new DetalleVenta
+                    var prod = productosDict[item.ProductoId];
+                    if (prod.Stock < item.Cantidad)
+                        return new JsonResult(new { success = false, error = $"Stock insuficiente para '{prod.Nombre}'. Disponible: {prod.Stock}" });
+
+                    // Determinar tasa correcta
+                    int? impuestoId = prod.ImpuestoId ?? impuestoPredeterminadoId;
+                    decimal tasaCorrecta = impuestoId.HasValue && impuestosActivos.ContainsKey(impuestoId.Value)
+                        ? impuestosActivos[impuestoId.Value] : 0m;
+
+                    itemsConTasa.Add((item, item.ProductoId, tasaCorrecta));
+
+                    itemsValidados.Add(new ItemParaISV
                     {
                         ProductoId = item.ProductoId,
                         Cantidad = item.Cantidad,
                         PrecioUnitario = item.PrecioUnitario,
                         Descuento = item.Descuento,
-                        ImpuestoPorcentaje = item.ImpuestoPorcentaje,
+                        ImpuestoId = impuestoId
+                    });
+                }
+
+                // Calcular con ISVHelper (para validar el total correcto)
+                var isvResult = ISVHelper.Calcular(_context, itemsValidados, request.Descuento);
+
+                // ===== CREAR DETALLES CON TASA CORRECTA =====
+                decimal subtotal = 0, impuestosTotal = 0, total = 0;
+                var detalles = new List<DetalleVenta>();
+
+                foreach (var (itemOrig, productoId, tasa) in itemsConTasa)
+                {
+                    var st = itemOrig.Cantidad * itemOrig.PrecioUnitario;
+                    var stConDesc = st - itemOrig.Descuento;
+                    var iv = Math.Round(stConDesc * (tasa / 100m), 2);
+                    var tot = stConDesc + iv;
+
+                    subtotal += st;
+                    impuestosTotal += iv;
+                    total += tot;
+
+                    detalles.Add(new DetalleVenta
+                    {
+                        ProductoId = productoId,
+                        Cantidad = itemOrig.Cantidad,
+                        PrecioUnitario = itemOrig.PrecioUnitario,
+                        Descuento = itemOrig.Descuento,
+                        ImpuestoPorcentaje = tasa,
                         Subtotal = stConDesc,
                         Total = tot
                     });
                 }
 
-                total -= request.Descuento;
-                if (total < 0) total = 0;
+                // Aplicar descuento global al total (ya calculado por ISVHelper)
+                total = isvResult.Total;
+                impuestosTotal = isvResult.ISVTotal;
 
+                // ===== CREAR VENTA =====
                 var numero = NumeroDocumentoHelper.GenerarSiguiente(_context, "Venta");
 
                 var venta = new Venta
@@ -27545,7 +32049,7 @@ namespace Kirkenta.Pages.POS
                     Fecha = DateTime.Now,
                     Subtotal = subtotal,
                     Descuento = request.Descuento,
-                    Impuestos = impuestos,
+                    Impuestos = impuestosTotal,
                     Total = total,
                     Estado = "Completada",
                     UsuarioCreoId = currentUser.Id
@@ -27554,6 +32058,7 @@ namespace Kirkenta.Pages.POS
                 _context.Ventas.Add(venta);
                 _context.SaveChanges();
 
+                // Guardar detalles + descontar stock
                 foreach (var d in detalles)
                 {
                     d.VentaId = venta.Id;
@@ -27579,7 +32084,7 @@ namespace Kirkenta.Pages.POS
                 };
                 _context.Pagos.Add(pago);
 
-                // Registro automÃ¡tico en finanzas con la cuenta de la apertura
+                // Registro automÃ¡tico en finanzas
                 bool movimientoRegistrado = false;
                 string? movimientoError = null;
 
@@ -27596,7 +32101,7 @@ namespace Kirkenta.Pages.POS
                             formaPago: request.MetodoPagoId > 0
                                 ? _context.MetodosPago.FirstOrDefault(m => m.Id == request.MetodoPagoId)?.Nombre
                                 : "Efectivo",
-                            cuentaId: apertura.CuentaId  // â¬…ï¸ Usa la cuenta de la apertura
+                            cuentaId: apertura.CuentaId
                         );
 
                         if (mov != null)
@@ -27632,7 +32137,7 @@ namespace Kirkenta.Pages.POS
                             FechaVencimiento = DateTime.Now.AddDays(30),
                             Subtotal = subtotal,
                             Descuento = request.Descuento,
-                            Impuestos = impuestos,
+                            Impuestos = impuestosTotal,
                             Total = total,
                             Saldo = 0,
                             Estado = "Pagada",
@@ -27715,6 +32220,36 @@ namespace Kirkenta.Pages.POS
         }
     }
 }
+
+
+===== FILE: \Pages\Privacy.cshtml =====
+
+@page
+@model PrivacyModel
+@{
+    ViewData["Title"] = "Privacy Policy";
+}
+<h1>@ViewData["Title"]</h1>
+
+<p>Use this page to detail your site's privacy policy.</p>
+
+
+
+===== FILE: \Pages\Privacy.cshtml.cs =====
+
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+
+namespace Kirkenta.Pages;
+
+public class PrivacyModel : PageModel
+{
+    public void OnGet()
+    {
+    }
+}
+
+
 
 
 ===== FILE: \Pages\Productos\Create.cshtml =====
@@ -38381,6 +42916,554 @@ namespace Kirkenta.Pages.RRHH.Feriados
 }
 
 
+===== FILE: \Pages\RRHH\Index.cshtml =====
+
+@page
+@model Kirkenta.Pages.RRHH.IndexModel
+@{
+    ViewData["Title"] = "RRHH";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Recursos Humanos</h2>
+        <p>Control de empleados, nÃ³mina, vacaciones y documentos</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/RRHH/Empleados/Create" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nuevo empleado
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom: 24px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total empleados</span>
+        <span class="kpi-value">@Model.TotalEmpleados</span>
+        <span class="kpi-trend">@Model.EmpleadosActivos activos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">En vacaciones</span>
+        <span class="kpi-value" style="color: var(--color-primary);">@Model.EmpleadosVacaciones</span>
+        <span class="kpi-trend">Ahora mismo</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">NÃ³mina mensual</span>
+        <span class="kpi-value" style="font-size: 20px;">L. @Model.NominaMensual.ToString("N2")</span>
+        <span class="kpi-trend">Salarios base</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Vales pendientes</span>
+        <span class="kpi-value" style="color: var(--color-warning); font-size: 20px;">L. @Model.ValesPendientes.ToString("N2")</span>
+        <span class="kpi-trend">@Model.CantidadValesPendientes vales</span>
+    </div>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: 24px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Altas este mes</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.EmpleadosNuevosMes</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Bajas este mes</span>
+        <span class="kpi-value" style="color: var(--color-danger);">@Model.EmpleadosBajaMes</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Feriados prÃ³ximos</span>
+        <span class="kpi-value">@Model.FeriadosProximos.Count</span>
+        <span class="kpi-trend">En los prÃ³ximos 30 dÃ­as</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Vacaciones aprobadas</span>
+        <span class="kpi-value">@Model.VacacionesProximas.Count</span>
+        <span class="kpi-trend">PrÃ³ximas 2 semanas</span>
+    </div>
+</div>
+
+<!-- Alertas personalizadas -->
+@if (Model.Alertas.Count > 0)
+{
+    <div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">ðŸ”” Alertas activas</h3>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            @foreach (var a in Model.Alertas)
+            {
+                var color = a.Prioridad switch
+                {
+                    "Urgente" => "#ef4444",
+                    "Advertencia" => "#f59e0b",
+                    "Exito" => "#10b981",
+                    _ => "#4f46e5"
+                };
+                <div style="display: flex; gap: 12px; padding: 12px 16px; border-left: 3px solid @color; background: #f9fafb; border-radius: 6px;">
+                    <div style="flex: 1;">
+                        <strong style="font-size: 13.5px;">@a.Titulo</strong>
+                        @if (!string.IsNullOrEmpty(a.Descripcion))
+                        {
+                            <p style="font-size: 12.5px; color: var(--color-muted); margin: 4px 0 0 0;">@a.Descripcion</p>
+                        }
+                        @if (!string.IsNullOrEmpty(a.EmpleadoNombre))
+                        {
+                            <span style="font-size: 11.5px; color: var(--color-muted);">ðŸ‘¤ @a.EmpleadoNombre</span>
+                        }
+                    </div>
+                    <span class="badge" style="background: @(color)20; color: @color; height: fit-content;">@a.Prioridad</span>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<div class="panel-grid">
+    <!-- CumpleaÃ±os -->
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">ðŸŽ‚ CumpleaÃ±os del mes</h3>
+        @if (Model.Cumpleanieros.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin cumpleaÃ±os este mes</p>
+        }
+        else
+        {
+            <div class="timeline">
+                @foreach (var c in Model.Cumpleanieros)
+                {
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background: #ec4899;"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <strong>@c.NombreCompleto</strong>
+                                <span class="timeline-date">@c.FechaNacimiento.ToString("dd/MM")</span>
+                            </div>
+                            <p class="timeline-detail">
+                                @if (c.Dias == 0) { <span>Â¡Hoy!</span> }
+                                else if (c.Dias > 0) { <span>En @c.Dias dÃ­as</span> }
+                                else { <span>Hace @Math.Abs(c.Dias) dÃ­as</span> }
+                            </p>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Aniversarios -->
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">ðŸŽ‰ Aniversarios laborales</h3>
+        @if (Model.Aniversarios.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin aniversarios este mes</p>
+        }
+        else
+        {
+            <div class="timeline">
+                @foreach (var a in Model.Aniversarios)
+                {
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background: #8b5cf6;"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <strong>@a.NombreCompleto</strong>
+                                <span class="timeline-date">@a.Anios @(a.Anios == 1 ? "aÃ±o" : "aÃ±os")</span>
+                            </div>
+                            <p class="timeline-detail">
+                                IngresÃ³ el @a.FechaIngreso.ToString("dd/MM/yyyy")
+                            </p>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<div class="panel-grid" style="margin-top: 20px;">
+    <!-- Feriados prÃ³ximos -->
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">ðŸ“… Feriados prÃ³ximos</h3>
+        @if (Model.FeriadosProximos.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin feriados prÃ³ximos</p>
+        }
+        else
+        {
+            <div class="timeline">
+                @foreach (var f in Model.FeriadosProximos)
+                {
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background: #ef4444;"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <strong>@f.Nombre</strong>
+                                <span class="timeline-date">@f.Fecha.ToString("dd/MM/yyyy")</span>
+                            </div>
+                            <p class="timeline-detail">
+                                @if (f.Dias == 0) { <span>Â¡Hoy!</span> }
+                                else { <span>En @f.Dias @(f.Dias == 1 ? "dÃ­a" : "dÃ­as")</span> }
+                            </p>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Vacaciones prÃ³ximas -->
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">ðŸ–ï¸ Vacaciones prÃ³ximas</h3>
+        @if (Model.VacacionesProximas.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin vacaciones programadas</p>
+        }
+        else
+        {
+            <div class="timeline">
+                @foreach (var v in Model.VacacionesProximas)
+                {
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background: #06b6d4;"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <strong>@v.Empleado</strong>
+                                <span class="timeline-date">@v.Dias dÃ­as</span>
+                            </div>
+                            <p class="timeline-detail">
+                                Del @v.FechaInicio.ToString("dd/MM") al @v.FechaFin.ToString("dd/MM")
+                            </p>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Empleados recientes -->
+<div class="module-card" style="padding: 20px; margin-top: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 class="panel-title">ðŸ‘¥ Empleados recientes</h3>
+        <a asp-page="/RRHH/Empleados/Index" class="btn-secondary btn-sm">Ver todos</a>
+    </div>
+
+    @if (Model.EmpleadosRecientes.Count == 0)
+    {
+        <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin empleados registrados</p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;"></th>
+                        <th>CÃ³digo</th>
+                        <th>Empleado</th>
+                        <th>Puesto</th>
+                        <th>Fecha ingreso</th>
+                        <th style="width: 80px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Model.EmpleadosRecientes)
+                    {
+                        <tr>
+                            <td>
+                                @if (!string.IsNullOrEmpty(e.FotoPath))
+                                {
+                                    <img src="@e.FotoPath" alt="@e.NombreCompleto" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;" />
+                                }
+                                else
+                                {
+                                    <div class="user-avatar-sm">@e.NombreCompleto.Substring(0, 1).ToUpper()</div>
+                                }
+                            </td>
+                            <td><span style="font-family: monospace;">@e.Codigo</span></td>
+                            <td><strong>@e.NombreCompleto</strong></td>
+                            <td>@(e.PuestoNombre ?? "â€”")</td>
+                            <td>@e.FechaIngreso.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <div class="table-actions">
+                                    <a asp-page="/RRHH/Empleados/Details" asp-route-id="@e.Id" class="btn-icon-action" title="Ver hoja de vida">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+
+===== FILE: \Pages\RRHH\Index.cshtml.cs =====
+
+using Kirkenta.Data;
+using Kirkenta.Helpers;
+using Kirkenta.Helpers.RRHH;
+using Kirkenta.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+
+namespace Kirkenta.Pages.RRHH
+{
+    public class IndexModel : PageModel
+    {
+        private readonly ApplicationDbContext _context;
+
+        public IndexModel(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        // KPIs
+        public int TotalEmpleados { get; set; }
+        public int EmpleadosActivos { get; set; }
+        public int EmpleadosVacaciones { get; set; }
+        public int EmpleadosBajaMes { get; set; }
+        public int EmpleadosNuevosMes { get; set; }
+        public decimal NominaMensual { get; set; }
+        public decimal ValesPendientes { get; set; }
+        public int CantidadValesPendientes { get; set; }
+
+        // Listas
+        public List<Cumpleaniero> Cumpleanieros { get; set; } = new();
+        public List<Aniversario> Aniversarios { get; set; } = new();
+        public List<FeriadoProximo> FeriadosProximos { get; set; } = new();
+        public List<VacacionProxima> VacacionesProximas { get; set; } = new();
+        public List<AlertaDashboard> Alertas { get; set; } = new();
+        public List<EmpleadoReciente> EmpleadosRecientes { get; set; } = new();
+
+        public class Cumpleaniero
+        {
+            public int Id { get; set; }
+            public string NombreCompleto { get; set; } = "";
+            public DateTime FechaNacimiento { get; set; }
+            public int Dias { get; set; }
+        }
+
+        public class Aniversario
+        {
+            public int Id { get; set; }
+            public string NombreCompleto { get; set; } = "";
+            public DateTime FechaIngreso { get; set; }
+            public int Anios { get; set; }
+            public int Dias { get; set; }
+        }
+
+        public class FeriadoProximo
+        {
+            public string Nombre { get; set; } = "";
+            public DateTime Fecha { get; set; }
+            public int Dias { get; set; }
+            public string Tipo { get; set; } = "";
+        }
+
+        public class VacacionProxima
+        {
+            public int Id { get; set; }
+            public string Numero { get; set; } = "";
+            public string Empleado { get; set; } = "";
+            public DateTime FechaInicio { get; set; }
+            public DateTime FechaFin { get; set; }
+            public decimal Dias { get; set; }
+        }
+
+        public class AlertaDashboard
+        {
+            public int Id { get; set; }
+            public string Titulo { get; set; } = "";
+            public string? Descripcion { get; set; }
+            public string Prioridad { get; set; } = "Info";
+            public string? EmpleadoNombre { get; set; }
+        }
+
+        public class EmpleadoReciente
+        {
+            public int Id { get; set; }
+            public string Codigo { get; set; } = "";
+            public string NombreCompleto { get; set; } = "";
+            public string? FotoPath { get; set; }
+            public string? PuestoNombre { get; set; }
+            public DateTime FechaIngreso { get; set; }
+        }
+
+        public IActionResult OnGet()
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "RRHH", "Index", "ver"))
+            {
+                TempData["Error"] = "No tienes permiso para ver RRHH";
+                return RedirectToPage("/Index");
+            }
+
+            var hoy = DateTime.Today;
+            var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
+            var finMes = inicioMes.AddMonths(1);
+
+            // ===== KPIs =====
+            var empleados = _context.Empleados.AsNoTracking().ToList();
+            TotalEmpleados = empleados.Count;
+            EmpleadosActivos = empleados.Count(e => e.Estado == "Activo");
+            EmpleadosVacaciones = empleados.Count(e => e.Estado == "Vacaciones");
+            EmpleadosNuevosMes = empleados.Count(e => e.FechaIngreso >= inicioMes && e.FechaIngreso < finMes);
+            EmpleadosBajaMes = empleados.Count(e => e.FechaBaja.HasValue && e.FechaBaja.Value >= inicioMes && e.FechaBaja.Value < finMes);
+
+            NominaMensual = empleados.Where(e => e.Estado == "Activo" || e.Estado == "Vacaciones").Sum(e => e.SalarioBase);
+
+            var vales = _context.ValesEmpleado
+                .AsNoTracking()
+                .Where(v => v.SaldoPendiente > 0 &&
+                            (v.Estado == "Entregado" || v.Estado == "AprobadoRRHH"))
+                .ToList();
+
+            ValesPendientes = vales.Sum(v => v.SaldoPendiente);
+            CantidadValesPendientes = vales.Count;
+
+            // ===== CUMPLEAÃ‘EROS DEL MES =====
+            Cumpleanieros = empleados
+                .Where(e => e.FechaNacimiento.HasValue &&
+                            e.Estado != "Baja")
+                .Where(e =>
+                {
+                    var fn = e.FechaNacimiento!.Value;
+                    var cumpleEsteAnio = new DateTime(hoy.Year, fn.Month, fn.Day);
+                    return cumpleEsteAnio.Month == hoy.Month;
+                })
+                .Select(e => new Cumpleaniero
+                {
+                    Id = e.Id,
+                    NombreCompleto = $"{e.Nombres} {e.Apellidos}",
+                    FechaNacimiento = e.FechaNacimiento!.Value,
+                    Dias = e.FechaNacimiento!.Value.Day - hoy.Day
+                })
+                .OrderBy(x => x.FechaNacimiento.Day)
+                .ToList();
+
+            // ===== ANIVERSARIOS DEL MES =====
+            Aniversarios = empleados
+                .Where(e => e.Estado != "Baja" && e.FechaIngreso.Month == hoy.Month)
+                .Select(e => new Aniversario
+                {
+                    Id = e.Id,
+                    NombreCompleto = $"{e.Nombres} {e.Apellidos}",
+                    FechaIngreso = e.FechaIngreso,
+                    Anios = hoy.Year - e.FechaIngreso.Year,
+                    Dias = e.FechaIngreso.Day - hoy.Day
+                })
+                .Where(x => x.Anios >= 1)
+                .OrderBy(x => x.FechaIngreso.Day)
+                .ToList();
+
+            // ===== FERIADOS PRÃ“XIMOS (30 dÃ­as) =====
+            var config = _context.ConfiguracionEmpresa.AsNoTracking().FirstOrDefault();
+            var diasAlertaFeriados = config?.RHAlertaFeriadosDias ?? 7;
+            var paisCodigo = config?.PaisCodigo ?? "HN";
+
+            var feriadosProx = _context.Feriados
+                .AsNoTracking()
+                .Where(f => f.Activo && f.PaisCodigo == paisCodigo && f.Fecha >= hoy)
+                .OrderBy(f => f.Fecha)
+                .Take(5)
+                .ToList();
+
+            FeriadosProximos = feriadosProx
+                .Where(f => (f.Fecha.Date - hoy).Days <= 30)
+                .Select(f => new FeriadoProximo
+                {
+                    Nombre = f.Nombre,
+                    Fecha = f.Fecha,
+                    Dias = (f.Fecha.Date - hoy).Days,
+                    Tipo = f.Tipo
+                })
+                .ToList();
+
+            // ===== VACACIONES PRÃ“XIMAS =====
+            var empleadosDict = empleados.ToDictionary(e => e.Id, e => $"{e.Nombres} {e.Apellidos}");
+
+            VacacionesProximas = _context.VacacionesEmpleado
+                .AsNoTracking()
+                .Where(v => v.Estado == "Aprobado" && v.FechaInicio >= hoy && v.FechaInicio <= hoy.AddDays(15))
+                .OrderBy(v => v.FechaInicio)
+                .Take(5)
+                .ToList()
+                .Select(v => new VacacionProxima
+                {
+                    Id = v.Id,
+                    Numero = v.Numero,
+                    Empleado = empleadosDict.GetValueOrDefault(v.EmpleadoId, "â€”"),
+                    FechaInicio = v.FechaInicio,
+                    FechaFin = v.FechaFin,
+                    Dias = v.DiasADescontar
+                })
+                .ToList();
+
+            // ===== ALERTAS PERSONALIZADAS =====
+            Alertas = _context.AlertasPersonalizadas
+                .AsNoTracking()
+                .Where(a => !a.Completada && a.MostrarEnDashboard)
+                .Where(a => !a.FechaVigenciaHasta.HasValue || a.FechaVigenciaHasta.Value >= hoy)
+                .OrderByDescending(a => a.Prioridad == "Urgente")
+                .ThenByDescending(a => a.FechaAlerta)
+                .Take(10)
+                .ToList()
+                .Select(a => new AlertaDashboard
+                {
+                    Id = a.Id,
+                    Titulo = a.Titulo,
+                    Descripcion = a.Descripcion,
+                    Prioridad = a.Prioridad,
+                    EmpleadoNombre = a.EmpleadoId.HasValue
+                        ? empleadosDict.GetValueOrDefault(a.EmpleadoId.Value)
+                        : null
+                })
+                .ToList();
+
+            // ===== EMPLEADOS RECIENTES =====
+            EmpleadosRecientes = empleados
+                .Where(e => e.Estado != "Baja")
+                .OrderByDescending(e => e.FechaIngreso)
+                .Take(5)
+                .Select(e => new EmpleadoReciente
+                {
+                    Id = e.Id,
+                    Codigo = e.Codigo,
+                    NombreCompleto = $"{e.Nombres} {e.Apellidos}",
+                    FotoPath = e.FotoPath,
+                    PuestoNombre = e.PuestoNombre,
+                    FechaIngreso = e.FechaIngreso
+                })
+                .ToList();
+
+            return Page();
+        }
+    }
+}
+
+
 ===== FILE: \Pages\RRHH\Nomina\Aprobar.cshtml =====
 
 @page "{id:int}"
@@ -39770,6 +44853,13 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 .OrderBy(c => c.Tipo).ThenBy(c => c.Nombre)
                 .ToList();
 
+            // ===== VALIDACIÃ“N: perÃ­odo contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
+            }
+
             if (!ModelState.IsValid) return Page();
 
             var cuenta = _context.CuentasFinancieras.FirstOrDefault(c => c.Id == CuentaId);
@@ -39849,7 +44939,7 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 nomina.Notas = (nomina.Notas ?? "") + $"\n[Pago {DateTime.Now:dd/MM HH:mm}] {Notas}";
             }
 
-            // ===== DESCONTAR VALES =====
+            // DESCONTAR VALES
             var detalles = _context.DetalleNominas.Where(d => d.NominaId == nomina.Id).ToList();
             foreach (var detalle in detalles)
             {
@@ -40220,6 +45310,13 @@ namespace Kirkenta.Pages.RRHH.Nomina
             {
                 ModelState.AddModelError(string.Empty, "Debes seleccionar al menos un empleado");
                 return Page();
+            }
+
+            // ===== VALIDACIÃ“N: perÃ­odo contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
             }
 
             if (!ModelState.IsValid) return Page();
@@ -43345,6 +48442,13 @@ namespace Kirkenta.Pages.RRHH.Vales
                 .OrderBy(c => c.Nombre)
                 .ToList();
 
+            // ===== VALIDACIÃ“N: perÃ­odo contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
+            }
+
             if (!ModelState.IsValid) return Page();
 
             var cuenta = _context.CuentasFinancieras.FirstOrDefault(c => c.Id == CuentaId);
@@ -43801,554 +48905,6 @@ namespace Kirkenta.Pages.RRHH.Vales
             TotalEntregados = lista.Count(v => v.Estado == "Entregado" || v.Estado == "Descontado");
             MontoPendiente = lista.Where(v => v.Estado == "Solicitado" || v.Estado == "AprobadoGerente" || v.Estado == "AprobadoRRHH").Sum(v => v.Monto);
             SaldoPorDescontar = lista.Where(v => v.SaldoPendiente > 0).Sum(v => v.SaldoPendiente);
-
-            return Page();
-        }
-    }
-}
-
-
-===== FILE: \Pages\RRHH\Index.cshtml =====
-
-@page
-@model Kirkenta.Pages.RRHH.IndexModel
-@{
-    ViewData["Title"] = "RRHH";
-}
-
-<div class="module-header">
-    <div class="module-header-left">
-        <h2>Recursos Humanos</h2>
-        <p>Control de empleados, nÃ³mina, vacaciones y documentos</p>
-    </div>
-    <div class="module-header-right">
-        <a asp-page="/RRHH/Empleados/Create" class="btn-primary">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Nuevo empleado
-        </a>
-    </div>
-</div>
-
-@if (TempData["Success"] != null)
-{
-    <div class="module-alert module-alert-success">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-            <polyline points="22 4 12 14.01 9 11.01"/>
-        </svg>
-        @TempData["Success"]
-    </div>
-}
-
-<!-- KPIs -->
-<div class="kpi-grid" style="margin-bottom: 24px;">
-    <div class="kpi-card">
-        <span class="kpi-label">Total empleados</span>
-        <span class="kpi-value">@Model.TotalEmpleados</span>
-        <span class="kpi-trend">@Model.EmpleadosActivos activos</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">En vacaciones</span>
-        <span class="kpi-value" style="color: var(--color-primary);">@Model.EmpleadosVacaciones</span>
-        <span class="kpi-trend">Ahora mismo</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">NÃ³mina mensual</span>
-        <span class="kpi-value" style="font-size: 20px;">L. @Model.NominaMensual.ToString("N2")</span>
-        <span class="kpi-trend">Salarios base</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">Vales pendientes</span>
-        <span class="kpi-value" style="color: var(--color-warning); font-size: 20px;">L. @Model.ValesPendientes.ToString("N2")</span>
-        <span class="kpi-trend">@Model.CantidadValesPendientes vales</span>
-    </div>
-</div>
-
-<div class="kpi-grid" style="margin-bottom: 24px;">
-    <div class="kpi-card">
-        <span class="kpi-label">Altas este mes</span>
-        <span class="kpi-value" style="color: var(--color-success);">@Model.EmpleadosNuevosMes</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">Bajas este mes</span>
-        <span class="kpi-value" style="color: var(--color-danger);">@Model.EmpleadosBajaMes</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">Feriados prÃ³ximos</span>
-        <span class="kpi-value">@Model.FeriadosProximos.Count</span>
-        <span class="kpi-trend">En los prÃ³ximos 30 dÃ­as</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">Vacaciones aprobadas</span>
-        <span class="kpi-value">@Model.VacacionesProximas.Count</span>
-        <span class="kpi-trend">PrÃ³ximas 2 semanas</span>
-    </div>
-</div>
-
-<!-- Alertas personalizadas -->
-@if (Model.Alertas.Count > 0)
-{
-    <div class="module-card" style="padding: 20px; margin-bottom: 20px;">
-        <h3 class="panel-title" style="margin-bottom: 16px;">ðŸ”” Alertas activas</h3>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-            @foreach (var a in Model.Alertas)
-            {
-                var color = a.Prioridad switch
-                {
-                    "Urgente" => "#ef4444",
-                    "Advertencia" => "#f59e0b",
-                    "Exito" => "#10b981",
-                    _ => "#4f46e5"
-                };
-                <div style="display: flex; gap: 12px; padding: 12px 16px; border-left: 3px solid @color; background: #f9fafb; border-radius: 6px;">
-                    <div style="flex: 1;">
-                        <strong style="font-size: 13.5px;">@a.Titulo</strong>
-                        @if (!string.IsNullOrEmpty(a.Descripcion))
-                        {
-                            <p style="font-size: 12.5px; color: var(--color-muted); margin: 4px 0 0 0;">@a.Descripcion</p>
-                        }
-                        @if (!string.IsNullOrEmpty(a.EmpleadoNombre))
-                        {
-                            <span style="font-size: 11.5px; color: var(--color-muted);">ðŸ‘¤ @a.EmpleadoNombre</span>
-                        }
-                    </div>
-                    <span class="badge" style="background: @(color)20; color: @color; height: fit-content;">@a.Prioridad</span>
-                </div>
-            }
-        </div>
-    </div>
-}
-
-<div class="panel-grid">
-    <!-- CumpleaÃ±os -->
-    <div class="module-card" style="padding: 20px;">
-        <h3 class="panel-title" style="margin-bottom: 16px;">ðŸŽ‚ CumpleaÃ±os del mes</h3>
-        @if (Model.Cumpleanieros.Count == 0)
-        {
-            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin cumpleaÃ±os este mes</p>
-        }
-        else
-        {
-            <div class="timeline">
-                @foreach (var c in Model.Cumpleanieros)
-                {
-                    <div class="timeline-item">
-                        <div class="timeline-dot" style="background: #ec4899;"></div>
-                        <div class="timeline-content">
-                            <div class="timeline-header">
-                                <strong>@c.NombreCompleto</strong>
-                                <span class="timeline-date">@c.FechaNacimiento.ToString("dd/MM")</span>
-                            </div>
-                            <p class="timeline-detail">
-                                @if (c.Dias == 0) { <span>Â¡Hoy!</span> }
-                                else if (c.Dias > 0) { <span>En @c.Dias dÃ­as</span> }
-                                else { <span>Hace @Math.Abs(c.Dias) dÃ­as</span> }
-                            </p>
-                        </div>
-                    </div>
-                }
-            </div>
-        }
-    </div>
-
-    <!-- Aniversarios -->
-    <div class="module-card" style="padding: 20px;">
-        <h3 class="panel-title" style="margin-bottom: 16px;">ðŸŽ‰ Aniversarios laborales</h3>
-        @if (Model.Aniversarios.Count == 0)
-        {
-            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin aniversarios este mes</p>
-        }
-        else
-        {
-            <div class="timeline">
-                @foreach (var a in Model.Aniversarios)
-                {
-                    <div class="timeline-item">
-                        <div class="timeline-dot" style="background: #8b5cf6;"></div>
-                        <div class="timeline-content">
-                            <div class="timeline-header">
-                                <strong>@a.NombreCompleto</strong>
-                                <span class="timeline-date">@a.Anios @(a.Anios == 1 ? "aÃ±o" : "aÃ±os")</span>
-                            </div>
-                            <p class="timeline-detail">
-                                IngresÃ³ el @a.FechaIngreso.ToString("dd/MM/yyyy")
-                            </p>
-                        </div>
-                    </div>
-                }
-            </div>
-        }
-    </div>
-</div>
-
-<div class="panel-grid" style="margin-top: 20px;">
-    <!-- Feriados prÃ³ximos -->
-    <div class="module-card" style="padding: 20px;">
-        <h3 class="panel-title" style="margin-bottom: 16px;">ðŸ“… Feriados prÃ³ximos</h3>
-        @if (Model.FeriadosProximos.Count == 0)
-        {
-            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin feriados prÃ³ximos</p>
-        }
-        else
-        {
-            <div class="timeline">
-                @foreach (var f in Model.FeriadosProximos)
-                {
-                    <div class="timeline-item">
-                        <div class="timeline-dot" style="background: #ef4444;"></div>
-                        <div class="timeline-content">
-                            <div class="timeline-header">
-                                <strong>@f.Nombre</strong>
-                                <span class="timeline-date">@f.Fecha.ToString("dd/MM/yyyy")</span>
-                            </div>
-                            <p class="timeline-detail">
-                                @if (f.Dias == 0) { <span>Â¡Hoy!</span> }
-                                else { <span>En @f.Dias @(f.Dias == 1 ? "dÃ­a" : "dÃ­as")</span> }
-                            </p>
-                        </div>
-                    </div>
-                }
-            </div>
-        }
-    </div>
-
-    <!-- Vacaciones prÃ³ximas -->
-    <div class="module-card" style="padding: 20px;">
-        <h3 class="panel-title" style="margin-bottom: 16px;">ðŸ–ï¸ Vacaciones prÃ³ximas</h3>
-        @if (Model.VacacionesProximas.Count == 0)
-        {
-            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin vacaciones programadas</p>
-        }
-        else
-        {
-            <div class="timeline">
-                @foreach (var v in Model.VacacionesProximas)
-                {
-                    <div class="timeline-item">
-                        <div class="timeline-dot" style="background: #06b6d4;"></div>
-                        <div class="timeline-content">
-                            <div class="timeline-header">
-                                <strong>@v.Empleado</strong>
-                                <span class="timeline-date">@v.Dias dÃ­as</span>
-                            </div>
-                            <p class="timeline-detail">
-                                Del @v.FechaInicio.ToString("dd/MM") al @v.FechaFin.ToString("dd/MM")
-                            </p>
-                        </div>
-                    </div>
-                }
-            </div>
-        }
-    </div>
-</div>
-
-<!-- Empleados recientes -->
-<div class="module-card" style="padding: 20px; margin-top: 20px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h3 class="panel-title">ðŸ‘¥ Empleados recientes</h3>
-        <a asp-page="/RRHH/Empleados/Index" class="btn-secondary btn-sm">Ver todos</a>
-    </div>
-
-    @if (Model.EmpleadosRecientes.Count == 0)
-    {
-        <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">Sin empleados registrados</p>
-    }
-    else
-    {
-        <div class="table-wrapper">
-            <table class="erp-table">
-                <thead>
-                    <tr>
-                        <th style="width: 50px;"></th>
-                        <th>CÃ³digo</th>
-                        <th>Empleado</th>
-                        <th>Puesto</th>
-                        <th>Fecha ingreso</th>
-                        <th style="width: 80px; text-align: right;">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var e in Model.EmpleadosRecientes)
-                    {
-                        <tr>
-                            <td>
-                                @if (!string.IsNullOrEmpty(e.FotoPath))
-                                {
-                                    <img src="@e.FotoPath" alt="@e.NombreCompleto" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;" />
-                                }
-                                else
-                                {
-                                    <div class="user-avatar-sm">@e.NombreCompleto.Substring(0, 1).ToUpper()</div>
-                                }
-                            </td>
-                            <td><span style="font-family: monospace;">@e.Codigo</span></td>
-                            <td><strong>@e.NombreCompleto</strong></td>
-                            <td>@(e.PuestoNombre ?? "â€”")</td>
-                            <td>@e.FechaIngreso.ToString("dd/MM/yyyy")</td>
-                            <td>
-                                <div class="table-actions">
-                                    <a asp-page="/RRHH/Empleados/Details" asp-route-id="@e.Id" class="btn-icon-action" title="Ver hoja de vida">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                            <circle cx="12" cy="12" r="3"/>
-                                        </svg>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    }
-</div>
-
-
-===== FILE: \Pages\RRHH\Index.cshtml.cs =====
-
-using Kirkenta.Data;
-using Kirkenta.Helpers;
-using Kirkenta.Helpers.RRHH;
-using Kirkenta.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
-
-namespace Kirkenta.Pages.RRHH
-{
-    public class IndexModel : PageModel
-    {
-        private readonly ApplicationDbContext _context;
-
-        public IndexModel(ApplicationDbContext context)
-        {
-            _context = context;
-        }
-
-        // KPIs
-        public int TotalEmpleados { get; set; }
-        public int EmpleadosActivos { get; set; }
-        public int EmpleadosVacaciones { get; set; }
-        public int EmpleadosBajaMes { get; set; }
-        public int EmpleadosNuevosMes { get; set; }
-        public decimal NominaMensual { get; set; }
-        public decimal ValesPendientes { get; set; }
-        public int CantidadValesPendientes { get; set; }
-
-        // Listas
-        public List<Cumpleaniero> Cumpleanieros { get; set; } = new();
-        public List<Aniversario> Aniversarios { get; set; } = new();
-        public List<FeriadoProximo> FeriadosProximos { get; set; } = new();
-        public List<VacacionProxima> VacacionesProximas { get; set; } = new();
-        public List<AlertaDashboard> Alertas { get; set; } = new();
-        public List<EmpleadoReciente> EmpleadosRecientes { get; set; } = new();
-
-        public class Cumpleaniero
-        {
-            public int Id { get; set; }
-            public string NombreCompleto { get; set; } = "";
-            public DateTime FechaNacimiento { get; set; }
-            public int Dias { get; set; }
-        }
-
-        public class Aniversario
-        {
-            public int Id { get; set; }
-            public string NombreCompleto { get; set; } = "";
-            public DateTime FechaIngreso { get; set; }
-            public int Anios { get; set; }
-            public int Dias { get; set; }
-        }
-
-        public class FeriadoProximo
-        {
-            public string Nombre { get; set; } = "";
-            public DateTime Fecha { get; set; }
-            public int Dias { get; set; }
-            public string Tipo { get; set; } = "";
-        }
-
-        public class VacacionProxima
-        {
-            public int Id { get; set; }
-            public string Numero { get; set; } = "";
-            public string Empleado { get; set; } = "";
-            public DateTime FechaInicio { get; set; }
-            public DateTime FechaFin { get; set; }
-            public decimal Dias { get; set; }
-        }
-
-        public class AlertaDashboard
-        {
-            public int Id { get; set; }
-            public string Titulo { get; set; } = "";
-            public string? Descripcion { get; set; }
-            public string Prioridad { get; set; } = "Info";
-            public string? EmpleadoNombre { get; set; }
-        }
-
-        public class EmpleadoReciente
-        {
-            public int Id { get; set; }
-            public string Codigo { get; set; } = "";
-            public string NombreCompleto { get; set; } = "";
-            public string? FotoPath { get; set; }
-            public string? PuestoNombre { get; set; }
-            public DateTime FechaIngreso { get; set; }
-        }
-
-        public IActionResult OnGet()
-        {
-            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
-            var currentRol = currentUser?.Rol ?? "Pendiente";
-
-            if (currentRol != "Admin" &&
-                !PermisoHelper.TienePermiso(_context, currentRol, "RRHH", "Index", "ver"))
-            {
-                TempData["Error"] = "No tienes permiso para ver RRHH";
-                return RedirectToPage("/Index");
-            }
-
-            var hoy = DateTime.Today;
-            var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
-            var finMes = inicioMes.AddMonths(1);
-
-            // ===== KPIs =====
-            var empleados = _context.Empleados.AsNoTracking().ToList();
-            TotalEmpleados = empleados.Count;
-            EmpleadosActivos = empleados.Count(e => e.Estado == "Activo");
-            EmpleadosVacaciones = empleados.Count(e => e.Estado == "Vacaciones");
-            EmpleadosNuevosMes = empleados.Count(e => e.FechaIngreso >= inicioMes && e.FechaIngreso < finMes);
-            EmpleadosBajaMes = empleados.Count(e => e.FechaBaja.HasValue && e.FechaBaja.Value >= inicioMes && e.FechaBaja.Value < finMes);
-
-            NominaMensual = empleados.Where(e => e.Estado == "Activo" || e.Estado == "Vacaciones").Sum(e => e.SalarioBase);
-
-            var vales = _context.ValesEmpleado
-                .AsNoTracking()
-                .Where(v => v.SaldoPendiente > 0 &&
-                            (v.Estado == "Entregado" || v.Estado == "AprobadoRRHH"))
-                .ToList();
-
-            ValesPendientes = vales.Sum(v => v.SaldoPendiente);
-            CantidadValesPendientes = vales.Count;
-
-            // ===== CUMPLEAÃ‘EROS DEL MES =====
-            Cumpleanieros = empleados
-                .Where(e => e.FechaNacimiento.HasValue &&
-                            e.Estado != "Baja")
-                .Where(e =>
-                {
-                    var fn = e.FechaNacimiento!.Value;
-                    var cumpleEsteAnio = new DateTime(hoy.Year, fn.Month, fn.Day);
-                    return cumpleEsteAnio.Month == hoy.Month;
-                })
-                .Select(e => new Cumpleaniero
-                {
-                    Id = e.Id,
-                    NombreCompleto = $"{e.Nombres} {e.Apellidos}",
-                    FechaNacimiento = e.FechaNacimiento!.Value,
-                    Dias = e.FechaNacimiento!.Value.Day - hoy.Day
-                })
-                .OrderBy(x => x.FechaNacimiento.Day)
-                .ToList();
-
-            // ===== ANIVERSARIOS DEL MES =====
-            Aniversarios = empleados
-                .Where(e => e.Estado != "Baja" && e.FechaIngreso.Month == hoy.Month)
-                .Select(e => new Aniversario
-                {
-                    Id = e.Id,
-                    NombreCompleto = $"{e.Nombres} {e.Apellidos}",
-                    FechaIngreso = e.FechaIngreso,
-                    Anios = hoy.Year - e.FechaIngreso.Year,
-                    Dias = e.FechaIngreso.Day - hoy.Day
-                })
-                .Where(x => x.Anios >= 1)
-                .OrderBy(x => x.FechaIngreso.Day)
-                .ToList();
-
-            // ===== FERIADOS PRÃ“XIMOS (30 dÃ­as) =====
-            var config = _context.ConfiguracionEmpresa.AsNoTracking().FirstOrDefault();
-            var diasAlertaFeriados = config?.RHAlertaFeriadosDias ?? 7;
-            var paisCodigo = config?.PaisCodigo ?? "HN";
-
-            var feriadosProx = _context.Feriados
-                .AsNoTracking()
-                .Where(f => f.Activo && f.PaisCodigo == paisCodigo && f.Fecha >= hoy)
-                .OrderBy(f => f.Fecha)
-                .Take(5)
-                .ToList();
-
-            FeriadosProximos = feriadosProx
-                .Where(f => (f.Fecha.Date - hoy).Days <= 30)
-                .Select(f => new FeriadoProximo
-                {
-                    Nombre = f.Nombre,
-                    Fecha = f.Fecha,
-                    Dias = (f.Fecha.Date - hoy).Days,
-                    Tipo = f.Tipo
-                })
-                .ToList();
-
-            // ===== VACACIONES PRÃ“XIMAS =====
-            var empleadosDict = empleados.ToDictionary(e => e.Id, e => $"{e.Nombres} {e.Apellidos}");
-
-            VacacionesProximas = _context.VacacionesEmpleado
-                .AsNoTracking()
-                .Where(v => v.Estado == "Aprobado" && v.FechaInicio >= hoy && v.FechaInicio <= hoy.AddDays(15))
-                .OrderBy(v => v.FechaInicio)
-                .Take(5)
-                .ToList()
-                .Select(v => new VacacionProxima
-                {
-                    Id = v.Id,
-                    Numero = v.Numero,
-                    Empleado = empleadosDict.GetValueOrDefault(v.EmpleadoId, "â€”"),
-                    FechaInicio = v.FechaInicio,
-                    FechaFin = v.FechaFin,
-                    Dias = v.DiasADescontar
-                })
-                .ToList();
-
-            // ===== ALERTAS PERSONALIZADAS =====
-            Alertas = _context.AlertasPersonalizadas
-                .AsNoTracking()
-                .Where(a => !a.Completada && a.MostrarEnDashboard)
-                .Where(a => !a.FechaVigenciaHasta.HasValue || a.FechaVigenciaHasta.Value >= hoy)
-                .OrderByDescending(a => a.Prioridad == "Urgente")
-                .ThenByDescending(a => a.FechaAlerta)
-                .Take(10)
-                .ToList()
-                .Select(a => new AlertaDashboard
-                {
-                    Id = a.Id,
-                    Titulo = a.Titulo,
-                    Descripcion = a.Descripcion,
-                    Prioridad = a.Prioridad,
-                    EmpleadoNombre = a.EmpleadoId.HasValue
-                        ? empleadosDict.GetValueOrDefault(a.EmpleadoId.Value)
-                        : null
-                })
-                .ToList();
-
-            // ===== EMPLEADOS RECIENTES =====
-            EmpleadosRecientes = empleados
-                .Where(e => e.Estado != "Baja")
-                .OrderByDescending(e => e.FechaIngreso)
-                .Take(5)
-                .Select(e => new EmpleadoReciente
-                {
-                    Id = e.Id,
-                    Codigo = e.Codigo,
-                    NombreCompleto = $"{e.Nombres} {e.Apellidos}",
-                    FotoPath = e.FotoPath,
-                    PuestoNombre = e.PuestoNombre,
-                    FechaIngreso = e.FechaIngreso
-                })
-                .ToList();
 
             return Page();
         }
@@ -45340,6 +49896,7 @@ namespace Kirkenta.Pages.Series
         { "Cuentas", "Cuentas financieras" }, { "Movimientos", "Movimientos" },
         { "Vales", "Vales a empleados" }, { "CategoriasFinancieras", "CategorÃ­as financieras" },
         { "Aperturas", "Aperturas de caja" }, { "Cierres", "Cierres de caja" },
+        { "CierresContables", "Cierres contables" },
         // RRHH
         { "Empleados", "Empleados" }, { "Documentos", "Documentos" },
         { "Expedientes", "Expedientes" }, { "Vacaciones", "Vacaciones" },
@@ -45360,7 +49917,8 @@ namespace Kirkenta.Pages.Series
         { "HistorialProducto", "Historial de producto" },
         { "Anular", "Anular" }, { "Entregar", "Entregar" },
         { "Import", "Importar" }, { "ImportMap", "Mapear columnas" },
-        { "Export", "Exportar" }, { "Pagar", "Pagar" }
+        { "Export", "Exportar" }, { "Pagar", "Pagar" },
+        { "Reabrir", "Reabrir" }
     };
 
     for (int i = 0; i < segments.Length; i++)
@@ -45586,6 +50144,7 @@ namespace Kirkenta.Pages.Series
                         @if (puedeVerSubmodulo("Finanzas", "Movimientos")) { <a asp-page="/Finanzas/Movimientos/Index">ðŸ’µ Movimientos</a> }
                         @if (puedeVerSubmodulo("Finanzas", "Aperturas")) { <a asp-page="/Finanzas/Aperturas/Index">ðŸ”“ Aperturas de caja</a> }
                         @if (puedeVerSubmodulo("Finanzas", "Cierres")) { <a asp-page="/Finanzas/Cierres/Index">ðŸ”’ Cierres de caja</a> }
+                        @if (puedeVerSubmodulo("Finanzas", "CierresContables")) { <a asp-page="/Finanzas/CierresContables/Index">ðŸ“… Cierres contables</a> }
                         @if (puedeVerSubmodulo("Finanzas", "Reportes")) { <a asp-page="/Finanzas/Reportes/Index">ðŸ“ˆ Reportes</a> }
                     </div>
                 </div>
@@ -49868,845 +54427,6 @@ namespace Kirkenta.Pages.Ventas
 }
 
 
-===== FILE: \Pages\Error.cshtml =====
-
-@page
-@model ErrorModel
-@{
-    ViewData["Title"] = "Error";
-}
-
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
-
-@if (Model.ShowRequestId)
-{
-    <p>
-        <strong>Request ID:</strong> <code>@Model.RequestId</code>
-    </p>
-}
-
-<h3>Development Mode</h3>
-<p>
-    Swapping to the <strong>Development</strong> environment displays detailed information about the error that occurred.
-</p>
-<p>
-    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
-    It can result in displaying sensitive information from exceptions to end users.
-    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
-    and restarting the app.
-</p>
-
-
-
-===== FILE: \Pages\Error.cshtml.cs =====
-
-using System.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-
-namespace Kirkenta.Pages;
-
-[ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-[IgnoreAntiforgeryToken]
-public class ErrorModel : PageModel
-{
-    public string? RequestId { get; set; }
-
-    public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
-
-    public void OnGet()
-    {
-        RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier;
-    }
-}
-
-
-
-
-===== FILE: \Pages\Index.cshtml =====
-
-@page
-@model IndexModel
-@{
-    ViewData["Title"] = "Dashboard";
-}
-
-<div class="dashboard">
-    <div class="dashboard-header">
-        <h1>Hola, @User.Identity?.Name 👋</h1>
-        <p>Este es el resumen de tu operación</p>
-    </div>
-
-    <!-- KPIs reales -->
-    <div class="kpi-grid">
-        <div class="kpi-card">
-            <span class="kpi-label">Ventas de hoy</span>
-            <span class="kpi-value">L. @Model.VentasHoy.ToString("N2")</span>
-            <span class="kpi-trend @(Model.VentasHoy >= Model.VentasAyer ? "up" : "down")">
-                @(Model.VentasHoy >= Model.VentasAyer ? "↑" : "↓")
-                @(Model.VentasAyer > 0 ? Math.Abs((Model.VentasHoy - Model.VentasAyer) / Model.VentasAyer * 100).ToString("N1") : "0")% vs ayer
-            </span>
-        </div>
-        <div class="kpi-card">
-            <span class="kpi-label">Ventas del mes</span>
-            <span class="kpi-value">L. @Model.VentasMes.ToString("N2")</span>
-            <span class="kpi-trend @(Model.VentasMes >= Model.VentasMesAnterior ? "up" : "down")">
-                @(Model.VentasMes >= Model.VentasMesAnterior ? "↑" : "↓")
-                @(Model.VentasMesAnterior > 0 ? Math.Abs((Model.VentasMes - Model.VentasMesAnterior) / Model.VentasMesAnterior * 100).ToString("N1") : "0")% vs mes anterior
-            </span>
-        </div>
-        <div class="kpi-card">
-            <span class="kpi-label">Clientes activos</span>
-            <span class="kpi-value">@Model.ClientesActivos</span>
-            <span class="kpi-trend">Total registrados: @Model.ClientesTotal</span>
-        </div>
-        <div class="kpi-card">
-            <span class="kpi-label">Productos en stock</span>
-            <span class="kpi-value">@Model.ProductosTotal</span>
-            <span class="kpi-trend @(Model.ProductosStockBajo > 0 ? "down" : "up")">
-                @if (Model.ProductosStockBajo > 0)
-                {
-                    <span>⚠️ @Model.ProductosStockBajo con stock bajo</span>
-                }
-                else
-                {
-                    <span>✅ Stock saludable</span>
-                }
-            </span>
-        </div>
-    </div>
-
-    <!-- Accesos rápidos -->
-    <div class="section">
-        <h2 class="section-title">Accesos rápidos</h2>
-        <div class="quick-grid">
-            <a asp-page="/POS/Index" class="quick-action">
-                <span class="quick-icon">🛒</span>
-                <span class="quick-label">Punto de venta</span>
-            </a>
-            <a asp-page="/Productos/Create" class="quick-action">
-                <span class="quick-icon">📦</span>
-                <span class="quick-label">Nuevo producto</span>
-            </a>
-            <a asp-page="/Clientes/Create" class="quick-action">
-                <span class="quick-icon">👤</span>
-                <span class="quick-label">Nuevo cliente</span>
-            </a>
-            <a asp-page="/Cotizaciones/Create" class="quick-action">
-                <span class="quick-icon">📝</span>
-                <span class="quick-label">Nueva cotización</span>
-            </a>
-            <a asp-page="/Reportes/Ventas" class="quick-action">
-                <span class="quick-icon">📊</span>
-                <span class="quick-label">Reportes</span>
-            </a>
-            <a asp-page="/Facturas/Index" class="quick-action">
-                <span class="quick-icon">🧾</span>
-                <span class="quick-label">Facturas</span>
-            </a>
-        </div>
-    </div>
-
-    <!-- Gráfico de ventas últimos 7 días -->
-    <div class="module-card" style="padding: 20px;">
-        <h3 class="panel-title" style="margin-bottom: 16px;">Ventas de los últimos 7 días</h3>
-        <div style="height: 300px;">
-            <canvas id="chartDashboardVentas"></canvas>
-        </div>
-    </div>
-
-    <!-- Panel doble: Top productos + Últimas ventas -->
-    <div class="panel-grid">
-        <div class="module-card" style="padding: 20px;">
-            <h3 class="panel-title" style="margin-bottom: 16px;">🏆 Top 5 productos del mes</h3>
-            @if (Model.TopProductosMes.Count == 0)
-            {
-                <p style="color: var(--color-muted); text-align: center; padding: 40px;">Sin ventas este mes</p>
-            }
-            else
-            {
-                <div class="table-wrapper">
-                    <table class="erp-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Producto</th>
-                                <th style="text-align: right;">Cantidad</th>
-                                <th style="text-align: right;">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @{
-                                var i = 1;
-                            }
-                            @foreach (var p in Model.TopProductosMes)
-                            {
-                                <tr>
-                                    <td><strong>@i</strong></td>
-                                    <td>@p.Nombre</td>
-                                    <td style="text-align: right;">@p.Cantidad</td>
-                                    <td style="text-align: right;"><strong>L. @p.Total.ToString("N2")</strong></td>
-                                </tr>
-                                i++;
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-        </div>
-
-        <div class="module-card" style="padding: 20px;">
-            <h3 class="panel-title" style="margin-bottom: 16px;">📋 Últimas ventas</h3>
-            @if (Model.UltimasVentas.Count == 0)
-            {
-                <p style="color: var(--color-muted); text-align: center; padding: 40px;">Aún no hay ventas</p>
-            }
-            else
-            {
-                <div class="timeline">
-                    @foreach (var v in Model.UltimasVentas)
-                    {
-                        <div class="timeline-item">
-                            <div class="timeline-dot"></div>
-                            <div class="timeline-content">
-                                <div class="timeline-header">
-                                    <strong>@v.Numero</strong>
-                                    <span class="timeline-date">@v.Fecha.ToString("dd/MM HH:mm")</span>
-                                </div>
-                                <p class="timeline-detail">@v.ClienteNombre — <strong>L. @v.Total.ToString("N2")</strong></p>
-                            </div>
-                        </div>
-                    }
-                </div>
-            }
-        </div>
-    </div>
-</div>
-
-@section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script>
-        (function () {
-            var ventasData = @Html.Raw(Model.Ventas7DiasJson);
-            var ctx = document.getElementById('chartDashboardVentas');
-            if (ctx && ventasData.labels && ventasData.labels.length > 0) {
-                new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: ventasData.labels,
-                        datasets: [{
-                            label: 'Ventas (L.)',
-                            data: ventasData.data,
-                            backgroundColor: 'rgba(79, 70, 229, 0.85)',
-                            borderRadius: 8,
-                            borderSkipped: false
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: function (context) {
-                                        return 'L. ' + context.parsed.y.toLocaleString('es-HN', { minimumFractionDigits: 2 });
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    callback: function (value) { return 'L. ' + value.toLocaleString(); }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        })();
-    </script>
-}
-
-
-===== FILE: \Pages\Index.cshtml.cs =====
-
-using Kirkenta.Data;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Text.Json;
-
-namespace Kirkenta.Pages
-{
-    public class IndexModel : PageModel
-    {
-        private readonly ApplicationDbContext _context;
-
-        public IndexModel(ApplicationDbContext context)
-        {
-            _context = context;
-        }
-
-        // KPIs
-        public decimal VentasHoy { get; set; }
-        public decimal VentasAyer { get; set; }
-        public decimal VentasMes { get; set; }
-        public decimal VentasMesAnterior { get; set; }
-
-        public int ClientesActivos { get; set; }
-        public int ClientesTotal { get; set; }
-        public int ProductosTotal { get; set; }
-        public int ProductosStockBajo { get; set; }
-
-        // Datos para grÃ¡ficos y paneles
-        public string Ventas7DiasJson { get; set; } = "{}";
-        public List<TopProductoMes> TopProductosMes { get; set; } = new();
-        public List<VentaReciente> UltimasVentas { get; set; } = new();
-
-        public class TopProductoMes
-        {
-            public string Nombre { get; set; } = "";
-            public decimal Cantidad { get; set; }
-            public decimal Total { get; set; }
-        }
-
-        public class VentaReciente
-        {
-            public string Numero { get; set; } = "";
-            public DateTime Fecha { get; set; }
-            public decimal Total { get; set; }
-            public string ClienteNombre { get; set; } = "Consumidor final";
-        }
-
-        public void OnGet()
-        {
-            var hoy = DateTime.Today;
-            var ayer = hoy.AddDays(-1);
-            var manana = hoy.AddDays(1);
-
-            var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
-            var finMes = inicioMes.AddMonths(1);
-            var inicioMesAnterior = inicioMes.AddMonths(-1);
-            var finMesAnterior = inicioMes;
-
-            // === KPIs ===
-            VentasHoy = _context.Ventas
-                .Where(v => v.Fecha >= hoy && v.Fecha < manana && v.Estado == "Completada")
-                .Sum(v => (decimal?)v.Total) ?? 0;
-
-            VentasAyer = _context.Ventas
-                .Where(v => v.Fecha >= ayer && v.Fecha < hoy && v.Estado == "Completada")
-                .Sum(v => (decimal?)v.Total) ?? 0;
-
-            VentasMes = _context.Ventas
-                .Where(v => v.Fecha >= inicioMes && v.Fecha < finMes && v.Estado == "Completada")
-                .Sum(v => (decimal?)v.Total) ?? 0;
-
-            VentasMesAnterior = _context.Ventas
-                .Where(v => v.Fecha >= inicioMesAnterior && v.Fecha < finMesAnterior && v.Estado == "Completada")
-                .Sum(v => (decimal?)v.Total) ?? 0;
-
-            ClientesActivos = _context.Clientes.Count(c => c.Activo);
-            ClientesTotal = _context.Clientes.Count();
-            ProductosTotal = _context.Productos.Count(p => p.Activo);
-            ProductosStockBajo = _context.Productos.Count(p => p.Activo && p.Stock <= p.StockMinimo);
-
-            // === Ventas Ãºltimos 7 dÃ­as ===
-            var hace7Dias = hoy.AddDays(-6);
-            var ventas7 = _context.Ventas
-                .Where(v => v.Fecha >= hace7Dias && v.Estado == "Completada")
-                .ToList();
-
-            var porDia = new List<(string Label, decimal Total)>();
-            for (int i = 0; i < 7; i++)
-            {
-                var dia = hace7Dias.AddDays(i);
-                var totalDia = ventas7
-                    .Where(v => v.Fecha.Date == dia.Date)
-                    .Sum(v => v.Total);
-                porDia.Add((dia.ToString("ddd dd/MM"), totalDia));
-            }
-
-            Ventas7DiasJson = JsonSerializer.Serialize(new
-            {
-                labels = porDia.Select(x => x.Label).ToArray(),
-                data = porDia.Select(x => x.Total).ToArray()
-            });
-
-            // === Top 5 productos del mes ===
-            var ventaIdsMes = _context.Ventas
-                .Where(v => v.Fecha >= inicioMes && v.Fecha < finMes && v.Estado == "Completada")
-                .Select(v => v.Id)
-                .ToList();
-
-            var detallesMes = _context.DetalleVentas
-                .Where(d => ventaIdsMes.Contains(d.VentaId))
-                .ToList();
-
-            var productos = _context.Productos.ToList();
-
-            TopProductosMes = detallesMes
-                .GroupBy(d => d.ProductoId)
-                .Select(g => new TopProductoMes
-                {
-                    Nombre = productos.FirstOrDefault(p => p.Id == g.Key)?.Nombre ?? "â€”",
-                    Cantidad = g.Sum(d => d.Cantidad),
-                    Total = g.Sum(d => d.Total)
-                })
-                .OrderByDescending(x => x.Total)
-                .Take(5)
-                .ToList();
-
-            // === Ãšltimas 5 ventas ===
-            var ultimas = _context.Ventas
-                .Where(v => v.Estado == "Completada")
-                .OrderByDescending(v => v.Fecha)
-                .Take(5)
-                .ToList();
-
-            var clientes = _context.Clientes.ToList();
-
-            UltimasVentas = ultimas.Select(v => new VentaReciente
-            {
-                Numero = v.Numero,
-                Fecha = v.Fecha,
-                Total = v.Total,
-                ClienteNombre = v.ClienteId.HasValue
-                    ? (clientes.FirstOrDefault(c => c.Id == v.ClienteId.Value)?.Nombre ?? "Consumidor final")
-                    : "Consumidor final"
-            }).ToList();
-        }
-    }
-}
-
-
-===== FILE: \Pages\Privacy.cshtml =====
-
-@page
-@model PrivacyModel
-@{
-    ViewData["Title"] = "Privacy Policy";
-}
-<h1>@ViewData["Title"]</h1>
-
-<p>Use this page to detail your site's privacy policy.</p>
-
-
-
-===== FILE: \Pages\Privacy.cshtml.cs =====
-
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-
-namespace Kirkenta.Pages;
-
-public class PrivacyModel : PageModel
-{
-    public void OnGet()
-    {
-    }
-}
-
-
-
-
-===== FILE: \Pages\_ViewImports.cshtml =====
-
-@using Kirkenta
-@namespace Kirkenta.Pages
-@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
-
-
-
-===== FILE: \Pages\_ViewStart.cshtml =====
-
-@{
-    Layout = "_Layout";
-}
-
-
-===== FILE: \Properties\launchSettings.json =====
-
-{
-  "$schema": "https://json.schemastore.org/launchsettings.json",
-  "profiles": {
-    "http": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": true,
-      "applicationUrl": "http://localhost:5114",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    },
-    "https": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": true,
-      "applicationUrl": "https://localhost:7060;http://localhost:5114",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    }
-  }
-}
-
-
-
-===== FILE: \appsettings.json =====
-
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Port=3306;Database=Kirkenta;User=root;Password='Noacp0910';"
-  },
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
-  "AllowedHosts": "*"
-}
-
-
-===== FILE: \CONTEXTO.md =====
-
-# KIRKENTA ERP â€” CONTEXTO MAESTRO
-
-CÃ³mo usar: Pega este archivo completo al inicio de un chat nuevo. Di: "Retomamos Kirkenta ERP. Contexto: [pegas esto]". El asistente retomarÃ¡ al instante sin explicaciones adicionales.
-
-================================================================================
-1. STACK TÃ‰CNICO
-================================================================================
-
-- Framework: ASP.NET Core Razor Pages
-- .NET: net10.0
-- ORM: Entity Framework Core 10
-- Base de datos: MySQL (Pomelo.EntityFrameworkCore.MySql)
-- AutenticaciÃ³n: Cookies (esquema "KirkentaAuth")
-- SesiÃ³n: "KirkentaSession" (30 min)
-- Frontend: Bootstrap 5 + CSS custom (wwwroot/css/theme.css)
-- Charts: Chart.js 4.4.0 (CDN jsdelivr)
-- Excel: ClosedXML
-- CSV: custom (sin dependencias)
-- Git: https://github.com/Kirklen0910/Kirkenta
-
-================================================================================
-2. ESTRUCTURA DE CARPETAS
-================================================================================
-
-Kirkenta/
-â”œâ”€â”€ Data/ApplicationDbContext.cs
-â”œâ”€â”€ Helpers/
-â”‚   â”œâ”€â”€ Export/ (ExcelExporter, CsvExporter, JsonExporter, ExportColumn, ExportColumns)
-â”‚   â”œâ”€â”€ Import/ (ExcelImporter, CsvImporter, ColumnMapper, ImportResult)
-â”‚   â”œâ”€â”€ Finanzas/ (AperturaHelper, CierreHelper, DistribucionHelper, MovimientoAutomaticoHelper, SaldoHelper, AdjuntoCierreHelper, FinanzasSeeder)
-â”‚   â”œâ”€â”€ ActividadHelper.cs
-â”‚   â”œâ”€â”€ ModulosERP.cs
-â”‚   â”œâ”€â”€ NumeroDocumentoHelper.cs
-â”‚   â”œâ”€â”€ PermisoHelper.cs
-â”‚   â””â”€â”€ PermisoSeeder.cs
-â”œâ”€â”€ Migrations/
-â”œâ”€â”€ Models/
-â”œâ”€â”€ Pages/
-â”‚   â”œâ”€â”€ Auth/
-â”‚   â”œâ”€â”€ Usuarios/
-â”‚   â”œâ”€â”€ POS/
-â”‚   â”œâ”€â”€ Ventas/
-â”‚   â”œâ”€â”€ Clientes/
-â”‚   â”œâ”€â”€ Cotizaciones/
-â”‚   â”œâ”€â”€ Pedidos/
-â”‚   â”œâ”€â”€ Facturas/
-â”‚   â”œâ”€â”€ Devoluciones/
-â”‚   â”œâ”€â”€ Productos/
-â”‚   â”œâ”€â”€ Categorias/
-â”‚   â”œâ”€â”€ UnidadesMedida/
-â”‚   â”œâ”€â”€ Bajas/
-â”‚   â”œâ”€â”€ Compras/
-â”‚   â”œâ”€â”€ Proveedores/
-â”‚   â”œâ”€â”€ OrdenesCompra/
-â”‚   â”œâ”€â”€ PagosProveedor/
-â”‚   â”œâ”€â”€ Finanzas/ (Index, Cuentas, Categorias, Movimientos, Aperturas, Cierres, Reportes)
-â”‚   â”œâ”€â”€ Reportes/
-â”‚   â””â”€â”€ Shared/_Layout.cshtml
-â”œâ”€â”€ wwwroot/ (css, js, images, lib, uploads)
-â”œâ”€â”€ Program.cs
-â”œâ”€â”€ appsettings.json
-â””â”€â”€ CONTEXTO.md
-
-================================================================================
-3. MÃ“DULOS Y SUBMÃ“DULOS
-================================================================================
-
-Diccionario en Helpers/ModulosERP.cs:
-
-Usuarios: Index, Create, Edit, Delete, Roles, RolesCreate, RolesEdit, RolesDelete, Perfil, CambiarPassword, Actividad
-Ventas: POS, Index, Cotizaciones, Pedidos, Facturas, Clientes (+Create/Edit/Delete/Export/Import), Devoluciones
-Inventario: Productos (+Create/Edit/Delete/Export/Import), Categorias, UnidadesMedida, Bajas
-Compras: Proveedores (+Create/Edit/Delete/Export/Import), Ordenes (+Create/Edit/Delete/Recibir), Pagos (+Create), CuentasPorPagar, Reportes
-Finanzas: Cuentas (+Create/Edit/Delete), Categorias (+Create/Edit/Delete), Movimientos (+Create/Edit/Anular), Aperturas (+Create), Cierres (+Create/Aprobar), Reportes
-RRHH: Index, Empleados, Nomina, Vales (PENDIENTE)
-Reportes: Ventas, Compras
-Configuracion: Empresa, Nomenclatura, Series, MetodosPago
-
-================================================================================
-4. PERMISOS
-================================================================================
-
-Tabla Permisos: RolId, Modulo, Submodulo (nullable), PuedeVer, PuedeCrear, PuedeEditar, PuedeEliminar
-Ãndice Ãºnico en (RolId, Modulo, Submodulo)
-Submodulo = null â†’ permiso del mÃ³dulo padre
-Admin siempre tiene acceso total
-Pendiente = usuario sin rol
-
-Helpers:
-- PermisoHelper.TienePermiso(context, rol, modulo, submodulo, "ver|crear|editar|eliminar")
-- PermisoHelper.ModulosVisibles(context, rol)
-- PermisoHelper.SubmodulosVisibles(context, rol, modulo)
-- PermisoSeeder.MigrarPermisosFaltantes(db) â†’ ejecutado al arrancar
-
-ConvenciÃ³n:
-- Padres: "Cuentas", "Movimientos", "Cierres", "Clientes", "Productos"
-- Hijos: "CuentasCreate", "CierresAprobar", etc.
-
-================================================================================
-5. HELPERS CLAVE
-================================================================================
-
-NumeroDocumentoHelper
-- GenerarSiguiente(context, "Venta") â†’ genera y avanza
-- PreviewSiguiente(context, "Venta") â†’ solo muestra
-- Tipos: Venta, Factura, Cotizacion, Pedido, Devolucion, OrdenCompra, PagoProveedor, DevolucionProveedor, Proveedor, Producto, Baja, MovimientoFinanciero, ValeEmpleado, CierreCaja, AperturaCaja
-
-ActividadHelper
-- Registrar(context, usuarioId, "acciÃ³n", "detalle", ipAddress)
-- Nunca lanza excepciÃ³n
-
-SaldoHelper
-- Aplicar(context, movimiento) â†’ ajusta saldo de cuentas
-- Revertir(context, movimiento) â†’ revierte al anular
-
-MovimientoAutomaticoHelper
-- RegistrarIngresoVenta(context, ventaId, numeroVenta, monto, usuarioId, formaPago, cuentaId)
-- RegistrarEgresoPagoProveedor(context, pagoId, numeroPago, monto, usuarioId, nombreProveedor, formaPago)
-- RegistrarEgresoNomina(context, nominaId, numeroNomina, monto, usuarioId)
-
-AperturaHelper
-- Abrir(context, cuentaId, saldoInicial, notas, usuarioId, fechaManual)
-- ObtenerAperturaActiva(context, cuentaId)
-- SugerirSaldoInicial(context, cuentaId) â†’ basado en Ãºltimo cierre
-- Cerrar(context, aperturaId, cierreId)
-
-CierreHelper
-- Calcular(context, cuentaId, fecha)
-- Registrar(context, cuentaId, fecha, efectivoContado, notas, tolerancia, usuarioId)
-- DeterminarResultado(diferencia, tolerancia) â†’ Cuadrado/Sobrante/Faltante
-
-DistribucionHelper
-- RegistrarDistribuciones(context, cierreId, cuentaOrigenId, efectivoContado, distribuciones, usuarioId)
-- ObtenerDistribuciones(context, cierreId)
-- Tipos: RetiroBanco (Transferencia), FondoCaja (sin movimiento), EntregaAdmin (Egreso), PagoDirecto (Egreso), Otro (Egreso)
-
-AdjuntoCierreHelper
-- Guardar(context, env, cierreId, archivo, descripcion, usuarioId)
-- Eliminar(context, env, adjuntoId)
-- Extensiones: .pdf, .jpg, .jpeg, .png. MÃ¡x 10 MB
-
-Export
-- ExportColumns.Clientes() / .Productos(cats, imps) / .Proveedores()
-- ExcelExporter.Export(items, columns, "Sheet", "TÃ­tulo") â†’ byte[]
-- CsvExporter.Export(items, columns) â†’ byte[]
-- JsonExporter.Export(items) â†’ byte[]
-
-Import
-- ExcelImporter.Read(stream) â†’ ImportFile
-- CsvImporter.Read(stream) â†’ ImportFile
-- ImportFile: Headers (List<string>), Rows (List<Dictionary<string,string>>)
-- ColumnMapper.Detectar(headers, aliasPorCampo) â†’ Dictionary<string, string?>
-- Wizard: /[Modulo]/Import â†’ /[Modulo]/ImportMap â†’ confirmar â†’ Index
-
-================================================================================
-6. CONVENCIONES
-================================================================================
-
-Nombres:
-- Modelos y propiedades en espaÃ±ol (Producto, PrecioVenta)
-- Namespace: Kirkenta.Pages.[Modulo] o Kirkenta.Pages.[Modulo].[Sub]
-- PageModels: IndexModel, CreateModel, EditModel, DeleteModel, DetailsModel
-
-PatrÃ³n de permisos en code-behind:
-var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
-var currentRol = currentUser?.Rol ?? "Pendiente";
-if (currentRol != "Admin" && !PermisoHelper.TienePermiso(_context, currentRol, "Modulo", "Submodulo", "ver"))
-{
-    TempData["Error"] = "No tienes permiso";
-    return RedirectToPage("/Modulo/Index");
-}
-
-Exponer permisos a la vista:
-public bool PuedeCrear { get; set; }
-public bool PuedeEditar { get; set; }
-public bool PuedeEliminar { get; set; }
-// En OnGet:
-PuedeCrear = currentRol == "Admin" || PermisoHelper.TienePermiso(..., "crear");
-
-TempData:
-- TempData["Success"] â†’ banner verde
-- TempData["Error"] â†’ banner rojo
-- TempData["Warning"] â†’ banner amarillo
-
-Actividad (siempre registrar acciones importantes):
-ActividadHelper.Registrar(_context, currentUser?.Id ?? 0, "Verbo + objeto", $"Detalle L. {monto:N2}", HttpContext.Connection.RemoteIpAddress?.ToString());
-
-================================================================================
-7. REGLAS CRÃTICAS
-================================================================================
-
-1. SIEMPRE entregar archivos COMPLETOS, nunca fragmentos.
-2. Automatizar pero permitir modo manual (checkbox "Registrar en Finanzas").
-3. Movimientos NO se borran, se ANULAN.
-4. Cierres requieren APROBACIÃ“N.
-5. Nomenclatura personalizable desde /Nomenclatura.
-6. Si import trae SKU/CÃ³digo â†’ respetar. Si vacÃ­o â†’ autogenerar.
-7. Apertura de caja OBLIGATORIA antes de vender en POS.
-8. Al cerrar â†’ se cierra la apertura. Al dÃ­a siguiente se sugiere saldo del Ãºltimo cierre.
-9. DistribuciÃ³n del efectivo: suma DEBE igualar efectivo contado.
-10. Cada distribuciÃ³n genera su movimiento (excepto FondoCaja).
-
-================================================================================
-8. MÃ“DULOS COMPLETADOS
-================================================================================
-
-Core:
-- Auth (Login, Register, Logout)
-- Usuarios + Roles + Permisos (CRUD completo)
-- Perfil, Cambiar contraseÃ±a, Actividad
-- Permisos con seeder automÃ¡tico
-- MenÃº lateral con iconos + permisos dinÃ¡micos
-
-Ventas:
-- POS completo (bÃºsqueda, carrito, cobro, modal)
-- Clientes (CRUD + Import + Export)
-- Cotizaciones, Pedidos, Facturas, Devoluciones
-
-Inventario:
-- Productos (CRUD + Import + Export)
-- CategorÃ­as, Unidades de medida
-- Bajas (con aprobaciÃ³n y reversiÃ³n)
-
-Compras:
-- Proveedores (CRUD + Import + Export)
-- Ã“rdenes de compra (Create, Edit, Recibir)
-- Pagos a proveedores + Cuentas por pagar
-- Reportes de compras
-
-Finanzas:
-- Dashboard con grÃ¡ficos
-- Cuentas financieras (Cajas + Bancos)
-- CategorÃ­as financieras
-- Movimientos (Ingresos, Egresos, Transferencias, Anulaciones)
-- Reportes (Flujo, Resultados, Estado de cuenta)
-- Aperturas de caja
-- Cierres con distribuciÃ³n del efectivo
-- AprobaciÃ³n de cierres
-- Adjuntos / comprobantes
-- IntegraciÃ³n automÃ¡tica desde POS y PagosProveedor
-
-ConfiguraciÃ³n:
-- Datos de la empresa, Nomenclatura, MÃ©todos de pago, Impuestos
-
-================================================================================
-9. MÃ“DULOS PENDIENTES
-================================================================================
-
-- RRHH: Empleados, NÃ³mina, Vales/Adelantos
-- Import/Export de CategorÃ­as, Impuestos, Unidades de medida
-- Refactor del wizard a componente genÃ©rico
-- ConciliaciÃ³n bancaria
-- ISV/IVA automÃ¡tico
-- Presupuestos por categorÃ­a
-- Cierre contable mensual
-
-================================================================================
-10. NOTAS IMPORTANTES
-================================================================================
-
-Sobre migraciones:
-- ApplicationDbContextModelSnapshot estÃ¡ DESINCRONIZADO con la BD
-- Al generar migraciÃ³n, EF intenta crear TODAS las tablas
-- SoluciÃ³n actual: SQL manual + INSERT en __EFMigrationsHistory
-
-Sobre OneDrive:
-- Proyecto en C:\Users\crobe\OneDrive\Kirkenta
-- Archivos son symlinks de OneDrive
-- Recomendado mover a C:\Dev\Kirkenta
-
-Sobre .gitignore:
-- Excluye: bin/, obj/, .vs/, .vscode/, *.lnk, appsettings.Development.json
-- Excluye carpetas del proyecto PHP viejo: app/, config/, public/, storage/, vendor/, includes/, modules/, backups/, logs/, assets/, uploads/
-
-================================================================================
-11. FLUJO DE TRABAJO
-================================================================================
-
-Al iniciar chat nuevo:
-1. Pega este archivo completo
-2. Di: "Retomamos Kirkenta ERP"
-3. Dime quÃ© mÃ³dulo vamos a trabajar
-4. Si vamos a tocar un archivo especÃ­fico, pÃ¡salo (solo ese)
-
-Al terminar sesiÃ³n:
-1. Actualizar este archivo si hubo cambios importantes
-2. Guardar
-3. git add . && git commit -m "..." && git push
-
-Al pedir cÃ³digo:
-- Archivos COMPLETOS, no fragmentos
-- Nombre del archivo + ruta
-- Un archivo por mensaje (o agrupados si son cortos)
-
-================================================================================
-ÃšLTIMA ACTUALIZACIÃ“N
-================================================================================
-
-Fecha: 03/10/2026
-Estado: Finanzas 100% completado (Aperturas, Cierres, DistribuciÃ³n, AprobaciÃ³n, Adjuntos)
-PrÃ³ximo: RRHH (Empleados + NÃ³mina + Vales) o probar flujo completo de Finanzas
-
-
-===== FILE: \Kirkenta.csproj =====
-
-<Project Sdk="Microsoft.NET.Sdk.Web">
-
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
-    <PackageReference Include="ClosedXML" Version="0.105.1" />
-    <PackageReference Include="CsvHelper" Version="33.1.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.0">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
-  </ItemGroup>
-
-</Project>
-
-
-
 ===== FILE: \Program.cs =====
 
 using Kirkenta.Data;
@@ -50817,3 +54537,31 @@ app.UseAuthorization();
 app.MapRazorPages();
 
 app.Run();
+
+
+===== FILE: \Properties\launchSettings.json =====
+
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5114",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:7060;http://localhost:5114",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+

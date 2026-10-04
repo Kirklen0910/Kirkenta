@@ -103,6 +103,13 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 return Page();
             }
 
+            // ===== VALIDACIÓN: período contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
+            }
+
             if (!ModelState.IsValid) return Page();
 
             var cuenta = _context.CuentasFinancieras.FirstOrDefault(c => c.Id == CuentaId);

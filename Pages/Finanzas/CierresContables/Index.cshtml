@@ -1,0 +1,195 @@
+@page
+@model Kirkenta.Pages.Finanzas.CierresContables.IndexModel
+@{
+    ViewData["Title"] = "Cierres contables mensuales";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Cierres contables mensuales</h2>
+        <p>Bloquea los movimientos de un mes para auditoría</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Finanzas/Index" class="btn-secondary">Volver a Finanzas</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<!-- Selector de año -->
+<div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+    <form method="get" style="display: flex; align-items: end; gap: 12px; flex-wrap: wrap;">
+        <div class="form-field" style="margin: 0; max-width: 200px;">
+            <label>Año</label>
+            <select name="anio" class="form-input" onchange="this.form.submit()">
+                @for (int a = DateTime.Today.Year - 3; a <= DateTime.Today.Year + 1; a++)
+                {
+                    if (a == Model.AnioSeleccionado)
+                    {
+                        <option value="@a" selected>@a</option>
+                    }
+                    else
+                    {
+                        <option value="@a">@a</option>
+                    }
+                }
+            </select>
+        </div>
+    </form>
+</div>
+
+<div class="module-card">
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>Período</th>
+                    <th>Estado</th>
+                    <th style="text-align: right;">Movimientos</th>
+                    <th style="text-align: right;">Ingresos</th>
+                    <th style="text-align: right;">Egresos</th>
+                    <th style="text-align: right;">Balance</th>
+                    <th>Cerrado el</th>
+                    <th style="width: 200px; text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in Model.Meses)
+                {
+                    var esCerrado = m.Estado == "Cerrado";
+                    <tr>
+                        <td><strong>@m.PeriodoTexto</strong></td>
+                        <td>
+                            @if (esCerrado)
+                            {
+                                <span class="badge badge-danger">Cerrado</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-success">Abierto</span>
+                            }
+                        </td>
+                        <td style="text-align: right;">
+                            @if (esCerrado)
+                            {
+                                @m.CantidadMovimientos
+                            }
+                            else
+                            {
+                                <span class="table-user-sub">—</span>
+                            }
+                        </td>
+                        <td style="text-align: right;">
+                            @if (esCerrado)
+                            {
+                                <span style="color: var(--color-success); font-weight: 600;">L. @m.TotalIngresos.ToString("N2")</span>
+                            }
+                            else
+                            {
+                                <span class="table-user-sub">—</span>
+                            }
+                        </td>
+                        <td style="text-align: right;">
+                            @if (esCerrado)
+                            {
+                                <span style="color: var(--color-danger); font-weight: 600;">L. @m.TotalEgresos.ToString("N2")</span>
+                            }
+                            else
+                            {
+                                <span class="table-user-sub">—</span>
+                            }
+                        </td>
+                        <td style="text-align: right;">
+                            @if (esCerrado)
+                            {
+                                <strong style="color: @(m.Balance >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+                                    L. @m.Balance.ToString("N2")
+                                </strong>
+                            }
+                            else
+                            {
+                                <span class="table-user-sub">—</span>
+                            }
+                        </td>
+                        <td>
+                            @if (esCerrado && m.FechaCierre.HasValue)
+                            {
+                                @m.FechaCierre.Value.ToString("dd/MM/yyyy HH:mm")
+                            }
+                            else if (m.FechaReapertura.HasValue)
+                            {
+                                <span class="table-user-sub">
+                                    Reabierto: @m.FechaReapertura.Value.ToString("dd/MM/yyyy")
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="table-user-sub">—</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="table-actions">
+                                @if (!esCerrado && Model.PuedeCerrar)
+                                {
+                                    <a asp-page="/Finanzas/CierresContables/Create"
+                                       asp-route-anio="@m.Anio"
+                                       asp-route-mes="@m.Mes"
+                                       class="btn-sm btn-primary">
+                                        Cerrar mes
+                                    </a>
+                                }
+                                @if (esCerrado && Model.PuedeReabrir)
+                                {
+                                    <a asp-page="/Finanzas/CierresContables/Reabrir"
+                                       asp-route-anio="@m.Anio"
+                                       asp-route-mes="@m.Mes"
+                                       class="btn-sm btn-secondary">
+                                        Reabrir
+                                    </a>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="module-card" style="padding: 20px; margin-top: 20px; background: #fffbeb; border: 1px solid var(--color-warning-border);">
+    <div style="display: flex; gap: 12px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; color: var(--color-warning); flex-shrink: 0; margin-top: 2px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+        </svg>
+        <div>
+            <strong style="font-size: 13px;">¿Qué hace el cierre contable?</strong>
+            <p style="font-size: 12.5px; color: #92400e; margin: 4px 0 0 0;">
+                Al cerrar un mes, <strong>se bloquean todos los movimientos financieros, aperturas, cierres de caja, ventas, pagos a proveedores, nóminas y vales</strong>
+                con fecha dentro de ese mes. Si necesitas operar de nuevo, reabre el mes (queda registrado quién, cuándo y por qué).
+            </p>
+        </div>
+    </div>
+</div>

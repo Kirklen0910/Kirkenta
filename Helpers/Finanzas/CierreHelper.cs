@@ -90,6 +90,8 @@ namespace Kirkenta.Helpers.Finanzas
         /// <summary>
         /// Registra el cierre. Genera ajuste por diferencia si aplica.
         /// NO registra distribución todavía — eso lo hace el caller después.
+        /// Si el ajuste es un Egreso y la cuenta no tiene saldo suficiente, se registra
+        /// el cierre igual pero SIN ajuste, y se agrega advertencia a las notas.
         /// </summary>
         public static (CierreCaja cierre, string? error) Registrar(
             ApplicationDbContext context,
@@ -144,9 +146,32 @@ namespace Kirkenta.Helpers.Finanzas
                 {
                     var tipoAjuste = resultado == "Sobrante" ? "Ingreso" : "Egreso";
                     var montoAjuste = Math.Abs(diferencia);
-                    GenerarAjuste(context, cuentaId, tipoAjuste, montoAjuste, numero, cierre.Id, usuarioId);
 
-                    // El ajuste actualiza el saldo, para que las distribuciones cuadren
+                    // ===== VALIDACIÓN: si es Egreso, verificar saldo =====
+                    if (tipoAjuste == "Egreso")
+                    {
+                        var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId);
+                        if (cuenta == null)
+                        {
+                            // Cuenta ya no existe (raro), no generar ajuste
+                            cierre.Notas = (string.IsNullOrWhiteSpace(cierre.Notas) ? "" : cierre.Notas + "\n") +
+                                $"[Advertencia] No se pudo generar el ajuste por FALTANTE: cuenta no encontrada.";
+                            context.SaveChanges();
+                            return (cierre, null);
+                        }
+
+                        if (cuenta.SaldoActual < montoAjuste)
+                        {
+                            // Saldo insuficiente: no generar ajuste, dejar constancia
+                            cierre.Notas = (string.IsNullOrWhiteSpace(cierre.Notas) ? "" : cierre.Notas + "\n") +
+                                $"[Advertencia] No se pudo generar el ajuste por FALTANTE de L. {montoAjuste:N2}: " +
+                                $"la cuenta '{cuenta.Nombre}' solo tiene L. {cuenta.SaldoActual:N2} disponible.";
+                            context.SaveChanges();
+                            return (cierre, null);
+                        }
+                    }
+
+                    GenerarAjuste(context, cuentaId, tipoAjuste, montoAjuste, numero, cierre.Id, usuarioId);
                 }
 
                 return (cierre, null);

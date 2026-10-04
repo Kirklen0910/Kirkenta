@@ -1,0 +1,366 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Finanzas.Conciliacion.DetailsModel
+@{
+    ViewData["Title"] = $"Conciliación {Model.Conciliacion.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/Conciliacion/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a conciliaciones
+        </a>
+        <h2>Conciliación @Model.Conciliacion.Numero</h2>
+        <p>
+            @Model.Cuenta.Nombre
+            @if (!string.IsNullOrEmpty(Model.Cuenta.Banco))
+            {
+                <span> — @Model.Cuenta.Banco</span>
+            }
+            — @Model.Conciliacion.FechaInicio.ToString("dd/MM/yyyy") al @Model.Conciliacion.FechaFin.ToString("dd/MM/yyyy")
+        </p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCerrar && (Model.Conciliacion.Estado == "Abierta" || Model.Conciliacion.Estado == "EnRevision"))
+        {
+            <button type="button" class="btn-primary" style="background: var(--color-success);" onclick="document.getElementById('modalCerrar').style.display='flex'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Cerrar conciliación
+            </button>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Saldo banco</span>
+        <span class="kpi-value" style="font-size: 20px;">L. @Model.Conciliacion.SaldoBanco.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Saldo sistema</span>
+        <span class="kpi-value" style="font-size: 20px;">L. @Model.Conciliacion.SaldoSistema.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Diferencia</span>
+        <span class="kpi-value" style="font-size: 20px; color: @(Math.Abs(Model.Conciliacion.Diferencia) < 0.01m ? "var(--color-success)" : "var(--color-danger)");">
+            L. @Model.Conciliacion.Diferencia.ToString("N2")
+        </span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Estado</span>
+        <span class="kpi-value" style="font-size: 16px;">
+            @if (Model.Conciliacion.Estado == "Abierta") { <span class="badge badge-warning">Abierta</span> }
+            else if (Model.Conciliacion.Estado == "EnRevision") { <span class="badge badge-info">En revisión</span> }
+            else if (Model.Conciliacion.Estado == "Conciliada") { <span class="badge badge-success">Conciliada</span> }
+            else { <span class="badge badge-danger">Cancelada</span> }
+        </span>
+    </div>
+</div>
+
+<!-- Toolbar -->
+<div class="module-card" style="padding: 16px 20px; margin-bottom: 20px;">
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+        @if (Model.Conciliacion.Estado == "Abierta" || Model.Conciliacion.Estado == "EnRevision")
+        {
+            <form method="post" asp-page-handler="MatchingAuto" asp-route-id="@Model.Conciliacion.Id" style="display:inline;">
+                <button type="submit" class="btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                        <path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/>
+                    </svg>
+                    Matching automático
+                </button>
+            </form>
+            <form method="post" asp-page-handler="RecargarSistema" asp-route-id="@Model.Conciliacion.Id" style="display:inline;" onsubmit="return confirm('¿Recargar las líneas del sistema? Se perderán los matches actuales.');">
+                <button type="submit" class="btn-secondary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                        <polyline points="1 4 1 10 7 10"/>
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                    </svg>
+                    Recargar líneas del sistema
+                </button>
+            </form>
+        }
+        <div style="margin-left: auto; font-size: 13px; color: var(--color-muted);">
+            <strong>@Model.LineasSistema.Count</strong> líneas sistema |
+            <strong>@Model.LineasBanco.Count</strong> líneas banco |
+            <strong style="color: var(--color-success);">@Model.Conciliacion.TotalMatcheadas</strong> matcheadas
+        </div>
+    </div>
+</div>
+
+<!-- Líneas del sistema -->
+<div class="module-card" style="margin-bottom: 20px;">
+    <div style="padding: 16px 20px; border-bottom: 1px solid var(--color-border);">
+        <h3 class="panel-title" style="margin: 0;">📋 Líneas del sistema (@Model.LineasSistema.Count)</h3>
+    </div>
+    @if (Model.LineasSistema.Count == 0)
+    {
+        <p style="text-align: center; padding: 40px; color: var(--color-muted); font-size: 13px;">
+            No hay movimientos del sistema en el período
+        </p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Descripción</th>
+                        <th>Referencia</th>
+                        <th style="text-align: right;">Monto</th>
+                        <th style="text-align: center;">Match</th>
+                        <th style="width: 120px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in Model.LineasSistema)
+                    {
+                        <tr style="@(d.Matcheada ? "background: #ecfdf5;" : "")">
+                            <td>@d.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@d.Descripcion</td>
+                            <td>@(d.Referencia ?? "—")</td>
+                            <td style="text-align: right;">
+                                <strong style="color: @(d.Monto >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+                                    L. @d.Monto.ToString("N2")
+                                </strong>
+                            </td>
+                            <td style="text-align: center;">
+                                @if (d.Matcheada)
+                                {
+                                    <span class="badge badge-success">
+                                        ✓ @(d.TipoMatch == "Manual" ? "Manual" : "Auto")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-warning">Pendiente</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    @if (d.Matcheada && (Model.Conciliacion.Estado == "Abierta" || Model.Conciliacion.Estado == "EnRevision"))
+                                    {
+                                        <form method="post" asp-page-handler="DeshacerMatch" asp-route-id="@Model.Conciliacion.Id" asp-route-detalleId="@d.Id" style="display:inline;">
+                                            <button type="submit" class="btn-icon-action" title="Deshacer match" style="color: var(--color-warning);">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- Líneas del banco -->
+<div class="module-card" style="margin-bottom: 20px;">
+    <div style="padding: 16px 20px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="panel-title" style="margin: 0;">🏦 Líneas del banco (@Model.LineasBanco.Count)</h3>
+        @if (Model.PuedeEditar && (Model.Conciliacion.Estado == "Abierta" || Model.Conciliacion.Estado == "EnRevision"))
+        {
+            <button type="button" class="btn-primary btn-sm" onclick="document.getElementById('modalAgregarBanco').style.display='flex'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Agregar línea
+            </button>
+        }
+    </div>
+    @if (Model.LineasBanco.Count == 0)
+    {
+        <p style="text-align: center; padding: 40px; color: var(--color-muted); font-size: 13px;">
+            Aún no has cargado las líneas del estado de cuenta bancario
+        </p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Descripción</th>
+                        <th>Referencia</th>
+                        <th style="text-align: right;">Monto</th>
+                        <th style="text-align: center;">Match</th>
+                        <th style="width: 120px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in Model.LineasBanco)
+                    {
+                        <tr style="@(d.Matcheada ? "background: #ecfdf5;" : "")">
+                            <td>@d.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@d.Descripcion</td>
+                            <td>@(d.Referencia ?? "—")</td>
+                            <td style="text-align: right;">
+                                <strong style="color: @(d.Monto >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+                                    L. @d.Monto.ToString("N2")
+                                </strong>
+                            </td>
+                            <td style="text-align: center;">
+                                @if (d.Matcheada)
+                                {
+                                    <span class="badge badge-success">
+                                        ✓ @(d.TipoMatch == "Manual" ? "Manual" : "Auto")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-warning">Pendiente</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    @if (d.Matcheada && (Model.Conciliacion.Estado == "Abierta" || Model.Conciliacion.Estado == "EnRevision"))
+                                    {
+                                        <form method="post" asp-page-handler="DeshacerMatch" asp-route-id="@Model.Conciliacion.Id" asp-route-detalleId="@d.Id" style="display:inline;">
+                                            <button type="submit" class="btn-icon-action" title="Deshacer match" style="color: var(--color-warning);">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    }
+                                    @if (!d.Matcheada && Model.PuedeEditar && (Model.Conciliacion.Estado == "Abierta" || Model.Conciliacion.Estado == "EnRevision"))
+                                    {
+                                        <form method="post" asp-page-handler="EliminarBanco" asp-route-id="@Model.Conciliacion.Id" asp-route-detalleId="@d.Id" style="display:inline;" onsubmit="return confirm('¿Eliminar esta línea?');">
+                                            <button type="submit" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <polyline points="3 6 5 6 21 6"/>
+                                                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Conciliacion.Notas))
+{
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 8px;">Notas</h3>
+        <p style="font-size: 13px; color: var(--color-muted);">@Model.Conciliacion.Notas</p>
+    </div>
+}
+
+<!-- Modal agregar banco -->
+<div id="modalAgregarBanco" class="pos-modal">
+    <div class="pos-modal-content">
+        <form method="post" asp-page-handler="AgregarBanco" asp-route-id="@Model.Conciliacion.Id">
+            <div class="pos-modal-header">
+                <h3>Agregar línea del banco</h3>
+                <button type="button" class="btn-icon-action" onclick="document.getElementById('modalAgregarBanco').style.display='none'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="pos-modal-body">
+                <div class="form-field">
+                    <label>Fecha *</label>
+                    <input asp-for="NuevoBanco.Fecha" type="date" class="form-input" required />
+                </div>
+                <div class="form-field">
+                    <label>Descripción *</label>
+                    <input asp-for="NuevoBanco.Descripcion" class="form-input" required placeholder="Ej: Transferencia recibida de cliente" />
+                </div>
+                <div class="form-field">
+                    <label>Referencia</label>
+                    <input asp-for="NuevoBanco.Referencia" class="form-input" placeholder="Nº de documento, cheque, etc." />
+                </div>
+                <div class="form-field">
+                    <label>Monto *</label>
+                    <input asp-for="NuevoBanco.Monto" type="number" step="0.01" class="form-input" required placeholder="Positivo = crédito, Negativo = débito" />
+                    <small class="form-help">Usa valores negativos para débitos (egresos)</small>
+                </div>
+            </div>
+            <div class="pos-modal-footer">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('modalAgregarBanco').style.display='none'">Cancelar</button>
+                <button type="submit" class="btn-primary">Agregar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal cerrar -->
+<div id="modalCerrar" class="pos-modal">
+    <div class="pos-modal-content">
+        <form method="post" asp-page-handler="Cerrar" asp-route-id="@Model.Conciliacion.Id">
+            <div class="pos-modal-header">
+                <h3>Cerrar conciliación</h3>
+                <button type="button" class="btn-icon-action" onclick="document.getElementById('modalCerrar').style.display='none'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="pos-modal-body">
+                <div class="module-alert" style="background: var(--color-primary-soft); border: 1px solid #c7d2fe; color: var(--color-primary); margin: 0;">
+                    <div>
+                        <strong>Verificación previa</strong>
+                        <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                            Solo se puede cerrar si todas las líneas están matcheadas o si la diferencia es cero.
+                        </p>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>Notas de cierre</label>
+                    <textarea name="notasCierre" class="form-input" rows="3" placeholder="Observaciones finales..."></textarea>
+                </div>
+            </div>
+            <div class="pos-modal-footer">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('modalCerrar').style.display='none'">Cancelar</button>
+                <button type="submit" class="btn-primary" style="background: var(--color-success);">Confirmar cierre</button>
+            </div>
+        </form>
+    </div>
+</div>

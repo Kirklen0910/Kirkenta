@@ -28,7 +28,6 @@ namespace Kirkenta.Pages.POS
         public int? ClienteInicialId { get; set; }
         public string ClienteInicialNombre { get; set; } = "";
 
-        // ⬇️ NUEVO: información de la caja abierta
         public bool HayApertura { get; set; }
         public string CuentaCajaNombre { get; set; } = "";
         public decimal SaldoApertura { get; set; }
@@ -45,7 +44,7 @@ namespace Kirkenta.Pages.POS
                 return RedirectToPage("/Index");
             }
 
-            // ⬇️ VALIDAR APERTURA DE CAJA
+            // VALIDAR APERTURA DE CAJA
             var apertura = _context.AperturasCaja
                 .FirstOrDefault(a => a.Activa);
 
@@ -64,7 +63,7 @@ namespace Kirkenta.Pages.POS
             Productos = _context.Productos.Where(p => p.Activo).OrderBy(p => p.Nombre).ToList();
             Categorias = _context.Categorias.Where(c => c.Activa).OrderBy(c => c.Nombre).ToList();
             MetodosPago = _context.MetodosPago.Where(m => m.Activo).OrderBy(m => m.Nombre).ToList();
-            ImpuestosDict = _context.Impuestos.ToDictionary(i => i.Id, i => i.Porcentaje);
+            ImpuestosDict = _context.Impuestos.Where(i => i.Activo).ToDictionary(i => i.Id, i => i.Porcentaje);
 
             var clientes = _context.Clientes.Where(c => c.Activo).OrderBy(c => c.Nombre).ToList();
             var clientesList = clientes.Select(c => new
@@ -87,17 +86,34 @@ namespace Kirkenta.Pages.POS
                     ClienteInicialNombre = _context.Clientes.FirstOrDefault(c => c.Id == cot.ClienteId)?.Nombre ?? "";
 
                     var detalles = _context.DetalleCotizaciones.Where(d => d.CotizacionId == cot.Id).ToList();
-                    var productos = _context.Productos.ToList();
+                    var productosIds = detalles.Select(d => d.ProductoId).Distinct().ToList();
+                    var productosDict = _context.Productos
+                        .Where(p => productosIds.Contains(p.Id))
+                        .ToDictionary(p => p.Id, p => new { p.Nombre, p.Stock, p.ImpuestoId });
 
-                    var itemsIniciales = detalles.Select(d => new
+                    // Impuesto predeterminado (por si el producto no tiene uno)
+                    var impuestoPredeterminadoId = _context.Impuestos
+                        .FirstOrDefault(i => i.EsPredeterminado && i.Activo)?.Id;
+
+                    var itemsIniciales = detalles.Select(d =>
                     {
-                        productoId = d.ProductoId,
-                        nombre = productos.FirstOrDefault(p => p.Id == d.ProductoId)?.Nombre ?? "—",
-                        precio = d.PrecioUnitario,
-                        cantidad = d.Cantidad,
-                        descuento = d.Descuento,
-                        impuesto = d.ImpuestoPorcentaje,
-                        stock = productos.FirstOrDefault(p => p.Id == d.ProductoId)?.Stock ?? 0
+                        var prod = productosDict.GetValueOrDefault(d.ProductoId);
+                        // Tasa correcta según el producto
+                        int? impuestoId = prod?.ImpuestoId ?? impuestoPredeterminadoId;
+                        decimal tasa = impuestoId.HasValue && ImpuestosDict.ContainsKey(impuestoId.Value)
+                            ? ImpuestosDict[impuestoId.Value] : 0m;
+
+                        return new
+                        {
+                            productoId = d.ProductoId,
+                            nombre = prod?.Nombre ?? "—",
+                            precio = d.PrecioUnitario,
+                            cantidad = d.Cantidad,
+                            descuento = d.Descuento,
+                            impuestoId = impuestoId,
+                            impuesto = tasa,
+                            stock = prod?.Stock ?? 0
+                        };
                     }).ToList();
 
                     ItemsInicialesJson = JsonSerializer.Serialize(itemsIniciales);
@@ -124,7 +140,7 @@ namespace Kirkenta.Pages.POS
             public int ProductoId { get; set; }
             public decimal Cantidad { get; set; }
             public decimal PrecioUnitario { get; set; }
-            public decimal ImpuestoPorcentaje { get; set; }
+            public decimal ImpuestoPorcentaje { get; set; } // puede venir del cliente, pero se valida
             public decimal Descuento { get; set; }
         }
 
@@ -141,38 +157,95 @@ namespace Kirkenta.Pages.POS
                 if (apertura == null)
                     return new JsonResult(new { success = false, error = "No hay caja abierta. Contacta al administrador." });
 
+                // ===== VALIDACIÓN: período contable cerrado =====
+                var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
+                if (!periodoOk)
+                    return new JsonResult(new { success = false, error = periodoError });
+
                 if (request == null || request.Items == null || request.Items.Count == 0)
                     return new JsonResult(new { success = false, error = "Carrito vacío" });
 
-                decimal subtotal = 0, impuestos = 0, total = 0;
-                var detalles = new List<DetalleVenta>();
+                // ===== VALIDAR Y RECALCULAR IMPUESTOS CON ISVHelper =====
+                var productoIds = request.Items.Select(i => i.ProductoId).Distinct().ToList();
+                var productosDict = _context.Productos
+                    .Where(p => productoIds.Contains(p.Id))
+                    .ToDictionary(p => p.Id, p => new { p.Nombre, p.ImpuestoId, p.Stock });
+
+                var impuestosActivos = _context.Impuestos
+                    .Where(i => i.Activo)
+                    .ToDictionary(i => i.Id, i => i.Porcentaje);
+
+                var impuestoPredeterminadoId = _context.Impuestos
+                    .FirstOrDefault(i => i.EsPredeterminado && i.Activo)?.Id;
+
+                // Reconstruir items con tasa correcta (no confiamos en el cliente)
+                var itemsValidados = new List<ItemParaISV>();
+                var itemsConTasa = new List<(ItemRequest original, int productoId, decimal tasa)>();
 
                 foreach (var item in request.Items)
                 {
-                    var st = item.Cantidad * item.PrecioUnitario;
-                    var stConDesc = st - item.Descuento;
-                    var iv = stConDesc * (item.ImpuestoPorcentaje / 100);
-                    var tot = stConDesc + iv;
+                    if (!productosDict.ContainsKey(item.ProductoId))
+                        return new JsonResult(new { success = false, error = $"Producto {item.ProductoId} no encontrado o inactivo" });
 
-                    subtotal += st;
-                    impuestos += iv;
-                    total += tot;
+                    if (item.Cantidad <= 0)
+                        return new JsonResult(new { success = false, error = "Cantidad inválida" });
 
-                    detalles.Add(new DetalleVenta
+                    var prod = productosDict[item.ProductoId];
+                    if (prod.Stock < item.Cantidad)
+                        return new JsonResult(new { success = false, error = $"Stock insuficiente para '{prod.Nombre}'. Disponible: {prod.Stock}" });
+
+                    // Determinar tasa correcta
+                    int? impuestoId = prod.ImpuestoId ?? impuestoPredeterminadoId;
+                    decimal tasaCorrecta = impuestoId.HasValue && impuestosActivos.ContainsKey(impuestoId.Value)
+                        ? impuestosActivos[impuestoId.Value] : 0m;
+
+                    itemsConTasa.Add((item, item.ProductoId, tasaCorrecta));
+
+                    itemsValidados.Add(new ItemParaISV
                     {
                         ProductoId = item.ProductoId,
                         Cantidad = item.Cantidad,
                         PrecioUnitario = item.PrecioUnitario,
                         Descuento = item.Descuento,
-                        ImpuestoPorcentaje = item.ImpuestoPorcentaje,
+                        ImpuestoId = impuestoId
+                    });
+                }
+
+                // Calcular con ISVHelper (para validar el total correcto)
+                var isvResult = ISVHelper.Calcular(_context, itemsValidados, request.Descuento);
+
+                // ===== CREAR DETALLES CON TASA CORRECTA =====
+                decimal subtotal = 0, impuestosTotal = 0, total = 0;
+                var detalles = new List<DetalleVenta>();
+
+                foreach (var (itemOrig, productoId, tasa) in itemsConTasa)
+                {
+                    var st = itemOrig.Cantidad * itemOrig.PrecioUnitario;
+                    var stConDesc = st - itemOrig.Descuento;
+                    var iv = Math.Round(stConDesc * (tasa / 100m), 2);
+                    var tot = stConDesc + iv;
+
+                    subtotal += st;
+                    impuestosTotal += iv;
+                    total += tot;
+
+                    detalles.Add(new DetalleVenta
+                    {
+                        ProductoId = productoId,
+                        Cantidad = itemOrig.Cantidad,
+                        PrecioUnitario = itemOrig.PrecioUnitario,
+                        Descuento = itemOrig.Descuento,
+                        ImpuestoPorcentaje = tasa,
                         Subtotal = stConDesc,
                         Total = tot
                     });
                 }
 
-                total -= request.Descuento;
-                if (total < 0) total = 0;
+                // Aplicar descuento global al total (ya calculado por ISVHelper)
+                total = isvResult.Total;
+                impuestosTotal = isvResult.ISVTotal;
 
+                // ===== CREAR VENTA =====
                 var numero = NumeroDocumentoHelper.GenerarSiguiente(_context, "Venta");
 
                 var venta = new Venta
@@ -183,7 +256,7 @@ namespace Kirkenta.Pages.POS
                     Fecha = DateTime.Now,
                     Subtotal = subtotal,
                     Descuento = request.Descuento,
-                    Impuestos = impuestos,
+                    Impuestos = impuestosTotal,
                     Total = total,
                     Estado = "Completada",
                     UsuarioCreoId = currentUser.Id
@@ -192,6 +265,7 @@ namespace Kirkenta.Pages.POS
                 _context.Ventas.Add(venta);
                 _context.SaveChanges();
 
+                // Guardar detalles + descontar stock
                 foreach (var d in detalles)
                 {
                     d.VentaId = venta.Id;
@@ -217,7 +291,7 @@ namespace Kirkenta.Pages.POS
                 };
                 _context.Pagos.Add(pago);
 
-                // Registro automático en finanzas con la cuenta de la apertura
+                // Registro automático en finanzas
                 bool movimientoRegistrado = false;
                 string? movimientoError = null;
 
@@ -234,7 +308,7 @@ namespace Kirkenta.Pages.POS
                             formaPago: request.MetodoPagoId > 0
                                 ? _context.MetodosPago.FirstOrDefault(m => m.Id == request.MetodoPagoId)?.Nombre
                                 : "Efectivo",
-                            cuentaId: apertura.CuentaId  // ⬅️ Usa la cuenta de la apertura
+                            cuentaId: apertura.CuentaId
                         );
 
                         if (mov != null)
@@ -270,7 +344,7 @@ namespace Kirkenta.Pages.POS
                             FechaVencimiento = DateTime.Now.AddDays(30),
                             Subtotal = subtotal,
                             Descuento = request.Descuento,
-                            Impuestos = impuestos,
+                            Impuestos = impuestosTotal,
                             Total = total,
                             Saldo = 0,
                             Estado = "Pagada",

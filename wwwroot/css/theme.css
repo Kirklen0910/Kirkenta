@@ -3204,3 +3204,108 @@ canvas {
 
     .auth-logo { width: 100px; height: 100px; }
 }
+
+/* ============================================
+   CONTABILIDAD — ESTADO DE RESULTADOS / BALANCE GENERAL
+   ============================================ */
+
+.reporte-seccion {
+    margin-bottom: 24px;
+}
+
+.reporte-seccion-titulo {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-bottom: 8px;
+    border-bottom: 2px solid currentColor;
+    margin-bottom: 12px;
+}
+
+.reporte-tabla {
+    width: 100%;
+    font-size: 13.5px;
+    border-collapse: collapse;
+}
+
+.reporte-tabla td {
+    padding: 6px 8px;
+}
+
+.reporte-tabla tr:not(.reporte-total):hover {
+    background: #f9fafb;
+}
+
+.reporte-total td {
+    border-top: 1px solid var(--color-border);
+    padding-top: 10px;
+    font-size: 14px;
+}
+
+.reporte-vacio {
+    font-size: 13px;
+    color: var(--color-muted);
+    font-style: italic;
+    padding: 8px 0;
+}
+
+.reporte-subtotal {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    background: #f3f4f6;
+    border-radius: var(--radius-sm);
+    margin: 20px 0;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.reporte-total-final {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+    border: 2px solid var(--color-primary);
+    border-radius: 8px;
+    margin-top: 24px;
+    font-weight: 700;
+}
+
+/* ===== BALANCE GENERAL — LAYOUT DE 2 COLUMNAS ===== */
+.balance-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+}
+
+@media (max-width: 900px) {
+    .balance-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== DIVISOR DE SUBMENÚ (Finanzas) ===== */
+.erp-nav-submenu-divider {
+    height: 1px;
+    background: var(--color-border);
+    margin: 8px 12px;
+}
+
+/* ===== PRINT: CONTABILIDAD ===== */
+@media print {
+    .balance-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+    }
+    .reporte-total-final {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .reporte-subtotal {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

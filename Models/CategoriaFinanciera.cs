@@ -31,6 +31,12 @@ namespace Kirkenta.Models
         [StringLength(30)]
         public string? CuentaContable { get; set; }
 
+        /// <summary>
+        /// ⬇️ NUEVO: FK al Plan de Cuentas.
+        /// Nullable para mantener compatibilidad con categorías existentes.
+        /// </summary>
+        public int? PlanCuentaId { get; set; }
+
         [StringLength(20)]
         public string Color { get; set; } = "#6b7280";
 

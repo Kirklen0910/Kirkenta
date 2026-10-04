@@ -11,7 +11,8 @@ namespace Kirkenta.Helpers.Finanzas
     {
         /// <summary>
         /// Registra las distribuciones de un cierre y genera los movimientos financieros.
-        /// Valida que la suma coincida con el efectivo contado.
+        /// Valida que la suma coincida con el efectivo contado y que la cuenta origen
+        /// tenga saldo suficiente para cada distribución que sale de caja.
         /// </summary>
         public static (bool ok, string? error) RegistrarDistribuciones(
             ApplicationDbContext context,
@@ -31,6 +32,62 @@ namespace Kirkenta.Helpers.Finanzas
                     return (false, $"La suma de las distribuciones (L. {totalDistribuido:N2}) no coincide con el efectivo contado (L. {efectivoContado:N2})");
                 }
 
+                // ===== VALIDACIÓN: cuenta origen existe y está activa =====
+                var cuentaOrigen = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaOrigenId);
+                if (cuentaOrigen == null)
+                {
+                    return (false, $"Cuenta origen (ID {cuentaOrigenId}) no encontrada");
+                }
+
+                if (!cuentaOrigen.Activa)
+                {
+                    return (false, $"La cuenta '{cuentaOrigen.Nombre}' está inactiva");
+                }
+
+                // ===== VALIDACIÓN: saldo suficiente para las distribuciones que SALEN de caja =====
+                // Las distribuciones que salen de caja son: RetiroBanco, EntregaAdmin, PagoDirecto, Otro
+                // (FondoCaja NO sale de caja, se queda como saldo)
+                decimal totalQueSale = distribuciones
+                    .Where(d => d.Tipo != "FondoCaja")
+                    .Sum(d => d.Monto);
+
+                if (cuentaOrigen.SaldoActual < totalQueSale)
+                {
+                    return (false,
+                        $"Saldo insuficiente en '{cuentaOrigen.Nombre}'. " +
+                        $"Disponible: L. {cuentaOrigen.SaldoActual:N2}, " +
+                        $"requerido para distribuir: L. {totalQueSale:N2}");
+                }
+
+                // ===== VALIDACIÓN: cuenta destino de RetiroBanco existe y está activa =====
+                var distribucionesBanco = distribuciones.Where(d => d.Tipo == "RetiroBanco").ToList();
+                foreach (var distBanco in distribucionesBanco)
+                {
+                    if (!distBanco.CuentaDestinoId.HasValue)
+                    {
+                        return (false, "Cada 'Retiro a banco' requiere una cuenta destino");
+                    }
+
+                    var cuentaDestino = context.CuentasFinancieras
+                        .FirstOrDefault(c => c.Id == distBanco.CuentaDestinoId.Value);
+
+                    if (cuentaDestino == null)
+                    {
+                        return (false, $"Cuenta destino (ID {distBanco.CuentaDestinoId}) no encontrada");
+                    }
+
+                    if (!cuentaDestino.Activa)
+                    {
+                        return (false, $"La cuenta destino '{cuentaDestino.Nombre}' está inactiva");
+                    }
+
+                    if (cuentaDestino.Id == cuentaOrigenId)
+                    {
+                        return (false, "La cuenta destino no puede ser la misma que la cuenta origen");
+                    }
+                }
+
+                // ===== TODO OK: procesar distribuciones =====
                 var monedaDefecto = context.Monedas.FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1;
 
                 foreach (var dist in distribuciones)
@@ -54,7 +111,6 @@ namespace Kirkenta.Helpers.Finanzas
                     context.DistribucionesCierre.Add(distribucion);
                     context.SaveChanges();
 
-                    // Generar movimiento según tipo
                     MovimientoFinanciero? mov = null;
 
                     switch (dist.Tipo)
@@ -91,7 +147,6 @@ namespace Kirkenta.Helpers.Finanzas
                             break;
 
                         case "Otro":
-                            // Según el monto: si sale de la caja, se registra egreso
                             mov = GenerarEgreso(
                                 context, cuentaOrigenId, dist.Monto,
                                 $"Salida de efectivo al cierre #{cierreId}",

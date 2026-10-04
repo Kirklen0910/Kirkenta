@@ -65,6 +65,13 @@ namespace Kirkenta.Pages.Finanzas.Aperturas
 
             CargarDatos();
 
+            // ===== VALIDACIÓN: período contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
+            }
+
             if (!ModelState.IsValid) return Page();
 
             var (apertura, error) = AperturaHelper.Abrir(

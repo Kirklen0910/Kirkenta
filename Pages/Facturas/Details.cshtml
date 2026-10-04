@@ -49,6 +49,52 @@
     </div>
 }
 
+@* ===== ALERTAS CAI ===== *@
+@if (Model.CaiVencido)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <div>
+            <strong>⚠️ CAI VENCIDO</strong> — La fecha límite de emisión fue
+            @Model.Empresa.FechaLimiteEmision?.ToString("dd/MM/yyyy").
+            Solicita un nuevo CAI al SAR.
+        </div>
+    </div>
+}
+else if (Model.CaiPorVencer)
+{
+    <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <div>
+            <strong>⚠️ CAI por vencer</strong> — Vence en <strong>@Model.DiasParaVencerCai día(s)</strong>
+            (@Model.Empresa.FechaLimiteEmision?.ToString("dd/MM/yyyy")).
+        </div>
+    </div>
+}
+
+@if (Model.RangoCaiAgotado)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <div>
+            <strong>⚠️ Rango CAI agotado</strong> — El número de esta factura está fuera del rango autorizado
+            (@Model.Empresa.RangoInicial — @Model.Empresa.RangoFinal).
+        </div>
+    </div>
+}
+
 <div class="module-card" style="padding: 40px;">
     <div class="factura-header">
         <div class="factura-empresa">
@@ -165,7 +211,51 @@
         </table>
     </div>
 
-    <div class="totales-panel" style="margin-top: 24px;">
+    @* ===== DESGLOSE ISV POR TASA ===== *@
+    @if (Model.DesgloseISV != null && Model.DesgloseISV.BaseGravableTotal + Model.DesgloseISV.BaseExentaTotal > 0)
+    {
+        <div style="margin-top: 24px; padding: 16px 20px; background: #f9fafb; border-radius: 8px; border: 1px solid var(--color-border);">
+            <h4 style="font-size: 12px; font-weight: 700; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">
+                Desglose de ISV
+            </h4>
+            <table style="width: 100%; font-size: 13px;">
+                <tbody>
+                    @foreach (var tasa in Model.DesgloseISV.TasasAplicadas)
+                    {
+                        <tr>
+                            <td style="padding: 4px 0;">
+                                Base gravable <strong>@tasa.ToString("N0")%</strong>:
+                            </td>
+                            <td style="padding: 4px 0; text-align: right;">
+                                L. @Model.DesgloseISV.BasePorTasa[tasa].ToString("N2")
+                            </td>
+                            <td style="padding: 4px 0 4px 24px;">
+                                ISV <strong>@tasa.ToString("N0")%</strong>:
+                            </td>
+                            <td style="padding: 4px 0; text-align: right; font-weight: 600;">
+                                L. @Model.DesgloseISV.ISVPorTasa[tasa].ToString("N2")
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.DesgloseISV.BaseExentaTotal > 0)
+                    {
+                        <tr>
+                            <td style="padding: 4px 0;">
+                                Base <strong>exenta</strong>:
+                            </td>
+                            <td style="padding: 4px 0; text-align: right;">
+                                L. @Model.DesgloseISV.BaseExentaTotal.ToString("N2")
+                            </td>
+                            <td colspan="2"></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @* ===== TOTALES ===== *@
+    <div class="totales-panel" style="margin-top: 16px;">
         <div class="totales-row">
             <span>Subtotal:</span>
             <strong>L. @Model.Factura.Subtotal.ToString("N2")</strong>
@@ -175,7 +265,7 @@
             <strong>L. @Model.Factura.Descuento.ToString("N2")</strong>
         </div>
         <div class="totales-row">
-            <span>Impuestos:</span>
+            <span>ISV total:</span>
             <strong>L. @Model.Factura.Impuestos.ToString("N2")</strong>
         </div>
         <div class="totales-row totales-row-final">

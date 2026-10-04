@@ -104,6 +104,13 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 }
             }
 
+            // ===== VALIDACIÓN: período contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, Input.Fecha);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
+            }
+
             if (!ModelState.IsValid) return Page();
 
             // Verificar saldo suficiente para egresos y transferencias
@@ -112,7 +119,6 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 var cuentaOrigen = _context.CuentasFinancieras.FirstOrDefault(c => c.Id == Input.CuentaId);
                 if (cuentaOrigen != null && cuentaOrigen.SaldoActual < Input.Monto)
                 {
-                    // Advertencia, no bloqueo. Algunas empresas permiten sobregiros.
                     TempData["Warning"] = $"Atención: el saldo de '{cuentaOrigen.Nombre}' quedará en negativo (L. {(cuentaOrigen.SaldoActual - Input.Monto):N2})";
                 }
             }
@@ -146,7 +152,6 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             _context.MovimientosFinancieros.Add(mov);
             _context.SaveChanges();
 
-            // Aplicar saldo
             SaldoHelper.Aplicar(_context, mov);
             _context.SaveChanges();
 

@@ -1,0 +1,290 @@
+@page
+@model Kirkenta.Pages.Finanzas.Contabilidad.EstadoResultadosModel
+@{
+    ViewData["Title"] = "Estado de Resultados";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Estado de Resultados</h2>
+        <p>Del @Model.Desde.ToString("dd/MM/yyyy") al @Model.Hasta.ToString("dd/MM/yyyy")</p>
+    </div>
+    <div class="module-header-right">
+        <button type="button" class="btn-secondary" onclick="window.print()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <polyline points="6 9 6 2 18 2 18 9"/>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Imprimir
+        </button>
+        <a asp-page="/Finanzas/Index" class="btn-secondary">Volver a Finanzas</a>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+    <form method="get">
+        <div class="form-row" style="align-items: end;">
+            <div class="form-field" style="margin: 0;">
+                <label>Desde</label>
+                <input type="date" name="desde" class="form-input" value="@Model.Desde.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>Hasta</label>
+                <input type="date" name="hasta" class="form-input" value="@Model.Hasta.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn-primary">Aplicar</button>
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>&nbsp;</label>
+                <a asp-page="/Finanzas/Contabilidad/EstadoResultados" class="btn-secondary">Mes actual</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+@if (Model.MovimientosSinCuenta > 0)
+{
+    <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <div>
+            <strong>Hay @Model.MovimientosSinCuenta movimiento(s) sin cuenta contable asignada en el período.</strong>
+            <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                Esos movimientos no aparecen en este reporte. Asocia sus categorías a una cuenta del
+                <a asp-page="/Finanzas/PlanCuentas/Index">Plan de Cuentas</a> para incluirlos.
+            </p>
+        </div>
+    </div>
+}
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Ingresos totales</span>
+        <span class="kpi-value" style="color: var(--color-success);">L. @Model.Reporte.TotalIngresos.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Costos</span>
+        <span class="kpi-value" style="color: var(--color-danger); font-size: 20px;">L. @Model.Reporte.TotalCostos.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Gastos</span>
+        <span class="kpi-value" style="color: var(--color-danger); font-size: 20px;">L. @Model.Reporte.TotalGastos.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Utilidad Neta</span>
+        <span class="kpi-value" style="color: @(Model.Reporte.UtilidadNeta >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+            L. @Model.Reporte.UtilidadNeta.ToString("N2")
+        </span>
+        <span class="kpi-trend">Margen: @Model.Reporte.MargenNeto.ToString("N1")%</span>
+    </div>
+</div>
+
+<!-- Encabezado empresa -->
+<div class="module-card" style="padding: 40px;">
+    <div style="text-align: center; margin-bottom: 32px;">
+        @if (Model.Empresa != null && !string.IsNullOrEmpty(Model.Empresa.LogoPath))
+        {
+            <img src="@Model.Empresa.LogoPath" alt="@Model.Empresa.Nombre" style="width: 60px; height: 60px; object-fit: contain; margin-bottom: 8px;" />
+        }
+        <h2 style="font-size: 20px; margin-bottom: 4px;">@(Model.Empresa?.Nombre ?? "Mi Empresa")</h2>
+        @if (!string.IsNullOrEmpty(Model.Empresa?.RTN))
+        {
+            <p style="color: var(--color-muted); font-size: 13px;">RTN: @Model.Empresa.RTN</p>
+        }
+        <h3 style="font-size: 16px; font-weight: 700; margin-top: 16px; color: var(--color-primary);">
+            ESTADO DE RESULTADOS
+        </h3>
+        <p style="color: var(--color-muted); font-size: 13px;">
+            Del @Model.Desde.ToString("dd/MM/yyyy") al @Model.Hasta.ToString("dd/MM/yyyy")
+        </p>
+    </div>
+
+    <!-- ========== INGRESOS ========== -->
+    <div class="reporte-seccion">
+        <h4 class="reporte-seccion-titulo" style="color: var(--color-success);">INGRESOS</h4>
+
+        @if (Model.Reporte.Ingresos.Count == 0)
+        {
+            <p class="reporte-vacio">Sin movimientos de ingreso en el período</p>
+        }
+        else
+        {
+            <table class="reporte-tabla">
+                <tbody>
+                    @foreach (var l in Model.Reporte.Ingresos)
+                    {
+                        <tr>
+                            <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
+                            <td>@l.Cuenta</td>
+                            <td style="text-align: right; width: 140px;">L. @l.Monto.ToString("N2")</td>
+                        </tr>
+                    }
+                    <tr class="reporte-total">
+                        <td></td>
+                        <td><strong>Total Ingresos</strong></td>
+                        <td style="text-align: right; color: var(--color-success);">
+                            <strong>L. @Model.Reporte.TotalIngresos.ToString("N2")</strong>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <!-- ========== COSTOS ========== -->
+    <div class="reporte-seccion">
+        <h4 class="reporte-seccion-titulo" style="color: #f97316;">COSTOS</h4>
+
+        @if (Model.Reporte.Costos.Count == 0)
+        {
+            <p class="reporte-vacio">Sin costos registrados en el período</p>
+        }
+        else
+        {
+            <table class="reporte-tabla">
+                <tbody>
+                    @foreach (var l in Model.Reporte.Costos)
+                    {
+                        <tr>
+                            <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
+                            <td>@l.Cuenta</td>
+                            <td style="text-align: right; width: 140px;">L. @l.Monto.ToString("N2")</td>
+                        </tr>
+                    }
+                    <tr class="reporte-total">
+                        <td></td>
+                        <td><strong>Total Costos</strong></td>
+                        <td style="text-align: right;">
+                            <strong>L. @Model.Reporte.TotalCostos.ToString("N2")</strong>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <!-- ========== UTILIDAD BRUTA ========== -->
+    <div class="reporte-subtotal">
+        <span>UTILIDAD BRUTA</span>
+        <strong style="color: @(Model.Reporte.UtilidadBruta >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+            L. @Model.Reporte.UtilidadBruta.ToString("N2")
+        </strong>
+    </div>
+
+    <!-- ========== GASTOS ========== -->
+    <div class="reporte-seccion">
+        <h4 class="reporte-seccion-titulo" style="color: var(--color-danger);">GASTOS OPERATIVOS</h4>
+
+        @if (Model.Reporte.Gastos.Count == 0)
+        {
+            <p class="reporte-vacio">Sin gastos registrados en el período</p>
+        }
+        else
+        {
+            <table class="reporte-tabla">
+                <tbody>
+                    @foreach (var l in Model.Reporte.Gastos)
+                    {
+                        <tr>
+                            <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
+                            <td>@l.Cuenta</td>
+                            <td style="text-align: right; width: 140px;">L. @l.Monto.ToString("N2")</td>
+                        </tr>
+                    }
+                    <tr class="reporte-total">
+                        <td></td>
+                        <td><strong>Total Gastos</strong></td>
+                        <td style="text-align: right;">
+                            <strong>L. @Model.Reporte.TotalGastos.ToString("N2")</strong>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <!-- ========== UTILIDAD NETA ========== -->
+    <div class="reporte-total-final">
+        <span style="font-size: 15px;">UTILIDAD NETA DEL PERÍODO</span>
+        <strong style="font-size: 22px; color: @(Model.Reporte.UtilidadNeta >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+            L. @Model.Reporte.UtilidadNeta.ToString("N2")
+        </strong>
+    </div>
+
+    <div style="text-align: center; margin-top: 20px; font-size: 12px; color: var(--color-muted);">
+        Margen Bruto: @Model.Reporte.MargenBruto.ToString("N1")% &nbsp;|&nbsp;
+        Margen Neto: @Model.Reporte.MargenNeto.ToString("N1")%
+    </div>
+</div>
+
+<style>
+    .reporte-seccion {
+        margin-bottom: 24px;
+    }
+    .reporte-seccion-titulo {
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding-bottom: 8px;
+        border-bottom: 2px solid currentColor;
+        margin-bottom: 12px;
+    }
+    .reporte-tabla {
+        width: 100%;
+        font-size: 13.5px;
+        border-collapse: collapse;
+    }
+    .reporte-tabla td {
+        padding: 6px 8px;
+    }
+    .reporte-tabla tr:not(.reporte-total):hover {
+        background: #f9fafb;
+    }
+    .reporte-total td {
+        border-top: 1px solid var(--color-border);
+        padding-top: 10px;
+        font-size: 14px;
+    }
+    .reporte-vacio {
+        font-size: 13px;
+        color: var(--color-muted);
+        font-style: italic;
+        padding: 8px 0;
+    }
+    .reporte-subtotal {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 20px;
+        background: #f3f4f6;
+        border-radius: 6px;
+        margin: 20px 0;
+        font-size: 14px;
+        font-weight: 700;
+    }
+    .reporte-total-final {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 24px;
+        background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+        border: 2px solid var(--color-primary);
+        border-radius: 8px;
+        margin-top: 24px;
+        font-weight: 700;
+    }
+    @@media print {
+        .module-header, .module-card form, .module-alert, .erp-sidebar, .erp-topbar, .erp-footer { display: none !important; }
+        .erp-main-wrapper { margin-left: 0 !important; }
+        .module-card { box-shadow: none !important; border: none !important; }
+    }
+</style>

@@ -50,6 +50,14 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 return RedirectToPage("/Finanzas/Movimientos/Index");
             }
 
+            // ===== VALIDACIÓN: período contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, mov.Fecha);
+            if (!periodoOk)
+            {
+                TempData["Error"] = $"No puedes anular este movimiento porque pertenece a un período cerrado. {periodoError}";
+                return RedirectToPage("/Finanzas/Movimientos/Index");
+            }
+
             Movimiento = mov;
             CuentaNombre = _context.CuentasFinancieras
                 .FirstOrDefault(c => c.Id == mov.CuentaId)?.Nombre ?? "—";
@@ -78,6 +86,14 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             if (mov == null || mov.Estado != "Activo")
             {
                 TempData["Error"] = "Movimiento no válido";
+                return RedirectToPage("/Finanzas/Movimientos/Index");
+            }
+
+            // ===== VALIDACIÓN: período contable cerrado =====
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, mov.Fecha);
+            if (!periodoOk)
+            {
+                TempData["Error"] = $"No puedes anular este movimiento porque pertenece a un período cerrado. {periodoError}";
                 return RedirectToPage("/Finanzas/Movimientos/Index");
             }
 
