@@ -18,6 +18,8 @@ Cómo usar: Pega este archivo completo al inicio de un chat nuevo. Di: "Retomamo
 - CSV: CsvHelper 33.1.0
 - Password hashing: BCrypt.Net-Next 4.2.0
 - Git: https://github.com/Kirklen0910/Kirkenta
+- Ruta local: C:\Users\crobe\OneDrive\Kirkenta
+- Puerto local: http://localhost:5114 (HTTP, no HTTPS)
 
 ================================================================================
 2. ESTRUCTURA DE CARPETAS
@@ -28,8 +30,12 @@ Kirkenta/
 ├── Helpers/
 │   ├── Export/ (ExcelExporter, CsvExporter, JsonExporter, ExportColumn, ExportColumns)
 │   ├── Import/ (ExcelImporter, CsvImporter, ColumnMapper, ImportResult, ImportFile)
-│   ├── Finanzas/ (AperturaHelper, CierreHelper, DistribucionHelper, MovimientoAutomaticoHelper, SaldoHelper, AdjuntoCierreHelper, FinanzasSeeder)
-│   ├── RRHH/ (EmpleadoHelper, AdjuntoEmpleadoHelper, NominaHelper, VacacionHelper, TipoDocumentoEmpleadoSeeder, FeriadoSeeder)
+│   ├── Finanzas/ (AperturaHelper, CierreHelper, DistribucionHelper,
+│   │             MovimientoAutomaticoHelper, SaldoHelper, AdjuntoCierreHelper,
+│   │             FinanzasSeeder, CierreContableHelper, ConciliacionHelper,
+│   │             ContabilidadHelper, ISVHelper, PlanCuentasHelper)
+│   ├── RRHH/ (EmpleadoHelper, AdjuntoEmpleadoHelper, NominaHelper, VacacionHelper,
+│   │         TipoDocumentoEmpleadoSeeder, FeriadoSeeder)
 │   ├── ActividadHelper.cs
 │   ├── ModulosERP.cs
 │   ├── NumeroDocumentoHelper.cs
@@ -62,6 +68,10 @@ Kirkenta/
 │   │   ├── Movimientos/ (Index, Create, Edit, Anular)
 │   │   ├── Aperturas/ (Index, Create)
 │   │   ├── Cierres/ (Index, Create, Details, Aprobar)
+│   │   ├── CierresContables/ (Index, Create, Reabrir)
+│   │   ├── Conciliacion/ (Index, Create, Details)
+│   │   ├── Contabilidad/ (EstadoResultados, BalanceGeneral)
+│   │   ├── PlanCuentas/ (Index, Create, Edit, Delete)
 │   │   └── Reportes/ (Index)
 │   ├── RRHH/
 │   │   ├── Index
@@ -85,7 +95,8 @@ Kirkenta/
 ├── wwwroot/ (css, js, images, lib, uploads)
 ├── Program.cs
 ├── appsettings.json
-└── CONTEXTO.md
+├── CONTEXTO.md
+└── PROYECTO.md
 
 ================================================================================
 3. MÓDULOS Y SUBMÓDULOS
@@ -97,7 +108,14 @@ Usuarios: Index, Create, Edit, Delete, Roles, RolesCreate, RolesEdit, RolesDelet
 Ventas: POS, Index, Create, Edit, Delete, Cotizaciones, Pedidos, Facturas, Clientes, ClientesCreate, ClientesEdit, ClientesDelete, ClientesExport, ClientesImport, Devoluciones
 Inventario: Index, Productos (+Create/Edit/Delete/Export/Import), Categorias, UnidadesMedida, Entradas, Salidas, Bajas
 Compras: Index, Proveedores (+Create/Edit/Delete/Export/Import), Ordenes (+Create/Edit/Delete/Recibir), Pagos (+Create), CuentasPorPagar, Reportes
-Finanzas: Index, Cuentas (+Create/Edit/Delete), Categorias (+Create/Edit/Delete), Movimientos (+Create/Edit/Anular), Aperturas (+Create), Cierres (+Create/Aprobar), Reportes, FlujoCaja, EstadoResultados, BalanceGeneral, Conciliacion, ISV
+Finanzas: Index, Cuentas (+Create/Edit/Delete), Categorias (+Create/Edit/Delete),
+         Movimientos (+Create/Edit/Anular), Aperturas (+Create),
+         Cierres (+Create/Aprobar),
+         CierresContables (+Create/Reabrir),
+         Conciliacion (+Create/Details/Cerrar),
+         PlanCuentas (+Create/Edit/Delete),
+         ContabilidadEstadoResultados, ContabilidadBalanceGeneral,
+         Reportes, FlujoCaja, EstadoResultados, BalanceGeneral, ISV
 RRHH: Index, Empleados (+Create/Edit/Delete), Documentos (+Create/Delete), Expedientes (+Create/Delete), Vacaciones (+Create/Aprobar), Permisos (+Create/Aprobar), Vales (+Create/Aprobar/Entregar), Nomina (+Create/Aprobar/Pagar), Feriados (+Create), Alertas (+Create), Reportes
 Reportes: Index, Ventas, Compras
 Logistica: Index, Envios
@@ -139,7 +157,7 @@ NumeroDocumentoHelper
 - PreviewSiguiente(context, tipo) → solo muestra el próximo
 - SincronizarSerie() → ajusta el correlativo si detecta desfase con la BD
 - Soporta formato personalizado: {PREFIX}, {SUFFIX}, {SEP}, {NUM}, {YEAR}, {MONTH}, {DAY}
-- Tipos soportados: Cotizacion, Pedido, Venta, Factura, Devolucion, Producto, Baja, Proveedor, OrdenCompra, PagoProveedor, DevolucionProveedor, MovimientoFinanciero, AperturaCaja, CierreCaja, Empleado, ValeEmpleado, Vacacion, PermisoEmpleado, Nomina, PagoNomina
+- Tipos soportados: Cotizacion, Pedido, Venta, Factura, Devolucion, Producto, Baja, Proveedor, OrdenCompra, PagoProveedor, DevolucionProveedor, MovimientoFinanciero, AperturaCaja, CierreCaja, ConciliacionBancaria, Empleado, ValeEmpleado, Vacacion, PermisoEmpleado, Nomina, PagoNomina
 
 ActividadHelper
 - Registrar(context, usuarioId, "acción", "detalle", ipAddress, userAgent)
@@ -177,6 +195,43 @@ AdjuntoCierreHelper (Finanzas)
 - Guardar(context, env, cierreId, archivo, descripcion, usuarioId)
 - Eliminar(context, env, adjuntoId)
 - Extensiones: .pdf, .jpg, .jpeg, .png. Máx 10 MB
+
+CierreContableHelper (Finanzas) ⬅ NUEVO FASE 5
+- ValidarFecha(context, fecha) → (ok, error) si el mes está cerrado
+- Cerrar(context, anio, mes, usuarioId, notas) → (ok, error, cierre)
+- Reabrir(context, anio, mes, usuarioId, motivo) → (ok, error)
+- ObtenerEstadoAnual(context, anio) → List<CierreContable>
+- Obtener(context, anio, mes) → CierreContable?
+
+ConciliacionHelper (Finanzas) ⬅ NUEVO FASE 5
+- Crear(context, cuentaId, fechaInicio, fechaFin, saldoBanco, notas, usuarioId) → (conciliacion, error)
+- CargarLineasSistema(context, conciliacion)
+- MatchingAutomatico(context, conciliacionId) → int (matches realizados)
+- MatchingManual(context, detalleSistemaId, detalleBancoId) → (ok, error)
+- DeshacerMatch(context, detalleId) → (ok, error)
+- RecalcularTotales(context, conciliacion)
+- Cerrar(context, conciliacionId, usuarioId, notasCierre) → (ok, error)
+- Cancelar(context, conciliacionId, motivo) → (ok, error)
+
+ContabilidadHelper (Finanzas) ⬅ NUEVO FASE 5
+- GenerarEstadoResultados(context, desde, hasta) → EstadoResultados
+- GenerarBalanceGeneral(context, fechaCorte) → BalanceGeneral
+- ContarSinPlanCuenta(context, desde, hasta) → int
+- DTOs: LineaReporte, EstadoResultados, BalanceGeneral
+
+ISVHelper (Finanzas) ⬅ NUEVO FASE 5
+- Calcular(context, items, descuentoGlobal) → ResultadoISV
+- ObtenerTasaProducto(context, impuestoId) → decimal
+- SincronizarItems(context, items) → bool
+- RecalcularFactura(context, factura, items) → bool
+- ObtenerTasasActivas(context) → List<Impuesto>
+- NO hardcodea tasas: siempre lee del catálogo Impuestos
+
+PlanCuentasHelper (Finanzas) ⬅ NUEVO FASE 5
+- Seed(context) → pobla el plan de cuentas estándar de Honduras (81 cuentas)
+- ObtenerTodas(context) → List<PlanCuenta>
+- ObtenerCuentasMovimiento(context) → List<PlanCuenta> (solo EsMovimiento=true)
+- RecalcularJerarquia(context) → int
 
 EmpleadoHelper (RRHH)
 - GenerarCodigo / PreviewCodigo
@@ -292,6 +347,11 @@ Estructura típica de página:
 16. Vales: límite del 50% del salario mensual del empleado (validación al crear).
 17. Nómina: no se puede editar si tiene recepciones o pagos. Se anula.
 18. OrdenCompra: no se puede editar si tiene recepciones o pagos. Estados: Borrador → Enviada → RecibidaParcial → Recibida → Pagada.
+19. Período contable cerrado: bloquea movimientos, aperturas, cierres, ventas, pagos, nóminas y vales con fecha dentro del mes cerrado.
+20. Cierre contable reabrible: requiere motivo + contraseña, queda en auditoría.
+21. Conciliación: solo cuentas tipo "Banco". Matching automático por monto (±0.01) y fecha (±3 días).
+22. Plan de Cuentas: código jerárquico con puntos (1, 1.1, 1.1.01). Naturaleza calculada por tipo.
+23. Solo cuentas con EsMovimiento=true aceptan movimientos directos.
 
 ================================================================================
 8. MÓDULOS COMPLETADOS
@@ -329,7 +389,7 @@ Compras:
 Finanzas:
 - Dashboard con gráficos (Flujo mensual, Top categorías egresos)
 - Cuentas financieras (Cajas + Bancos, con saldo inicial y actual)
-- Categorías financieras (Ingreso/Egreso, sistema + custom)
+- Categorías financieras (Ingreso/Egreso, sistema + custom, +PlanCuentaId)
 - Movimientos (Ingresos, Egresos, Transferencias, Anulaciones)
 - Reportes (Flujo de caja, Estado de resultados, Estado de cuenta)
 - Aperturas de caja (una activa por cuenta)
@@ -338,6 +398,12 @@ Finanzas:
 - Adjuntos / comprobantes (con validación)
 - Movimientos automáticos desde POS, PagosProveedor, Vales, Nómina
 - Ajuste automático por diferencia en cierre
+- ⬅ FASE 5: Plan de Cuentas (catálogo jerárquico con seeder de Honduras)
+- ⬅ FASE 5: Estado de Resultados (Ingresos - Costos - Gastos = Utilidad)
+- ⬅ FASE 5: Balance General (Activos = Pasivos + Patrimonio)
+- ⬅ FASE 5: Cierres Contables (bloqueo de meses + reapertura con motivo)
+- ⬅ FASE 5: Conciliación Bancaria (matching automático y manual)
+- ⬅ FASE 5: ISV Helper (cálculo dinámico de ISV por tasas del catálogo)
 
 RRHH (100% completado):
 - Dashboard con KPIs + Cumpleaños + Aniversarios + Feriados + Vacaciones + Alertas + Empleados recientes
@@ -373,10 +439,7 @@ Reportes:
 - Seguridad (Index, Auditoría)
 - Import/Export de Categorías, Impuestos, Unidades de medida
 - Refactor del wizard a componente genérico
-- Conciliación bancaria
-- ISV/IVA automático (cálculo en facturas)
 - Presupuestos por categoría
-- Cierre contable mensual
 - Portal del empleado (login propio para ver recibos, solicitar vacaciones)
 - Evaluaciones de desempeño
 - Capacitaciones / Cursos
@@ -437,6 +500,24 @@ Sobre tipos de nómina:
 - Mensual → 30 días
 - Empleados filtrados por FrecuenciaPago
 
+Sobre el Plan de Cuentas (FASE 5):
+- Seed inicial: 81 cuentas estándar de Honduras
+- Jerarquía por código con puntos: 1 (Activo), 1.1 (Activo Corriente), 1.1.01 (Caja y Bancos), etc.
+- Tipos: Activo, Pasivo, Patrimonio, Ingreso, Costo, Gasto
+- Naturaleza calculada automáticamente: Deudora (Activo/Costo/Gasto) o Acreedora (Pasivo/Patrimonio/Ingreso)
+- Solo EsMovimiento=true acepta movimientos directos (hojas del árbol)
+- CategoriaFinanciera.PlanCuentaId → FK opcional
+- El Estado de Resultados y Balance General se generan agrupando MovimientoFinanciero por PlanCuenta
+
+Sobre la tabla __EFMigrationsHistory:
+- Snapshot desincronizado → no usar dotnet ef migrations
+- Agregar migraciones manualmente por SQL
+- Para Fase 5 ya se agregó manualmente la migración
+
+Sobre puerto:
+- Solo se usa http://localhost:5114
+- NO se usa HTTPS ni el puerto 7060
+
 ================================================================================
 11. FLUJO DE TRABAJO
 ================================================================================
@@ -461,8 +542,12 @@ Al pedir código:
 ÚLTIMA ACTUALIZACIÓN
 ================================================================================
 
-Fecha: 03/10/2026
-Estado: RRHH 100% completado. Módulos operativos: Usuarios, Ventas, POS, Inventario,
-        Compras, Finanzas, RRHH, Reportes, Configuración.
-Próximo: Producción, Logística, Activos, Seguridad, o cerrar pendientes de Finanzas
-         (conciliación bancaria, ISV, cierre contable).
+Fecha: 04/10/2026
+Estado: RRHH 100%. Finanzas 100% (incluye Fase 5: Contabilidad completa con
+        Plan de Cuentas, Estado de Resultados, Balance General, Cierres
+        Contables, Conciliación Bancaria e ISV Helper).
+        Módulos operativos: Usuarios, Ventas, POS, Inventario, Compras,
+        Finanzas, RRHH, Reportes, Configuración.
+Próximo: Fase 6 (Producción, Logística, Activos, Seguridad) o cerrar
+         pendientes de Finanzas (Presupuestos por categoría, Portal del
+         empleado, Refactor wizard import).
