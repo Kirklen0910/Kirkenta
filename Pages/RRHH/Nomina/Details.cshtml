@@ -1,0 +1,340 @@
+@page "{id:int}"
+@model Kirkenta.Pages.RRHH.Nomina.DetailsModel
+@{
+    ViewData["Title"] = $"Nómina {Model.Nomina.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/RRHH/Nomina/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a nóminas
+        </a>
+        <h2>Nómina @Model.Nomina.Numero</h2>
+        <p>@Model.Nomina.PeriodoDescripcion • @Model.Nomina.Tipo</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeAprobar && Model.Nomina.Estado == "Calculada")
+        {
+            <a asp-page="/RRHH/Nomina/Aprobar" asp-route-id="@Model.Nomina.Id" class="btn-primary" style="background: var(--color-success);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Aprobar nómina
+            </a>
+        }
+        @if (Model.PuedePagar && Model.Nomina.Estado == "Aprobada")
+        {
+            <a asp-page="/RRHH/Nomina/PagarEmpleado" asp-route-id="@Model.Nomina.Id" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="1" x2="12" y2="23"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                Pagar nómina
+            </a>
+        }
+        @if (Model.PuedePagar && Model.Nomina.Estado == "Pagada" && Model.CantidadPendientes > 0)
+        {
+            <a asp-page="/RRHH/Nomina/PagarEmpleado" asp-route-id="@Model.Nomina.Id" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="1" x2="12" y2="23"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                Pagar pendientes (@Model.CantidadPendientes)
+            </a>
+        }
+        <button type="button" class="btn-secondary" onclick="window.print()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <polyline points="6 9 6 2 18 2 18 9"/>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Imprimir
+        </button>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<div class="module-card" style="padding: 28px;">
+    <!-- Encabezado -->
+    <div class="factura-header">
+        <div class="factura-empresa">
+            <div>
+                <h3 style="font-size: 16px;">@Model.Empresa.Nombre</h3>
+                @if (!string.IsNullOrEmpty(Model.Empresa.RTN))
+                {
+                    <p style="color: var(--color-muted); font-size: 12px;">RTN: @Model.Empresa.RTN</p>
+                }
+            </div>
+        </div>
+        <div class="factura-numero">
+            <span class="factura-numero-label">NÓMINA</span>
+            <strong class="factura-numero-value">@Model.Nomina.Numero</strong>
+            @if (Model.Nomina.Estado == "Calculada") { <span class="badge badge-warning" style="margin-top: 6px;">Calculada</span> }
+            else if (Model.Nomina.Estado == "Aprobada") { <span class="badge badge-info" style="margin-top: 6px;">Aprobada</span> }
+            else if (Model.Nomina.Estado == "Pagada") { <span class="badge badge-success" style="margin-top: 6px;">Pagada</span> }
+        </div>
+    </div>
+
+    <div class="factura-info-grid">
+        <div>
+            <h4 class="factura-info-label">Período</h4>
+            <p><strong>@Model.Nomina.PeriodoDescripcion</strong></p>
+            <p>Del @Model.Nomina.FechaInicio.ToString("dd/MM/yyyy") al @Model.Nomina.FechaFin.ToString("dd/MM/yyyy")</p>
+            <p>Tipo: <strong>@Model.Nomina.Tipo</strong></p>
+        </div>
+        <div>
+            <h4 class="factura-info-label">Información</h4>
+            <p><strong>Fecha pago:</strong> @Model.Nomina.FechaPago.ToString("dd/MM/yyyy")</p>
+            @if (Model.Nomina.FechaPagoReal.HasValue)
+            {
+                <p><strong>Pagada el:</strong> @Model.Nomina.FechaPagoReal.Value.ToString("dd/MM/yyyy HH:mm")</p>
+            }
+            <p><strong>Empleados:</strong> @Model.Nomina.CantidadEmpleados</p>
+            @if (Model.MovimientoTotal != null)
+            {
+                <p>
+                    <strong>Movimiento:</strong>
+                    <a asp-page="/Finanzas/Movimientos/Index" style="font-family: monospace; color: var(--color-primary); font-weight: 600;">
+                        @Model.MovimientoTotal.Numero
+                    </a>
+                </p>
+            }
+        </div>
+    </div>
+
+    <!-- Trazabilidad -->
+    @if (Model.UsuarioCalcula != null || Model.UsuarioAprueba != null || Model.UsuarioPaga != null)
+    {
+        <div style="margin-top: 20px; padding: 16px; background: #f9fafb; border-radius: 8px; font-size: 12.5px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 24px;">
+                @if (Model.UsuarioCalcula != null)
+                {
+                    <span>🧮 <strong>Calculada por:</strong> @Model.UsuarioCalcula.Username @(Model.Nomina.FechaCalculo.HasValue ? $" ({Model.Nomina.FechaCalculo.Value:dd/MM/yyyy HH:mm})" : "")</span>
+                }
+                @if (Model.UsuarioAprueba != null)
+                {
+                    <span>✅ <strong>Aprobada por:</strong> @Model.UsuarioAprueba.Username @(Model.Nomina.FechaAprobacion.HasValue ? $" ({Model.Nomina.FechaAprobacion.Value:dd/MM/yyyy HH:mm})" : "")</span>
+                }
+                @if (Model.UsuarioPaga != null)
+                {
+                    <span>💵 <strong>Pagada por:</strong> @Model.UsuarioPaga.Username @(Model.Nomina.FechaPagoReal.HasValue ? $" ({Model.Nomina.FechaPagoReal.Value:dd/MM/yyyy HH:mm})" : "")</span>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Resumen -->
+    <div class="kpi-grid" style="margin: 24px 0;">
+        <div class="kpi-card">
+            <span class="kpi-label">Total bruto</span>
+            <span class="kpi-value">L. @Model.Nomina.TotalSalariosBrutos.ToString("N2")</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">IHSS</span>
+            <span class="kpi-value" style="color: var(--color-danger); font-size: 20px;">- L. @Model.Nomina.TotalDeduccionIHSS.ToString("N2")</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">RAP</span>
+            <span class="kpi-value" style="color: var(--color-danger); font-size: 20px;">- L. @Model.Nomina.TotalDeduccionRAP.ToString("N2")</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">ISR</span>
+            <span class="kpi-value" style="color: var(--color-danger); font-size: 20px;">- L. @Model.Nomina.TotalDeduccionISR.ToString("N2")</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Vales</span>
+            <span class="kpi-value" style="color: var(--color-danger); font-size: 20px;">- L. @Model.Nomina.TotalDeduccionVales.ToString("N2")</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Total neto</span>
+            <span class="kpi-value" style="color: var(--color-success);">L. @Model.Nomina.TotalNeto.ToString("N2")</span>
+        </div>
+    </div>
+
+    <!-- Estado de pagos -->
+    @if (Model.Nomina.Estado == "Pagada" || Model.Nomina.Estado == "Aprobada")
+    {
+        <div class="kpi-grid" style="margin-bottom: 24px;">
+            <div class="kpi-card">
+                <span class="kpi-label">Empleados pagados</span>
+                <span class="kpi-value" style="color: var(--color-success);">@Model.CantidadPagados / @Model.Detalles.Count</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Total pagado</span>
+                <span class="kpi-value" style="color: var(--color-success); font-size: 20px;">L. @Model.TotalPagado.ToString("N2")</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Pendiente de pagar</span>
+                <span class="kpi-value" style="color: @(Model.TotalPendiente > 0 ? "var(--color-warning)" : "var(--color-success)"); font-size: 20px;">L. @Model.TotalPendiente.ToString("N2")</span>
+            </div>
+        </div>
+    }
+
+    <!-- Detalle por empleado -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 class="panel-title" style="margin: 0;">Detalle por empleado</h3>
+        @if (Model.PuedePagar && (Model.Nomina.Estado == "Aprobada" || Model.CantidadPendientes > 0))
+        {
+            <a asp-page="/RRHH/Nomina/PagarEmpleado" asp-route-id="@Model.Nomina.Id" class="btn-primary btn-sm">
+                Pagar empleados
+            </a>
+        }
+    </div>
+
+    <div class="table-wrapper">
+        <table class="erp-table" style="font-size: 12.5px;">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"></th>
+                    <th>Empleado</th>
+                    <th style="text-align: right;">Salario base</th>
+                    <th style="text-align: right;">Bonos</th>
+                    <th style="text-align: right;">Bruto</th>
+                    <th style="text-align: right;">IHSS</th>
+                    <th style="text-align: right;">RAP</th>
+                    <th style="text-align: right;">ISR</th>
+                    <th style="text-align: right;">Vales</th>
+                    <th style="text-align: right;">Neto</th>
+                    <th style="text-align: center;">Pago</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var d in Model.Detalles)
+                {
+                    <tr>
+                        <td>
+                            @if (!string.IsNullOrEmpty(d.FotoPath))
+                            {
+                                <img src="@d.FotoPath" alt="@d.EmpleadoNombre" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" />
+                            }
+                            else
+                            {
+                                <div class="user-avatar-sm" style="width: 32px; height: 32px; font-size: 12px;">@d.EmpleadoNombre.Substring(0, 1).ToUpper()</div>
+                            }
+                        </td>
+                        <td>
+                            <strong>@d.EmpleadoNombre</strong>
+                            <br /><span class="table-user-sub">@d.EmpleadoCodigo</span>
+                        </td>
+                        <td style="text-align: right;">L. @d.SalarioBase.ToString("N2")</td>
+                        <td style="text-align: right;">L. @d.Bonos.ToString("N2")</td>
+                        <td style="text-align: right;"><strong>L. @d.TotalBruto.ToString("N2")</strong></td>
+                        <td style="text-align: right; color: @(d.DeduccionIHSS > 0 ? "var(--color-danger)" : "var(--color-muted)");">
+                            @(d.DeduccionIHSS > 0 ? "-" : "") L. @d.DeduccionIHSS.ToString("N2")
+                        </td>
+                        <td style="text-align: right; color: @(d.DeduccionRAP > 0 ? "var(--color-danger)" : "var(--color-muted)");">
+                            @(d.DeduccionRAP > 0 ? "-" : "") L. @d.DeduccionRAP.ToString("N2")
+                        </td>
+                        <td style="text-align: right; color: @(d.DeduccionISR > 0 ? "var(--color-danger)" : "var(--color-muted)");">
+                            @(d.DeduccionISR > 0 ? "-" : "") L. @d.DeduccionISR.ToString("N2")
+                        </td>
+                        <td style="text-align: right; color: @(d.DeduccionVales > 0 ? "var(--color-danger)" : "var(--color-muted)");">
+                            @(d.DeduccionVales > 0 ? "-" : "") L. @d.DeduccionVales.ToString("N2")
+                        </td>
+                        <td style="text-align: right;"><strong style="color: var(--color-success);">L. @d.SalarioNeto.ToString("N2")</strong></td>
+                        <td style="text-align: center;">
+                            @if (d.YaPagado)
+                            {
+                                <span class="badge badge-success" title="Pagado">
+                                    ✓ @(d.PagoNumero ?? "OK")
+                                </span>
+                            }
+                            else if (Model.Nomina.Estado == "Aprobada")
+                            {
+                                <span class="badge badge-warning">Pendiente</span>
+                            }
+                            else
+                            {
+                                <span class="table-user-sub">—</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr style="background: #f9fafb; font-weight: 700; border-top: 2px solid var(--color-border);">
+                    <td colspan="4" style="text-align: right;">TOTALES:</td>
+                    <td style="text-align: right;">L. @Model.Nomina.TotalSalariosBrutos.ToString("N2")</td>
+                    <td style="text-align: right; color: var(--color-danger);">- L. @Model.Nomina.TotalDeduccionIHSS.ToString("N2")</td>
+                    <td style="text-align: right; color: var(--color-danger);">- L. @Model.Nomina.TotalDeduccionRAP.ToString("N2")</td>
+                    <td style="text-align: right; color: var(--color-danger);">- L. @Model.Nomina.TotalDeduccionISR.ToString("N2")</td>
+                    <td style="text-align: right; color: var(--color-danger);">- L. @Model.Nomina.TotalDeduccionVales.ToString("N2")</td>
+                    <td style="text-align: right; color: var(--color-success);">L. @Model.Nomina.TotalNeto.ToString("N2")</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Nomina.Notas))
+    {
+        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-border);">
+            <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">Notas</h4>
+            <p style="color: var(--color-muted); font-size: 13px;">@Model.Nomina.Notas</p>
+        </div>
+    }
+
+    <!-- Historial de pagos individuales -->
+    @if (Model.Pagos.Count > 0)
+    {
+        <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--color-border);">
+            <h3 class="panel-title" style="margin-bottom: 16px;">📋 Historial de pagos individuales</h3>
+
+            <div class="table-wrapper">
+                <table class="erp-table" style="font-size: 12.5px;">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Fecha</th>
+                            <th>Método</th>
+                            <th>Referencia</th>
+                            <th style="text-align: right;">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Model.Pagos.OrderByDescending(x => x.FechaPago))
+                        {
+                            <tr>
+                                <td><span style="font-family: monospace;">@p.Numero</span></td>
+                                <td>@p.FechaPago.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@p.MetodoPago</td>
+                                <td>@(p.Referencia ?? "—")</td>
+                                <td style="text-align: right;"><strong>L. @p.Monto.ToString("N2")</strong></td>
+                            </tr>
+                        }
+                        <tr style="background: #f9fafb; font-weight: 700;">
+                            <td colspan="4" style="text-align: right;">TOTAL PAGADO:</td>
+                            <td style="text-align: right; color: var(--color-success);">L. @Model.TotalPagado.ToString("N2")</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>

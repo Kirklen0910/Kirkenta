@@ -1,0 +1,84 @@
+@page
+@model Kirkenta.Pages.RRHH.Vacaciones.CreateModel
+@{
+    ViewData["Title"] = "Nueva solicitud de vacaciones";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/RRHH/Vacaciones/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a vacaciones
+        </a>
+        <h2>Nueva solicitud de vacaciones</h2>
+        <p>Número: <strong>@Model.NumeroPreview</strong></p>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <div class="form-field">
+            <label asp-for="Input.EmpleadoId">Empleado *</label>
+            <select asp-for="Input.EmpleadoId" class="form-input" required>
+                <option value="">— Selecciona un empleado —</option>
+                @foreach (var e in Model.Empleados)
+                {
+                    <option value="@e.Id">@e.Codigo — @e.Nombres @e.Apellidos (@(e.DiasVacacionesDisponibles) días disponibles)</option>
+                }
+            </select>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.FechaInicio">Fecha de inicio *</label>
+                <input asp-for="Input.FechaInicio" type="date" class="form-input" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.FechaFin">Fecha de fin *</label>
+                <input asp-for="Input.FechaFin" type="date" class="form-input" required />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Motivo">Motivo / Observaciones</label>
+            <textarea asp-for="Input.Motivo" class="form-input" rows="3" placeholder="Ej: Vacaciones anuales, viaje familiar..."></textarea>
+        </div>
+
+        <div class="module-alert" style="background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <div>
+                <strong>Cálculo automático</strong>
+                <p style="margin: 4px 0 0 0; font-size: 12.5px;">Se calculan automáticamente los días hábiles. Los fines de semana y feriados del país no cuentan como días de vacaciones.</p>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/RRHH/Vacaciones/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Solicitar vacaciones
+            </button>
+        </div>
+    </form>
+</div>

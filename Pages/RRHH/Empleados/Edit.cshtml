@@ -1,0 +1,371 @@
+@page "{id:int}"
+@model Kirkenta.Pages.RRHH.Empleados.EditModel
+@{
+    ViewData["Title"] = "Editar empleado";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/RRHH/Empleados/Details" asp-route-id="@Model.Input.Id" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver al empleado
+        </a>
+        <h2>Editar empleado</h2>
+        <p>Código: <strong>@Model.Codigo</strong></p>
+    </div>
+</div>
+
+<div class="module-card form-card-wide">
+    <form method="post" enctype="multipart/form-data" class="erp-form">
+        <input type="hidden" asp-for="Input.Id" />
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <h3 class="form-section-title">📷 Foto del empleado</h3>
+
+        <div style="display: flex; gap: 24px; align-items: center; padding: 20px; background: #f9fafb; border: 1px dashed var(--color-border); border-radius: var(--radius-md); margin-bottom: 16px;">
+            <div id="fotoPreview" style="width: 120px; height: 120px; border-radius: 50%; background: #e5e7eb; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
+                @if (!string.IsNullOrEmpty(Model.FotoActual))
+                {
+                    <img src="@Model.FotoActual" style="width: 100%; height: 100%; object-fit: cover;" />
+                }
+                else
+                {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 48px; height: 48px; color: #9ca3af;">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                }
+            </div>
+            <div>
+                <input type="file" asp-for="NuevaFoto" accept=".jpg,.jpeg,.png,.webp" id="fotoInput" style="font-size: 13px;" />
+                <small class="form-help" style="display: block; margin-top: 6px;">Deja vacío para conservar la foto actual.</small>
+            </div>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <h3 class="form-section-title">👤 Datos personales</h3>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Nombres">Nombres *</label>
+                <input asp-for="Input.Nombres" class="form-input" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Apellidos">Apellidos *</label>
+                <input asp-for="Input.Apellidos" class="form-input" required />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Cedula">Cédula / DNI *</label>
+                <input asp-for="Input.Cedula" class="form-input" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.RTN">RTN</label>
+                <input asp-for="Input.RTN" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.FechaNacimiento">Fecha de nacimiento</label>
+                <input asp-for="Input.FechaNacimiento" type="date" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Genero">Género</label>
+                <select asp-for="Input.Genero" class="form-input">
+                    <option value="">— Selecciona —</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Femenino">Femenino</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.EstadoCivil">Estado civil</label>
+                <select asp-for="Input.EstadoCivil" class="form-input">
+                    <option value="">— Selecciona —</option>
+                    <option value="Soltero">Soltero(a)</option>
+                    <option value="Casado">Casado(a)</option>
+                    <option value="Divorciado">Divorciado(a)</option>
+                    <option value="Viudo">Viudo(a)</option>
+                    <option value="UnionLibre">Unión libre</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Nacionalidad">Nacionalidad</label>
+                <input asp-for="Input.Nacionalidad" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <h3 class="form-section-title">📞 Contacto</h3>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Telefono">Teléfono principal</label>
+                <input asp-for="Input.Telefono" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.TelefonoSecundario">Teléfono secundario</label>
+                <input asp-for="Input.TelefonoSecundario" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Email">Email</label>
+            <input asp-for="Input.Email" type="email" class="form-input" />
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Direccion">Dirección</label>
+            <input asp-for="Input.Direccion" class="form-input" />
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Ciudad">Ciudad</label>
+                <input asp-for="Input.Ciudad" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Pais">País</label>
+                <input asp-for="Input.Pais" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <h3 class="form-section-title">🚨 Contacto de emergencia</h3>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.ContactoEmergenciaNombre">Nombre</label>
+                <input asp-for="Input.ContactoEmergenciaNombre" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.ContactoEmergenciaTelefono">Teléfono</label>
+                <input asp-for="Input.ContactoEmergenciaTelefono" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.ContactoEmergenciaParentesco">Parentesco</label>
+            <input asp-for="Input.ContactoEmergenciaParentesco" class="form-input" />
+        </div>
+
+        <div class="form-divider"></div>
+
+        <h3 class="form-section-title">💼 Datos laborales</h3>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.PuestoNombre">Puesto</label>
+                <input asp-for="Input.PuestoNombre" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Departamento">Departamento</label>
+                <input asp-for="Input.Departamento" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.FechaIngreso">Fecha de ingreso *</label>
+                <input asp-for="Input.FechaIngreso" type="date" class="form-input" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.JefeInmediato">Jefe inmediato</label>
+                <input asp-for="Input.JefeInmediato" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.TipoContrato">Tipo de contrato *</label>
+                <select asp-for="Input.TipoContrato" class="form-input" id="tipoContratoSelect" required>
+                    <option value="Indefinido">Por tiempo indefinido</option>
+                    <option value="Temporal">Por tiempo determinado</option>
+                    <option value="Obra">Por obra o servicio</option>
+                    <option value="Temporada">Por temporada</option>
+                </select>
+            </div>
+            <div class="form-field" id="fechaFinContratoField">
+                <label asp-for="Input.FechaFinContrato">Fecha fin del contrato</label>
+                <input asp-for="Input.FechaFinContrato" type="date" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.TipoJornada">Tipo de jornada *</label>
+                <select asp-for="Input.TipoJornada" class="form-input" required>
+                    <option value="TiempoCompleto">Tiempo completo</option>
+                    <option value="MedioTiempo">Medio tiempo</option>
+                    <option value="PorHora">Por hora</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Estado">Estado *</label>
+                <select asp-for="Input.Estado" class="form-input" id="estadoSelect" required>
+                    <option value="Activo">Activo</option>
+                    <option value="Inactivo">Inactivo</option>
+                    <option value="Suspendido">Suspendido</option>
+                    <option value="Vacaciones">En vacaciones</option>
+                    <option value="Licencia">Licencia</option>
+                    <option value="Baja">Baja</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-field" id="fechaBajaField" style="display: none;">
+            <label asp-for="Input.FechaBaja">Fecha de baja</label>
+            <input asp-for="Input.FechaBaja" type="date" class="form-input" />
+        </div>
+
+        <div class="form-divider"></div>
+
+        <h3 class="form-section-title">💰 Salario y pagos</h3>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.SalarioBase">Salario base *</label>
+                <input asp-for="Input.SalarioBase" type="number" step="0.01" min="0" class="form-input" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.FrecuenciaPago">Frecuencia de pago *</label>
+                <select asp-for="Input.FrecuenciaPago" class="form-input" required>
+                    <option value="Semanal">Semanal</option>
+                    <option value="Catorcenal">Catorcenal</option>
+                    <option value="Quincenal">Quincenal</option>
+                    <option value="Mensual">Mensual</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.BonoTransporte">Bono de transporte</label>
+                <input asp-for="Input.BonoTransporte" type="number" step="0.01" min="0" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.BonoAlimentacion">Bono de alimentación</label>
+                <input asp-for="Input.BonoAlimentacion" type="number" step="0.01" min="0" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.OtrosBonos">Otros bonos</label>
+            <input asp-for="Input.OtrosBonos" type="number" step="0.01" min="0" class="form-input" />
+        </div>
+
+        <div class="form-divider"></div>
+
+        <h3 class="form-section-title">🧾 Deducciones</h3>
+
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
+            <label class="form-checkbox">
+                <input asp-for="Input.CotizaIHSS" type="checkbox" />
+                <span>Cotiza IHSS</span>
+            </label>
+            <label class="form-checkbox">
+                <input asp-for="Input.CotizaRAP" type="checkbox" />
+                <span>Cotiza RAP</span>
+            </label>
+            <label class="form-checkbox">
+                <input asp-for="Input.AplicaISR" type="checkbox" />
+                <span>Aplica ISR</span>
+            </label>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <h3 class="form-section-title">🏦 Datos bancarios</h3>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Banco">Banco</label>
+                <input asp-for="Input.Banco" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.CuentaBancaria">Número de cuenta</label>
+                <input asp-for="Input.CuentaBancaria" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Notas">Notas</label>
+            <textarea asp-for="Input.Notas" class="form-input" rows="3"></textarea>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/RRHH/Empleados/Details" asp-route-id="@Model.Input.Id" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Guardar cambios
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var fotoInput = document.getElementById('fotoInput');
+            var fotoPreview = document.getElementById('fotoPreview');
+
+            fotoInput?.addEventListener('change', function () {
+                var file = this.files[0];
+                if (!file) return;
+
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    fotoPreview.innerHTML = '<img src="' + e.target.result + '" style="width:100%; height:100%; object-fit:cover;" />';
+                };
+                reader.readAsDataURL(file);
+            });
+
+            var tipoContratoSelect = document.getElementById('tipoContratoSelect');
+            var fechaFinContratoField = document.getElementById('fechaFinContratoField');
+
+            function actualizarFechaFin() {
+                var tipo = tipoContratoSelect.value;
+                var esTemporal = tipo === 'Temporal' || tipo === 'Obra' || tipo === 'Temporada';
+                fechaFinContratoField.style.display = esTemporal ? '' : 'none';
+            }
+
+            tipoContratoSelect?.addEventListener('change', actualizarFechaFin);
+            actualizarFechaFin();
+
+            var estadoSelect = document.getElementById('estadoSelect');
+            var fechaBajaField = document.getElementById('fechaBajaField');
+
+            function actualizarFechaBaja() {
+                fechaBajaField.style.display = estadoSelect.value === 'Baja' ? '' : 'none';
+            }
+
+            estadoSelect?.addEventListener('change', actualizarFechaBaja);
+            actualizarFechaBaja();
+        })();
+    </script>
+}

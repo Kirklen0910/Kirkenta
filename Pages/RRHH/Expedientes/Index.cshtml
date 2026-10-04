@@ -1,0 +1,213 @@
+@page
+@model Kirkenta.Pages.RRHH.Expedientes.IndexModel
+@{
+    ViewData["Title"] = "Expedientes";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Expedientes</h2>
+        <p>Llamados de atención, amonestaciones, suspensiones y méritos</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/RRHH/Expedientes/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nuevo expediente
+            </a>
+        }
+        <a asp-page="/RRHH/Index" class="btn-secondary">Volver a RRHH</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Llamados de atención</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.TotalLlamados</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Amonestaciones</span>
+        <span class="kpi-value" style="color: var(--color-danger);">@Model.TotalAmonestaciones</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Suspensiones</span>
+        <span class="kpi-value" style="color: #dc2626;">@Model.TotalSuspensiones</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Notas de mérito</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.TotalMeritos</span>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-toolbar">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Buscar por empleado, título o código..." />
+        </div>
+        <div class="filter-group">
+            <select id="filterTipo" class="filter-select">
+                <option value="">Todos los tipos</option>
+                <option value="LlamadoAtencion">Llamado de atención</option>
+                <option value="AmonestacionVerbal">Amonestación verbal</option>
+                <option value="AmonestacionEscrita">Amonestación escrita</option>
+                <option value="Suspension">Suspensión</option>
+                <option value="NotaMerito">Nota de mérito</option>
+                <option value="Reconocimiento">Reconocimiento</option>
+                <option value="Otro">Otro</option>
+            </select>
+        </div>
+    </div>
+
+    @if (Model.Expedientes.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <h3>No hay expedientes registrados</h3>
+            <p>Los expedientes se crean desde la hoja de vida de cada empleado</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="expedientesTable">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;"></th>
+                        <th>Empleado</th>
+                        <th>Tipo</th>
+                        <th>Título</th>
+                        <th>Gravedad</th>
+                        <th>Fecha</th>
+                        <th style="width: 100px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Model.Expedientes)
+                    {
+                        var color = e.Tipo switch
+                        {
+                            "LlamadoAtencion" => "#f59e0b",
+                            "AmonestacionVerbal" => "#f97316",
+                            "AmonestacionEscrita" => "#ef4444",
+                            "Suspension" => "#dc2626",
+                            "NotaMerito" => "#10b981",
+                            "Reconocimiento" => "#06b6d4",
+                            _ => "#6b7280"
+                        };
+
+                        <tr data-empleado="@e.EmpleadoNombre.ToLower()"
+                            data-codigo="@e.EmpleadoCodigo.ToLower()"
+                            data-titulo="@e.Titulo.ToLower()"
+                            data-tipo="@e.Tipo">
+                            <td>
+                                @if (!string.IsNullOrEmpty(e.FotoPath))
+                                {
+                                    <img src="@e.FotoPath" alt="@e.EmpleadoNombre" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" />
+                                }
+                                else
+                                {
+                                    <div class="user-avatar-sm" style="width: 32px; height: 32px; font-size: 12px;">@e.EmpleadoNombre.Substring(0, 1).ToUpper()</div>
+                                }
+                            </td>
+                            <td>
+                                <a asp-page="/RRHH/Empleados/Details" asp-route-id="@e.EmpleadoId">
+                                    <strong>@e.EmpleadoNombre</strong>
+                                </a>
+                                <br /><span class="table-user-sub">@e.EmpleadoCodigo</span>
+                            </td>
+                            <td>
+                                <span class="badge" style="background: @(color)20; color: @color;">
+                                    @e.Tipo
+                                </span>
+                            </td>
+                            <td>
+                                <strong>@e.Titulo</strong>
+                                <br /><span class="table-user-sub">@e.Descripcion</span>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(e.Gravedad))
+                                {
+                                    <span class="badge badge-warning">@e.Gravedad</span>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">—</span>
+                                }
+                            </td>
+                            <td>@e.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <div class="table-actions">
+                                    @if (Model.PuedeEliminar)
+                                    {
+                                        <form method="post" asp-page-handler="Eliminar" asp-route-id="@e.Id" style="display:inline;" onsubmit="return confirm('¿Eliminar este expediente?');">
+                                            <button type="submit" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <polyline points="3 6 5 6 21 6"/>
+                                                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var filterTipo = document.getElementById('filterTipo');
+            var table = document.getElementById('expedientesTable');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+
+            function filterRows() {
+                var search = (searchInput?.value || '').toLowerCase().trim();
+                var tipo = filterTipo?.value || '';
+
+                rows.forEach(function (row) {
+                    var empleado = row.dataset.empleado || '';
+                    var codigo = row.dataset.codigo || '';
+                    var titulo = row.dataset.titulo || '';
+                    var rowTipo = row.dataset.tipo || '';
+
+                    var matchSearch = !search || empleado.includes(search) || codigo.includes(search) || titulo.includes(search);
+                    var matchTipo = !tipo || rowTipo === tipo;
+
+                    row.style.display = (matchSearch && matchTipo) ? '' : 'none';
+                });
+            }
+
+            searchInput?.addEventListener('input', filterRows);
+            filterTipo?.addEventListener('change', filterRows);
+        })();
+    </script>
+}

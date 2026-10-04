@@ -80,16 +80,7 @@ namespace Kirkenta.Helpers
 
                 switch (tipo)
                 {
-                    case "Producto":
-                        ultimoNumero = context.Productos
-                            .Where(p => p.SKU != null && p.SKU.StartsWith(prefijoConSep))
-                            .Select(p => p.SKU)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
+                    // ===== VENTAS =====
                     case "Cotizacion":
                         ultimoNumero = context.Cotizaciones
                             .Where(c => c.Numero.StartsWith(prefijoConSep))
@@ -140,10 +131,32 @@ namespace Kirkenta.Helpers
                             .Max();
                         break;
 
+                    // ===== INVENTARIO =====
+                    case "Producto":
+                        ultimoNumero = context.Productos
+                            .Where(p => p.SKU != null && p.SKU.StartsWith(prefijoConSep))
+                            .Select(p => p.SKU)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
                     case "Baja":
                         ultimoNumero = context.BajasInventario
                             .Where(b => b.Numero.StartsWith(prefijoConSep))
                             .Select(b => b.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    // ===== COMPRAS =====
+                    case "Proveedor":
+                        ultimoNumero = context.Proveedores
+                            .Where(p => p.Codigo != null && p.Codigo.StartsWith(prefijoConSep))
+                            .Select(p => p.Codigo!)
                             .AsEnumerable()
                             .Select(s => ExtraerNumero(s!, prefijoConSep))
                             .DefaultIfEmpty(0)
@@ -180,16 +193,7 @@ namespace Kirkenta.Helpers
                             .Max();
                         break;
 
-                    case "Proveedor":
-                        ultimoNumero = context.Proveedores
-                            .Where(p => p.Codigo != null && p.Codigo.StartsWith(prefijoConSep))
-                            .Select(p => p.Codigo!)
-                            .AsEnumerable()
-                            .Select(s => ExtraerNumero(s!, prefijoConSep))
-                            .DefaultIfEmpty(0)
-                            .Max();
-                        break;
-
+                    // ===== FINANZAS =====
                     case "MovimientoFinanciero":
                         ultimoNumero = context.MovimientosFinancieros
                             .Where(m => m.Numero.StartsWith(prefijoConSep))
@@ -200,10 +204,10 @@ namespace Kirkenta.Helpers
                             .Max();
                         break;
 
-                    case "ValeEmpleado":
-                        ultimoNumero = context.ValesEmpleado
-                            .Where(v => v.Numero.StartsWith(prefijoConSep))
-                            .Select(v => v.Numero)
+                    case "AperturaCaja":
+                        ultimoNumero = context.AperturasCaja
+                            .Where(a => a.Numero.StartsWith(prefijoConSep))
+                            .Select(a => a.Numero)
                             .AsEnumerable()
                             .Select(s => ExtraerNumero(s!, prefijoConSep))
                             .DefaultIfEmpty(0)
@@ -220,10 +224,61 @@ namespace Kirkenta.Helpers
                             .Max();
                         break;
 
-                    case "AperturaCaja":
-                        ultimoNumero = context.AperturasCaja
-                            .Where(a => a.Numero.StartsWith(prefijoConSep))
-                            .Select(a => a.Numero)
+                    // ===== RRHH =====
+                    case "Empleado":
+                        ultimoNumero = context.Empleados
+                            .Where(e => e.Codigo.StartsWith(prefijoConSep))
+                            .Select(e => e.Codigo)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "ValeEmpleado":
+                        ultimoNumero = context.ValesEmpleado
+                            .Where(v => v.Numero.StartsWith(prefijoConSep))
+                            .Select(v => v.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "Vacacion":
+                        ultimoNumero = context.VacacionesEmpleado
+                            .Where(v => v.Numero.StartsWith(prefijoConSep))
+                            .Select(v => v.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "PermisoEmpleado":
+                        ultimoNumero = context.PermisosEmpleado
+                            .Where(p => p.Numero.StartsWith(prefijoConSep))
+                            .Select(p => p.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "Nomina":
+                        ultimoNumero = context.Nominas
+                            .Where(n => n.Numero.StartsWith(prefijoConSep))
+                            .Select(n => n.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "PagoNomina":
+                        ultimoNumero = context.PagosNominaEmpleado
+                            .Where(p => p.Numero.StartsWith(prefijoConSep))
+                            .Select(p => p.Numero)
                             .AsEnumerable()
                             .Select(s => ExtraerNumero(s!, prefijoConSep))
                             .DefaultIfEmpty(0)
@@ -271,21 +326,36 @@ namespace Kirkenta.Helpers
         {
             return tipo switch
             {
+                // Ventas
                 "Cotizacion" => context.Cotizaciones.Count(),
                 "Pedido" => context.Pedidos.Count(),
                 "Venta" => context.Ventas.Count(),
                 "Factura" => context.Facturas.Count(),
                 "Devolucion" => context.Devoluciones.Count(),
+
+                // Inventario
                 "Producto" => context.Productos.Count(),
                 "Baja" => context.BajasInventario.Count(),
+
+                // Compras
+                "Proveedor" => context.Proveedores.Count(),
                 "OrdenCompra" => context.OrdenesCompra.Count(),
                 "PagoProveedor" => context.PagosProveedor.Count(),
                 "DevolucionProveedor" => context.DevolucionesProveedor.Count(),
-                "Proveedor" => context.Proveedores.Count(),
+
+                // Finanzas
                 "MovimientoFinanciero" => context.MovimientosFinancieros.Count(),
-                "ValeEmpleado" => context.ValesEmpleado.Count(),
-                "CierreCaja" => context.CierresCaja.Count(),
                 "AperturaCaja" => context.AperturasCaja.Count(),
+                "CierreCaja" => context.CierresCaja.Count(),
+
+                // RRHH
+                "Empleado" => context.Empleados.Count(),
+                "ValeEmpleado" => context.ValesEmpleado.Count(),
+                "Vacacion" => context.VacacionesEmpleado.Count(),
+                "PermisoEmpleado" => context.PermisosEmpleado.Count(),
+                "Nomina" => context.Nominas.Count(),
+                "PagoNomina" => context.PagosNominaEmpleado.Count(),
+
                 _ => 0
             };
         }

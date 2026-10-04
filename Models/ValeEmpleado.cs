@@ -22,17 +22,18 @@ namespace Kirkenta.Models
 
         public decimal Monto { get; set; }
 
+        [Required]
         [StringLength(300)]
         public string Motivo { get; set; } = string.Empty;
 
         /// <summary>
-        /// Estado: Solicitado | AprobadoGerente | AprobadoRRHH | Entregado | Descontado | Rechazado | Cancelado
+        /// Solicitado | AprobadoGerente | AprobadoRRHH | Entregado | Descontado | Rechazado | Cancelado
         /// </summary>
         [Required]
         [StringLength(30)]
         public string Estado { get; set; } = "Solicitado";
 
-        // Aprobaciones
+        // ===== APROBACIONES =====
         public int? AprobadoPorGerenteId { get; set; }
         public DateTime? FechaAprobacionGerente { get; set; }
 
@@ -41,18 +42,19 @@ namespace Kirkenta.Models
 
         public int? EntregadoPorId { get; set; }
 
+        [StringLength(500)]
         public string? MotivoRechazo { get; set; }
 
-        // Descuento
+        // ===== DESCUENTO =====
         public int Cuotas { get; set; } = 1;
         public decimal MontoCuota { get; set; } = 0;
         public DateTime? FechaPrimerDescuento { get; set; }
         public decimal SaldoPendiente { get; set; } = 0;
 
-        // Cuenta de donde se paga
+        // ===== CUENTA DE PAGO =====
         public int? CuentaId { get; set; }
 
-        // Movimiento financiero generado
+        // ===== MOVIMIENTO FINANCIERO =====
         public int? MovimientoId { get; set; }
 
         [StringLength(500)]
@@ -64,18 +66,22 @@ namespace Kirkenta.Models
     }
 
     /// <summary>
-    /// Detalle de cada descuento aplicado a un vale.
+    /// Detalle de cada descuento aplicado a un vale (una cuota por nómina).
     /// </summary>
     public class ValeDescuento
     {
         public int Id { get; set; }
+
         public int ValeEmpleadoId { get; set; }
+
         public int NumeroCuota { get; set; }
+
         public decimal Monto { get; set; }
+
         public DateTime Fecha { get; set; } = DateTime.Now;
 
         /// <summary>
-        /// ID de la nómina en la que se aplicó (cuando exista el módulo RRHH)
+        /// ID de la nómina en la que se aplicó
         /// </summary>
         public int? NominaId { get; set; }
 

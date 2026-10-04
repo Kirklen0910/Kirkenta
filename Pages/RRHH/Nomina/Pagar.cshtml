@@ -1,0 +1,83 @@
+@page "{id:int}"
+@model Kirkenta.Pages.RRHH.Nomina.PagarModel
+@{
+    ViewData["Title"] = $"Pagar nómina {Model.Nomina.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/RRHH/Nomina/Details" asp-route-id="@Model.Nomina.Id" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver al detalle
+        </a>
+        <h2>Pagar nómina</h2>
+        <p>@Model.Nomina.PeriodoDescripcion</p>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <div class="totales-panel" style="max-width: 100%; margin: 16px 0;">
+            <div class="totales-row"><span>Nómina:</span><strong>@Model.Nomina.Numero</strong></div>
+            <div class="totales-row"><span>Empleados:</span><strong>@Model.Nomina.CantidadEmpleados</strong></div>
+            <div class="totales-row totales-row-final">
+                <span>MONTO A PAGAR:</span>
+                <strong>L. @Model.Nomina.TotalNeto.ToString("N2")</strong>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="CuentaId">Cuenta de la que sale el pago *</label>
+            <select asp-for="CuentaId" class="form-input" required>
+                <option value="">— Selecciona una cuenta —</option>
+                @foreach (var c in Model.Cuentas)
+                {
+                    <option value="@c.Id">@(c.Tipo == "Banco" ? "🏦" : "💵") @c.Nombre — Disponible: L. @c.SaldoActual.ToString("N2")</option>
+                }
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Notas">Notas del pago</label>
+            <textarea asp-for="Notas" class="form-input" rows="2" placeholder="Ej: Pago por transferencia bancaria"></textarea>
+        </div>
+
+        <div class="module-alert" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <div>
+                <strong>Al confirmar:</strong>
+                <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                    Se generará un egreso en Finanzas, la nómina pasará a "Pagada" y se descontarán los vales pendientes de cada empleado automáticamente.
+                </p>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/RRHH/Nomina/Details" asp-route-id="@Model.Nomina.Id" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary" style="background: var(--color-success);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="1" x2="12" y2="23"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                Confirmar pago
+            </button>
+        </div>
+    </form>
+</div>

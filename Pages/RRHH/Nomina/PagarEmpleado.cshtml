@@ -1,0 +1,201 @@
+@page "{id:int}"
+@model Kirkenta.Pages.RRHH.Nomina.PagarEmpleadoModel
+@{
+    ViewData["Title"] = $"Pagar nómina {Model.Nomina.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/RRHH/Nomina/Details" asp-route-id="@Model.Nomina.Id" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver al detalle
+        </a>
+        <h2>Pagar empleados de la nómina @Model.Nomina.Numero</h2>
+        <p>@Model.Nomina.PeriodoDescripcion</p>
+    </div>
+</div>
+
+<div class="module-card form-card-wide">
+    <form method="post">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <!-- Selección de empleados -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 class="form-section-title" style="margin: 0;">1. Selecciona los empleados a pagar</h3>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn-sm btn-secondary" onclick="seleccionarTodos()">Seleccionar todos</button>
+                <button type="button" class="btn-sm btn-secondary" onclick="limpiarSeleccion()">Limpiar</button>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" id="checkAll" />
+                        </th>
+                        <th style="width: 50px;"></th>
+                        <th>Empleado</th>
+                        <th style="text-align: right;">Bruto</th>
+                        <th style="text-align: right;">Deducciones</th>
+                        <th style="text-align: right;">Neto a pagar</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in Model.Detalles)
+                    {
+                        <tr>
+                            <td>
+                                @if (!d.YaPagado)
+                                {
+                                    <input type="checkbox" name="DetalleIdsSeleccionados" value="@d.Id" class="check-empleado" data-monto="@d.SalarioNeto" />
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(d.FotoPath))
+                                {
+                                    <img src="@d.FotoPath" alt="@d.EmpleadoNombre" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" />
+                                }
+                                else
+                                {
+                                    <div class="user-avatar-sm" style="width: 32px; height: 32px; font-size: 12px;">@d.EmpleadoNombre.Substring(0, 1).ToUpper()</div>
+                                }
+                            </td>
+                            <td>
+                                <strong>@d.EmpleadoNombre</strong>
+                                <br /><span class="table-user-sub">@d.EmpleadoCodigo</span>
+                            </td>
+                            <td style="text-align: right;">L. @d.TotalBruto.ToString("N2")</td>
+                            <td style="text-align: right; color: var(--color-danger);">- L. @d.TotalDeducciones.ToString("N2")</td>
+                            <td style="text-align: right;"><strong style="color: var(--color-success);">L. @d.SalarioNeto.ToString("N2")</strong></td>
+                            <td>
+                                @if (d.YaPagado)
+                                {
+                                    <span class="badge badge-success">✓ Pagado</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-warning">Pendiente</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr style="background: #f9fafb; font-weight: 700; border-top: 2px solid var(--color-border);">
+                        <td colspan="5" style="text-align: right;">TOTAL SELECCIONADO:</td>
+                        <td style="text-align: right; color: var(--color-primary);" id="totalSeleccionado">L. 0.00</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <!-- Opciones de pago -->
+        <h3 class="form-section-title">2. Método de pago</h3>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="MetodoPago">Método *</label>
+                <select asp-for="MetodoPago" class="form-input" required>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Transferencia">Transferencia bancaria</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="Deposito">Depósito</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="Referencia">Referencia / Nº documento</label>
+                <input asp-for="Referencia" class="form-input" placeholder="Ej: cheque 001, transferencia #123" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="CuentaId">Cuenta de la que sale el dinero *</label>
+            <select asp-for="CuentaId" class="form-input" required>
+                <option value="">— Selecciona una cuenta —</option>
+                @foreach (var c in Model.Cuentas)
+                {
+                    <option value="@c.Id">@(c.Tipo == "Banco" ? "🏦" : "💵") @c.Nombre — Disponible: L. @c.SaldoActual.ToString("N2")</option>
+                }
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Notas">Notas del pago</label>
+            <textarea asp-for="Notas" class="form-input" rows="2"></textarea>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/RRHH/Nomina/Details" asp-route-id="@Model.Nomina.Id" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary" style="background: var(--color-success);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="1" x2="12" y2="23"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                Pagar seleccionados
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var totalDisplay = document.getElementById('totalSeleccionado');
+
+            function formatMoney(n) {
+                return 'L. ' + (n || 0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+            }
+
+            function actualizarTotal() {
+                var total = 0;
+                document.querySelectorAll('.check-empleado:checked').forEach(function (cb) {
+                    total += parseFloat(cb.dataset.monto) || 0;
+                });
+                totalDisplay.textContent = formatMoney(total);
+            }
+
+            window.seleccionarTodos = function () {
+                document.querySelectorAll('.check-empleado').forEach(function (cb) { cb.checked = true; });
+                document.getElementById('checkAll').checked = true;
+                actualizarTotal();
+            };
+
+            window.limpiarSeleccion = function () {
+                document.querySelectorAll('.check-empleado').forEach(function (cb) { cb.checked = false; });
+                document.getElementById('checkAll').checked = false;
+                actualizarTotal();
+            };
+
+            document.getElementById('checkAll')?.addEventListener('change', function () {
+                var estado = this.checked;
+                document.querySelectorAll('.check-empleado').forEach(function (cb) { cb.checked = estado; });
+                actualizarTotal();
+            });
+
+            document.querySelectorAll('.check-empleado').forEach(function (cb) {
+                cb.addEventListener('change', actualizarTotal);
+            });
+
+            actualizarTotal();
+        })();
+    </script>
+}

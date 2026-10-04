@@ -1,0 +1,80 @@
+@page "{id:int}"
+@model Kirkenta.Pages.RRHH.Permisos.AprobarModel
+@{
+    ViewData["Title"] = $"Aprobar permiso {Model.Permiso.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/RRHH/Permisos/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a permisos
+        </a>
+        <h2>Aprobar permiso</h2>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <div class="user-preview">
+            <div class="user-avatar-sm">@Model.Empleado.Nombres.Substring(0, 1).ToUpper()</div>
+            <div>
+                <strong>@Model.Empleado.Nombres @Model.Empleado.Apellidos</strong>
+                <span>@Model.Empleado.Codigo</span>
+            </div>
+        </div>
+
+        <div class="totales-panel" style="max-width: 100%; margin: 16px 0;">
+            <div class="totales-row"><span>Número:</span><strong>@Model.Permiso.Numero</strong></div>
+            <div class="totales-row"><span>Tipo:</span><strong>@Model.Permiso.Tipo</strong></div>
+            <div class="totales-row"><span>Período:</span><strong>@Model.Permiso.FechaInicio.ToString("dd/MM/yyyy") al @Model.Permiso.FechaFin.ToString("dd/MM/yyyy")</strong></div>
+            <div class="totales-row"><span>Días:</span><strong>@Model.Permiso.DiasSolicitados</strong></div>
+            <div class="totales-row"><span>Goce de sueldo:</span><strong>@(Model.Permiso.ConGoceSueldo ? "Sí" : "No")</strong></div>
+            <div class="totales-row"><span>Motivo:</span><strong>@Model.Permiso.Motivo</strong></div>
+        </div>
+
+        <div class="form-field">
+            <label>Acción *</label>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                <label style="display:flex; align-items:center; gap:10px; padding: 12px; border: 2px solid var(--color-border); border-radius: 6px; cursor: pointer;">
+                    <input type="radio" asp-for="Accion" value="aprobar" />
+                    <span><strong style="color: var(--color-success);">✓ Aprobar</strong></span>
+                </label>
+                <label style="display:flex; align-items:center; gap:10px; padding: 12px; border: 2px solid var(--color-border); border-radius: 6px; cursor: pointer;">
+                    <input type="radio" asp-for="Accion" value="rechazar" />
+                    <span><strong style="color: var(--color-danger);">✗ Rechazar</strong></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Motivo">Motivo del rechazo (si rechaza)</label>
+            <textarea asp-for="Motivo" class="form-input" rows="3"></textarea>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/RRHH/Permisos/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Confirmar decisión
+            </button>
+        </div>
+    </form>
+</div>

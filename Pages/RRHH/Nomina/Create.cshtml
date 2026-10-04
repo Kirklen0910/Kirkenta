@@ -1,0 +1,95 @@
+@page
+@model Kirkenta.Pages.RRHH.Nomina.CreateModel
+@{
+    ViewData["Title"] = "Generar nómina";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/RRHH/Nomina/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a nóminas
+        </a>
+        <h2>Generar nómina</h2>
+        <p>Número: <strong>@Model.NumeroPreview</strong></p>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <div class="module-alert" style="background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <div>
+                <strong>Cálculo automático de deducciones</strong>
+                <p style="margin: 4px 0 0 0; font-size: 12.5px;">El sistema calculará IHSS, RAP, ISR y descuento de vales según las configuraciones del empleado y de la empresa.</p>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Tipo">Tipo de nómina *</label>
+            <select asp-for="Input.Tipo" class="form-input" required>
+                <option value="Mensual">Mensual</option>
+                <option value="Quincenal">Quincenal</option>
+                <option value="Catorcenal">Catorcenal</option>
+                <option value="Semanal">Semanal</option>
+            </select>
+            <small class="form-help">Solo se incluirán los empleados con esta frecuencia de pago</small>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.FechaInicio">Fecha inicio del período *</label>
+                <input asp-for="Input.FechaInicio" type="date" class="form-input" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.FechaFin">Fecha fin del período *</label>
+                <input asp-for="Input.FechaFin" type="date" class="form-input" required />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.FechaPago">Fecha de pago *</label>
+                <input asp-for="Input.FechaPago" type="date" class="form-input" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.PeriodoDescripcion">Descripción del período</label>
+                <input asp-for="Input.PeriodoDescripcion" class="form-input" placeholder="Ej: Primera quincena de octubre" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Notas">Notas</label>
+            <textarea asp-for="Input.Notas" class="form-input" rows="2"></textarea>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/RRHH/Nomina/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Generar nómina
+            </button>
+        </div>
+    </form>
+</div>

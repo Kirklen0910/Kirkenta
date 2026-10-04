@@ -1,0 +1,153 @@
+@page
+@model Kirkenta.Pages.RRHH.Nomina.IndexModel
+@{
+    ViewData["Title"] = "Nómina";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Nómina</h2>
+        <p>Generación y pago de nómina con cálculo de deducciones</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/RRHH/Nomina/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Generar nómina
+            </a>
+        }
+        <a asp-page="/RRHH/Index" class="btn-secondary">Volver a RRHH</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Calculadas</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.TotalCalculadas</span>
+        <span class="kpi-trend">Pendientes de aprobar</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Aprobadas</span>
+        <span class="kpi-value" style="color: var(--color-info);">@Model.TotalAprobadas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Pagadas</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.TotalPagadas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Pagado este mes</span>
+        <span class="kpi-value" style="font-size: 20px;">L. @Model.NominaPagadaMes.ToString("N2")</span>
+    </div>
+</div>
+
+<div class="module-card">
+    @if (Model.Nominas.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23"/>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+            <h3>No hay nóminas generadas</h3>
+            <p>Genera la primera nómina del período</p>
+            <a asp-page="/RRHH/Nomina/Create" class="btn-primary">Generar nómina</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Tipo</th>
+                        <th>Período</th>
+                        <th>Fecha pago</th>
+                        <th style="text-align: right;">Empleados</th>
+                        <th style="text-align: right;">Total neto</th>
+                        <th>Estado</th>
+                        <th style="width: 200px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var n in Model.Nominas)
+                    {
+                        <tr>
+                            <td>
+                                <a asp-page="/RRHH/Nomina/Details" asp-route-id="@n.Id" style="font-family: monospace; font-weight: 600; color: var(--color-primary);">
+                                    @n.Numero
+                                </a>
+                            </td>
+                            <td>@n.Tipo</td>
+                            <td>@n.PeriodoDescripcion</td>
+                            <td>@n.FechaPago.ToString("dd/MM/yyyy")</td>
+                            <td style="text-align: right;">@n.CantidadEmpleados</td>
+                            <td style="text-align: right;"><strong>L. @n.TotalNeto.ToString("N2")</strong></td>
+                            <td>
+                                @if (n.Estado == "Borrador") { <span class="badge">Borrador</span> }
+                                else if (n.Estado == "Calculada") { <span class="badge badge-warning">Calculada</span> }
+                                else if (n.Estado == "Aprobada") { <span class="badge badge-info">Aprobada</span> }
+                                else if (n.Estado == "Pagada") { <span class="badge badge-success">Pagada</span> }
+                                else if (n.Estado == "Anulada") { <span class="badge badge-danger">Anulada</span> }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    <a asp-page="/RRHH/Nomina/Details" asp-route-id="@n.Id" class="btn-icon-action" title="Ver detalle">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
+                                    @if (Model.PuedeAprobar && n.Estado == "Calculada")
+                                    {
+                                        <a asp-page="/RRHH/Nomina/Aprobar" asp-route-id="@n.Id" class="btn-icon-action" title="Aprobar" style="color: var(--color-success);">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                    @if (Model.PuedePagar && n.Estado == "Aprobada")
+                                    {
+                                        <a asp-page="/RRHH/Nomina/PagarEmpleado" asp-route-id="@n.Id" class="btn-icon-action" title="Pagar" style="color: var(--color-primary);">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="12" y1="1" x2="12" y2="23"/>
+                                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
