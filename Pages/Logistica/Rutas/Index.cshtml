@@ -1,0 +1,326 @@
+@page
+@model Kirkenta.Pages.Logistica.Rutas.IndexModel
+@{
+    ViewData["Title"] = "Rutas de despacho";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Logistica/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a Logística
+        </a>
+        <h2>Rutas de despacho</h2>
+        <p>Agrupa envíos y asígnalos a un repartidor</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/Logistica/Rutas/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nueva ruta
+            </a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<!-- KPIs de estado (clickeables) -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <a asp-page="/Logistica/Rutas/Index" asp-route-filtro="borrador" class="kpi-card" style="text-decoration: none; cursor: pointer; @(Model.FiltroAlerta == "borrador" ? "box-shadow: 0 0 0 2px var(--color-primary);" : "")">
+        <span class="kpi-label">📝 Borrador</span>
+        <span class="kpi-value" style="color: #f59e0b;">@Model.TotalBorrador</span>
+        <span class="kpi-trend">Sin despachar</span>
+    </a>
+    <a asp-page="/Logistica/Rutas/Index" asp-route-filtro="enreparto" class="kpi-card" style="text-decoration: none; cursor: pointer; @(Model.FiltroAlerta == "enreparto" ? "box-shadow: 0 0 0 2px var(--color-primary);" : "")">
+        <span class="kpi-label">🚚 En reparto</span>
+        <span class="kpi-value" style="color: var(--color-primary);">@Model.TotalEnReparto</span>
+        <span class="kpi-trend">@Model.TotalParadasPendientes parada(s) pendiente(s)</span>
+    </a>
+    <a asp-page="/Logistica/Rutas/Index" asp-route-filtro="atrasadas" class="kpi-card" style="text-decoration: none; cursor: pointer; border-left: 4px solid #ef4444; @(Model.FiltroAlerta == "atrasadas" ? "box-shadow: 0 0 0 2px #ef4444;" : "")">
+        <span class="kpi-label">🔴 Atrasadas</span>
+        <span class="kpi-value" style="color: #ef4444;">@Model.TotalAtrasadas</span>
+        <span class="kpi-trend">Con paradas vencidas</span>
+    </a>
+    <a asp-page="/Logistica/Rutas/Index" asp-route-filtro="completadas" class="kpi-card" style="text-decoration: none; cursor: pointer; @(Model.FiltroAlerta == "completadas" ? "box-shadow: 0 0 0 2px #10b981;" : "")">
+        <span class="kpi-label">✅ Completadas</span>
+        <span class="kpi-value" style="color: #10b981;">@Model.TotalCompletadas</span>
+        <span class="kpi-trend">Cerradas con éxito</span>
+    </a>
+    <a asp-page="/Logistica/Rutas/Index" class="kpi-card" style="text-decoration: none; cursor: pointer;">
+        <span class="kpi-label">❌ Canceladas</span>
+        <span class="kpi-value" style="color: #6b7280;">@Model.TotalCanceladas</span>
+        <span class="kpi-trend">Historial</span>
+    </a>
+</div>
+
+<!-- KPIs de paradas activas -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Paradas activas</span>
+        <span class="kpi-value">@Model.TotalParadasActivas</span>
+        <span class="kpi-trend">En rutas EnReparto</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">🟡 Pendientes</span>
+        <span class="kpi-value" style="color: #f59e0b;">@Model.TotalParadasPendientes</span>
+        <span class="kpi-trend">Sin resolver</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">🟢 Entregadas</span>
+        <span class="kpi-value" style="color: #10b981;">@Model.TotalParadasEntregadas</span>
+        <span class="kpi-trend">Completadas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">🔴 Fallidas</span>
+        <span class="kpi-value" style="color: #dc2626;">@Model.TotalParadasFallidas</span>
+        <span class="kpi-trend">Requieren reagendar</span>
+    </div>
+</div>
+
+<div class="module-card">
+    <!-- Filtros -->
+    <div class="module-toolbar">
+        <form method="get" style="display: flex; gap: 12px; flex: 1; flex-wrap: wrap; align-items: center;">
+            <input type="hidden" name="filtro" value="@Model.FiltroAlerta" />
+
+            <div class="search-box" style="flex: 1; min-width: 250px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" name="busqueda" value="@Model.FiltroBusqueda" placeholder="Buscar por número, repartidor o tracking..." />
+            </div>
+
+            <select name="estado" class="filter-select">
+                <option value="">Todos los estados</option>
+                @if (Model.FiltroEstado == "Borrador") { <option value="Borrador" selected>Borrador</option> } else { <option value="Borrador">Borrador</option> }
+                @if (Model.FiltroEstado == "EnReparto") { <option value="EnReparto" selected>En reparto</option> } else { <option value="EnReparto">En reparto</option> }
+                @if (Model.FiltroEstado == "Completada") { <option value="Completada" selected>Completada</option> } else { <option value="Completada">Completada</option> }
+                @if (Model.FiltroEstado == "Cancelada") { <option value="Cancelada" selected>Cancelada</option> } else { <option value="Cancelada">Cancelada</option> }
+            </select>
+
+            <select name="repartidorId" class="filter-select">
+                <option value="">Todos los repartidores</option>
+                @foreach (var rep in Model.Repartidores)
+                {
+                    if (Model.FiltroRepartidorId == rep.Id)
+                    {
+                        <option value="@rep.Id" selected>@rep.Nombre</option>
+                    }
+                    else
+                    {
+                        <option value="@rep.Id">@rep.Nombre</option>
+                    }
+                }
+            </select>
+
+            <select name="zonaId" class="filter-select">
+                <option value="">Todas las zonas</option>
+                @foreach (var z in Model.Zonas)
+                {
+                    if (Model.FiltroZonaId == z.Id)
+                    {
+                        <option value="@z.Id" selected>@z.Nombre</option>
+                    }
+                    else
+                    {
+                        <option value="@z.Id">@z.Nombre</option>
+                    }
+                }
+            </select>
+
+            <input type="date" name="desde" value="@(Model.FiltroDesde?.ToString("yyyy-MM-dd"))" class="filter-select" title="Desde" />
+            <input type="date" name="hasta" value="@(Model.FiltroHasta?.ToString("yyyy-MM-dd"))" class="filter-select" title="Hasta" />
+
+            <button type="submit" class="btn-primary btn-sm">Filtrar</button>
+            <a asp-page="/Logistica/Rutas/Index" class="btn-secondary btn-sm">Limpiar</a>
+        </form>
+    </div>
+
+    <!-- Indicador de filtro activo -->
+    @if (!string.IsNullOrEmpty(Model.FiltroAlerta))
+    {
+        var texto = Model.FiltroAlerta switch
+        {
+            "borrador" => "📝 Mostrando solo rutas en BORRADOR",
+            "enreparto" => "🚚 Mostrando solo rutas EN REPARTO",
+            "completadas" => "✅ Mostrando solo rutas COMPLETADAS",
+            "atrasadas" => "🔴 Mostrando solo rutas ATRASADAS",
+            _ => ""
+        };
+        <div style="padding: 10px 16px; background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary); border-radius: 6px; font-size: 13px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <span><strong>@texto</strong></span>
+            <a asp-page="/Logistica/Rutas/Index" style="font-size: 12px; text-decoration: underline;">Quitar filtro</a>
+        </div>
+    }
+
+    @if (Model.Rutas.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+            </svg>
+            <h3>No hay rutas registradas</h3>
+            <p>@(string.IsNullOrEmpty(Model.FiltroAlerta) ? "Crea la primera ruta agrupando envíos pendientes." : "Ajusta los filtros para ver más resultados.")</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="rutasTable">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"></th>
+                        <th>Número</th>
+                        <th>Fecha</th>
+                        <th>Repartidor</th>
+                        <th>Zona</th>
+                        <th style="text-align: right;">Progreso</th>
+                        <th style="text-align: right;">Monto</th>
+                        <th>Estado</th>
+                        <th style="width: 140px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rutas)
+                    {
+                        var badgeEstado = r.Estado switch
+                        {
+                            "Borrador" => "badge badge-warning",
+                            "EnReparto" => "badge badge-info",
+                            "Completada" => "badge badge-success",
+                            "Cancelada" => "badge badge-danger",
+                            _ => "badge"
+                        };
+
+                        <tr data-numero="@r.Numero.ToLower()" data-repartidor="@r.RepartidorNombre.ToLower()" data-estado="@r.Estado">
+                            <td>
+                                @if (r.EsAtrasada)
+                                {
+                                    <span style="font-size: 16px;" title="Ruta con paradas atrasadas">🔴</span>
+                                }
+                                else if (r.Estado == "EnReparto")
+                                {
+                                    <span style="font-size: 16px;" title="En reparto">🚚</span>
+                                }
+                                else if (r.Estado == "Completada")
+                                {
+                                    <span style="font-size: 16px;" title="Completada">✅</span>
+                                }
+                                else
+                                {
+                                    <span style="font-size: 16px;" title="@r.Estado">📝</span>
+                                }
+                            </td>
+                            <td>
+                                <a asp-page="/Logistica/Rutas/Details" asp-route-id="@r.Id">
+                                    <strong>@r.Numero</strong>
+                                </a>
+                                @if (!string.IsNullOrEmpty(r.TrackingCode))
+                                {
+                                    <br /><span class="table-user-sub" style="font-family: monospace; font-size: 11px;">@r.TrackingCode</span>
+                                }
+                            </td>
+                            <td>
+                                @r.Fecha.ToString("dd/MM/yyyy")
+                                @if (r.FechaSalida.HasValue)
+                                {
+                                    <br /><span class="table-user-sub">Salida: @r.FechaSalida.Value.ToString("HH:mm")</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-user-cell">
+                                    <span class="table-user-name">@r.RepartidorNombre</span>
+                                    @if (!string.IsNullOrEmpty(r.Vehiculo))
+                                    {
+                                        <span class="table-user-sub">@r.Vehiculo @(string.IsNullOrEmpty(r.Placa) ? "" : $"({r.Placa})")</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(r.ZonaNombre))
+                                {
+                                    <span class="badge badge-info">@r.ZonaNombre</span>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">—</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">
+                                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+                                    <span style="font-size: 12px; font-weight: 600;">
+                                        @(r.ParadasEntregadas + r.ParadasFallidas) / @r.TotalParadas (@r.Progreso%)
+                                    </span>
+                                    <div style="width: 80px; height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden;">
+                                        <div style="width: @(r.Progreso)%; height: 100%; background: @(r.Progreso == 100 ? "#10b981" : r.EsAtrasada ? "#ef4444" : "#4f46e5");"></div>
+                                    </div>
+                                    @if (r.ParadasAtrasadas > 0)
+                                    {
+                                        <span class="table-user-sub" style="color: #ef4444; font-size: 11px;">
+                                            🔴 @r.ParadasAtrasadas atrasada(s)
+                                        </span>
+                                    }
+                                </div>
+                            </td>
+                            <td style="text-align: right;">
+                                <span style="font-size: 12px;">L. @r.MontoTotalEnvios.ToString("N2")</span>
+                            </td>
+                            <td><span class="@badgeEstado">@r.Estado</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <a asp-page="/Logistica/Rutas/Details" asp-route-id="@r.Id" class="btn-icon-action" title="Ver detalle">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
+                                    @if (Model.PuedeEditar && r.Estado == "Borrador")
+                                    {
+                                        <a asp-page="/Logistica/Rutas/Edit" asp-route-id="@r.Id" class="btn-icon-action" title="Editar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

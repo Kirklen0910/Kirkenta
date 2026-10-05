@@ -82,5 +82,50 @@ namespace Kirkenta.Helpers.Export
                 new("Fecha creación", p => p.FechaCreacion, format: "dd/MM/yyyy HH:mm", width: 20),
             };
         }
+
+        // ============================================================
+        // CATEGORÍAS
+        // ============================================================
+        public static List<ExportColumn<Categoria>> Categorias()
+        {
+            return new List<ExportColumn<Categoria>>
+            {
+                new("Nombre",         c => c.Nombre,                width: 30),
+                new("Descripción",    c => c.Descripcion ?? "",     width: 40),
+                new("Color",          c => c.Color,                 width: 12),
+                new("Activa",         c => c.Activa,                width: 10),
+                new("Fecha creación", c => c.FechaCreacion, format: "dd/MM/yyyy HH:mm", width: 20),
+            };
+        }
+
+        // ============================================================
+        // IMPUESTOS
+        // ============================================================
+        public static List<ExportColumn<Impuesto>> Impuestos()
+        {
+            return new List<ExportColumn<Impuesto>>
+            {
+                new("Nombre",         i => i.Nombre,              width: 30),
+                new("Porcentaje",     i => i.Porcentaje, format: "0.00", width: 14),
+                new("Descripción",    i => i.Descripcion ?? "",   width: 40),
+                new("Predeterminado", i => i.EsPredeterminado,    width: 15),
+                new("Activo",         i => i.Activo,              width: 10),
+            };
+        }
+
+        // ============================================================
+        // UNIDADES DE MEDIDA
+        // ============================================================
+        public static List<ExportColumn<UnidadMedida>> UnidadesMedida()
+        {
+            return new List<ExportColumn<UnidadMedida>>
+            {
+                new("Nombre",         u => u.Nombre,                width: 25),
+                new("Abreviatura",    u => u.Abreviatura,           width: 15),
+                new("Descripción",    u => u.Descripcion ?? "",     width: 40),
+                new("Activa",         u => u.Activa,                width: 10),
+                new("Fecha creación", u => u.FechaCreacion, format: "dd/MM/yyyy HH:mm", width: 20),
+            };
+        }
     }
 }

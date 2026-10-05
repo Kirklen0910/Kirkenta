@@ -1,0 +1,587 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Logistica.Rutas.DetailsModel
+@using Kirkenta.Helpers.Logistica
+@{
+    ViewData["Title"] = $"Ruta {Model.Ruta.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Logistica/Rutas/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a rutas
+        </a>
+        <h2>Ruta @Model.Ruta.Numero</h2>
+        <p>
+            @Model.Ruta.Fecha.ToString("dd/MM/yyyy")
+            @if (!string.IsNullOrEmpty(Model.Ruta.TrackingCode))
+            {
+                <span> • Tracking: <span style="font-family: monospace;">@Model.Ruta.TrackingCode</span></span>
+            }
+        </p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeEditar && Model.Ruta.Estado == "Borrador")
+        {
+            <a asp-page="/Logistica/Rutas/Edit" asp-route-id="@Model.Ruta.Id" class="btn-secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Editar
+            </a>
+        }
+        @if (Model.PuedeDespachar && Model.Ruta.Estado == "Borrador" && Model.TotalParadas > 0)
+        {
+            <form method="post" asp-page-handler="Despachar" asp-route-id="@Model.Ruta.Id" style="display:inline;" onsubmit="return confirm('¿Despachar esta ruta? Todos los envíos pasarán a estado EnRuta.');">
+                <button type="submit" class="btn-primary" style="background: #3b82f6;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                        <polyline points="12 5 19 12 12 19"/>
+                    </svg>
+                    Despachar ruta
+                </button>
+            </form>
+        }
+        @if (Model.PuedeCerrar && Model.Ruta.Estado == "EnReparto")
+        {
+            <button type="button" class="btn-primary" style="background: #10b981;" onclick="document.getElementById('modalCerrar').style.display='flex'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Cerrar ruta
+            </button>
+        }
+        @if (Model.PuedeCancelar && Model.Ruta.Estado == "Borrador")
+        {
+            <button type="button" class="btn-secondary" style="color: var(--color-danger); border-color: var(--color-danger-border);" onclick="document.getElementById('modalCancelar').style.display='flex'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                </svg>
+                Cancelar ruta
+            </button>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<!-- Alerta de atraso -->
+@if (Model.EsAtrasada)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <div>
+            <strong>⚠️ Esta ruta tiene @Model.ParadasAtrasadas parada(s) ATRASADA(S)</strong>
+            <p style="margin: 4px 0 0 0; font-size: 12.5px;">Las paradas con fecha estimada vencida deberían entregarse lo antes posible.</p>
+        </div>
+    </div>
+}
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Estado</span>
+        <span class="kpi-value" style="font-size: 18px;">
+            @if (Model.Ruta.Estado == "Borrador") { <span class="badge badge-warning">Borrador</span> }
+            else if (Model.Ruta.Estado == "EnReparto") { <span class="badge badge-info">En reparto</span> }
+            else if (Model.Ruta.Estado == "Completada") { <span class="badge badge-success">Completada</span> }
+            else if (Model.Ruta.Estado == "Cancelada") { <span class="badge badge-danger">Cancelada</span> }
+        </span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Progreso</span>
+        <span class="kpi-value" style="font-size: 20px; color: var(--color-primary);">@Model.Progreso%</span>
+        <span class="kpi-trend">@(Model.ParadasEntregadas + Model.ParadasFallidas) de @Model.TotalParadas parada(s)</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Monto total</span>
+        <span class="kpi-value" style="font-size: 20px;">L. @Model.MontoTotal.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Paradas atrasadas</span>
+        <span class="kpi-value" style="font-size: 20px; color: @(Model.ParadasAtrasadas > 0 ? "#ef4444" : "#10b981");">
+            @Model.ParadasAtrasadas
+        </span>
+        <span class="kpi-trend">@(Model.ParadasAtrasadas > 0 ? "Requieren atención" : "Sin atrasos")</span>
+    </div>
+</div>
+
+<!-- Info de la ruta -->
+<div class="module-card" style="padding: 28px; margin-bottom: 20px;">
+    <h3 class="form-section-title">Información de la ruta</h3>
+
+    <div class="form-row" style="margin-top: 16px;">
+        <div>
+            <label class="empresa-info-label">Repartidor</label>
+            <p><strong>@(string.IsNullOrEmpty(Model.Ruta.RepartidorNombre) ? "Sin asignar" : Model.Ruta.RepartidorNombre)</strong></p>
+            @if (Model.Repartidor != null && !string.IsNullOrEmpty(Model.Repartidor.Telefono))
+            {
+                <p style="font-size: 13px; color: var(--color-muted);">📞 @Model.Repartidor.Telefono</p>
+            }
+            @if (!string.IsNullOrEmpty(Model.Ruta.Vehiculo))
+            {
+                <p style="font-size: 13px; color: var(--color-muted);">🚗 @Model.Ruta.Vehiculo @(string.IsNullOrEmpty(Model.Ruta.Placa) ? "" : $"({Model.Ruta.Placa})")</p>
+            }
+        </div>
+        <div>
+            <label class="empresa-info-label">Programación</label>
+            <p><strong>Fecha:</strong> @Model.Ruta.Fecha.ToString("dd/MM/yyyy")</p>
+            @if (Model.Ruta.FechaSalida.HasValue)
+            {
+                <p style="font-size: 13px; color: var(--color-muted);"><strong>Salida:</strong> @Model.Ruta.FechaSalida.Value.ToString("dd/MM/yyyy HH:mm")</p>
+            }
+            @if (Model.Ruta.FechaRegreso.HasValue)
+            {
+                <p style="font-size: 13px; color: var(--color-muted);"><strong>Regreso:</strong> @Model.Ruta.FechaRegreso.Value.ToString("dd/MM/yyyy HH:mm")</p>
+            }
+            @if (Model.Zona != null)
+            {
+                <p style="font-size: 13px;"><span class="badge badge-info">@Model.Zona.Nombre</span></p>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Ruta.Descripcion))
+    {
+        <div style="margin-top: 12px;">
+            <label class="empresa-info-label">Descripción</label>
+            <p style="font-size: 13px;">@Model.Ruta.Descripcion</p>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(Model.Ruta.Notas))
+    {
+        <div style="margin-top: 12px; padding: 12px 16px; background: #f9fafb; border-radius: 6px;">
+            <label class="empresa-info-label">Notas</label>
+            <p style="font-size: 13px;">@Model.Ruta.Notas</p>
+        </div>
+    }
+</div>
+
+<!-- Resumen de paradas -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total paradas</span>
+        <span class="kpi-value">@Model.TotalParadas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">🟢 Entregadas</span>
+        <span class="kpi-value" style="color: #10b981;">@Model.ParadasEntregadas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">🔴 Fallidas</span>
+        <span class="kpi-value" style="color: #dc2626;">@Model.ParadasFallidas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">🟡 Pendientes</span>
+        <span class="kpi-value" style="color: #f59e0b;">@Model.ParadasPendientes</span>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- PARADAS (lista ordenada)                      -->
+<!-- ============================================ -->
+<div class="module-card" style="padding: 0; margin-bottom: 20px;">
+    <div style="padding: 20px; border-bottom: 1px solid var(--color-border);">
+        <h3 class="panel-title" style="margin: 0;">📍 Paradas de la ruta</h3>
+        <p class="panel-muted" style="margin: 4px 0 0 0;">Listado en el orden de entrega</p>
+    </div>
+
+    @if (Model.Paradas.Count == 0)
+    {
+        <div class="empty-state" style="padding: 40px;">
+            <h3>Esta ruta no tiene paradas</h3>
+            <p>Edita la ruta para agregar envíos.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">#</th>
+                        <th style="width: 40px;"></th>
+                        <th>Envío</th>
+                        <th>Cliente</th>
+                        <th>Dirección</th>
+                        <th>Fecha estimada</th>
+                        <th>Estado</th>
+                        <th style="width: 140px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model.Paradas)
+                    {
+                        var semaforoIcono = p.Semaforo switch
+                        {
+                            "Rojo" => "🔴",
+                            "Amarillo" => "🟡",
+                            _ => "🟢"
+                        };
+                        var semaforoColor = p.Semaforo switch
+                        {
+                            "Rojo" => "#ef4444",
+                            "Amarillo" => "#f59e0b",
+                            _ => "#10b981"
+                        };
+                        var badgeEstado = p.Estado switch
+                        {
+                            "Pendiente" => "badge badge-warning",
+                            "EnRuta" => "badge badge-info",
+                            "Entregado" => "badge badge-success",
+                            "Fallido" => "badge badge-danger",
+                            "Cancelado" => "badge",
+                            _ => "badge"
+                        };
+
+                        <tr>
+                            <td>
+                                <strong style="font-size: 16px; color: var(--color-primary);">@p.OrdenParada</strong>
+                            </td>
+                            <td title="@AlertaEnvioHelper.EtiquetaSemaforo(p.Semaforo)">
+                                <span style="font-size: 14px;">@semaforoIcono</span>
+                            </td>
+                            <td>
+                                <a asp-page="/Logistica/Envios/Details" asp-route-id="@p.Id">
+                                    <strong>@p.Numero</strong>
+                                </a>
+                            </td>
+                            <td>
+                                <div class="table-user-cell">
+                                    <span class="table-user-name">@p.ClienteNombre</span>
+                                    @if (!string.IsNullOrEmpty(p.ContactoNombre))
+                                    {
+                                        <span class="table-user-sub">Recibe: @p.ContactoNombre</span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(p.ContactoTelefono))
+                                    {
+                                        <span class="table-user-sub">📞 @p.ContactoTelefono</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <span class="table-user-sub" title="@p.DireccionEntrega">
+                                    @(p.DireccionEntrega.Length > 45 ? p.DireccionEntrega.Substring(0, 45) + "..." : p.DireccionEntrega)
+                                </span>
+                                @if (!string.IsNullOrEmpty(p.Referencia))
+                                {
+                                    <br /><span class="table-user-sub">📍 @p.Referencia</span>
+                                }
+                                @if (!string.IsNullOrEmpty(p.Ciudad))
+                                {
+                                    <br /><span class="table-user-sub">@p.Ciudad</span>
+                                }
+                            </td>
+                            <td>
+                                @if (p.FechaEntregaEstimada.HasValue)
+                                {
+                                    <span style="color: @semaforoColor; font-weight: 600;">
+                                        @p.FechaEntregaEstimada.Value.ToString("dd/MM/yyyy")
+                                    </span>
+                                    @if (p.EsAtrasada && p.DiasDiferencia.HasValue)
+                                    {
+                                        <br /><span class="table-user-sub" style="color: #ef4444;">@p.DiasDiferencia día(s) atrasado</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">—</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="@badgeEstado">@p.Estado</span>
+                                @if (p.Estado == "Entregado" && !string.IsNullOrEmpty(p.NombreRecibio))
+                                {
+                                    <br /><span class="table-user-sub">Recibió: @p.NombreRecibio</span>
+                                    @if (p.FechaEntregaReal.HasValue)
+                                    {
+                                        <br /><span class="table-user-sub">@p.FechaEntregaReal.Value.ToString("dd/MM HH:mm")</span>
+                                    }
+                                }
+                                @if (p.Estado == "Fallido" && !string.IsNullOrEmpty(p.MotivoFallo))
+                                {
+                                    <br /><span class="table-user-sub" style="color: #dc2626;">@p.MotivoFallo</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    @if (Model.PuedeEditar && (p.Estado == "Pendiente" || p.Estado == "EnRuta"))
+                                    {
+                                        <button type="button" class="btn-icon-action" title="Marcar entregado" style="color: #10b981;"
+                                                onclick="abrirModalEntregar(@p.Id, '@p.Numero', '@Html.Raw(p.ClienteNombre.Replace("'", "\\'"))')">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"/>
+                                            </svg>
+                                        </button>
+                                        <button type="button" class="btn-icon-action btn-icon-action-danger" title="Marcar fallido"
+                                                onclick="abrirModalFallar(@p.Id, '@p.Numero', '@Html.Raw(p.ClienteNombre.Replace("'", "\\'"))')">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18"/>
+                                                <line x1="6" y1="6" x2="18" y2="18"/>
+                                            </svg>
+                                        </button>
+                                    }
+                                    <a asp-page="/Logistica/Envios/Details" asp-route-id="@p.Id" class="btn-icon-action" title="Ver envío">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- ============================================ -->
+<!-- HISTORIAL                                     -->
+<!-- ============================================ -->
+@if (Model.Historial.Count > 0)
+{
+    <div class="module-card" style="padding: 28px;">
+        <h3 class="form-section-title">Historial de eventos</h3>
+
+        <div class="timeline" style="margin-top: 16px;">
+            @foreach (var h in Model.Historial)
+            {
+                var color = h.Evento switch
+                {
+                    "RutaCreada" => "#4f46e5",
+                    "Despachada" => "#3b82f6",
+                    "Entregado" => "#10b981",
+                    "Fallido" => "#ef4444",
+                    "Completada" => "#10b981",
+                    "Cancelada" => "#ef4444",
+                    "Reagendado" => "#f59e0b",
+                    _ => "#6b7280"
+                };
+                <div class="timeline-item">
+                    <div class="timeline-dot" style="background: @color;"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-header">
+                            <strong>@h.Evento</strong>
+                            <span class="timeline-date">@h.Fecha.ToString("dd/MM/yyyy HH:mm")</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(h.Detalle))
+                        {
+                            <p class="timeline-detail">@h.Detalle</p>
+                        }
+                        @if (!string.IsNullOrEmpty(h.UsuarioNombre))
+                        {
+                            <span class="table-user-sub">👤 @h.UsuarioNombre</span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<!-- ============================================ -->
+<!-- MODAL: MARCAR ENTREGADO                       -->
+<!-- ============================================ -->
+<div id="modalEntregar" class="pos-modal">
+    <div class="pos-modal-content">
+        <form method="post" asp-page-handler="MarcarEntregado" asp-route-id="@Model.Ruta.Id">
+            <div class="pos-modal-header">
+                <h3>Marcar parada entregada</h3>
+                <button type="button" class="btn-icon-action" onclick="cerrarModal('modalEntregar')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="pos-modal-body">
+                <input type="hidden" name="envioId" id="entregarEnvioId" />
+                <div class="module-alert" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; margin: 0 0 14px 0;">
+                    <div style="font-size: 12.5px;">
+                        <strong id="entregarEnvioInfo"></strong>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>Nombre de quien recibe *</label>
+                    <input name="NombreRecibio" class="form-input" placeholder="Ej: Juan Pérez" required />
+                </div>
+                <div class="form-field">
+                    <label>Notas (opcional)</label>
+                    <input name="NotasAccion" class="form-input" placeholder="Observaciones de la entrega" />
+                </div>
+            </div>
+            <div class="pos-modal-footer">
+                <button type="button" class="btn-secondary" onclick="cerrarModal('modalEntregar')">Cancelar</button>
+                <button type="submit" class="btn-primary" style="background: #10b981;">Confirmar entrega</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- MODAL: MARCAR FALLIDO                         -->
+<!-- ============================================ -->
+<div id="modalFallar" class="pos-modal">
+    <div class="pos-modal-content">
+        <form method="post" asp-page-handler="MarcarFallido" asp-route-id="@Model.Ruta.Id">
+            <div class="pos-modal-header">
+                <h3>Marcar parada fallida</h3>
+                <button type="button" class="btn-icon-action" onclick="cerrarModal('modalFallar')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="pos-modal-body">
+                <input type="hidden" name="envioId" id="fallarEnvioId" />
+                <div class="module-alert" style="background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; margin: 0 0 14px 0;">
+                    <div style="font-size: 12.5px;">
+                        <strong id="fallarEnvioInfo"></strong>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>Motivo del fallo *</label>
+                    <textarea name="MotivoFallo" class="form-input" rows="3" placeholder="Ej: Cliente ausente, dirección incorrecta, etc." required></textarea>
+                </div>
+            </div>
+            <div class="pos-modal-footer">
+                <button type="button" class="btn-secondary" onclick="cerrarModal('modalFallar')">Cancelar</button>
+                <button type="submit" class="btn-danger">Confirmar fallo</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- MODAL: CERRAR RUTA                            -->
+<!-- ============================================ -->
+<div id="modalCerrar" class="pos-modal">
+    <div class="pos-modal-content">
+        <form method="post" asp-page-handler="Cerrar" asp-route-id="@Model.Ruta.Id">
+            <div class="pos-modal-header">
+                <h3>Cerrar ruta @Model.Ruta.Numero</h3>
+                <button type="button" class="btn-icon-action" onclick="cerrarModal('modalCerrar')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="pos-modal-body">
+                <div class="module-alert" style="background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary); margin: 0 0 14px 0;">
+                    <div style="font-size: 12.5px;">
+                        <strong>Resumen:</strong>
+                        <ul style="margin: 6px 0 0 16px; padding: 0;">
+                            <li>@Model.ParadasEntregadas entregada(s)</li>
+                            <li>@Model.ParadasFallidas fallida(s)</li>
+                            <li>@Model.ParadasPendientes pendiente(s)</li>
+                        </ul>
+                        @if (Model.ParadasPendientes > 0)
+                        {
+                            <p style="margin: 8px 0 0 0; font-size: 12px; color: #b45309;">
+                                ⚠️ Aún quedan @Model.ParadasPendientes parada(s) sin resolver. Se cerrarán como pendientes.
+                            </p>
+                        }
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>Notas de cierre</label>
+                    <textarea name="NotasAccion" class="form-input" rows="3" placeholder="Observaciones finales..."></textarea>
+                </div>
+            </div>
+            <div class="pos-modal-footer">
+                <button type="button" class="btn-secondary" onclick="cerrarModal('modalCerrar')">Cancelar</button>
+                <button type="submit" class="btn-primary" style="background: #10b981;">Confirmar cierre</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- MODAL: CANCELAR RUTA                          -->
+<!-- ============================================ -->
+<div id="modalCancelar" class="pos-modal">
+    <div class="pos-modal-content">
+        <form method="post" asp-page-handler="Cancelar" asp-route-id="@Model.Ruta.Id">
+            <div class="pos-modal-header">
+                <h3>Cancelar ruta @Model.Ruta.Numero</h3>
+                <button type="button" class="btn-icon-action" onclick="cerrarModal('modalCancelar')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="pos-modal-body">
+                <div class="module-alert" style="background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; margin: 0 0 14px 0;">
+                    <div style="font-size: 12.5px;">
+                        <strong>⚠️ Al cancelar la ruta:</strong>
+                        <p style="margin: 4px 0 0 0;">Los @Model.TotalParadas envío(s) volverán a estado <strong>Pendiente</strong> y podrán reasignarse a otra ruta.</p>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>Motivo de la cancelación *</label>
+                    <textarea name="MotivoCancelacion" class="form-input" rows="3" placeholder="Explica por qué se cancela esta ruta..." required></textarea>
+                </div>
+            </div>
+            <div class="pos-modal-footer">
+                <button type="button" class="btn-secondary" onclick="cerrarModal('modalCancelar')">Volver</button>
+                <button type="submit" class="btn-danger">Confirmar cancelación</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function abrirModalEntregar(envioId, numero, cliente) {
+            document.getElementById('entregarEnvioId').value = envioId;
+            document.getElementById('entregarEnvioInfo').textContent = numero + ' — ' + cliente;
+            document.getElementById('modalEntregar').classList.add('is-open');
+        }
+
+        function abrirModalFallar(envioId, numero, cliente) {
+            document.getElementById('fallarEnvioId').value = envioId;
+            document.getElementById('fallarEnvioInfo').textContent = numero + ' — ' + cliente;
+            document.getElementById('modalFallar').classList.add('is-open');
+        }
+
+        function cerrarModal(id) {
+            document.getElementById(id).classList.remove('is-open');
+        }
+    </script>
+}

@@ -4,7 +4,6 @@ using Kirkenta.Helpers.Import;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Text.Json;
 
 namespace Kirkenta.Pages.Clientes
 {
@@ -17,87 +16,10 @@ namespace Kirkenta.Pages.Clientes
             _context = context;
         }
 
+        public ImportWizardConfig WizardConfig { get; set; } = new();
         public List<string> HeadersArchivo { get; set; } = new();
         public List<Dictionary<string, string>> FilasArchivo { get; set; } = new();
         public Dictionary<string, string?> MapaSugerido { get; set; } = new();
-        public List<CampoMapeo> Campos { get; set; } = new();
-
-        // Campos que el usuario puede mapear
-        public class CampoMapeo
-        {
-            public string Key { get; set; } = "";
-            public string Label { get; set; } = "";
-            public bool Requerido { get; set; }
-        }
-
-        // Alias de cada campo (para autodetección)
-        private static readonly Dictionary<string, string[]> AliasCampos = new()
-        {
-            { "Codigo",       new[] { "codigo", "code", "cod", "clave", "id_cliente" } },
-            { "Nombre",       new[] { "nombre", "name", "cliente", "razon", "razonsocial", "razon_social" } },
-            { "RazonSocial",  new[] { "razonsocial", "razon_social", "nombrelegal" } },
-            { "RTN",          new[] { "rtn", "ruc", "nit", "taxid", "identificacion" } },
-            { "Email",        new[] { "email", "correo", "mail", "e-mail" } },
-            { "Telefono",     new[] { "telefono", "tel", "phone", "celular", "movil" } },
-            { "Direccion",    new[] { "direccion", "address", "domicilio" } },
-            { "Ciudad",       new[] { "ciudad", "city", "municipio" } },
-            { "Pais",         new[] { "pais", "country" } },
-            { "TipoCliente",  new[] { "tipocliente", "tipo", "categoria", "type" } },
-            { "DiasCredito",  new[] { "diascredito", "dias", "plazo", "creditodias" } },
-            { "LimiteCredito",new[] { "limitecredito", "limite", "creditlimit" } },
-            { "Notas",        new[] { "notas", "notes", "observaciones", "comentarios" } },
-            { "Activo",       new[] { "activo", "active", "estado", "status" } },
-        };
-
-        public IActionResult OnGet()
-        {
-            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
-            var currentRol = currentUser?.Rol ?? "Pendiente";
-
-            if (currentRol != "Admin" &&
-                !PermisoHelper.TienePermiso(_context, currentRol, "Ventas", "ClientesImport", "crear"))
-            {
-                TempData["Error"] = "No tienes permiso para importar clientes";
-                return RedirectToPage("/Clientes/Index");
-            }
-
-            // Recuperar datos de la sesión
-            var jsonHeaders = HttpContext.Session.GetString("ImportClientes_Headers");
-            var jsonRows = HttpContext.Session.GetString("ImportClientes_Rows");
-
-            if (string.IsNullOrEmpty(jsonHeaders) || string.IsNullOrEmpty(jsonRows))
-            {
-                TempData["Error"] = "La sesión expiró. Vuelve a subir el archivo.";
-                return RedirectToPage("/Clientes/Import");
-            }
-
-            HeadersArchivo = JsonSerializer.Deserialize<List<string>>(jsonHeaders) ?? new();
-            FilasArchivo = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(jsonRows) ?? new();
-
-            // Autodetectar mapa
-            MapaSugerido = ColumnMapper.Detectar(HeadersArchivo, AliasCampos);
-
-            // Definir campos editables
-            Campos = new List<CampoMapeo>
-            {
-                new() { Key = "Codigo",        Label = "Código",           Requerido = false },
-                new() { Key = "Nombre",        Label = "Nombre",           Requerido = true },
-                new() { Key = "RazonSocial",   Label = "Razón social",     Requerido = false },
-                new() { Key = "RTN",           Label = "RTN",              Requerido = false },
-                new() { Key = "Email",         Label = "Email",            Requerido = false },
-                new() { Key = "Telefono",      Label = "Teléfono",         Requerido = false },
-                new() { Key = "Direccion",     Label = "Dirección",        Requerido = false },
-                new() { Key = "Ciudad",        Label = "Ciudad",           Requerido = false },
-                new() { Key = "Pais",          Label = "País",             Requerido = false },
-                new() { Key = "TipoCliente",   Label = "Tipo de cliente",  Requerido = false },
-                new() { Key = "DiasCredito",   Label = "Días de crédito",  Requerido = false },
-                new() { Key = "LimiteCredito", Label = "Límite de crédito",Requerido = false },
-                new() { Key = "Notas",         Label = "Notas",            Requerido = false },
-                new() { Key = "Activo",        Label = "Activo (Sí/No)",   Requerido = false },
-            };
-
-            return Page();
-        }
 
         [BindProperty]
         public Dictionary<string, string> Mapeo { get; set; } = new();
@@ -105,57 +27,138 @@ namespace Kirkenta.Pages.Clientes
         [BindProperty]
         public string ModoImportacion { get; set; } = "upsert";
 
+        public IActionResult OnGet()
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            WizardConfig = BuildConfig();
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, WizardConfig.ModuloPermiso, WizardConfig.SubmoduloPermiso, "crear"))
+            {
+                TempData["Error"] = $"No tienes permiso para importar {WizardConfig.NombrePlural}";
+                return Redirect(WizardConfig.UrlIndex);
+            }
+
+            if (!CargarDesdeSesion())
+            {
+                TempData["Error"] = "La sesión expiró. Vuelve a subir el archivo.";
+                return Redirect(WizardConfig.UrlImport);
+            }
+
+            MapaSugerido = ColumnMapper.Detectar(HeadersArchivo, WizardConfig.AliasCampos);
+
+            return Page();
+        }
+
         public IActionResult OnPost()
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
 
+            WizardConfig = BuildConfig();
+
             if (currentRol != "Admin" &&
-                !PermisoHelper.TienePermiso(_context, currentRol, "Ventas", "ClientesImport", "crear"))
+                !PermisoHelper.TienePermiso(_context, currentRol, WizardConfig.ModuloPermiso, WizardConfig.SubmoduloPermiso, "crear"))
             {
-                TempData["Error"] = "No tienes permiso para importar clientes";
-                return RedirectToPage("/Clientes/Index");
+                TempData["Error"] = $"No tienes permiso para importar {WizardConfig.NombrePlural}";
+                return Redirect(WizardConfig.UrlIndex);
             }
 
-            // Recuperar datos
-            var jsonHeaders = HttpContext.Session.GetString("ImportClientes_Headers");
-            var jsonRows = HttpContext.Session.GetString("ImportClientes_Rows");
-
-            if (string.IsNullOrEmpty(jsonHeaders) || string.IsNullOrEmpty(jsonRows))
+            if (!CargarDesdeSesion())
             {
                 TempData["Error"] = "La sesión expiró. Vuelve a subir el archivo.";
-                return RedirectToPage("/Clientes/Import");
+                return Redirect(WizardConfig.UrlImport);
             }
 
-            var headers = JsonSerializer.Deserialize<List<string>>(jsonHeaders) ?? new();
-            var filas = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(jsonRows) ?? new();
+            var faltantes = WizardConfig.CamposRequeridos
+                .Where(campo => string.IsNullOrEmpty(Mapeo.GetValueOrDefault(campo)))
+                .ToList();
 
-            // Validar mapeo mínimo
-            if (string.IsNullOrEmpty(Mapeo.GetValueOrDefault("Nombre")))
+            if (faltantes.Count > 0)
             {
-                TempData["Error"] = "Debes mapear al menos el campo 'Nombre'";
-                return RedirectToPage("/Clientes/ImportMap");
+                var labelsFaltantes = WizardConfig.Campos
+                    .Where(c => faltantes.Contains(c.Key))
+                    .Select(c => c.Label);
+
+                TempData["Error"] = $"Debes mapear: {string.Join(", ", labelsFaltantes)}";
+                return Redirect(WizardConfig.UrlImportMap);
             }
 
-            // Procesar importación
-            var resultado = ImportarClientes(filas, Mapeo, ModoImportacion, currentUser?.Id);
+            var resultado = ImportarClientes(FilasArchivo, Mapeo, ModoImportacion, currentUser?.Id);
 
-            // Registrar actividad
             ActividadHelper.Registrar(
                 _context,
                 currentUser?.Id ?? 0,
-                "Importar clientes",
-                $"Importó clientes: {resultado.Resumen()}",
+                $"Importar {WizardConfig.NombrePlural}",
+                $"Importó {WizardConfig.NombrePlural}: {resultado.Resumen()}",
                 HttpContext.Connection.RemoteIpAddress?.ToString());
 
-            // Limpiar sesión
-            HttpContext.Session.Remove("ImportClientes_Headers");
-            HttpContext.Session.Remove("ImportClientes_Rows");
+            ImportWizardHelper.LimpiarSesion(HttpContext.Session, WizardConfig);
 
-            // Guardar resultado temporal para mostrarlo en el Index
-            TempData["ImportResultado"] = JsonSerializer.Serialize(resultado);
             TempData["Success"] = $"Importación completada: {resultado.Resumen()}";
-            return RedirectToPage("/Clientes/Index");
+            return Redirect(WizardConfig.UrlIndex);
+        }
+
+        private bool CargarDesdeSesion()
+        {
+            var data = ImportWizardHelper.RecuperarDeSesion(HttpContext.Session, WizardConfig);
+            if (data == null) return false;
+
+            HeadersArchivo = data.Value.Headers;
+            FilasArchivo = data.Value.Rows;
+            return true;
+        }
+
+        private static ImportWizardConfig BuildConfig()
+        {
+            return new ImportWizardConfig
+            {
+                NombrePlural = "clientes",
+                NombreSingular = "cliente",
+                ModuloPermiso = "Ventas",
+                SubmoduloPermiso = "ClientesImport",
+                SessionKey = "Clientes",
+                UrlIndex = "/Clientes/Index",
+                UrlImport = "/Clientes/Import",
+                UrlImportMap = "/Clientes/ImportMap",
+                CamposRequeridos = new[] { "Nombre" },
+                Campos = new List<CampoMapeo>
+                {
+                    new() { Key = "Codigo",        Label = "Código",            Requerido = false },
+                    new() { Key = "Nombre",        Label = "Nombre",            Requerido = true },
+                    new() { Key = "RazonSocial",   Label = "Razón social",      Requerido = false },
+                    new() { Key = "RTN",           Label = "RTN",               Requerido = false },
+                    new() { Key = "Email",         Label = "Email",             Requerido = false },
+                    new() { Key = "Telefono",      Label = "Teléfono",          Requerido = false },
+                    new() { Key = "Direccion",     Label = "Dirección",         Requerido = false },
+                    new() { Key = "Ciudad",        Label = "Ciudad",            Requerido = false },
+                    new() { Key = "Pais",          Label = "País",              Requerido = false },
+                    new() { Key = "TipoCliente",   Label = "Tipo de cliente",   Requerido = false },
+                    new() { Key = "DiasCredito",   Label = "Días de crédito",   Requerido = false },
+                    new() { Key = "LimiteCredito", Label = "Límite de crédito", Requerido = false },
+                    new() { Key = "Notas",         Label = "Notas",             Requerido = false },
+                    new() { Key = "Activo",        Label = "Activo (Sí/No)",    Requerido = false },
+                },
+                AliasCampos = new Dictionary<string, string[]>
+                {
+                    { "Codigo",        new[] { "codigo", "code", "cod", "clave", "id_cliente" } },
+                    { "Nombre",        new[] { "nombre", "name", "cliente", "razon", "razonsocial", "razon_social" } },
+                    { "RazonSocial",   new[] { "razonsocial", "razon_social", "nombrelegal" } },
+                    { "RTN",           new[] { "rtn", "ruc", "nit", "taxid", "identificacion" } },
+                    { "Email",         new[] { "email", "correo", "mail", "e-mail" } },
+                    { "Telefono",      new[] { "telefono", "tel", "phone", "celular", "movil" } },
+                    { "Direccion",     new[] { "direccion", "address", "domicilio" } },
+                    { "Ciudad",        new[] { "ciudad", "city", "municipio" } },
+                    { "Pais",          new[] { "pais", "country" } },
+                    { "TipoCliente",   new[] { "tipocliente", "tipo", "categoria", "type" } },
+                    { "DiasCredito",   new[] { "diascredito", "dias", "plazo", "creditodias" } },
+                    { "LimiteCredito", new[] { "limitecredito", "limite", "creditlimit" } },
+                    { "Notas",         new[] { "notas", "notes", "observaciones", "comentarios" } },
+                    { "Activo",        new[] { "activo", "active", "estado", "status" } },
+                }
+            };
         }
 
         private ImportResult ImportarClientes(
@@ -165,23 +168,37 @@ namespace Kirkenta.Pages.Clientes
             int? usuarioId)
         {
             var resultado = new ImportResult { TotalFilas = filas.Count };
+
+            // ===== 1. Precargar códigos existentes en BD =====
             var codigosExistentes = _context.Clientes
                 .Where(c => c.Codigo != null)
                 .Select(c => c.Codigo!)
                 .ToHashSet();
 
-            var rtnExistentes = _context.Clientes
-                .Where(c => c.RTN != null)
-                .Select(c => c.RTN!)
-                .ToHashSet();
+            // ===== 2. Serie y próximo número local =====
+            var serieCliente = _context.SeriesDocumentos
+                .FirstOrDefault(s => s.Tipo == "Cliente" && s.EsPredeterminada && s.Activa);
 
+            string prefijoSerie = serieCliente?.Prefijo ?? "CLI";
+            string sepSerie = serieCliente?.Separador ?? "-";
+            int longitudSerie = serieCliente?.LongitudNumero ?? 4;
+            string? formatoSerie = serieCliente?.FormatoPersonalizado;
+
+            int proximoNumeroLocal = serieCliente?.SiguienteNumero ?? (codigosExistentes.Count + 1);
+
+            while (codigosExistentes.Contains(
+                FormatearCodigo(prefijoSerie, sepSerie, longitudSerie, proximoNumeroLocal, formatoSerie)))
+            {
+                proximoNumeroLocal++;
+            }
+
+            // ===== 3. Procesar filas =====
             int filaNum = 1;
             foreach (var fila in filas)
             {
                 filaNum++;
                 try
                 {
-                    // Extraer valores según mapeo
                     string? Obtener(string campo)
                     {
                         var header = mapa.GetValueOrDefault(campo);
@@ -196,10 +213,31 @@ namespace Kirkenta.Pages.Clientes
                         continue;
                     }
 
+                    if (nombre.Length > 150)
+                    {
+                        resultado.AgregarError(filaNum, $"El nombre excede 150 caracteres ({nombre.Length})");
+                        continue;
+                    }
+
                     var codigo = Obtener("Codigo");
                     var rtn = Obtener("RTN");
 
-                    // Buscar existente (por Código o RTN)
+                    // ===== VALIDACIÓN: si el CSV trae un código, validar longitud =====
+                    if (!string.IsNullOrEmpty(codigo) && codigo.Length > 20)
+                    {
+                        resultado.AgregarAdvertencia(filaNum,
+                            $"El código '{codigo}' excede 20 caracteres ({codigo.Length}). Se ignora y se autogenera.");
+                        codigo = null;
+                    }
+
+                    // ===== VALIDACIÓN: RTN máximo 20 =====
+                    if (!string.IsNullOrEmpty(rtn) && rtn.Length > 20)
+                    {
+                        resultado.AgregarAdvertencia(filaNum, $"El RTN '{rtn}' excede 20 caracteres. Se ignora.");
+                        rtn = null;
+                    }
+
+                    // Buscar existente
                     Cliente? existente = null;
                     if (!string.IsNullOrEmpty(codigo))
                         existente = _context.Clientes.FirstOrDefault(c => c.Codigo == codigo);
@@ -219,28 +257,34 @@ namespace Kirkenta.Pages.Clientes
                         continue;
                     }
 
-                    // Autogenerar código si no viene
+                    // ===== Autogenerar código si no viene o si fue rechazado =====
                     if (string.IsNullOrEmpty(codigo) && existente == null)
                     {
-                        codigo = NumeroDocumentoHelper.GenerarSiguiente(_context, "Cliente");
+                        do
+                        {
+                            codigo = FormatearCodigo(prefijoSerie, sepSerie, longitudSerie, proximoNumeroLocal, formatoSerie);
+                            proximoNumeroLocal++;
+                        }
+                        while (codigosExistentes.Contains(codigo));
+
+                        codigosExistentes.Add(codigo);
                     }
 
-                    var activo = ParsearBool(Obtener("Activo"));
-                    var diasCredito = ParsearInt(Obtener("DiasCredito"));
-                    var limiteCredito = ParsearDecimal(Obtener("LimiteCredito"));
+                    var activo = ParserHelper.ParsearBool(Obtener("Activo"));
+                    var diasCredito = ParserHelper.ParsearInt(Obtener("DiasCredito"));
+                    var limiteCredito = ParserHelper.ParsearDecimal(Obtener("LimiteCredito"));
 
                     if (existente != null)
                     {
-                        // Actualizar
                         existente.Nombre = nombre;
-                        existente.RazonSocial = Obtener("RazonSocial") ?? existente.RazonSocial;
+                        existente.RazonSocial = Truncar(Obtener("RazonSocial"), 200) ?? existente.RazonSocial;
                         existente.RTN = rtn ?? existente.RTN;
-                        existente.Email = Obtener("Email") ?? existente.Email;
-                        existente.Telefono = Obtener("Telefono") ?? existente.Telefono;
-                        existente.Direccion = Obtener("Direccion") ?? existente.Direccion;
-                        existente.Ciudad = Obtener("Ciudad") ?? existente.Ciudad;
-                        existente.Pais = Obtener("Pais") ?? existente.Pais;
-                        existente.TipoCliente = Obtener("TipoCliente") ?? existente.TipoCliente;
+                        existente.Email = Truncar(Obtener("Email"), 150) ?? existente.Email;
+                        existente.Telefono = Truncar(Obtener("Telefono"), 30) ?? existente.Telefono;
+                        existente.Direccion = Truncar(Obtener("Direccion"), 300) ?? existente.Direccion;
+                        existente.Ciudad = Truncar(Obtener("Ciudad"), 100) ?? existente.Ciudad;
+                        existente.Pais = Truncar(Obtener("Pais"), 80) ?? existente.Pais;
+                        existente.TipoCliente = Truncar(Obtener("TipoCliente"), 20) ?? existente.TipoCliente;
                         existente.DiasCredito = diasCredito ?? existente.DiasCredito;
                         existente.LimiteCredito = limiteCredito ?? existente.LimiteCredito;
                         existente.Notas = Obtener("Notas") ?? existente.Notas;
@@ -249,19 +293,18 @@ namespace Kirkenta.Pages.Clientes
                     }
                     else
                     {
-                        // Crear
                         var cliente = new Cliente
                         {
                             Codigo = codigo,
                             Nombre = nombre,
-                            RazonSocial = Obtener("RazonSocial"),
+                            RazonSocial = Truncar(Obtener("RazonSocial"), 200),
                             RTN = rtn,
-                            Email = Obtener("Email"),
-                            Telefono = Obtener("Telefono"),
-                            Direccion = Obtener("Direccion"),
-                            Ciudad = Obtener("Ciudad"),
-                            Pais = Obtener("Pais") ?? "Honduras",
-                            TipoCliente = Obtener("TipoCliente") ?? "Regular",
+                            Email = Truncar(Obtener("Email"), 150),
+                            Telefono = Truncar(Obtener("Telefono"), 30),
+                            Direccion = Truncar(Obtener("Direccion"), 300),
+                            Ciudad = Truncar(Obtener("Ciudad"), 100),
+                            Pais = Truncar(Obtener("Pais"), 80) ?? "Honduras",
+                            TipoCliente = Truncar(Obtener("TipoCliente"), 20) ?? "Regular",
                             DiasCredito = diasCredito ?? 0,
                             LimiteCredito = limiteCredito ?? 0,
                             Notas = Obtener("Notas"),
@@ -281,36 +324,65 @@ namespace Kirkenta.Pages.Clientes
             }
 
             _context.SaveChanges();
+
+            if (serieCliente != null && resultado.Creados > 0)
+            {
+                serieCliente.SiguienteNumero = proximoNumeroLocal;
+                _context.SaveChanges();
+            }
+
             return resultado;
         }
 
-        private static bool? ParsearBool(string? valor)
+        /// <summary>
+        /// Formatea un código respetando el formato de la serie.
+        /// Trunca a 20 caracteres por seguridad.
+        /// </summary>
+        private static string FormatearCodigo(
+            string prefijo, string separador, int longitud, int numero, string? formatoPersonalizado)
         {
-            if (string.IsNullOrWhiteSpace(valor)) return null;
+            var numeroStr = numero.ToString().PadLeft(longitud, '0');
+            var anio = DateTime.Now.Year.ToString();
+            var mes = DateTime.Now.Month.ToString("D2");
+            var dia = DateTime.Now.Day.ToString("D2");
 
-            var normalizado = valor.Trim().ToLowerInvariant();
-            if (normalizado == "1" || normalizado == "true" || normalizado == "sí" || normalizado == "si" ||
-                normalizado == "yes" || normalizado == "y" || normalizado == "activo" || normalizado == "activa")
-                return true;
-            if (normalizado == "0" || normalizado == "false" || normalizado == "no" ||
-                normalizado == "n" || normalizado == "inactivo" || normalizado == "inactiva")
-                return false;
+            string resultado;
 
-            return null;
+            if (!string.IsNullOrWhiteSpace(formatoPersonalizado))
+            {
+                resultado = formatoPersonalizado
+                    .Replace("{PREFIX}", prefijo)
+                    .Replace("{PREFIJO}", prefijo)
+                    .Replace("{SUFFIX}", "")
+                    .Replace("{SUFIJO}", "")
+                    .Replace("{SEP}", separador)
+                    .Replace("{YEAR}", anio)
+                    .Replace("{ANIO}", anio)
+                    .Replace("{MONTH}", mes)
+                    .Replace("{MES}", mes)
+                    .Replace("{DAY}", dia)
+                    .Replace("{DIA}", dia)
+                    .Replace("{NUM}", numeroStr);
+            }
+            else
+            {
+                resultado = $"{prefijo}{separador}{numeroStr}";
+            }
+
+            if (resultado.Length > 20)
+                resultado = resultado.Substring(0, 20);
+
+            return resultado;
         }
 
-        private static int? ParsearInt(string? valor)
+        /// <summary>
+        /// Trunca un string a un máximo de caracteres. Devuelve null si vacío.
+        /// </summary>
+        private static string? Truncar(string? valor, int maximo)
         {
             if (string.IsNullOrWhiteSpace(valor)) return null;
-            return int.TryParse(valor.Trim(), out var result) ? result : null;
-        }
-
-        private static decimal? ParsearDecimal(string? valor)
-        {
-            if (string.IsNullOrWhiteSpace(valor)) return null;
-            var limpio = valor.Trim().Replace(",", "").Replace("L.", "").Replace("$", "").Trim();
-            return decimal.TryParse(limpio, System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out var result) ? result : null;
+            valor = valor.Trim();
+            return valor.Length > maximo ? valor.Substring(0, maximo) : valor;
         }
     }
 }

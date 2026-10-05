@@ -294,6 +294,37 @@ namespace Kirkenta.Helpers
                             .DefaultIfEmpty(0)
                             .Max();
                         break;
+
+                    // ===== LOGÍSTICA =====
+                    case "Envio":
+                        ultimoNumero = context.Envios
+                            .Where(e => e.Numero.StartsWith(prefijoConSep))
+                            .Select(e => e.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "Ruta":
+                        ultimoNumero = context.Rutas
+                            .Where(r => r.Numero.StartsWith(prefijoConSep))
+                            .Select(r => r.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "Repartidor":
+                        ultimoNumero = context.Repartidores
+                            .Where(r => r.Codigo.StartsWith(prefijoConSep))
+                            .Select(r => r.Codigo)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
                 }
 
                 if (ultimoNumero >= serie.SiguienteNumero)
@@ -366,6 +397,11 @@ namespace Kirkenta.Helpers
                 "PermisoEmpleado" => context.PermisosEmpleado.Count(),
                 "Nomina" => context.Nominas.Count(),
                 "PagoNomina" => context.PagosNominaEmpleado.Count(),
+
+                // Logística
+                "Envio" => context.Envios.Count(),
+                "Ruta" => context.Rutas.Count(),
+                "Repartidor" => context.Repartidores.Count(),
 
                 _ => 0
             };

@@ -15,6 +15,18 @@ namespace Kirkenta.Models
         public string Estado { get; set; } = "Completada";
         public string? Notas { get; set; }
         public int? UsuarioCreoId { get; set; }
+
+        // ===== LOGÍSTICA =====
+        /// <summary>
+        /// Si esta venta requiere envío a domicilio.
+        /// </summary>
+        public bool RequiereEnvio { get; set; } = false;
+
+        /// <summary>
+        /// Monto cobrado por el envío. Se suma al Subtotal antes de ISV.
+        /// 0 = envío gratis.
+        /// </summary>
+        public decimal MontoEnvio { get; set; } = 0;
     }
 
     public class DetalleVenta

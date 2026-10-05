@@ -1,6 +1,7 @@
 using Kirkenta.Data;
 using Kirkenta.Helpers;
 using Kirkenta.Helpers.Finanzas;
+using Kirkenta.Helpers.Logistica;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -20,6 +21,7 @@ namespace Kirkenta.Pages.POS
         public List<Producto> Productos { get; set; } = new();
         public List<Categoria> Categorias { get; set; } = new();
         public List<MetodoPago> MetodosPago { get; set; } = new();
+        public List<ZonaEnvio> ZonasEnvio { get; set; } = new();
         public Dictionary<int, decimal> ImpuestosDict { get; set; } = new();
         public string ClientesJson { get; set; } = "[]";
         public string ItemsInicialesJson { get; set; } = "[]";
@@ -63,6 +65,7 @@ namespace Kirkenta.Pages.POS
             Productos = _context.Productos.Where(p => p.Activo).OrderBy(p => p.Nombre).ToList();
             Categorias = _context.Categorias.Where(c => c.Activa).OrderBy(c => c.Nombre).ToList();
             MetodosPago = _context.MetodosPago.Where(m => m.Activo).OrderBy(m => m.Nombre).ToList();
+            ZonasEnvio = _context.ZonasEnvio.Where(z => z.Activa).OrderBy(z => z.Orden).ThenBy(z => z.Nombre).ToList();
             ImpuestosDict = _context.Impuestos.Where(i => i.Activo).ToDictionary(i => i.Id, i => i.Porcentaje);
 
             var clientes = _context.Clientes.Where(c => c.Activo).OrderBy(c => c.Nombre).ToList();
@@ -71,7 +74,9 @@ namespace Kirkenta.Pages.POS
                 id = c.Id,
                 nombre = c.Nombre,
                 rtn = c.RTN ?? "",
-                codigo = c.Codigo ?? ""
+                codigo = c.Codigo ?? "",
+                direccion = c.Direccion ?? "",
+                telefono = c.Telefono ?? ""
             }).ToList();
             ClientesJson = JsonSerializer.Serialize(clientesList);
 
@@ -91,14 +96,12 @@ namespace Kirkenta.Pages.POS
                         .Where(p => productosIds.Contains(p.Id))
                         .ToDictionary(p => p.Id, p => new { p.Nombre, p.Stock, p.ImpuestoId });
 
-                    // Impuesto predeterminado (por si el producto no tiene uno)
                     var impuestoPredeterminadoId = _context.Impuestos
                         .FirstOrDefault(i => i.EsPredeterminado && i.Activo)?.Id;
 
                     var itemsIniciales = detalles.Select(d =>
                     {
                         var prod = productosDict.GetValueOrDefault(d.ProductoId);
-                        // Tasa correcta según el producto
                         int? impuestoId = prod?.ImpuestoId ?? impuestoPredeterminadoId;
                         decimal tasa = impuestoId.HasValue && ImpuestosDict.ContainsKey(impuestoId.Value)
                             ? ImpuestosDict[impuestoId.Value] : 0m;
@@ -133,6 +136,16 @@ namespace Kirkenta.Pages.POS
             public int? CotizacionId { get; set; }
             public bool RegistrarEnFinanzas { get; set; } = true;
             public List<ItemRequest> Items { get; set; } = new();
+
+            // ===== LOGÍSTICA =====
+            public bool RequiereEnvio { get; set; } = false;
+            public decimal MontoEnvio { get; set; } = 0;
+            public string? EnvioDireccion { get; set; }
+            public string? EnvioReferencia { get; set; }
+            public string? EnvioContactoNombre { get; set; }
+            public string? EnvioContactoTelefono { get; set; }
+            public string? EnvioCiudad { get; set; }
+            public int? EnvioZonaId { get; set; }
         }
 
         public class ItemRequest
@@ -140,7 +153,7 @@ namespace Kirkenta.Pages.POS
             public int ProductoId { get; set; }
             public decimal Cantidad { get; set; }
             public decimal PrecioUnitario { get; set; }
-            public decimal ImpuestoPorcentaje { get; set; } // puede venir del cliente, pero se valida
+            public decimal ImpuestoPorcentaje { get; set; }
             public decimal Descuento { get; set; }
         }
 
@@ -165,6 +178,22 @@ namespace Kirkenta.Pages.POS
                 if (request == null || request.Items == null || request.Items.Count == 0)
                     return new JsonResult(new { success = false, error = "Carrito vacío" });
 
+                // ===== VALIDAR ENVÍO =====
+                if (request.RequiereEnvio)
+                {
+                    if (string.IsNullOrWhiteSpace(request.EnvioDireccion))
+                        return new JsonResult(new { success = false, error = "Debes indicar la dirección de envío" });
+
+                    if (string.IsNullOrWhiteSpace(request.EnvioContactoNombre))
+                        return new JsonResult(new { success = false, error = "Debes indicar quién recibe el envío" });
+
+                    if (string.IsNullOrWhiteSpace(request.EnvioContactoTelefono))
+                        return new JsonResult(new { success = false, error = "Debes indicar el teléfono de contacto del envío" });
+
+                    if (request.MontoEnvio < 0)
+                        return new JsonResult(new { success = false, error = "El monto de envío no puede ser negativo" });
+                }
+
                 // ===== VALIDAR Y RECALCULAR IMPUESTOS CON ISVHelper =====
                 var productoIds = request.Items.Select(i => i.ProductoId).Distinct().ToList();
                 var productosDict = _context.Productos
@@ -178,7 +207,6 @@ namespace Kirkenta.Pages.POS
                 var impuestoPredeterminadoId = _context.Impuestos
                     .FirstOrDefault(i => i.EsPredeterminado && i.Activo)?.Id;
 
-                // Reconstruir items con tasa correcta (no confiamos en el cliente)
                 var itemsValidados = new List<ItemParaISV>();
                 var itemsConTasa = new List<(ItemRequest original, int productoId, decimal tasa)>();
 
@@ -194,7 +222,6 @@ namespace Kirkenta.Pages.POS
                     if (prod.Stock < item.Cantidad)
                         return new JsonResult(new { success = false, error = $"Stock insuficiente para '{prod.Nombre}'. Disponible: {prod.Stock}" });
 
-                    // Determinar tasa correcta
                     int? impuestoId = prod.ImpuestoId ?? impuestoPredeterminadoId;
                     decimal tasaCorrecta = impuestoId.HasValue && impuestosActivos.ContainsKey(impuestoId.Value)
                         ? impuestosActivos[impuestoId.Value] : 0m;
@@ -211,11 +238,12 @@ namespace Kirkenta.Pages.POS
                     });
                 }
 
-                // Calcular con ISVHelper (para validar el total correcto)
-                var isvResult = ISVHelper.Calcular(_context, itemsValidados, request.Descuento);
+                // ===== CALCULAR CON ISVHelper (incluye envío) =====
+                decimal montoEnvioCalculo = request.RequiereEnvio ? request.MontoEnvio : 0;
+                var isvResult = ISVHelper.Calcular(_context, itemsValidados, request.Descuento, montoEnvioCalculo);
 
                 // ===== CREAR DETALLES CON TASA CORRECTA =====
-                decimal subtotal = 0, impuestosTotal = 0, total = 0;
+                decimal subtotalItems = 0, impuestosTotal = 0, total = 0;
                 var detalles = new List<DetalleVenta>();
 
                 foreach (var (itemOrig, productoId, tasa) in itemsConTasa)
@@ -225,7 +253,7 @@ namespace Kirkenta.Pages.POS
                     var iv = Math.Round(stConDesc * (tasa / 100m), 2);
                     var tot = stConDesc + iv;
 
-                    subtotal += st;
+                    subtotalItems += st;
                     impuestosTotal += iv;
                     total += tot;
 
@@ -241,9 +269,10 @@ namespace Kirkenta.Pages.POS
                     });
                 }
 
-                // Aplicar descuento global al total (ya calculado por ISVHelper)
-                total = isvResult.Total;
+                // Ajustar totales finales desde ISVHelper (ya incluye envío)
+                subtotalItems += montoEnvioCalculo;
                 impuestosTotal = isvResult.ISVTotal;
+                total = isvResult.Total;
 
                 // ===== CREAR VENTA =====
                 var numero = NumeroDocumentoHelper.GenerarSiguiente(_context, "Venta");
@@ -254,12 +283,14 @@ namespace Kirkenta.Pages.POS
                     ClienteId = request.ClienteId,
                     CotizacionId = request.CotizacionId,
                     Fecha = DateTime.Now,
-                    Subtotal = subtotal,
+                    Subtotal = subtotalItems,
                     Descuento = request.Descuento,
                     Impuestos = impuestosTotal,
                     Total = total,
                     Estado = "Completada",
-                    UsuarioCreoId = currentUser.Id
+                    UsuarioCreoId = currentUser.Id,
+                    RequiereEnvio = request.RequiereEnvio,
+                    MontoEnvio = montoEnvioCalculo
                 };
 
                 _context.Ventas.Add(venta);
@@ -291,7 +322,39 @@ namespace Kirkenta.Pages.POS
                 };
                 _context.Pagos.Add(pago);
 
-                // Registro automático en finanzas
+                _context.SaveChanges();  // 🔑 Guardamos el pago ANTES de crear el envío
+
+                // ===== CREAR ENVÍO SI APLICA =====
+                // REGLA DE NEGOCIO: solo se crea el envío si hay pago registrado (ya se cobró).
+                // El pago se registró arriba, así que validamos que exista en BD.
+                Envio? envio = null;
+                if (request.RequiereEnvio)
+                {
+                    // Doble check: verificar que el pago esté en BD antes de crear el envío
+                    var pagoExiste = _context.Pagos.Any(p => p.VentaId == venta.Id);
+
+                    if (!pagoExiste)
+                    {
+                        Console.WriteLine($"[POS] ⚠️ ADVERTENCIA: Se intentó crear envío para venta {venta.Numero} sin pago registrado. Envío NO creado.");
+                    }
+                    else
+                    {
+                        envio = EnvioHelper.CrearParaVenta(
+                            _context,
+                            venta,
+                            request.EnvioDireccion!,
+                            request.EnvioReferencia,
+                            request.EnvioContactoNombre!,
+                            request.EnvioContactoTelefono!,
+                            request.EnvioCiudad,
+                            request.EnvioZonaId,
+                            montoEnvioCalculo,
+                            currentUser.Id
+                        );
+                    }
+                }
+
+                // ===== REGISTRO AUTOMÁTICO EN FINANZAS =====
                 bool movimientoRegistrado = false;
                 string? movimientoError = null;
 
@@ -342,14 +405,16 @@ namespace Kirkenta.Pages.POS
                             VentaId = venta.Id,
                             Fecha = DateTime.Now,
                             FechaVencimiento = DateTime.Now.AddDays(30),
-                            Subtotal = subtotal,
+                            Subtotal = subtotalItems,
                             Descuento = request.Descuento,
                             Impuestos = impuestosTotal,
                             Total = total,
                             Saldo = 0,
                             Estado = "Pagada",
                             Notas = $"Facturada desde cotización {cot.Numero}",
-                            UsuarioCreoId = currentUser.Id
+                            UsuarioCreoId = currentUser.Id,
+                            RequiereEnvio = request.RequiereEnvio,
+                            MontoEnvio = montoEnvioCalculo
                         };
 
                         _context.Facturas.Add(factura);
@@ -376,6 +441,12 @@ namespace Kirkenta.Pages.POS
                         cot.FacturaId = factura.Id;
                         cot.FechaConversion = DateTime.Now;
 
+                        // Trasladar el envío a la factura también
+                        if (envio != null)
+                        {
+                            envio.FacturaId = factura.Id;
+                        }
+
                         _context.SaveChanges();
 
                         ActividadHelper.Registrar(
@@ -383,6 +454,7 @@ namespace Kirkenta.Pages.POS
                             currentUser.Id,
                             "Cotización facturada",
                             $"Facturó la cotización {cot.Numero} como {factura.Numero} por L. {total:N2}" +
+                            (request.RequiereEnvio ? $" (con envío de L. {montoEnvioCalculo:N2})" : "") +
                             (movimientoRegistrado ? " (movimiento financiero registrado)" : ""),
                             HttpContext.Connection.RemoteIpAddress?.ToString());
 
@@ -392,6 +464,8 @@ namespace Kirkenta.Pages.POS
                             numero = factura.Numero,
                             total = total,
                             tipo = "factura",
+                            requiereEnvio = request.RequiereEnvio,
+                            envioNumero = envio?.Numero,
                             movimientoRegistrado = movimientoRegistrado,
                             movimientoError = movimientoError
                         });
@@ -405,6 +479,7 @@ namespace Kirkenta.Pages.POS
                     currentUser.Id,
                     "Venta POS",
                     $"Registró la venta {venta.Numero} por L. {venta.Total:N2}" +
+                    (request.RequiereEnvio ? $" (envío L. {montoEnvioCalculo:N2})" : "") +
                     (movimientoRegistrado ? " (movimiento financiero registrado)" : ""),
                     HttpContext.Connection.RemoteIpAddress?.ToString());
 
@@ -414,6 +489,8 @@ namespace Kirkenta.Pages.POS
                     numero = venta.Numero,
                     total = venta.Total,
                     tipo = "venta",
+                    requiereEnvio = request.RequiereEnvio,
+                    envioNumero = envio?.Numero,
                     movimientoRegistrado = movimientoRegistrado,
                     movimientoError = movimientoError
                 });

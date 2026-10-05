@@ -22,6 +22,10 @@ namespace Kirkenta.Models
         public string? RangoFinal { get; set; }
         public DateTime? FechaLimiteEmision { get; set; }
         public int? UsuarioCreoId { get; set; }
+
+        // ===== LOGÍSTICA =====
+        public bool RequiereEnvio { get; set; } = false;
+        public decimal MontoEnvio { get; set; } = 0;
     }
 
     public class DetalleFactura

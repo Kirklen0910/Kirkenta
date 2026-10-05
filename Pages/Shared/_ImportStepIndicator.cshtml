@@ -1,0 +1,45 @@
+@* Indicador visual de pasos del wizard de importación *@
+@* Uso: @await Html.PartialAsync("_ImportStepIndicator", new { Paso = 1 }) *@
+@model dynamic
+@{
+    int pasoActual = (int)(Model?.Paso ?? 1);
+}
+
+<div style="display:flex; gap:8px; margin-bottom:20px; align-items:center;">
+    @* Paso 1 *@
+    @if (pasoActual == 1)
+    {
+        <span style="background:var(--color-primary); color:#fff; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">1</span>
+        <span style="font-size:13px; font-weight:600; color:var(--color-primary);">Subir archivo</span>
+    }
+    else
+    {
+        <span style="background:var(--color-success); color:#fff; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">✓</span>
+        <span style="font-size:13px; color:var(--color-muted);">Subir archivo</span>
+    }
+
+    <span style="width:40px; height:2px; background:@(pasoActual >= 2 ? "var(--color-primary)" : "var(--color-border)");"></span>
+
+    @* Paso 2 *@
+    @if (pasoActual == 2)
+    {
+        <span style="background:var(--color-primary); color:#fff; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">2</span>
+        <span style="font-size:13px; font-weight:600; color:var(--color-primary);">Mapear columnas</span>
+    }
+    else if (pasoActual > 2)
+    {
+        <span style="background:var(--color-success); color:#fff; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">✓</span>
+        <span style="font-size:13px; color:var(--color-muted);">Mapear columnas</span>
+    }
+    else
+    {
+        <span style="background:var(--color-border); color:var(--color-muted); width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">2</span>
+        <span style="font-size:13px; color:var(--color-muted);">Mapear columnas</span>
+    }
+
+    <span style="width:40px; height:2px; background:var(--color-border);"></span>
+
+    @* Paso 3 *@
+    <span style="background:var(--color-border); color:var(--color-muted); width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">3</span>
+    <span style="font-size:13px; color:var(--color-muted);">Importar</span>
+</div>

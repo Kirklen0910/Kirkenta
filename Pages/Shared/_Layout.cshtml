@@ -33,7 +33,11 @@
         { "Empleados", "Empleados" }, { "Documentos", "Documentos" },
         { "Expedientes", "Expedientes" }, { "Vacaciones", "Vacaciones" },
         { "Permisos", "Permisos y licencias" }, { "Nomina", "Nómina" },
-        { "Feriados", "Feriados" }, { "Alertas", "Alertas" }
+        { "Feriados", "Feriados" }, { "Alertas", "Alertas" },
+        // LOGÍSTICA
+        { "Envios", "Envíos" }, { "Rutas", "Rutas de despacho" },
+        { "Zonas", "Zonas de envío" }, { "Repartidores", "Repartidores" },
+        { "Tracking", "Tracking público" }
     };
 
     var actionNames = new Dictionary<string, string>
@@ -393,8 +397,14 @@
                         </span>
                     </button>
                     <div class="erp-nav-submenu" id="menu-logistica">
-                        @if (puedeVerSubmodulo("Logistica", "Index")) { <a asp-page="/Logistica/Index">🗺️ Rutas</a> }
-                        @if (puedeVerSubmodulo("Logistica", "Envios")) { <a asp-page="/Logistica/Envios">🚚 Envíos</a> }
+                        @if (puedeVerSubmodulo("Logistica", "Index")) { <a asp-page="/Logistica/Index">📊 Dashboard</a> }
+                        @if (puedeVerSubmodulo("Logistica", "Envios")) { <a asp-page="/Logistica/Envios/Index">🚚 Envíos</a> }
+                        @if (puedeVerSubmodulo("Logistica", "Rutas")) { <a asp-page="/Logistica/Rutas/Index">🗺️ Rutas</a> }
+                        @if (puedeVerSubmodulo("Logistica", "Zonas")) { <a asp-page="/Logistica/Zonas/Index">📍 Zonas de envío</a> }
+                        @if (puedeVerSubmodulo("Logistica", "Repartidores")) { <a asp-page="/Logistica/Repartidores/Index">🏍️ Repartidores</a> }
+                        <div class="erp-nav-submenu-divider"></div>
+                        <a asp-page="/Logistica/Tracking/Index">🔍 Tracking público</a>
+                        @if (puedeVerSubmodulo("Logistica", "Reportes")) { <a asp-page="/Logistica/Reportes/Index">📈 Reportes</a> }
                     </div>
                 </div>
             }

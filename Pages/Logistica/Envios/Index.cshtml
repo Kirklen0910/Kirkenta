@@ -1,0 +1,317 @@
+@page
+@model Kirkenta.Pages.Logistica.Envios.IndexModel
+@using Kirkenta.Helpers.Logistica
+@{
+    ViewData["Title"] = "Envíos";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Logistica/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a Logística
+        </a>
+        <h2>Envíos</h2>
+        <p>Administra todos los envíos a domicilio</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrearRuta)
+        {
+            <a asp-page="/Logistica/Rutas/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nueva ruta
+            </a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<!-- KPIs de alertas -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <a asp-page="/Logistica/Envios/Index" asp-route-filtro="atrasados" class="kpi-card" style="text-decoration: none; cursor: pointer; border-left: 4px solid #ef4444; @(Model.FiltroAlerta == "atrasados" ? "box-shadow: 0 0 0 2px #ef4444;" : "")">
+        <span class="kpi-label">🔴 Atrasados</span>
+        <span class="kpi-value" style="color: #ef4444;">@Model.TotalAtrasados</span>
+        <span class="kpi-trend">Ver solo atrasados</span>
+    </a>
+    <a asp-page="/Logistica/Envios/Index" asp-route-filtro="vencenHoy" class="kpi-card" style="text-decoration: none; cursor: pointer; border-left: 4px solid #f59e0b; @(Model.FiltroAlerta == "vencenHoy" ? "box-shadow: 0 0 0 2px #f59e0b;" : "")">
+        <span class="kpi-label">🟡 Vencen hoy</span>
+        <span class="kpi-value" style="color: #f59e0b;">@Model.TotalVencenHoy</span>
+        <span class="kpi-trend">Ver los de hoy</span>
+    </a>
+    <a asp-page="/Logistica/Envios/Index" asp-route-filtro="pendientes" class="kpi-card" style="text-decoration: none; cursor: pointer; @(Model.FiltroAlerta == "pendientes" ? "box-shadow: 0 0 0 2px var(--color-primary);" : "")">
+        <span class="kpi-label">📦 Pendientes</span>
+        <span class="kpi-value">@Model.TotalPendientes</span>
+        <span class="kpi-trend">Sin despachar</span>
+    </a>
+    <a asp-page="/Logistica/Envios/Index" asp-route-filtro="enruta" class="kpi-card" style="text-decoration: none; cursor: pointer; @(Model.FiltroAlerta == "enruta" ? "box-shadow: 0 0 0 2px var(--color-primary);" : "")">
+        <span class="kpi-label">🚚 En ruta</span>
+        <span class="kpi-value" style="color: var(--color-primary);">@Model.TotalEnRuta</span>
+        <span class="kpi-trend">En camino</span>
+    </a>
+    <a asp-page="/Logistica/Envios/Index" asp-route-filtro="entregados" class="kpi-card" style="text-decoration: none; cursor: pointer; @(Model.FiltroAlerta == "entregados" ? "box-shadow: 0 0 0 2px #10b981;" : "")">
+        <span class="kpi-label">✅ Entregados</span>
+        <span class="kpi-value" style="color: #10b981;">@Model.TotalEntregados</span>
+        <span class="kpi-trend">Completados</span>
+    </a>
+    <a asp-page="/Logistica/Envios/Index" asp-route-filtro="fallidos" class="kpi-card" style="text-decoration: none; cursor: pointer; @(Model.FiltroAlerta == "fallidos" ? "box-shadow: 0 0 0 2px #dc2626;" : "")">
+        <span class="kpi-label">❌ Fallidos</span>
+        <span class="kpi-value" style="color: #dc2626;">@Model.TotalFallidos</span>
+        <span class="kpi-trend">Requieren reagendar</span>
+    </a>
+</div>
+
+<div class="module-card">
+    <!-- Filtros -->
+    <div class="module-toolbar">
+        <form method="get" style="display: flex; gap: 12px; flex: 1; flex-wrap: wrap; align-items: center;">
+            <input type="hidden" name="filtro" value="@Model.FiltroAlerta" />
+
+            <div class="search-box" style="flex: 1; min-width: 250px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" name="busqueda" value="@Model.FiltroBusqueda" placeholder="Buscar por número, cliente, dirección, teléfono..." />
+            </div>
+
+            <select name="estado" class="filter-select">
+                <option value="">Todos los estados</option>
+                @if (Model.FiltroEstado == "Pendiente") { <option value="Pendiente" selected>Pendiente</option> } else { <option value="Pendiente">Pendiente</option> }
+                @if (Model.FiltroEstado == "EnRuta") { <option value="EnRuta" selected>En ruta</option> } else { <option value="EnRuta">En ruta</option> }
+                @if (Model.FiltroEstado == "Entregado") { <option value="Entregado" selected>Entregado</option> } else { <option value="Entregado">Entregado</option> }
+                @if (Model.FiltroEstado == "Fallido") { <option value="Fallido" selected>Fallido</option> } else { <option value="Fallido">Fallido</option> }
+                @if (Model.FiltroEstado == "Cancelado") { <option value="Cancelado" selected>Cancelado</option> } else { <option value="Cancelado">Cancelado</option> }
+            </select>
+
+            <select name="zonaId" class="filter-select">
+                <option value="">Todas las zonas</option>
+                @foreach (var z in Model.Zonas)
+                {
+                    if (Model.FiltroZonaId == z.Id)
+                    {
+                        <option value="@z.Id" selected>@z.Nombre</option>
+                    }
+                    else
+                    {
+                        <option value="@z.Id">@z.Nombre</option>
+                    }
+                }
+            </select>
+
+            <input type="date" name="desde" value="@(Model.FiltroDesde?.ToString("yyyy-MM-dd"))" class="filter-select" title="Desde" />
+            <input type="date" name="hasta" value="@(Model.FiltroHasta?.ToString("yyyy-MM-dd"))" class="filter-select" title="Hasta" />
+
+            <button type="submit" class="btn-primary btn-sm">Filtrar</button>
+            <a asp-page="/Logistica/Envios/Index" class="btn-secondary btn-sm">Limpiar</a>
+        </form>
+    </div>
+
+    <!-- Indicador de filtro activo -->
+    @if (!string.IsNullOrEmpty(Model.FiltroAlerta))
+    {
+        var texto = Model.FiltroAlerta switch
+        {
+            "atrasados" => "🔴 Mostrando solo envíos ATRASADOS",
+            "vencenHoy" => "🟡 Mostrando solo envíos que VENCEN HOY",
+            "pendientes" => "📦 Mostrando solo envíos PENDIENTES",
+            "enruta" => "🚚 Mostrando solo envíos EN RUTA",
+            "entregados" => "✅ Mostrando solo envíos ENTREGADOS",
+            "fallidos" => "❌ Mostrando solo envíos FALLIDOS",
+            "sinRuta" => "📭 Mostrando envíos SIN RUTA ASIGNADA",
+            _ => ""
+        };
+        <div style="padding: 10px 16px; background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary); border-radius: 6px; font-size: 13px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <span><strong>@texto</strong></span>
+            <a asp-page="/Logistica/Envios/Index" style="font-size: 12px; text-decoration: underline;">Quitar filtro</a>
+        </div>
+    }
+
+    @if (Model.Envios.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="1" y="3" width="15" height="13"/>
+                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+                <circle cx="5.5" cy="18.5" r="2.5"/>
+                <circle cx="18.5" cy="18.5" r="2.5"/>
+            </svg>
+            <h3>No se encontraron envíos</h3>
+            <p>@(string.IsNullOrEmpty(Model.FiltroAlerta) && string.IsNullOrEmpty(Model.FiltroEstado) ? "Aún no hay envíos registrados. Se crean automáticamente al facturar una venta con envío." : "Ajusta los filtros para ver más resultados.")</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="enviosTable">
+                <thead>
+                    <tr>
+                        <th style="width: 30px;"></th>
+                        <th>Número</th>
+                        <th>Cliente</th>
+                        <th>Dirección</th>
+                        <th>Zona</th>
+                        <th>Fecha estimada</th>
+                        <th>Ruta</th>
+                        <th>Estado</th>
+                        <th style="width: 120px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Model.Envios)
+                    {
+                        var semaforoColor = e.Semaforo switch
+                        {
+                            "Rojo" => "#ef4444",
+                            "Amarillo" => "#f59e0b",
+                            _ => "#10b981"
+                        };
+                        var semaforoIcono = e.Semaforo switch
+                        {
+                            "Rojo" => "🔴",
+                            "Amarillo" => "🟡",
+                            _ => "🟢"
+                        };
+                        var badgeEstado = e.Estado switch
+                        {
+                            "Pendiente" => "badge badge-warning",
+                            "EnRuta" => "badge badge-info",
+                            "Entregado" => "badge badge-success",
+                            "Fallido" => "badge badge-danger",
+                            "Cancelado" => "badge",
+                            _ => "badge"
+                        };
+
+                        <tr data-numero="@e.Numero.ToLower()" data-cliente="@e.ClienteNombre.ToLower()" data-estado="@e.Estado" data-semaforo="@e.Semaforo">
+                            <td title="@AlertaEnvioHelper.EtiquetaSemaforo(e.Semaforo)">
+                                <span style="font-size: 14px;">@semaforoIcono</span>
+                            </td>
+                            <td>
+                                <a asp-page="/Logistica/Envios/Details" asp-route-id="@e.Id">
+                                    <strong>@e.Numero</strong>
+                                </a>
+                            </td>
+                            <td>
+                                <div class="table-user-cell">
+                                    <span class="table-user-name">@e.ClienteNombre</span>
+                                    @if (!string.IsNullOrEmpty(e.ContactoTelefono))
+                                    {
+                                        <span class="table-user-sub">📞 @e.ContactoTelefono</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <span class="table-user-sub" title="@e.DireccionEntrega">
+                                    @(e.DireccionEntrega.Length > 40 ? e.DireccionEntrega.Substring(0, 40) + "..." : e.DireccionEntrega)
+                                </span>
+                                @if (!string.IsNullOrEmpty(e.Ciudad))
+                                {
+                                    <br /><span class="table-user-sub">@e.Ciudad</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(e.ZonaNombre))
+                                {
+                                    <span class="badge badge-info">@e.ZonaNombre</span>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">—</span>
+                                }
+                            </td>
+                            <td>
+                                @if (e.FechaEntregaEstimada.HasValue)
+                                {
+                                    <span style="color: @(e.Semaforo == "Rojo" ? "#ef4444" : e.Semaforo == "Amarillo" ? "#f59e0b" : "inherit"); font-weight: 600;">
+                                        @e.FechaEntregaEstimada.Value.ToString("dd/MM/yyyy")
+                                    </span>
+                                    @if (e.DiasDiferencia.HasValue && e.DiasDiferencia.Value != 0 && e.Estado != "Entregado")
+                                    {
+                                        <br />
+                                        <span class="table-user-sub">
+                                            @if (e.DiasDiferencia.Value > 0)
+                                            {
+                                                <span style="color: #ef4444;">@e.DiasDiferencia día(s) atrasado</span>
+                                            }
+                                            else
+                                            {
+                                                <span>en @(Math.Abs(e.DiasDiferencia.Value)) día(s)</span>
+                                            }
+                                        </span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">—</span>
+                                }
+                            </td>
+                            <td>
+                                @if (e.RutaId.HasValue)
+                                {
+                                    <a asp-page="/Logistica/Rutas/Details" asp-route-id="@e.RutaId">
+                                        <span style="font-family: monospace; color: var(--color-primary); font-weight: 600;">@e.RutaNumero</span>
+                                    </a>
+                                    @if (e.OrdenParada.HasValue)
+                                    {
+                                        <br /><span class="table-user-sub">Parada #@e.OrdenParada</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="badge badge-warning">Sin asignar</span>
+                                }
+                            </td>
+                            <td><span class="@badgeEstado">@e.Estado</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <a asp-page="/Logistica/Envios/Details" asp-route-id="@e.Id" class="btn-icon-action" title="Ver detalle">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
+                                    @if (e.Estado == "Pendiente" && !e.RutaId.HasValue && Model.PuedeCrearRuta)
+                                    {
+                                        <a asp-page="/Logistica/Rutas/Create" asp-route-envioId="@e.Id" class="btn-icon-action" title="Asignar a ruta" style="color: var(--color-success);">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

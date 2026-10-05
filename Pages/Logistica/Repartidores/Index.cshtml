@@ -1,0 +1,280 @@
+@page
+@model Kirkenta.Pages.Logistica.Repartidores.IndexModel
+@{
+    ViewData["Title"] = "Repartidores";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Logistica/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a Logística
+        </a>
+        <h2>Repartidores</h2>
+        <p>Motoristas y personal de entrega a domicilio</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/Logistica/Repartidores/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nuevo repartidor
+            </a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Repartidores activos</span>
+        <span class="kpi-value" style="color: #10b981;">@Model.TotalActivos</span>
+        <span class="kpi-trend">Disponibles para asignar</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Repartidores inactivos</span>
+        <span class="kpi-value" style="color: #6b7280;">@Model.TotalInactivos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Rutas asignadas</span>
+        <span class="kpi-value" style="color: var(--color-primary);">@Model.TotalRutasActivas</span>
+        <span class="kpi-trend">En Borrador o EnReparto</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Entregas completadas</span>
+        <span class="kpi-value" style="color: #10b981;">@Model.TotalEntregas</span>
+        <span class="kpi-trend">Histórico total</span>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-toolbar">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Buscar por nombre, código, teléfono o placa..." />
+        </div>
+        <div class="filter-group">
+            <select id="filterEstado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="activo">Activos</option>
+                <option value="inactivo">Inactivos</option>
+            </select>
+            <select id="filterVehiculo" class="filter-select">
+                <option value="">Todos los vehículos</option>
+                @foreach (var v in Model.VehiculosDisponibles)
+                {
+                    <option value="@v">@v</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    @if (Model.Repartidores.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="5.5" cy="17.5" r="3.5"/>
+                <circle cx="18.5" cy="17.5" r="3.5"/>
+                <path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+                <path d="M15 6l-1 8h-4l-1-8"/>
+                <path d="M5 14l1-8h4"/>
+            </svg>
+            <h3>No hay repartidores registrados</h3>
+            <p>Registra el primer repartidor para poder asignarle rutas</p>
+            @if (Model.PuedeCrear)
+            {
+                <a asp-page="/Logistica/Repartidores/Create" class="btn-primary">Nuevo repartidor</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="repartidoresTable">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;"></th>
+                        <th>Código</th>
+                        <th>Repartidor</th>
+                        <th>Vehículo</th>
+                        <th style="text-align: right;">Rutas activas</th>
+                        <th style="text-align: right;">Entregas</th>
+                        <th>Estado</th>
+                        <th style="width: 140px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Repartidores)
+                    {
+                        <tr data-nombre="@r.Nombre.ToLower()"
+                            data-codigo="@r.Codigo.ToLower()"
+                            data-telefono="@(r.Telefono?.ToLower() ?? "")"
+                            data-placa="@(r.Placa?.ToLower() ?? "")"
+                            data-vehiculo="@(r.Vehiculo?.ToLower() ?? "")"
+                            data-estado="@(r.Activo ? "activo" : "inactivo")">
+                            <td>
+                                <div class="user-avatar-sm" style="background: var(--color-primary);">
+                                    @(string.IsNullOrEmpty(r.Nombre) ? "?" : r.Nombre.Substring(0, 1).ToUpper())
+                                </div>
+                            </td>
+                            <td>
+                                <span style="font-family: monospace; font-weight: 600;">@r.Codigo</span>
+                            </td>
+                            <td>
+                                <div class="table-user-cell">
+                                    <span class="table-user-name">@r.Nombre</span>
+                                    @if (!string.IsNullOrEmpty(r.Telefono))
+                                    {
+                                        <span class="table-user-sub">📞 @r.Telefono</span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(r.Licencia))
+                                    {
+                                        <span class="table-user-sub">Licencia: @r.Licencia</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(r.Vehiculo))
+                                {
+                                    <div class="table-user-cell">
+                                        <span class="table-user-name">🚗 @r.Vehiculo</span>
+                                        @if (!string.IsNullOrEmpty(r.Placa))
+                                        {
+                                            <span class="table-user-sub" style="font-family: monospace;">@r.Placa</span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">—</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">
+                                @if (r.RutasActivas > 0)
+                                {
+                                    <a asp-page="/Logistica/Rutas/Index" asp-route-repartidorId="@r.Id" style="color: var(--color-primary); font-weight: 600;">
+                                        @r.RutasActivas
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">0</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">
+                                <span class="badge badge-success">@r.TotalEntregas</span>
+                            </td>
+                            <td>
+                                @if (r.Activo)
+                                {
+                                    <span class="badge badge-success">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-danger">Inactivo</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    @if (Model.PuedeEditar)
+                                    {
+                                        <a asp-page="/Logistica/Repartidores/Edit" asp-route-id="@r.Id" class="btn-icon-action" title="Editar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                    @if (Model.PuedeEliminar)
+                                    {
+                                        <a asp-page="/Logistica/Repartidores/Delete" asp-route-id="@r.Id" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="3 6 5 6 21 6"/>
+                                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var filterEstado = document.getElementById('filterEstado');
+            var filterVehiculo = document.getElementById('filterVehiculo');
+            var table = document.getElementById('repartidoresTable');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+
+            function filterRows() {
+                var search = (searchInput?.value || '').toLowerCase().trim();
+                var estado = filterEstado?.value || '';
+                var vehiculo = (filterVehiculo?.value || '').toLowerCase();
+
+                rows.forEach(function (row) {
+                    var nombre = row.dataset.nombre || '';
+                    var codigo = row.dataset.codigo || '';
+                    var telefono = row.dataset.telefono || '';
+                    var placa = row.dataset.placa || '';
+                    var rowVehiculo = row.dataset.vehiculo || '';
+                    var rowEstado = row.dataset.estado || '';
+
+                    var matchSearch = !search
+                        || nombre.includes(search)
+                        || codigo.includes(search)
+                        || telefono.includes(search)
+                        || placa.includes(search);
+
+                    var matchEstado = !estado || rowEstado === estado;
+                    var matchVehiculo = !vehiculo || rowVehiculo === vehiculo;
+
+                    row.style.display = (matchSearch && matchEstado && matchVehiculo) ? '' : 'none';
+                });
+            }
+
+            searchInput?.addEventListener('input', filterRows);
+            filterEstado?.addEventListener('change', filterRows);
+            filterVehiculo?.addEventListener('change', filterRows);
+        })();
+    </script>
+}

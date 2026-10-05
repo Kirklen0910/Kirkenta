@@ -1,0 +1,101 @@
+@page
+@model Kirkenta.Pages.Logistica.Repartidores.CreateModel
+@{
+    ViewData["Title"] = "Nuevo repartidor";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Logistica/Repartidores/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a repartidores
+        </a>
+        <h2>Nuevo repartidor</h2>
+        <p>Código: <strong>@Model.CodigoPreview</strong></p>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span asp-validation-summary="ModelOnly"></span>
+            </div>
+        }
+
+        <h3 class="form-section-title">👤 Datos del repartidor</h3>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Codigo">Código</label>
+                <input asp-for="Input.Codigo" class="form-input" placeholder="@Model.CodigoPreview" />
+                <small class="form-help">
+                    Déjalo vacío para autogenerar: <strong>@Model.CodigoPreview</strong>
+                </small>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Nombre">Nombre completo *</label>
+                <input asp-for="Input.Nombre" class="form-input" placeholder="Ej: Juan Pérez" required />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Telefono">Teléfono</label>
+                <input asp-for="Input.Telefono" class="form-input" placeholder="9999-9999" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Licencia">Número de licencia de conducir</label>
+                <input asp-for="Input.Licencia" class="form-input" placeholder="Ej: 0801-1990-12345" />
+            </div>
+        </div>
+
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">🚗 Vehículo asignado</h3>
+        <p class="form-section-desc">Datos del vehículo que usará para repartir. Todos opcionales.</p>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Vehiculo">Vehículo</label>
+                <input asp-for="Input.Vehiculo" class="form-input" placeholder="Ej: Moto, Camión Isuzu, Pickup Toyota" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Placa">Placa</label>
+                <input asp-for="Input.Placa" class="form-input" placeholder="Ej: HAA-1234" />
+            </div>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <div class="form-field">
+            <label asp-for="Input.Notas">Notas</label>
+            <textarea asp-for="Input.Notas" class="form-input" rows="3" placeholder="Observaciones sobre el repartidor..."></textarea>
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.Activo" type="checkbox" checked />
+                <span>Repartidor activo (disponible para asignar rutas)</span>
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Logistica/Repartidores/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Crear repartidor
+            </button>
+        </div>
+    </form>
+</div>

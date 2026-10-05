@@ -1,0 +1,173 @@
+@page
+@model Kirkenta.Pages.Logistica.Zonas.IndexModel
+@{
+    ViewData["Title"] = "Zonas de envío";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Logistica/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a Logística
+        </a>
+        <h2>Zonas de envío</h2>
+        <p>Configura las zonas y precios sugeridos para los envíos</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/Logistica/Zonas/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nueva zona
+            </a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Zonas activas</span>
+        <span class="kpi-value" style="color: #10b981;">@Model.TotalActivas</span>
+        <span class="kpi-trend">Disponibles para envíos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Zonas inactivas</span>
+        <span class="kpi-value" style="color: #6b7280;">@Model.TotalInactivas</span>
+        <span class="kpi-trend">Ocultas al crear envíos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Envíos con zona</span>
+        <span class="kpi-value">@Model.TotalEnviosAsociados</span>
+        <span class="kpi-trend">Histórico total</span>
+    </div>
+</div>
+
+<div class="module-card">
+    @if (Model.Zonas.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+            </svg>
+            <h3>No hay zonas de envío</h3>
+            <p>Crea la primera zona para clasificar tus envíos por distancia</p>
+            @if (Model.PuedeCrear)
+            {
+                <a asp-page="/Logistica/Zonas/Create" class="btn-primary">Nueva zona</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">Orden</th>
+                        <th style="width: 40px;"></th>
+                        <th>Nombre</th>
+                        <th>Descripción</th>
+                        <th style="text-align: right;">Precio sugerido</th>
+                        <th style="text-align: right;">Envíos</th>
+                        <th>Estado</th>
+                        <th style="width: 140px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var z in Model.Zonas)
+                    {
+                        <tr>
+                            <td>
+                                <strong style="font-size: 15px; color: var(--color-muted);">@z.Orden</strong>
+                            </td>
+                            <td>
+                                <div style="width: 24px; height: 24px; border-radius: 6px; background: @z.Color;"></div>
+                            </td>
+                            <td><strong>@z.Nombre</strong></td>
+                            <td>
+                                <span class="table-user-sub">
+                                    @(string.IsNullOrEmpty(z.Descripcion) ? "—" : (z.Descripcion.Length > 50 ? z.Descripcion.Substring(0, 50) + "..." : z.Descripcion))
+                                </span>
+                            </td>
+                            <td style="text-align: right;">
+                                @if (z.PrecioSugerido == 0)
+                                {
+                                    <span class="badge badge-success">Gratis</span>
+                                }
+                                else
+                                {
+                                    <strong>L. @z.PrecioSugerido.ToString("N2")</strong>
+                                }
+                            </td>
+                            <td style="text-align: right;">
+                                <span class="badge badge-info">@z.EnviosCount</span>
+                            </td>
+                            <td>
+                                @if (z.Activa)
+                                {
+                                    <span class="badge badge-success">Activa</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-danger">Inactiva</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    @if (Model.PuedeEditar)
+                                    {
+                                        <a asp-page="/Logistica/Zonas/Edit" asp-route-id="@z.Id" class="btn-icon-action" title="Editar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                    @if (Model.PuedeEliminar)
+                                    {
+                                        <a asp-page="/Logistica/Zonas/Delete" asp-route-id="@z.Id" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="3 6 5 6 21 6"/>
+                                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                            </svg>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

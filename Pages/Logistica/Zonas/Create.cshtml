@@ -1,0 +1,100 @@
+@page
+@model Kirkenta.Pages.Logistica.Zonas.CreateModel
+@{
+    ViewData["Title"] = "Nueva zona de envío";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Logistica/Zonas/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a zonas
+        </a>
+        <h2>Nueva zona de envío</h2>
+        <p>Configura una zona con precio sugerido para clasificar envíos</p>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span asp-validation-summary="ModelOnly"></span>
+            </div>
+        }
+
+        <div class="form-field">
+            <label asp-for="Input.Nombre">Nombre *</label>
+            <input asp-for="Input.Nombre" class="form-input" placeholder="Ej: Centro / Casco Urbano" required />
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Descripcion">Descripción</label>
+            <textarea asp-for="Input.Descripcion" class="form-input" rows="2" placeholder="Ej: Zona céntrica de la ciudad, entregas rápidas..."></textarea>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.PrecioSugerido">Precio sugerido (L.)</label>
+                <input asp-for="Input.PrecioSugerido" type="number" step="0.01" min="0" class="form-input" value="0" />
+                <small class="form-help">Es solo un valor sugerido, el cajero puede ajustarlo al cobrar</small>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Orden">Orden de aparición</label>
+                <input asp-for="Input.Orden" type="number" min="0" class="form-input" />
+                <small class="form-help">Menor número = aparece primero en las listas</small>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Color">Color</label>
+            <div class="color-picker-wrapper">
+                <input asp-for="Input.Color" type="color" class="color-picker" id="colorPicker" />
+                <span class="color-preview" id="colorPreview" style="background: #4f46e5; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;">#4f46e5</span>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.Activa" type="checkbox" checked />
+                <span>Zona activa (disponible al crear envíos)</span>
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Logistica/Zonas/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Crear zona
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var picker = document.getElementById('colorPicker');
+            var preview = document.getElementById('colorPreview');
+            if (picker && preview) {
+                preview.style.background = picker.value;
+                preview.textContent = picker.value;
+                picker.addEventListener('input', function () {
+                    preview.textContent = picker.value;
+                    preview.style.background = picker.value;
+                });
+            }
+        })();
+    </script>
+}

@@ -1,0 +1,520 @@
+@page
+@model Kirkenta.Pages.Logistica.IndexModel
+@{
+    ViewData["Title"] = "Logística";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Logística</h2>
+        <p>Control de envíos, rutas y entregas a domicilio</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrearRuta)
+        {
+            <a asp-page="/Logistica/Rutas/Create" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nueva ruta
+            </a>
+        }
+        <a asp-page="/Logistica/Envios/Index" class="btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <rect x="1" y="3" width="15" height="13"/>
+                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+                <circle cx="5.5" cy="18.5" r="2.5"/>
+                <circle cx="18.5" cy="18.5" r="2.5"/>
+            </svg>
+            Ver todos los envíos
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+<!-- ============================================ -->
+<!-- BANNER DE ALERTAS CRÍTICAS                    -->
+<!-- ============================================ -->
+@if (Model.Alertas.HayAlertas)
+{
+    <div class="module-alert module-alert-error" style="display: flex; align-items: flex-start; gap: 14px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px; flex-shrink: 0; margin-top: 2px;">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <div style="flex: 1;">
+            <strong style="font-size: 14px;">⚠️ Hay alertas activas en Logística</strong>
+            <ul style="margin: 8px 0 0 16px; font-size: 13px; padding: 0; line-height: 1.8;">
+                @if (Model.Alertas.EnviosAtrasados > 0)
+                {
+                    <li><strong>@Model.Alertas.EnviosAtrasados</strong> envío(s) ATRASADO(s) — fecha estimada ya vencida</li>
+                }
+                @if (Model.Alertas.EnviosFallidos > 0)
+                {
+                    <li><strong>@Model.Alertas.EnviosFallidos</strong> envío(s) FALLIDO(s) — requieren reagendar</li>
+                }
+                @if (Model.Alertas.RutasAtrasadas > 0)
+                {
+                    <li><strong>@Model.Alertas.RutasAtrasadas</strong> ruta(s) en reparto con paradas ATRASADAS</li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+else
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <strong>¡Todo en orden!</strong> No hay alertas de entregas pendientes.
+    </div>
+}
+
+<!-- ============================================ -->
+<!-- KPIs DE ALERTAS (semaforos)                   -->
+<!-- ============================================ -->
+<div class="kpi-grid" style="margin-bottom: 24px;">
+    <div class="kpi-card" style="border-left: 4px solid #ef4444;">
+        <span class="kpi-label">🔴 Envíos atrasados</span>
+        <span class="kpi-value" style="color: #ef4444;">@Model.Alertas.EnviosAtrasados</span>
+        <span class="kpi-trend @(Model.Alertas.EnviosAtrasados > 0 ? "down" : "up")">
+            @(Model.Alertas.EnviosAtrasados > 0 ? "Requieren atención urgente" : "Sin atrasos")
+        </span>
+    </div>
+    <div class="kpi-card" style="border-left: 4px solid #f59e0b;">
+        <span class="kpi-label">🟡 Vencen hoy</span>
+        <span class="kpi-value" style="color: #f59e0b;">@Model.Alertas.EnviosVencenHoy</span>
+        <span class="kpi-trend">Deben entregarse hoy</span>
+    </div>
+    <div class="kpi-card" style="border-left: 4px solid #4f46e5;">
+        <span class="kpi-label">🟢 Entregados hoy</span>
+        <span class="kpi-value" style="color: #10b981;">@Model.Alertas.EnviosEntregadosHoy</span>
+        <span class="kpi-trend up">Completados con éxito</span>
+    </div>
+    <div class="kpi-card" style="border-left: 4px solid #dc2626;">
+        <span class="kpi-label">❌ Fallidos</span>
+        <span class="kpi-value" style="color: #dc2626;">@Model.Alertas.EnviosFallidos</span>
+        <span class="kpi-trend @(Model.Alertas.EnviosFallidos > 0 ? "down" : "up")">
+            @(Model.Alertas.EnviosFallidos > 0 ? "Requieren reagendar" : "Sin fallos")
+        </span>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- KPIs GENERALES                                -->
+<!-- ============================================ -->
+<div class="kpi-grid" style="margin-bottom: 24px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total envíos</span>
+        <span class="kpi-value">@Model.TotalEnvios</span>
+        <span class="kpi-trend">@Model.EnviosPendientes pendientes · @Model.EnviosEnRuta en ruta</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Rutas activas</span>
+        <span class="kpi-value" style="color: var(--color-primary);">@Model.RutasEnReparto</span>
+        <span class="kpi-trend">@Model.RutasBorrador en borrador · @Model.RutasCompletadas completadas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Repartidores</span>
+        <span class="kpi-value">@Model.RepartidoresActivos</span>
+        <span class="kpi-trend">Activos de @Model.TotalRepartidores totales</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Zonas activas</span>
+        <span class="kpi-value">@Model.TotalZonas</span>
+        <span class="kpi-trend">Cobertura de entregas</span>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- ACCESOS RÁPIDOS                               -->
+<!-- ============================================ -->
+<div class="section" style="margin-bottom: 24px;">
+    <h2 class="section-title">Accesos rápidos</h2>
+    <div class="quick-grid">
+        <a asp-page="/Logistica/Envios/Index" class="quick-action">
+            <span class="quick-icon">📦</span>
+            <span class="quick-label">Envíos</span>
+        </a>
+        <a asp-page="/Logistica/Rutas/Index" class="quick-action">
+            <span class="quick-icon">🗺️</span>
+            <span class="quick-label">Rutas</span>
+        </a>
+        <a asp-page="/Logistica/Repartidores/Index" class="quick-action">
+            <span class="quick-icon">🏍️</span>
+            <span class="quick-label">Repartidores</span>
+        </a>
+        <a asp-page="/Logistica/Zonas/Index" class="quick-action">
+            <span class="quick-icon">📍</span>
+            <span class="quick-label">Zonas</span>
+        </a>
+        @if (Model.PuedeVerReportes)
+        {
+            <a asp-page="/Logistica/Reportes/Index" class="quick-action">
+                <span class="quick-icon">📊</span>
+                <span class="quick-label">Reportes</span>
+            </a>
+        }
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- PANEL: ENVÍOS ATRASADOS                       -->
+<!-- ============================================ -->
+@if (Model.EnviosAtrasados.Count > 0)
+{
+    <div class="module-card" style="padding: 0; margin-bottom: 20px; border-left: 4px solid #ef4444;">
+        <div style="padding: 20px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h3 class="panel-title" style="margin: 0; color: #ef4444;">🔴 Envíos atrasados (@Model.EnviosAtrasados.Count)</h3>
+                <p class="panel-muted" style="margin: 4px 0 0 0;">Estos envíos debieron entregarse antes de hoy</p>
+            </div>
+            <a asp-page="/Logistica/Envios/Index" asp-route-filtro="atrasados" class="btn-secondary btn-sm">Ver todos</a>
+        </div>
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Cliente</th>
+                        <th>Zona</th>
+                        <th>Fecha estimada</th>
+                        <th style="text-align: right;">Días atraso</th>
+                        <th>Estado</th>
+                        <th style="width: 80px; text-align: right;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Model.EnviosAtrasados.Take(10))
+                    {
+                        <tr>
+                            <td><strong>@e.Numero</strong></td>
+                            <td>@e.ClienteNombre</td>
+                            <td>@(e.ZonaNombre ?? "—")</td>
+                            <td>@(e.FechaEntregaEstimada?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            <td style="text-align: right;">
+                                <span class="badge badge-danger">
+                                    @(e.DiasDiferencia.HasValue ? $"{e.DiasDiferencia} día(s)" : "—")
+                                </span>
+                            </td>
+                            <td>
+                                @if (e.Estado == "Pendiente") { <span class="badge badge-warning">Pendiente</span> }
+                                else if (e.Estado == "EnRuta") { <span class="badge badge-info">En ruta</span> }
+                                else { <span class="badge">@e.Estado</span> }
+                            </td>
+                            <td style="text-align: right;">
+                                <a asp-page="/Logistica/Envios/Details" asp-route-id="@e.Id" class="btn-icon-action" title="Ver detalle">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.EnviosAtrasados.Count > 10)
+        {
+            <div style="padding: 12px 20px; text-align: center; font-size: 12.5px; color: var(--color-muted); border-top: 1px solid var(--color-border);">
+                ... y @(Model.EnviosAtrasados.Count - 10) más
+            </div>
+        }
+    </div>
+}
+
+<!-- ============================================ -->
+<!-- PANEL: RUTAS ATRASADAS                        -->
+<!-- ============================================ -->
+@if (Model.RutasAtrasadas.Count > 0)
+{
+    <div class="module-card" style="padding: 0; margin-bottom: 20px; border-left: 4px solid #f97316;">
+        <div style="padding: 20px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h3 class="panel-title" style="margin: 0; color: #f97316;">🟠 Rutas en reparto con paradas atrasadas (@Model.RutasAtrasadas.Count)</h3>
+                <p class="panel-muted" style="margin: 4px 0 0 0;">Estas rutas tienen paradas pendientes cuya fecha estimada ya venció</p>
+            </div>
+            <a asp-page="/Logistica/Rutas/Index" asp-route-filtro="enreparto" class="btn-secondary btn-sm">Ver rutas</a>
+        </div>
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Repartidor</th>
+                        <th>Vehículo</th>
+                        <th>Salida</th>
+                        <th style="text-align: right;">Progreso</th>
+                        <th style="text-align: right;">Atrasadas</th>
+                        <th style="width: 80px; text-align: right;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.RutasAtrasadas)
+                    {
+                        var progreso = r.TotalParadas > 0
+                            ? (int)Math.Round((double)(r.ParadasEntregadas + r.ParadasFallidas) / r.TotalParadas * 100)
+                            : 0;
+
+                        <tr>
+                            <td><strong>@r.Numero</strong></td>
+                            <td>@r.RepartidorNombre</td>
+                            <td>@(r.Vehiculo ?? "—")</td>
+                            <td>@(r.FechaSalida?.ToString("dd/MM HH:mm") ?? "—")</td>
+                            <td style="text-align: right;">
+                                <span class="table-user-sub">@(r.ParadasEntregadas + r.ParadasFallidas) / @r.TotalParadas (@progreso%)</span>
+                            </td>
+                            <td style="text-align: right;">
+                                <span class="badge badge-danger">@r.ParadasAtrasadas</span>
+                            </td>
+                            <td style="text-align: right;">
+                                <a asp-page="/Logistica/Rutas/Details" asp-route-id="@r.Id" class="btn-icon-action" title="Ver ruta">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<!-- ============================================ -->
+<!-- PANEL DOBLE: Envíos de hoy + Entregados hoy   -->
+<!-- ============================================ -->
+<div class="panel-grid" style="margin-bottom: 24px;">
+    <div class="module-card" style="padding: 20px; border-left: 4px solid #f59e0b;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">🟡 Envíos que vencen hoy (@Model.EnviosVencenHoy.Count)</h3>
+        @if (Model.EnviosVencenHoy.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">
+                No hay envíos programados para hoy ✅
+            </p>
+        }
+        else
+        {
+            <div class="timeline">
+                @foreach (var e in Model.EnviosVencenHoy.Take(8))
+                {
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background: #f59e0b;"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <strong>@e.Numero</strong>
+                                <span class="timeline-date">@(e.ZonaNombre ?? "Sin zona")</span>
+                            </div>
+                            <p class="timeline-detail">@e.ClienteNombre</p>
+                            @if (e.Estado == "EnRuta")
+                            {
+                                <span class="badge badge-info" style="font-size: 10px;">En ruta con @e.RepartidorNombre</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-warning" style="font-size: 10px;">Pendiente de asignar</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            @if (Model.EnviosVencenHoy.Count > 8)
+            {
+                <p style="text-align: center; font-size: 12px; color: var(--color-muted); margin-top: 12px;">
+                    ... y @(Model.EnviosVencenHoy.Count - 8) más
+                </p>
+            }
+        }
+    </div>
+
+    <div class="module-card" style="padding: 20px; border-left: 4px solid #10b981;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">🟢 Entregados hoy (@Model.EnviosEntregadosHoy.Count)</h3>
+        @if (Model.EnviosEntregadosHoy.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">
+                Aún no hay entregas hoy
+            </p>
+        }
+        else
+        {
+            <div class="timeline">
+                @foreach (var e in Model.EnviosEntregadosHoy.Take(8))
+                {
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background: #10b981;"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <strong>@e.Numero</strong>
+                                <span class="timeline-date">@(e.FechaEntregaReal?.ToString("HH:mm") ?? "")</span>
+                            </div>
+                            <p class="timeline-detail">@e.ClienteNombre — @(e.RepartidorNombre ?? "Sin repartidor")</p>
+                            @if (!string.IsNullOrEmpty(e.DireccionEntrega))
+                            {
+                                <span class="table-user-sub">📍 @(e.DireccionEntrega.Length > 50 ? e.DireccionEntrega.Substring(0, 50) + "..." : e.DireccionEntrega)</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            @if (Model.EnviosEntregadosHoy.Count > 8)
+            {
+                <p style="text-align: center; font-size: 12px; color: var(--color-muted); margin-top: 12px;">
+                    ... y @(Model.EnviosEntregadosHoy.Count - 8) más
+                </p>
+            }
+        }
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- PANEL: ENVÍOS FALLIDOS                        -->
+<!-- ============================================ -->
+@if (Model.EnviosFallidosLista.Count > 0)
+{
+    <div class="module-card" style="padding: 0; margin-bottom: 20px; border-left: 4px solid #dc2626;">
+        <div style="padding: 20px; border-bottom: 1px solid var(--color-border);">
+            <h3 class="panel-title" style="margin: 0; color: #dc2626;">❌ Envíos fallidos (@Model.EnviosFallidosLista.Count)</h3>
+            <p class="panel-muted" style="margin: 4px 0 0 0;">Estos envíos no se pudieron entregar y requieren reagendar</p>
+        </div>
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Cliente</th>
+                        <th>Dirección</th>
+                        <th>Repartidor</th>
+                        <th>Fecha intento</th>
+                        <th style="width: 80px; text-align: right;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Model.EnviosFallidosLista.Take(10))
+                    {
+                        <tr>
+                            <td><strong>@e.Numero</strong></td>
+                            <td>@e.ClienteNombre</td>
+                            <td>
+                                <span class="table-user-sub">
+                                    @(e.DireccionEntrega.Length > 40 ? e.DireccionEntrega.Substring(0, 40) + "..." : e.DireccionEntrega)
+                                </span>
+                            </td>
+                            <td>@(e.RepartidorNombre ?? "—")</td>
+                            <td>@(e.FechaEntregaReal?.ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
+                            <td style="text-align: right;">
+                                <a asp-page="/Logistica/Envios/Details" asp-route-id="@e.Id" class="btn-icon-action" title="Ver y reagendar">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<!-- ============================================ -->
+<!-- PANEL DOBLE: Últimos envíos + Últimas rutas   -->
+<!-- ============================================ -->
+<div class="panel-grid">
+    <div class="module-card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 class="panel-title" style="margin: 0;">📦 Últimos envíos</h3>
+            <a asp-page="/Logistica/Envios/Index" class="btn-secondary btn-sm">Ver todos</a>
+        </div>
+        @if (Model.UltimosEnvios.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">
+                Aún no hay envíos registrados
+            </p>
+        }
+        else
+        {
+            <div class="timeline">
+                @foreach (var e in Model.UltimosEnvios)
+                {
+                    var color = e.Estado switch
+                    {
+                        "Entregado" => "#10b981",
+                        "EnRuta" => "#3b82f6",
+                        "Fallido" => "#ef4444",
+                        "Pendiente" => "#f59e0b",
+                        _ => "#6b7280"
+                    };
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background: @color;"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <strong>@e.Numero</strong>
+                                <span class="timeline-date">@e.FechaCreacion.ToString("dd/MM HH:mm")</span>
+                            </div>
+                            <p class="timeline-detail">@e.ClienteNombre — @(e.ZonaNombre ?? "Sin zona")</p>
+                            <span class="badge" style="font-size: 10px; background: @(color)20; color: @color;">@e.Estado</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="module-card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 class="panel-title" style="margin: 0;">🗺️ Últimas rutas</h3>
+            <a asp-page="/Logistica/Rutas/Index" class="btn-secondary btn-sm">Ver todas</a>
+        </div>
+        @if (Model.UltimasRutas.Count == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 30px; font-size: 13px;">
+                Aún no hay rutas creadas
+            </p>
+        }
+        else
+        {
+            <div class="timeline">
+                @foreach (var r in Model.UltimasRutas)
+                {
+                    var color = r.Estado switch
+                    {
+                        "Completada" => "#10b981",
+                        "EnReparto" => "#3b82f6",
+                        "Borrador" => "#f59e0b",
+                        "Cancelada" => "#ef4444",
+                        _ => "#6b7280"
+                    };
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background: @color;"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <strong>@r.Numero</strong>
+                                <span class="timeline-date">@r.Fecha.ToString("dd/MM/yyyy")</span>
+                            </div>
+                            <p class="timeline-detail">@r.RepartidorNombre — @r.TotalParadas parada(s)</p>
+                            <span class="badge" style="font-size: 10px; background: @(color)20; color: @color;">@r.Estado</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
