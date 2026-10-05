@@ -1,0 +1,95 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Logistica.Repartidores.DeleteModel
+@{
+    ViewData["Title"] = "Eliminar repartidor";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Logistica/Repartidores/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a repartidores
+        </a>
+        <h2>Eliminar repartidor</h2>
+        <p>Esta acción no se puede deshacer</p>
+    </div>
+</div>
+
+@if (!Model.PuedeEliminar)
+{
+    <div class="module-card danger-card">
+        <div class="danger-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+        </div>
+
+        <h3>No se puede eliminar</h3>
+        <p>El repartidor <strong>@Model.Repartidor.Nombre</strong> tiene actividad asociada:</p>
+
+        <div style="text-align: left; display: inline-block; margin: 20px 0;">
+            @if (Model.TotalRutas > 0)
+            {
+                <p>🗺️ @Model.TotalRutas ruta(s) en total</p>
+            }
+            @if (Model.RutasActivas > 0)
+            {
+                <p style="color: var(--color-danger); font-weight: 600;">⚠️ @Model.RutasActivas ruta(s) activa(s) (Borrador o EnReparto)</p>
+            }
+            @if (Model.TotalEnvios > 0)
+            {
+                <p>📦 @Model.TotalEnvios envío(s) asignados</p>
+            }
+        </div>
+
+        <p style="color: var(--color-muted); font-size: 13px; margin-top: 12px;">
+            <strong>Recomendación:</strong> en lugar de eliminar, <strong>desactívalo</strong> desde la opción Editar. No aparecerá al crear nuevas rutas, pero se conservará el histórico.
+        </p>
+
+        <div class="form-actions" style="justify-content: center;">
+            <a asp-page="/Logistica/Repartidores/Index" class="btn-secondary">Volver al listado</a>
+            <a asp-page="/Logistica/Repartidores/Edit" asp-route-id="@Model.Repartidor.Id" class="btn-primary">Ir a Editar</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="module-card danger-card">
+        <div class="danger-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+        </div>
+
+        <h3>¿Eliminar al repartidor "@Model.Repartidor.Nombre"?</h3>
+        <p>Ya no aparecerá en el sistema y no podrá asignársele rutas.</p>
+
+        <div class="user-preview">
+            <div class="user-avatar-sm" style="background: var(--color-primary); width: 40px; height: 40px; font-size: 16px;">
+                @Model.Repartidor.Nombre.Substring(0, 1).ToUpper()
+            </div>
+            <div>
+                <strong>@Model.Repartidor.Nombre</strong>
+                <span>@Model.Repartidor.Codigo</span>
+            </div>
+        </div>
+
+        <form method="post" class="form-actions" style="justify-content: center;">
+            <a asp-page="/Logistica/Repartidores/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-danger">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                </svg>
+                Sí, eliminar repartidor
+            </button>
+        </form>
+    </div>
+}

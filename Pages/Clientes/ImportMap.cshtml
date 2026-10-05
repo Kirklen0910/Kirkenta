@@ -1,39 +1,32 @@
 @page
 @model Kirkenta.Pages.Clientes.ImportMapModel
 @{
-    ViewData["Title"] = "Mapear columnas";
+    ViewData["Title"] = Model.WizardConfig.TituloMapa;
 }
 
 <div class="module-header">
     <div class="module-header-left">
-        <a asp-page="/Clientes/Import" class="back-link">
+        <a href="@Model.WizardConfig.UrlImport" class="back-link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"/>
                 <polyline points="12 19 5 12 12 5"/>
             </svg>
             Volver al paso anterior
         </a>
-        <h2>Mapear columnas</h2>
+        <h2>@Model.WizardConfig.TituloMapa</h2>
         <p>Asocia cada campo del sistema con una columna de tu archivo</p>
     </div>
 </div>
 
-<!-- Indicador de pasos -->
-<div style="display:flex; gap:8px; margin-bottom:20px; align-items:center;">
-    <span style="background:var(--color-success); color:#fff; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">✓</span>
-    <span style="font-size:13px; color:var(--color-muted);">Subir archivo</span>
-    <span style="width:40px; height:2px; background:var(--color-primary);"></span>
-    <span style="background:var(--color-primary); color:#fff; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">2</span>
-    <span style="font-size:13px; font-weight:600; color:var(--color-primary);">Mapear columnas</span>
-    <span style="width:40px; height:2px; background:var(--color-border);"></span>
-    <span style="background:var(--color-border); color:var(--color-muted); width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">3</span>
-    <span style="font-size:13px; color:var(--color-muted);">Importar</span>
-</div>
+@await Html.PartialAsync("_ImportStepIndicator", new { Paso = 2 })
 
 <form method="post">
     <div class="module-card" style="padding: 28px; margin-bottom: 20px;">
         <h3 class="form-section-title">Mapeo de columnas</h3>
-        <p class="form-section-desc">Hemos detectado <strong>@Model.HeadersArchivo.Count columnas</strong> y <strong>@Model.FilasArchivo.Count filas</strong>. Asigna cada campo del sistema a una columna de tu archivo.</p>
+        <p class="form-section-desc">
+            Hemos detectado <strong>@Model.HeadersArchivo.Count columnas</strong> y
+            <strong>@Model.FilasArchivo.Count filas</strong>. Asigna cada campo del sistema a una columna de tu archivo.
+        </p>
 
         <div class="table-wrapper" style="margin-top: 16px;">
             <table class="erp-table">
@@ -44,7 +37,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var campo in Model.Campos)
+                    @foreach (var campo in Model.WizardConfig.Campos)
                     {
                         var sugerido = Model.MapaSugerido.GetValueOrDefault(campo.Key);
                         <tr>
@@ -53,6 +46,10 @@
                                 @if (campo.Requerido)
                                 {
                                     <span style="color: var(--color-danger);">*</span>
+                                }
+                                @if (!string.IsNullOrEmpty(campo.Ayuda))
+                                {
+                                    <br /><span class="table-user-sub">@campo.Ayuda</span>
                                 }
                             </td>
                             <td>
@@ -82,15 +79,15 @@
         <h3 class="form-section-title">Opciones de importación</h3>
 
         <div class="form-field" style="margin-top: 12px;">
-            <label style="display:block; margin-bottom:8px;">¿Qué hacer si un cliente ya existe?</label>
+            <label style="display:block; margin-bottom:8px;">¿Qué hacer si un(a) @Model.WizardConfig.NombreSingular ya existe?</label>
             <div style="display:flex; flex-direction:column; gap:10px;">
                 <label style="display:flex; align-items:center; gap:10px; font-size:13.5px; cursor:pointer;">
                     <input type="radio" name="ModoImportacion" value="upsert" checked />
-                    <span><strong>Crear o actualizar</strong> — Si el código/RTN ya existe, actualiza. Si no, crea.</span>
+                    <span><strong>Crear o actualizar</strong> — Si ya existe, actualiza. Si no, crea.</span>
                 </label>
                 <label style="display:flex; align-items:center; gap:10px; font-size:13.5px; cursor:pointer;">
                     <input type="radio" name="ModoImportacion" value="crear" />
-                    <span><strong>Solo crear nuevos</strong> — Ignora los clientes que ya existan.</span>
+                    <span><strong>Solo crear nuevos</strong> — Ignora los que ya existan.</span>
                 </label>
                 <label style="display:flex; align-items:center; gap:10px; font-size:13.5px; cursor:pointer;">
                     <input type="radio" name="ModoImportacion" value="actualizar" />
@@ -136,12 +133,12 @@
     </div>
 
     <div class="form-actions" style="border-top:none; margin-top:0;">
-        <a asp-page="/Clientes/Import" class="btn-secondary">Atrás</a>
+        <a href="@Model.WizardConfig.UrlImport" class="btn-secondary">Atrás</a>
         <button type="submit" class="btn-primary" style="background: var(--color-success);">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                 <polyline points="20 6 9 17 4 12"/>
             </svg>
-            Importar @Model.FilasArchivo.Count clientes
+            Importar @Model.FilasArchivo.Count @Model.WizardConfig.NombrePlural
         </button>
     </div>
 </form>

@@ -1,0 +1,372 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Logistica.Rutas.EditModel
+@{
+    ViewData["Title"] = $"Editar ruta {Model.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Logistica/Rutas/Details" asp-route-id="@Model.Input.Id" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver al detalle
+        </a>
+        <h2>Editar ruta @Model.Numero</h2>
+        <p>Modifica los datos y las paradas de la ruta</p>
+    </div>
+</div>
+
+<form method="post" id="rutaForm">
+    <input type="hidden" asp-for="Input.Id" />
+    <input type="hidden" asp-for="Input.RepartidorNombre" />
+    <input type="hidden" asp-for="Input.Vehiculo" id="hiddenVehiculo" />
+    <input type="hidden" asp-for="Input.Placa" id="hiddenPlaca" />
+
+    <!-- Contenedor para los IDs a quitar -->
+    <div id="containerQuitar"></div>
+
+    <div class="module-card form-card-wide">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <!-- ============================================ -->
+        <!-- DATOS DE LA RUTA                              -->
+        <!-- ============================================ -->
+        <h3 class="form-section-title">1. Datos de la ruta</h3>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.RepartidorId">Repartidor</label>
+                <select asp-for="Input.RepartidorId" class="form-input" id="repartidorSelect">
+                    <option value="">— Sin asignar —</option>
+                    @foreach (var rep in Model.Repartidores)
+                    {
+                        <option value="@rep.Id" data-vehiculo="@rep.Vehiculo" data-placa="@rep.Placa">@rep.Nombre</option>
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.ZonaId">Zona</label>
+                <select asp-for="Input.ZonaId" class="form-input">
+                    <option value="">— Sin zona específica —</option>
+                    @foreach (var z in Model.Zonas)
+                    {
+                        <option value="@z.Id">@z.Nombre</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Vehiculo">Vehículo</label>
+                <input asp-for="Input.Vehiculo" class="form-input" id="vehiculoInput" placeholder="Ej: Moto, Camión Isuzu" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Placa">Placa</label>
+                <input asp-for="Input.Placa" class="form-input" id="placaInput" placeholder="Ej: HAA-1234" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.FechaEntregaEstimada">Fecha estimada de entrega</label>
+                <input asp-for="Input.FechaEntregaEstimada" type="date" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Descripcion">Descripción</label>
+                <input asp-for="Input.Descripcion" class="form-input" placeholder="Ej: Ruta zona sur mañana" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Notas">Notas</label>
+            <textarea asp-for="Input.Notas" class="form-input" rows="2"></textarea>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <!-- ============================================ -->
+        <!-- PARADAS ACTUALES (quitar)                     -->
+        <!-- ============================================ -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 class="form-section-title" style="margin: 0;">2. Paradas actuales (@Model.EnviosEnRuta.Count)</h3>
+            <span class="badge badge-info" id="contadorActuales">@Model.EnviosEnRuta.Count en ruta</span>
+        </div>
+
+        <p class="form-section-desc">Marca las paradas que quieras QUITAR de la ruta. Las que no marques, se mantienen.</p>
+
+        @if (Model.EnviosEnRuta.Count == 0)
+        {
+            <div class="empty-state" style="padding: 30px;">
+                <p style="font-size: 13px;">Esta ruta no tiene paradas actualmente.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="erp-table" id="enviosEnRutaTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">Quitar</th>
+                            <th style="width: 50px;">#</th>
+                            <th style="width: 30px;"></th>
+                            <th>Envío</th>
+                            <th>Cliente</th>
+                            <th>Dirección</th>
+                            <th>Fecha estimada</th>
+                            <th>Estado</th>
+                            <th style="text-align: right;">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var e in Model.EnviosEnRuta)
+                        {
+                            var semaforoIcono = e.Semaforo switch
+                            {
+                                "Rojo" => "🔴",
+                                "Amarillo" => "🟡",
+                                _ => "🟢"
+                            };
+                            var badgeEstado = e.Estado switch
+                            {
+                                "Pendiente" => "badge badge-warning",
+                                "EnRuta" => "badge badge-info",
+                                "Entregado" => "badge badge-success",
+                                "Fallido" => "badge badge-danger",
+                                _ => "badge"
+                            };
+
+                            <tr data-envio-id="@e.Id">
+                                <td>
+                                    <input type="checkbox" class="check-quitar" data-envio-id="@e.Id" />
+                                </td>
+                                <td><strong style="font-size: 15px; color: var(--color-primary);">@e.OrdenParada</strong></td>
+                                <td><span style="font-size: 14px;">@semaforoIcono</span></td>
+                                <td>
+                                    <a asp-page="/Logistica/Envios/Details" asp-route-id="@e.Id" target="_blank">
+                                        <strong>@e.Numero</strong>
+                                    </a>
+                                </td>
+                                <td>@e.ClienteNombre</td>
+                                <td>
+                                    <span class="table-user-sub" title="@e.DireccionEntrega">
+                                        @(e.DireccionEntrega.Length > 40 ? e.DireccionEntrega.Substring(0, 40) + "..." : e.DireccionEntrega)
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (e.FechaEntregaEstimada.HasValue)
+                                    {
+                                        @e.FechaEntregaEstimada.Value.ToString("dd/MM/yyyy")
+                                    }
+                                    else
+                                    {
+                                        <span class="table-user-sub">—</span>
+                                    }
+                                </td>
+                                <td><span class="@badgeEstado">@e.Estado</span></td>
+                                <td style="text-align: right;">L. @e.Monto.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <div class="form-divider"></div>
+
+        <!-- ============================================ -->
+        <!-- AGREGAR NUEVOS ENVÍOS                         -->
+        <!-- ============================================ -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 class="form-section-title" style="margin: 0;">3. Agregar nuevos envíos</h3>
+            <span class="badge badge-info" id="contadorNuevos">0 seleccionado(s)</span>
+        </div>
+
+        <p class="form-section-desc">Selecciona envíos pendientes para agregarlos a esta ruta.</p>
+
+        <div class="search-box" style="max-width: 400px; margin-bottom: 12px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="envioSearch" placeholder="Buscar envío disponible..." />
+        </div>
+
+        @if (Model.EnviosDisponibles.Count == 0)
+        {
+            <div class="empty-state" style="padding: 30px;">
+                <p style="font-size: 13px;">No hay envíos pendientes disponibles para agregar.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="erp-table" id="enviosDisponiblesTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">Agregar</th>
+                            <th style="width: 30px;"></th>
+                            <th>Envío</th>
+                            <th>Cliente</th>
+                            <th>Dirección</th>
+                            <th>Zona</th>
+                            <th>Fecha estimada</th>
+                            <th style="text-align: right;">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var e in Model.EnviosDisponibles)
+                        {
+                            var semaforoIcono = e.Semaforo switch
+                            {
+                                "Rojo" => "🔴",
+                                "Amarillo" => "🟡",
+                                _ => "🟢"
+                            };
+
+                            <tr data-numero="@e.Numero.ToLower()" data-cliente="@e.ClienteNombre.ToLower()" data-direccion="@e.DireccionEntrega.ToLower()">
+                                <td>
+                                    <input type="checkbox" name="Input.EnviosSeleccionados" value="@e.Id" class="check-agregar" data-monto="@e.Monto" />
+                                </td>
+                                <td><span style="font-size: 14px;">@semaforoIcono</span></td>
+                                <td><strong>@e.Numero</strong></td>
+                                <td>@e.ClienteNombre</td>
+                                <td>
+                                    <span class="table-user-sub" title="@e.DireccionEntrega">
+                                        @(e.DireccionEntrega.Length > 40 ? e.DireccionEntrega.Substring(0, 40) + "..." : e.DireccionEntrega)
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(e.ZonaNombre))
+                                    {
+                                        <span class="badge badge-info">@e.ZonaNombre</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="table-user-sub">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (e.FechaEntregaEstimada.HasValue)
+                                    {
+                                        @e.FechaEntregaEstimada.Value.ToString("dd/MM/yyyy")
+                                    }
+                                    else
+                                    {
+                                        <span class="table-user-sub">—</span>
+                                    }
+                                </td>
+                                <td style="text-align: right;">L. @e.Monto.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <div class="form-actions">
+            <a asp-page="/Logistica/Rutas/Details" asp-route-id="@Model.Input.Id" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Guardar cambios
+            </button>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        (function () {
+            // ===== Auto-completar vehículo/placa al elegir repartidor =====
+            var repartidorSelect = document.getElementById('repartidorSelect');
+            var vehiculoInput = document.getElementById('vehiculoInput');
+            var placaInput = document.getElementById('placaInput');
+
+            repartidorSelect?.addEventListener('change', function () {
+                var opt = this.options[this.selectedIndex];
+                var vehiculo = opt.dataset.vehiculo || '';
+                var placa = opt.dataset.placa || '';
+
+                if (vehiculo) vehiculoInput.value = vehiculo;
+                if (placa) placaInput.value = placa;
+            });
+
+            // ===== Contador de nuevos seleccionados =====
+            var contadorNuevos = document.getElementById('contadorNuevos');
+
+            function actualizarContador() {
+                var count = document.querySelectorAll('.check-agregar:checked').length;
+                if (contadorNuevos) contadorNuevos.textContent = count + ' seleccionado(s)';
+            }
+
+            document.querySelectorAll('.check-agregar').forEach(function (cb) {
+                cb.addEventListener('change', actualizarContador);
+            });
+
+            // ===== Marcar para quitar → crear hidden inputs =====
+            var containerQuitar = document.getElementById('containerQuitar');
+
+            function reconstruirQuitar() {
+                containerQuitar.innerHTML = '';
+                var index = 0;
+                document.querySelectorAll('.check-quitar:checked').forEach(function (cb) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'Input.EnviosAQuitar[' + index + ']';
+                    input.value = cb.dataset.envioId;
+                    containerQuitar.appendChild(input);
+                    index++;
+                });
+            }
+
+            document.querySelectorAll('.check-quitar').forEach(function (cb) {
+                cb.addEventListener('change', function () {
+                    var row = this.closest('tr');
+                    if (row) {
+                        row.style.opacity = this.checked ? '0.4' : '1';
+                        row.style.textDecoration = this.checked ? 'line-through' : 'none';
+                    }
+                    reconstruirQuitar();
+                });
+            });
+
+            // ===== Buscador de envíos disponibles =====
+            var envioSearch = document.getElementById('envioSearch');
+            var tablaDisponibles = document.getElementById('enviosDisponiblesTable');
+
+            envioSearch?.addEventListener('input', function () {
+                var texto = this.value.toLowerCase().trim();
+                var rows = tablaDisponibles?.querySelectorAll('tbody tr') || [];
+
+                rows.forEach(function (row) {
+                    var numero = row.dataset.numero || '';
+                    var cliente = row.dataset.cliente || '';
+                    var direccion = row.dataset.direccion || '';
+
+                    var match = !texto
+                        || numero.includes(texto)
+                        || cliente.includes(texto)
+                        || direccion.includes(texto);
+
+                    row.style.display = match ? '' : 'none';
+                });
+            });
+
+            actualizarContador();
+        })();
+    </script>
+}

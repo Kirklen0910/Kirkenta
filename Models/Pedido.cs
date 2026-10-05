@@ -16,6 +16,10 @@ namespace Kirkenta.Models
         public string? Notas { get; set; }
         public int? FacturaId { get; set; }
         public int? UsuarioCreoId { get; set; }
+
+        // ===== LOGÍSTICA =====
+        public bool RequiereEnvio { get; set; } = false;
+        public decimal MontoEnvio { get; set; } = 0;
     }
 
     public class DetallePedido

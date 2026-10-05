@@ -1,0 +1,656 @@
+@page
+@model Kirkenta.Pages.Logistica.Reportes.IndexModel
+@{
+    ViewData["Title"] = "Reportes de Logística";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Logistica/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a Logística
+        </a>
+        <h2>Reportes de Logística</h2>
+        <p>Análisis de rendimiento de envíos, rutas y repartidores</p>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- FILTROS                                       -->
+<!-- ============================================ -->
+<div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+    <form method="get" class="reportes-filtros">
+        <div class="filtros-row">
+            <div class="form-field" style="margin: 0;">
+                <label>Desde</label>
+                <input type="date" name="desde" class="form-input" value="@Model.Desde.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>Hasta</label>
+                <input type="date" name="hasta" class="form-input" value="@Model.Hasta.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>Zona</label>
+                <select name="zonaId" class="form-input">
+                    <option value="">Todas las zonas</option>
+                    @foreach (var z in Model.Zonas)
+                    {
+                        if (Model.FiltroZonaId == z.Id)
+                        {
+                            <option value="@z.Id" selected>@z.Nombre</option>
+                        }
+                        else
+                        {
+                            <option value="@z.Id">@z.Nombre</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>Repartidor</label>
+                <select name="repartidorId" class="form-input">
+                    <option value="">Todos los repartidores</option>
+                    @foreach (var r in Model.Repartidores)
+                    {
+                        if (Model.FiltroRepartidorId == r.Id)
+                        {
+                            <option value="@r.Id" selected>@r.Nombre</option>
+                        }
+                        else
+                        {
+                            <option value="@r.Id">@r.Nombre</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn-primary">Aplicar filtros</button>
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label>&nbsp;</label>
+                <a asp-page="/Logistica/Reportes/Index" class="btn-secondary">Limpiar</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- ============================================ -->
+<!-- KPIs PRINCIPALES                              -->
+<!-- ============================================ -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total envíos</span>
+        <span class="kpi-value">@Model.TotalEnvios</span>
+        <span class="kpi-trend">En el período</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Entregados</span>
+        <span class="kpi-value" style="color: #10b981;">@Model.TotalEntregados</span>
+        <span class="kpi-trend up">Tasa de éxito: @Model.TasaExito.ToString("N1")%</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Fallidos</span>
+        <span class="kpi-value" style="color: #ef4444;">@Model.TotalFallidos</span>
+        <span class="kpi-trend down">Tasa de fallo: @Model.TasaFallo.ToString("N1")%</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Tiempo promedio entrega</span>
+        <span class="kpi-value" style="font-size: 22px;">
+            @if (Model.TiempoPromedioEntregaDias > 0)
+            {
+                <span>@Model.TiempoPromedioEntregaDias.ToString("N1") días</span>
+            }
+            else
+            {
+                <span style="color: var(--color-muted); font-size: 16px;">Sin datos</span>
+            }
+        </span>
+        @if (Model.TiempoPromedioEntregaHoras > 0)
+        {
+            <span class="kpi-trend">@Model.TiempoPromedioEntregaHoras.ToString("N0") horas en promedio</span>
+        }
+    </div>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">En ruta</span>
+        <span class="kpi-value" style="color: #3b82f6;">@Model.TotalEnRuta</span>
+        <span class="kpi-trend">En reparto ahora</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Pendientes</span>
+        <span class="kpi-value" style="color: #f59e0b;">@Model.TotalPendientes</span>
+        <span class="kpi-trend">Sin despachar</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Monto total facturado</span>
+        <span class="kpi-value" style="font-size: 20px;">L. @Model.MontoTotalEnvios.ToString("N2")</span>
+        <span class="kpi-trend">En envíos del período</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Envíos gratis</span>
+        <span class="kpi-value">@Model.CantidadEnviosGratis</span>
+        <span class="kpi-trend">Sin costo para el cliente</span>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- GRÁFICOS                                      -->
+<!-- ============================================ -->
+<div class="panel-grid" style="margin-bottom: 20px;">
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">📍 Envíos por zona</h3>
+        @if (Model.TotalEnvios == 0)
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 60px; font-size: 13px;">
+                Sin datos en el período seleccionado
+            </p>
+        }
+        else
+        {
+            <div style="position: relative; height: 300px; width: 100%;">
+                <canvas id="chartEnviosPorZona"></canvas>
+            </div>
+        }
+    </div>
+
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">🏆 Rendimiento por repartidor</h3>
+        @if (!Model.ReportePorRepartidor.Any(r => (r.Entregados + r.Fallidos) > 0))
+        {
+            <p style="color: var(--color-muted); text-align: center; padding: 60px; font-size: 13px;">
+                Sin envíos resueltos en el período
+            </p>
+        }
+        else
+        {
+            <div style="position: relative; height: 300px; width: 100%;">
+                <canvas id="chartRepartidores"></canvas>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+    <h3 class="panel-title" style="margin-bottom: 16px;">📈 Tendencia de entregas en el período</h3>
+    @if (Model.TotalEntregados == 0)
+    {
+        <p style="color: var(--color-muted); text-align: center; padding: 60px; font-size: 13px;">
+            Sin entregas en el período seleccionado
+        </p>
+    }
+    else
+    {
+        <div style="position: relative; height: 320px; width: 100%;">
+            <canvas id="chartTendencia"></canvas>
+        </div>
+    }
+</div>
+
+<!-- ============================================ -->
+<!-- TABLA: POR REPARTIDOR                         -->
+<!-- ============================================ -->
+<div class="module-card" style="margin-bottom: 20px;">
+    <div style="padding: 20px; border-bottom: 1px solid var(--color-border);">
+        <h3 class="panel-title" style="margin: 0;">🏍️ Detalle por repartidor</h3>
+        <p class="panel-muted" style="margin: 4px 0 0 0;">Rendimiento individual de cada repartidor</p>
+    </div>
+
+    @if (Model.ReportePorRepartidor.Count == 0)
+    {
+        <p style="text-align: center; padding: 40px; color: var(--color-muted); font-size: 13px;">
+            No hay envíos con repartidor asignado en el período
+        </p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Repartidor</th>
+                        <th style="text-align: right;">Total envíos</th>
+                        <th style="text-align: right;">Entregados</th>
+                        <th style="text-align: right;">Fallidos</th>
+                        <th style="text-align: right;">Pendientes</th>
+                        <th style="text-align: right;">Tasa de éxito</th>
+                        <th style="text-align: right;">Tiempo prom.</th>
+                        <th style="text-align: right;">Monto total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.ReportePorRepartidor)
+                    {
+                        var tasaColor = r.TasaExito >= 90 ? "#10b981"
+                            : r.TasaExito >= 70 ? "#f59e0b"
+                            : r.TasaExito > 0 ? "#ef4444"
+                            : "#6b7280";
+
+                        <tr>
+                            <td>
+                                <strong>@r.Nombre</strong>
+                                @if (!string.IsNullOrEmpty(r.Vehiculo))
+                                {
+                                    <br /><span class="table-user-sub">🚗 @r.Vehiculo</span>
+                                }
+                            </td>
+                            <td style="text-align: right;"><strong>@r.TotalEnvios</strong></td>
+                            <td style="text-align: right;">
+                                <span style="color: #10b981; font-weight: 600;">@r.Entregados</span>
+                            </td>
+                            <td style="text-align: right;">
+                                @if (r.Fallidos > 0)
+                                {
+                                    <span style="color: #ef4444; font-weight: 600;">@r.Fallidos</span>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">0</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">
+                                @if (r.Pendientes > 0)
+                                {
+                                    <span style="color: #f59e0b; font-weight: 600;">@r.Pendientes</span>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">0</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">
+                                @if (r.Entregados + r.Fallidos > 0)
+                                {
+                                    <span class="badge" style="background: @(tasaColor)20; color: @tasaColor; font-weight: 600;">
+                                        @r.TasaExito.ToString("N1")%
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">—</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">
+                                @if (r.TiempoPromedioDias > 0)
+                                {
+                                    <span>@r.TiempoPromedioDias.ToString("N1") d</span>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">—</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">L. @r.MontoTotal.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- ============================================ -->
+<!-- TABLA: POR ZONA                               -->
+<!-- ============================================ -->
+<div class="module-card" style="margin-bottom: 20px;">
+    <div style="padding: 20px; border-bottom: 1px solid var(--color-border);">
+        <h3 class="panel-title" style="margin: 0;">📍 Detalle por zona</h3>
+        <p class="panel-muted" style="margin: 4px 0 0 0;">Rendimiento de entregas por zona geográfica</p>
+    </div>
+
+    @if (Model.ReportePorZona.Count == 0)
+    {
+        <p style="text-align: center; padding: 40px; color: var(--color-muted); font-size: 13px;">
+            No hay envíos con zona asignada en el período
+        </p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"></th>
+                        <th>Zona</th>
+                        <th style="text-align: right;">Total envíos</th>
+                        <th style="text-align: right;">Entregados</th>
+                        <th style="text-align: right;">Fallidos</th>
+                        <th style="text-align: right;">Tasa de éxito</th>
+                        <th style="text-align: right;">Monto total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var z in Model.ReportePorZona)
+                    {
+                        var tasaColor = z.TasaExito >= 90 ? "#10b981"
+                            : z.TasaExito >= 70 ? "#f59e0b"
+                            : z.TasaExito > 0 ? "#ef4444"
+                            : "#6b7280";
+
+                        <tr>
+                            <td>
+                                <div style="width: 20px; height: 20px; border-radius: 5px; background: @(z.Color ?? "#6b7280");"></div>
+                            </td>
+                            <td><strong>@z.Nombre</strong></td>
+                            <td style="text-align: right;"><strong>@z.TotalEnvios</strong></td>
+                            <td style="text-align: right;">
+                                <span style="color: #10b981; font-weight: 600;">@z.Entregados</span>
+                            </td>
+                            <td style="text-align: right;">
+                                @if (z.Fallidos > 0)
+                                {
+                                    <span style="color: #ef4444; font-weight: 600;">@z.Fallidos</span>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">0</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">
+                                @if (z.Entregados + z.Fallidos > 0)
+                                {
+                                    <span class="badge" style="background: @(tasaColor)20; color: @tasaColor; font-weight: 600;">
+                                        @z.TasaExito.ToString("N1")%
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">—</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">L. @z.MontoTotal.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- ============================================ -->
+<!-- TABLA: TOP RUTAS                              -->
+<!-- ============================================ -->
+<div class="module-card">
+    <div style="padding: 20px; border-bottom: 1px solid var(--color-border);">
+        <h3 class="panel-title" style="margin: 0;">🗺️ Top 10 rutas del período</h3>
+        <p class="panel-muted" style="margin: 4px 0 0 0;">Rutas con más paradas entregadas</p>
+    </div>
+
+    @if (Model.TopRutas.Count == 0)
+    {
+        <p style="text-align: center; padding: 40px; color: var(--color-muted); font-size: 13px;">
+            No hay rutas creadas en el período
+        </p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Ruta</th>
+                        <th>Repartidor</th>
+                        <th>Fecha</th>
+                        <th style="text-align: right;">Paradas</th>
+                        <th style="text-align: right;">Entregadas</th>
+                        <th style="text-align: right;">Fallidas</th>
+                        <th style="text-align: right;">Progreso</th>
+                        <th style="text-align: right;">Monto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        var idx = 1;
+                    }
+                    @foreach (var r in Model.TopRutas)
+                    {
+                        var progColor = r.Progreso >= 100 ? "#10b981"
+                            : r.Progreso >= 50 ? "#4f46e5"
+                            : "#f59e0b";
+
+                        <tr>
+                            <td><strong>@idx</strong></td>
+                            <td>
+                                <a asp-page="/Logistica/Rutas/Details" asp-route-id="@r.RutaId">
+                                    <strong style="color: var(--color-primary);">@r.Numero</strong>
+                                </a>
+                            </td>
+                            <td>@r.RepartidorNombre</td>
+                            <td>@r.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td style="text-align: right;">@r.TotalParadas</td>
+                            <td style="text-align: right;">
+                                <span style="color: #10b981; font-weight: 600;">@r.Entregadas</span>
+                            </td>
+                            <td style="text-align: right;">
+                                @if (r.Fallidas > 0)
+                                {
+                                    <span style="color: #ef4444; font-weight: 600;">@r.Fallidas</span>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">0</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">
+                                <span class="badge" style="background: @(progColor)20; color: @progColor; font-weight: 600;">
+                                    @r.Progreso.ToString("N0")%
+                                </span>
+                            </td>
+                            <td style="text-align: right;">L. @r.MontoTotal.ToString("N2")</td>
+                        </tr>
+                        idx++;
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            // Configuración global de Chart.js
+            Chart.defaults.font.family = "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+            Chart.defaults.font.size = 12;
+            Chart.defaults.color = '#6b7280';
+
+            // ============================================
+            // Gráfico 1: Envíos por zona (doughnut)
+            // ============================================
+            var canvasZona = document.getElementById('chartEnviosPorZona');
+            if (canvasZona) {
+                var dataZona = @Html.Raw(Model.EnviosPorZonaJson);
+
+                if (dataZona && dataZona.labels && dataZona.labels.length > 0) {
+                    new Chart(canvasZona, {
+                        type: 'doughnut',
+                        data: {
+                            labels: dataZona.labels,
+                            datasets: [{
+                                data: dataZona.data,
+                                backgroundColor: dataZona.colors,
+                                borderWidth: 2,
+                                borderColor: '#ffffff'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '60%',
+                            plugins: {
+                                legend: {
+                                    position: 'right',
+                                    labels: { boxWidth: 12, padding: 10, font: { size: 12 } }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (ctx) {
+                                            var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                                            var pct = total > 0 ? (ctx.parsed / total * 100).toFixed(1) : 0;
+                                            return ctx.label + ': ' + ctx.parsed + ' envío(s) (' + pct + '%)';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            // ============================================
+            // Gráfico 2: Rendimiento por repartidor (stacked bar horizontal)
+            // ============================================
+            var canvasRep = document.getElementById('chartRepartidores');
+            if (canvasRep) {
+                var dataRep = @Html.Raw(Model.TasaExitoPorRepartidorJson);
+
+                if (dataRep && dataRep.labels && dataRep.labels.length > 0) {
+                    new Chart(canvasRep, {
+                        type: 'bar',
+                        data: {
+                            labels: dataRep.labels,
+                            datasets: [
+                                {
+                                    label: 'Entregados',
+                                    data: dataRep.entregados,
+                                    backgroundColor: '#10b981',
+                                    borderRadius: 4
+                                },
+                                {
+                                    label: 'Fallidos',
+                                    data: dataRep.fallidos,
+                                    backgroundColor: '#ef4444',
+                                    borderRadius: 4
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            indexAxis: 'y',
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                    labels: { boxWidth: 12, font: { size: 11 } }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (ctx) {
+                                            return ctx.dataset.label + ': ' + ctx.parsed.x + ' envío(s)';
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    stacked: true,
+                                    beginAtZero: true,
+                                    ticks: { precision: 0 },
+                                    grid: { color: '#f3f4f6' }
+                                },
+                                y: {
+                                    stacked: true,
+                                    grid: { display: false }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            // ============================================
+            // Gráfico 3: Tendencia de entregas (line + bar combo)
+            // ============================================
+            var canvasTend = document.getElementById('chartTendencia');
+            if (canvasTend) {
+                var dataTend = @Html.Raw(Model.TendenciaEntregasJson);
+
+                if (dataTend && dataTend.labels && dataTend.labels.length > 0) {
+                    new Chart(canvasTend, {
+                        data: {
+                            labels: dataTend.labels,
+                            datasets: [
+                                {
+                                    type: 'bar',
+                                    label: 'Monto entregado (L.)',
+                                    data: dataTend.monto,
+                                    backgroundColor: 'rgba(79, 70, 229, 0.65)',
+                                    borderRadius: 6,
+                                    yAxisID: 'y1',
+                                    order: 2
+                                },
+                                {
+                                    type: 'line',
+                                    label: 'Entregas',
+                                    data: dataTend.entregados,
+                                    borderColor: '#10b981',
+                                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                    borderWidth: 3,
+                                    tension: 0.3,
+                                    fill: true,
+                                    pointBackgroundColor: '#10b981',
+                                    pointRadius: 4,
+                                    pointHoverRadius: 6,
+                                    yAxisID: 'y',
+                                    order: 1
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false
+                            },
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                    labels: { boxWidth: 12, font: { size: 11 } }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    grid: { display: false }
+                                },
+                                y: {
+                                    position: 'left',
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Cantidad de entregas',
+                                        font: { size: 11 }
+                                    },
+                                    ticks: { precision: 0 }
+                                },
+                                y1: {
+                                    position: 'right',
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Monto (L.)',
+                                        font: { size: 11 }
+                                    },
+                                    grid: { drawOnChartArea: false },
+                                    ticks: {
+                                        callback: function (v) {
+                                            if (v >= 1000) return 'L. ' + (v / 1000).toFixed(0) + 'k';
+                                            return 'L. ' + v;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        })();
+    </script>
+}

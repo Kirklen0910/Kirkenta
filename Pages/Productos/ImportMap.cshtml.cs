@@ -166,17 +166,37 @@ namespace Kirkenta.Pages.Productos
         {
             var resultado = new ImportResult { TotalFilas = filas.Count };
 
-            // Precargar catálogos
+            // ===== 1. Precargar catálogos y existentes =====
             var categorias = _context.Categorias.ToList();
             var impuestos = _context.Impuestos.ToList();
+
             var skusExistentes = _context.Productos
                 .Where(p => p.SKU != null)
                 .Select(p => p.SKU!)
                 .ToHashSet();
+
             var codigosBarrasExistentes = _context.Productos
                 .Where(p => p.CodigoBarras != null)
                 .Select(p => p.CodigoBarras!)
                 .ToHashSet();
+
+            // ===== 2. Serie de SKU y próximo número local =====
+            var serieProducto = _context.SeriesDocumentos
+                .FirstOrDefault(s => s.Tipo == "Producto" && s.EsPredeterminada && s.Activa);
+
+            string prefijoSerie = serieProducto?.Prefijo ?? "PRO";
+            string sepSerie = serieProducto?.Separador ?? "-";
+            int longitudSerie = serieProducto?.LongitudNumero ?? 4;
+            string? formatoSerie = serieProducto?.FormatoPersonalizado;
+
+            int proximoNumeroLocal = serieProducto?.SiguienteNumero ?? (skusExistentes.Count + 1);
+
+            // Saltar los que ya existen
+            while (skusExistentes.Contains(
+                FormatearSKU(prefijoSerie, sepSerie, longitudSerie, proximoNumeroLocal, formatoSerie)))
+            {
+                proximoNumeroLocal++;
+            }
 
             int filaNum = 1;
             foreach (var fila in filas)
@@ -198,7 +218,13 @@ namespace Kirkenta.Pages.Productos
                         continue;
                     }
 
-                    var precioVenta = ParsearDecimal(Obtener("PrecioVenta"));
+                    if (nombre.Length > 150)
+                    {
+                        resultado.AgregarError(filaNum, $"El nombre excede 150 caracteres ({nombre.Length})");
+                        continue;
+                    }
+
+                    var precioVenta = ParserHelper.ParsearDecimal(Obtener("PrecioVenta"));
                     if (precioVenta == null)
                     {
                         resultado.AgregarError(filaNum, "El campo 'Precio venta' es obligatorio y debe ser numérico");
@@ -208,7 +234,23 @@ namespace Kirkenta.Pages.Productos
                     var sku = Obtener("SKU");
                     var codigoBarras = Obtener("CodigoBarras");
 
-                    // Buscar existente (por SKU o código de barras)
+                    // ===== VALIDACIÓN: SKU máx 50 =====
+                    if (!string.IsNullOrEmpty(sku) && sku.Length > 50)
+                    {
+                        resultado.AgregarAdvertencia(filaNum,
+                            $"El SKU '{sku}' excede 50 caracteres. Se ignora y se autogenera.");
+                        sku = null;
+                    }
+
+                    // ===== VALIDACIÓN: Código de barras máx 50 =====
+                    if (!string.IsNullOrEmpty(codigoBarras) && codigoBarras.Length > 50)
+                    {
+                        resultado.AgregarAdvertencia(filaNum,
+                            $"El código de barras '{codigoBarras}' excede 50 caracteres. Se ignora.");
+                        codigoBarras = null;
+                    }
+
+                    // Buscar existente
                     Producto? existente = null;
                     if (!string.IsNullOrEmpty(sku))
                         existente = _context.Productos.FirstOrDefault(p => p.SKU == sku);
@@ -228,23 +270,35 @@ namespace Kirkenta.Pages.Productos
                         continue;
                     }
 
-                    // Autogenerar SKU si no viene
+                    // ===== Autogenerar SKU si no viene o si fue rechazado =====
                     if (string.IsNullOrEmpty(sku) && existente == null)
                     {
-                        sku = NumeroDocumentoHelper.GenerarSiguiente(_context, "Producto");
+                        do
+                        {
+                            sku = FormatearSKU(prefijoSerie, sepSerie, longitudSerie, proximoNumeroLocal, formatoSerie);
+                            proximoNumeroLocal++;
+                        }
+                        while (skusExistentes.Contains(sku));
+
+                        skusExistentes.Add(sku);
                     }
 
-                    // Resolver categoría
+                    // Resolver categoría e impuesto
                     int? categoriaId = ResolverCategoria(Obtener("Categoria"), categorias, crearCategoriasAuto, resultado, filaNum);
-                    // Resolver impuesto
                     int? impuestoId = ResolverImpuesto(Obtener("Impuesto"), impuestos, crearImpuestosAuto, resultado, filaNum);
 
-                    var activo = ParsearBool(Obtener("Activo"));
-                    var precioCompra = ParsearDecimal(Obtener("PrecioCompra"));
-                    var precioMayorista = ParsearDecimal(Obtener("PrecioMayorista"));
-                    var stock = ParsearDecimal(Obtener("Stock"));
-                    var stockMinimo = ParsearDecimal(Obtener("StockMinimo"));
+                    var activo = ParserHelper.ParsearBool(Obtener("Activo"));
+                    var precioCompra = ParserHelper.ParsearDecimal(Obtener("PrecioCompra"));
+                    var precioMayorista = ParserHelper.ParsearDecimal(Obtener("PrecioMayorista"));
+                    var stock = ParserHelper.ParsearDecimal(Obtener("Stock"));
+                    var stockMinimo = ParserHelper.ParsearDecimal(Obtener("StockMinimo"));
                     var unidad = Obtener("UnidadMedida");
+
+                    // ===== VALIDACIÓN: UnidadMedida máx 20 =====
+                    if (!string.IsNullOrEmpty(unidad) && unidad.Length > 20)
+                    {
+                        unidad = unidad.Substring(0, 20);
+                    }
 
                     if (existente != null)
                     {
@@ -292,7 +346,16 @@ namespace Kirkenta.Pages.Productos
                 }
             }
 
+            // ===== 3. Guardar de una sola vez =====
             _context.SaveChanges();
+
+            // ===== 4. Sincronizar la serie =====
+            if (serieProducto != null && resultado.Creados > 0)
+            {
+                serieProducto.SiguienteNumero = proximoNumeroLocal;
+                _context.SaveChanges();
+            }
+
             return resultado;
         }
 
@@ -312,12 +375,12 @@ namespace Kirkenta.Pages.Productos
 
             var nueva = new Categoria
             {
-                Nombre = valor,
+                Nombre = valor.Length > 100 ? valor.Substring(0, 100) : valor,
                 Activa = true,
                 FechaCreacion = DateTime.Now
             };
             _context.Categorias.Add(nueva);
-            _context.SaveChanges(); // Para obtener el Id
+            _context.SaveChanges();
             categorias.Add(nueva);
             return nueva.Id;
         }
@@ -330,8 +393,9 @@ namespace Kirkenta.Pages.Productos
             var existente = impuestos.FirstOrDefault(i => ColumnMapper.Normalizar(i.Nombre) == nombreNormalizado);
             if (existente != null) return existente.Id;
 
-            // Intenta parsear como porcentaje numérico
-            if (decimal.TryParse(valor.Replace("%", "").Trim(), out var porcentaje))
+            if (decimal.TryParse(valor.Replace("%", "").Trim(),
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var porcentaje))
             {
                 var porPorcentaje = impuestos.FirstOrDefault(i => i.Porcentaje == porcentaje);
                 if (porPorcentaje != null) return porPorcentaje.Id;
@@ -345,8 +409,10 @@ namespace Kirkenta.Pages.Productos
 
             var nuevo = new Impuesto
             {
-                Nombre = valor,
-                Porcentaje = decimal.TryParse(valor.Replace("%", "").Trim(), out var p) ? p : 0,
+                Nombre = valor.Length > 50 ? valor.Substring(0, 50) : valor,
+                Porcentaje = decimal.TryParse(valor.Replace("%", "").Trim(),
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var p) ? p : 0,
                 Activo = true
             };
             _context.Impuestos.Add(nuevo);
@@ -355,33 +421,45 @@ namespace Kirkenta.Pages.Productos
             return nuevo.Id;
         }
 
-        private static bool? ParsearBool(string? valor)
+        /// <summary>
+        /// Formatea un SKU respetando el formato de la serie.
+        /// Trunca a 50 caracteres por seguridad.
+        /// </summary>
+        private static string FormatearSKU(
+            string prefijo, string separador, int longitud, int numero, string? formatoPersonalizado)
         {
-            if (string.IsNullOrWhiteSpace(valor)) return null;
+            var numeroStr = numero.ToString().PadLeft(longitud, '0');
+            var anio = DateTime.Now.Year.ToString();
+            var mes = DateTime.Now.Month.ToString("D2");
+            var dia = DateTime.Now.Day.ToString("D2");
 
-            var normalizado = valor.Trim().ToLowerInvariant();
-            if (normalizado == "1" || normalizado == "true" || normalizado == "sí" || normalizado == "si" ||
-                normalizado == "yes" || normalizado == "y" || normalizado == "activo" || normalizado == "activa")
-                return true;
-            if (normalizado == "0" || normalizado == "false" || normalizado == "no" ||
-                normalizado == "n" || normalizado == "inactivo" || normalizado == "inactiva")
-                return false;
+            string resultado;
 
-            return null;
-        }
+            if (!string.IsNullOrWhiteSpace(formatoPersonalizado))
+            {
+                resultado = formatoPersonalizado
+                    .Replace("{PREFIX}", prefijo)
+                    .Replace("{PREFIJO}", prefijo)
+                    .Replace("{SUFFIX}", "")
+                    .Replace("{SUFIJO}", "")
+                    .Replace("{SEP}", separador)
+                    .Replace("{YEAR}", anio)
+                    .Replace("{ANIO}", anio)
+                    .Replace("{MONTH}", mes)
+                    .Replace("{MES}", mes)
+                    .Replace("{DAY}", dia)
+                    .Replace("{DIA}", dia)
+                    .Replace("{NUM}", numeroStr);
+            }
+            else
+            {
+                resultado = $"{prefijo}{separador}{numeroStr}";
+            }
 
-        private static decimal? ParsearDecimal(string? valor)
-        {
-            if (string.IsNullOrWhiteSpace(valor)) return null;
-            var limpio = valor.Trim()
-                .Replace(",", "")
-                .Replace("L.", "")
-                .Replace("$", "")
-                .Replace("%", "")
-                .Trim();
+            if (resultado.Length > 50)
+                resultado = resultado.Substring(0, 50);
 
-            return decimal.TryParse(limpio, System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out var result) ? result : null;
+            return resultado;
         }
     }
 }

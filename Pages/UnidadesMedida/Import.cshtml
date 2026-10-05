@@ -1,0 +1,23 @@
+@page
+@model Kirkenta.Pages.UnidadesMedida.ImportModel
+@{
+    ViewData["Title"] = Model.WizardConfig.TituloPagina;
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a href="@Model.WizardConfig.UrlIndex" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a @Model.WizardConfig.NombrePlural
+        </a>
+        <h2>@Model.WizardConfig.TituloPagina</h2>
+        <p>Sube un archivo Excel o CSV con las @Model.WizardConfig.NombrePlural a importar</p>
+    </div>
+</div>
+
+@await Html.PartialAsync("_ImportStepIndicator", new { Paso = 1 })
+
+@await Html.PartialAsync("_ImportUploadForm", Model.WizardConfig)

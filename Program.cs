@@ -1,6 +1,7 @@
 using Kirkenta.Data;
 using Kirkenta.Helpers;
 using Kirkenta.Helpers.Finanzas;
+using Kirkenta.Helpers.Logistica;
 using Kirkenta.Helpers.RRHH;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Auth/Login");
     options.Conventions.AllowAnonymousToPage("/Auth/Register");
     options.Conventions.AllowAnonymousToPage("/Auth/Logout");
+    options.Conventions.AllowAnonymousToPage("/Logistica/Tracking/Index");
 });
 
 // 🔐 Autenticación por cookies
@@ -65,7 +67,7 @@ using (var scope = app.Services.CreateScope())
         // Seed de Finanzas (cajas y categorías)
         FinanzasSeeder.Seed(db);
 
-        // ⬇️ NUEVO: Seed del Plan de Cuentas contable
+        // Seed del Plan de Cuentas contable
         PlanCuentasHelper.Seed(db);
 
         // Seed de RRHH — Tipos de documentos
@@ -73,6 +75,9 @@ using (var scope = app.Services.CreateScope())
 
         // Seed de Feriados (año actual)
         FeriadoSeeder.Seed(db, DateTime.Today.Year);
+
+        // Seed de Logística — Zonas de envío
+        ZonaEnvioSeeder.Seed(db);
 
         // Acumulación de vacaciones anuales
         var procesados = EmpleadoHelper.ProcesarAcumulacionGlobal(db);

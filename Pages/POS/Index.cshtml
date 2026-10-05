@@ -119,6 +119,54 @@
             </div>
         </div>
 
+        <!-- ===== BLOQUE DE ENVÍO ===== -->
+        <div class="pos-envio-toggle">
+            <label class="pos-checkbox-label">
+                <input type="checkbox" id="chkRequiereEnvio" />
+                <span>🚚 Requiere envío a domicilio</span>
+            </label>
+        </div>
+
+        <div id="panelEnvio" style="display: none;">
+            <div class="pos-envio-panel">
+                <div class="form-field">
+                    <label>Dirección de entrega *</label>
+                    <input type="text" id="envioDireccion" class="form-input" placeholder="Colonia, calle, número..." />
+                </div>
+                <div class="form-field">
+                    <label>Referencia</label>
+                    <input type="text" id="envioReferencia" class="form-input" placeholder="Punto de referencia para el repartidor" />
+                </div>
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="form-field">
+                        <label>Recibe *</label>
+                        <input type="text" id="envioContactoNombre" class="form-input" placeholder="Nombre de quien recibe" />
+                    </div>
+                    <div class="form-field">
+                        <label>Teléfono *</label>
+                        <input type="text" id="envioContactoTelefono" class="form-input" placeholder="9999-9999" />
+                    </div>
+                </div>
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="form-field">
+                        <label>Zona</label>
+                        <select id="envioZonaId" class="form-input">
+                            <option value="">— Sin zona —</option>
+                            @foreach (var z in Model.ZonasEnvio)
+                            {
+                                <option value="@z.Id" data-precio="@z.PrecioSugerido">@z.Nombre (L. @z.PrecioSugerido.ToString("N2"))</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Monto envío (L.) *</label>
+                        <input type="number" id="envioMonto" class="form-input" step="0.01" min="0" value="0" />
+                        <small style="font-size: 11px; color: var(--color-muted);">Pon 0 si es gratis</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="pos-cart-items" id="posCartItems">
             <div class="pos-cart-empty">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -132,8 +180,12 @@
 
         <div class="pos-cart-totals">
             <div class="pos-total-row">
-                <span>Subtotal</span>
+                <span>Subtotal productos</span>
                 <strong id="posSubtotal">L. 0.00</strong>
+            </div>
+            <div class="pos-total-row" id="rowEnvio" style="display: none;">
+                <span>Envío</span>
+                <strong id="posEnvio">L. 0.00</strong>
             </div>
             <div class="pos-total-row">
                 <span>Impuestos</span>
@@ -178,6 +230,10 @@
             <div class="pos-modal-total">
                 <span>Total a pagar</span>
                 <strong id="modalTotal">L. 0.00</strong>
+            </div>
+
+            <div id="modalAvisoEnvio" style="display: none; background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary); padding: 10px 14px; border-radius: 8px; font-size: 12.5px; margin-bottom: 14px;">
+                <strong>🚚 Incluye envío:</strong> <span id="modalAvisoMontoEnvio">L. 0.00</span>
             </div>
 
             <div class="form-field">
@@ -239,6 +295,10 @@
             <strong id="ventaTotal"></strong>
         </div>
 
+        <div id="avisoEnvioExito" style="display: none; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 10px 14px; border-radius: 8px; font-size: 12.5px; margin-bottom: 16px; text-align: left;">
+            🚚 <strong>Envío generado:</strong> <span id="avisoEnvioNumero"></span>. Pendiente de asignar ruta.
+        </div>
+
         <div id="avisoMovimiento" style="display: none; background: #fffbeb; border: 1px solid #fde68a; color: #d97706; padding: 10px 14px; border-radius: 8px; font-size: 12.5px; margin-bottom: 16px; text-align: left;">
             <strong>⚠️ Aviso:</strong> <span id="avisoTexto"></span>
         </div>
@@ -272,6 +332,18 @@
             var modalCobro = document.getElementById('modalCobro');
             var modalExito = document.getElementById('modalExito');
 
+            // Envío
+            var chkRequiereEnvio = document.getElementById('chkRequiereEnvio');
+            var panelEnvio = document.getElementById('panelEnvio');
+            var envioDireccion = document.getElementById('envioDireccion');
+            var envioReferencia = document.getElementById('envioReferencia');
+            var envioContactoNombre = document.getElementById('envioContactoNombre');
+            var envioContactoTelefono = document.getElementById('envioContactoTelefono');
+            var envioZonaId = document.getElementById('envioZonaId');
+            var envioMonto = document.getElementById('envioMonto');
+            var rowEnvio = document.getElementById('rowEnvio');
+            var posEnvioEl = document.getElementById('posEnvio');
+
             var clienteSearch = document.getElementById('posClienteSearch');
             var clienteResults = document.getElementById('posClienteResults');
             var clienteIdInput = document.getElementById('posClienteId');
@@ -283,6 +355,46 @@
 
             function formatMoney(n) {
                 return 'L. ' + (n || 0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+            }
+
+            function getMontoEnvio() {
+                if (!chkRequiereEnvio.checked) return 0;
+                return parseFloat(envioMonto.value) || 0;
+            }
+
+            // === Toggle del panel de envío ===
+            chkRequiereEnvio.addEventListener('change', function () {
+                panelEnvio.style.display = this.checked ? 'block' : 'none';
+                rowEnvio.style.display = this.checked ? '' : 'none';
+                actualizarTotales();
+            });
+
+            envioMonto.addEventListener('input', actualizarTotales);
+
+            // === Al elegir zona, autocompletar el precio ===
+            envioZonaId.addEventListener('change', function () {
+                var opt = this.options[this.selectedIndex];
+                var precio = parseFloat(opt.dataset.precio) || 0;
+                if (precio >= 0) {
+                    envioMonto.value = precio.toFixed(2);
+                    actualizarTotales();
+                }
+            });
+
+            // === Al elegir cliente, autocompletar dirección si está vacía ===
+            function autocompletarDireccion(clienteId) {
+                var cliente = clientes.find(function (c) { return c.id == clienteId; });
+                if (!cliente) return;
+
+                if (envioDireccion && !envioDireccion.value && cliente.direccion) {
+                    envioDireccion.value = cliente.direccion;
+                }
+                if (envioContactoNombre && !envioContactoNombre.value) {
+                    envioContactoNombre.value = cliente.nombre;
+                }
+                if (envioContactoTelefono && !envioContactoTelefono.value && cliente.telefono) {
+                    envioContactoTelefono.value = cliente.telefono;
+                }
             }
 
             // === Buscador de clientes ===
@@ -318,6 +430,7 @@
                         clienteIdInput.value = this.dataset.id;
                         clienteSearch.value = this.dataset.nombre;
                         clienteResults.style.display = 'none';
+                        autocompletarDireccion(this.dataset.id);
                     });
                 });
             }
@@ -418,17 +531,25 @@
             }
 
             function actualizarTotales() {
-                var subtotal = 0, impuestos = 0;
+                var subtotalProductos = 0, impuestos = 0;
                 carrito.forEach(function (item) {
                     var sub = item.precio * item.cantidad;
-                    subtotal += sub;
+                    subtotalProductos += sub;
                     impuestos += sub * ((item.impuesto || 0) / 100);
                 });
 
-                var total = subtotal + impuestos - descuentoGlobal;
+                // El envío se grava con la tasa predeterminada (asumimos 15% aquí para el preview)
+                // El cálculo real lo hace el backend
+                var montoEnvio = getMontoEnvio();
+                var impuestoEnvio = montoEnvio * 0.15;
+                impuestos += impuestoEnvio;
 
-                subtotalEl.textContent = formatMoney(subtotal);
+                var subtotalConEnvio = subtotalProductos + montoEnvio;
+                var total = subtotalConEnvio + impuestos - descuentoGlobal;
+
+                subtotalEl.textContent = formatMoney(subtotalProductos);
                 impuestosEl.textContent = formatMoney(impuestos);
+                posEnvioEl.textContent = formatMoney(montoEnvio);
                 totalEl.textContent = formatMoney(total);
             }
 
@@ -445,15 +566,53 @@
                     descuentoInput.value = '0';
                     clienteSearch.value = '';
                     clienteIdInput.value = '';
+                    chkRequiereEnvio.checked = false;
+                    panelEnvio.style.display = 'none';
+                    rowEnvio.style.display = 'none';
+                    envioDireccion.value = '';
+                    envioReferencia.value = '';
+                    envioContactoNombre.value = '';
+                    envioContactoTelefono.value = '';
+                    envioZonaId.value = '';
+                    envioMonto.value = '0';
                     renderCarrito();
                 }
             });
 
             btnCobrar.addEventListener('click', function () {
+                // Validar envío si está activo
+                if (chkRequiereEnvio.checked) {
+                    if (!envioDireccion.value.trim()) {
+                        alert('Debes indicar la dirección de entrega');
+                        envioDireccion.focus();
+                        return;
+                    }
+                    if (!envioContactoNombre.value.trim()) {
+                        alert('Debes indicar quién recibe el envío');
+                        envioContactoNombre.focus();
+                        return;
+                    }
+                    if (!envioContactoTelefono.value.trim()) {
+                        alert('Debes indicar el teléfono de contacto');
+                        envioContactoTelefono.focus();
+                        return;
+                    }
+                }
+
                 var total = parseFloat(totalEl.textContent.replace('L. ', '').replace(/,/g, '')) || 0;
                 document.getElementById('modalTotal').textContent = formatMoney(total);
                 document.getElementById('modalMonto').value = total.toFixed(2);
                 document.getElementById('modalCambio').textContent = 'L. 0.00';
+
+                var avisoEnvio = document.getElementById('modalAvisoEnvio');
+                var avisoMonto = document.getElementById('modalAvisoMontoEnvio');
+                if (chkRequiereEnvio.checked) {
+                    avisoEnvio.style.display = 'block';
+                    avisoMonto.textContent = formatMoney(getMontoEnvio());
+                } else {
+                    avisoEnvio.style.display = 'none';
+                }
+
                 modalCobro.classList.add('is-open');
                 document.getElementById('modalMonto').focus();
             });
@@ -514,7 +673,16 @@
                             impuestoPorcentaje: i.impuesto,
                             descuento: 0
                         };
-                    })
+                    }),
+                    // Envío
+                    requiereEnvio: chkRequiereEnvio.checked,
+                    montoEnvio: chkRequiereEnvio.checked ? (parseFloat(envioMonto.value) || 0) : 0,
+                    envioDireccion: chkRequiereEnvio.checked ? envioDireccion.value.trim() : null,
+                    envioReferencia: chkRequiereEnvio.checked ? envioReferencia.value.trim() : null,
+                    envioContactoNombre: chkRequiereEnvio.checked ? envioContactoNombre.value.trim() : null,
+                    envioContactoTelefono: chkRequiereEnvio.checked ? envioContactoTelefono.value.trim() : null,
+                    envioCiudad: null,
+                    envioZonaId: chkRequiereEnvio.checked && envioZonaId.value ? parseInt(envioZonaId.value) : null
                 };
 
                 var token = document.querySelector('input[name="__RequestVerificationToken"]');
@@ -549,6 +717,17 @@
                         document.getElementById('ventaNumero').textContent = 'Venta ' + data.numero;
                         document.getElementById('ventaTotal').textContent = formatMoney(data.total);
 
+                        // Aviso de envío
+                        var avisoEnvioExito = document.getElementById('avisoEnvioExito');
+                        var avisoEnvioNumero = document.getElementById('avisoEnvioNumero');
+                        if (data.requiereEnvio && data.envioNumero) {
+                            avisoEnvioNumero.textContent = data.envioNumero;
+                            avisoEnvioExito.style.display = 'block';
+                        } else {
+                            avisoEnvioExito.style.display = 'none';
+                        }
+
+                        // Aviso de movimiento
                         var avisoBox = document.getElementById('avisoMovimiento');
                         if (data.movimientoRegistrado === false && data.movimientoError) {
                             document.getElementById('avisoTexto').textContent = data.movimientoError;

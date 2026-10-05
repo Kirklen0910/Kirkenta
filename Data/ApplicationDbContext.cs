@@ -61,7 +61,7 @@ namespace Kirkenta.Data
         public DbSet<CierreContable> CierresContables { get; set; }
         public DbSet<ConciliacionBancaria> ConciliacionesBancarias { get; set; }
         public DbSet<ConciliacionDetalle> ConciliacionesDetalle { get; set; }
-        public DbSet<PlanCuenta> PlanCuentas { get; set; }                          // ← NUEVO
+        public DbSet<PlanCuenta> PlanCuentas { get; set; }
 
         // ===== RRHH =====
         public DbSet<Empleado> Empleados { get; set; }
@@ -79,6 +79,13 @@ namespace Kirkenta.Data
         public DbSet<ConfiguracionDeduccion> ConfiguracionDeducciones { get; set; }
         public DbSet<TramoISR> TramosISR { get; set; }
         public DbSet<PagoNominaEmpleado> PagosNominaEmpleado { get; set; }
+
+        // ===== LOGÍSTICA =====
+        public DbSet<ZonaEnvio> ZonasEnvio { get; set; }
+        public DbSet<Repartidor> Repartidores { get; set; }
+        public DbSet<Envio> Envios { get; set; }
+        public DbSet<Ruta> Rutas { get; set; }
+        public DbSet<RutaHistorial> RutasHistorial { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -119,7 +126,7 @@ namespace Kirkenta.Data
             modelBuilder.Entity<ConciliacionBancaria>().HasIndex(c => c.Numero).IsUnique();
 
             // Código de cuenta contable único
-            modelBuilder.Entity<PlanCuenta>().HasIndex(c => c.Codigo).IsUnique();       // ← NUEVO
+            modelBuilder.Entity<PlanCuenta>().HasIndex(c => c.Codigo).IsUnique();
 
             // RRHH
             modelBuilder.Entity<Empleado>().HasIndex(e => e.Codigo).IsUnique();
@@ -131,6 +138,13 @@ namespace Kirkenta.Data
 
             // Config deducciones - único por año
             modelBuilder.Entity<ConfiguracionDeduccion>().HasIndex(c => c.Anio).IsUnique();
+
+            // ===== LOGÍSTICA =====
+            modelBuilder.Entity<Envio>().HasIndex(e => e.Numero).IsUnique();
+            modelBuilder.Entity<Ruta>().HasIndex(r => r.Numero).IsUnique();
+            modelBuilder.Entity<Ruta>().HasIndex(r => r.TrackingCode).IsUnique();
+            modelBuilder.Entity<Repartidor>().HasIndex(r => r.Codigo).IsUnique();
+            modelBuilder.Entity<ZonaEnvio>().HasIndex(z => z.Nombre).IsUnique();
         }
     }
 }

@@ -53,8 +53,13 @@ namespace Kirkenta.Pages.Compras
             var finMes = inicioMes.AddMonths(1);
             var inicioMesAnterior = inicioMes.AddMonths(-1);
 
-            // Estados que cuentan como "compra real" (excluye Borrador y Cancelada)
-            var estadosValidos = new[] { "Enviada", "RecibidaParcial", "Recibida", "Pagada" };
+            // ⚠️ FIX EF Core 9 en .NET 10:
+            // Usar HashSet<string> en lugar de string[].
+            // El array de string rompe el ExpressionTreeFuncletizer.
+            var estadosValidos = new HashSet<string>
+            {
+                "Enviada", "RecibidaParcial", "Recibida", "Pagada"
+            };
 
             // === KPIs ===
             var ordenesMes = _context.OrdenesCompra
@@ -88,7 +93,7 @@ namespace Kirkenta.Pages.Compras
             ProveedoresActivos = _context.Proveedores.AsNoTracking().Count(p => p.Activo);
             TotalProveedores = _context.Proveedores.AsNoTracking().Count();
 
-            // === Top proveedores del mes (sin N+1) ===
+            // === Top proveedores del mes ===
             var proveedoresDict = _context.Proveedores
                 .AsNoTracking()
                 .ToDictionary(p => p.Id, p => p.Nombre);
@@ -123,7 +128,6 @@ namespace Kirkenta.Pages.Compras
             // === Gráfico: últimos 6 meses ===
             var inicioRango = new DateTime(hoy.Year, hoy.Month, 1).AddMonths(-5);
 
-            // Cargamos todas las órdenes del rango en una sola query
             var ordenesRango = _context.OrdenesCompra
                 .AsNoTracking()
                 .Where(o => o.Fecha >= inicioRango && o.Fecha < finMes && estadosValidos.Contains(o.Estado))

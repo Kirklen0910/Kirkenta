@@ -1,0 +1,418 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Logistica.Envios.DetailsModel
+@{
+    ViewData["Title"] = $"Envío {Model.Envio.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Logistica/Envios/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a envíos
+        </a>
+        <h2>Envío @Model.Envio.Numero</h2>
+        <p>
+            Creado el @Model.Envio.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
+            @if (Model.Envio.VentaId.HasValue)
+            {
+                <span> • Origen: Venta @(Model.VentaOrigen?.Numero ?? "#" + Model.Envio.VentaId)</span>
+            }
+            else if (Model.Envio.FacturaId.HasValue)
+            {
+                <span> • Origen: Factura @(Model.FacturaOrigen?.Numero ?? "#" + Model.Envio.FacturaId)</span>
+            }
+            else if (Model.Envio.PedidoId.HasValue)
+            {
+                <span> • Origen: Pedido @(Model.PedidoOrigen?.Numero ?? "#" + Model.Envio.PedidoId)</span>
+            }
+            else if (Model.Envio.CotizacionId.HasValue)
+            {
+                <span> • Origen: Cotización @(Model.CotizacionOrigen?.Numero ?? "#" + Model.Envio.CotizacionId)</span>
+            }
+        </p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrearRuta && Model.Envio.Estado == "Pendiente" && !Model.Envio.RutaId.HasValue)
+        {
+            <a asp-page="/Logistica/Rutas/Create" asp-route-envioId="@Model.Envio.Id" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Asignar a ruta
+            </a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<!-- Banner de alerta si está atrasado o fallido -->
+@if (Model.Semaforo == "Rojo" && Model.Envio.Estado != "Entregado")
+{
+    var mensaje = Model.Envio.Estado == "Fallido"
+        ? "Este envío no se pudo entregar y requiere reagendarse"
+        : Model.DiasDiferencia.HasValue
+            ? $"Este envío está atrasado por {Model.DiasDiferencia} día(s)"
+            : "Este envío requiere atención";
+
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <strong>⚠️ @mensaje</strong>
+    </div>
+}
+else if (Model.Semaforo == "Amarillo" && Model.Envio.Estado != "Entregado")
+{
+    <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <strong>Este envío debe entregarse HOY</strong>
+    </div>
+}
+
+<!-- Estado + semáforo -->
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Estado actual</span>
+        <span class="kpi-value" style="font-size: 20px;">
+            @if (Model.Envio.Estado == "Pendiente") { <span class="badge badge-warning">Pendiente</span> }
+            else if (Model.Envio.Estado == "EnRuta") { <span class="badge badge-info">En ruta</span> }
+            else if (Model.Envio.Estado == "Entregado") { <span class="badge badge-success">Entregado</span> }
+            else if (Model.Envio.Estado == "Fallido") { <span class="badge badge-danger">Fallido</span> }
+            else if (Model.Envio.Estado == "Cancelado") { <span class="badge">Cancelado</span> }
+        </span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Semáforo</span>
+        <span class="kpi-value" style="font-size: 20px;">@Model.EtiquetaSemaforo</span>
+        @if (Model.Envio.FechaEntregaEstimada.HasValue)
+        {
+            <span class="kpi-trend">Fecha estimada: @Model.Envio.FechaEntregaEstimada.Value.ToString("dd/MM/yyyy")</span>
+        }
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Monto de envío</span>
+        <span class="kpi-value" style="font-size: 20px;">
+            @if (Model.Envio.EsGratis || Model.Envio.Monto <= 0)
+            {
+                <span class="badge badge-success">Gratis</span>
+            }
+            else
+            {
+                <span>L. @Model.Envio.Monto.ToString("N2")</span>
+            }
+        </span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Ruta</span>
+        <span class="kpi-value" style="font-size: 18px;">
+            @if (Model.Ruta != null)
+            {
+                <a asp-page="/Logistica/Rutas/Details" asp-route-id="@Model.Ruta.Id">
+                    <strong style="color: var(--color-primary);">@Model.Ruta.Numero</strong>
+                </a>
+                @if (Model.Envio.OrdenParada.HasValue)
+                {
+                    <span class="table-user-sub" style="display: block; font-size: 12px;">Parada #@Model.Envio.OrdenParada</span>
+                }
+            }
+            else
+            {
+                <span class="badge badge-warning">Sin asignar</span>
+            }
+        </span>
+    </div>
+</div>
+
+<!-- Info del envío -->
+<div class="module-card" style="padding: 28px; margin-bottom: 20px;">
+    <h3 class="form-section-title">Información de entrega</h3>
+
+    <div class="form-row" style="margin-top: 16px;">
+        <div>
+            <label class="empresa-info-label">Cliente</label>
+            <p><strong>@Model.Envio.ClienteNombre</strong></p>
+            @if (!string.IsNullOrEmpty(Model.Envio.ContactoNombre))
+            {
+                <p style="font-size: 13px; color: var(--color-muted);">
+                    Recibe: <strong>@Model.Envio.ContactoNombre</strong>
+                </p>
+            }
+            @if (!string.IsNullOrEmpty(Model.Envio.ContactoTelefono))
+            {
+                <p style="font-size: 13px; color: var(--color-muted);">📞 @Model.Envio.ContactoTelefono</p>
+            }
+        </div>
+        <div>
+            <label class="empresa-info-label">Dirección de entrega</label>
+            <p><strong>@Model.Envio.DireccionEntrega</strong></p>
+            @if (!string.IsNullOrEmpty(Model.Envio.Referencia))
+            {
+                <p style="font-size: 13px; color: var(--color-muted);">Referencia: @Model.Envio.Referencia</p>
+            }
+            @if (!string.IsNullOrEmpty(Model.Envio.Ciudad))
+            {
+                <p style="font-size: 13px; color: var(--color-muted);">@Model.Envio.Ciudad</p>
+            }
+            @if (Model.Zona != null)
+            {
+                <p style="font-size: 13px;">
+                    <span class="badge badge-info">@Model.Zona.Nombre</span>
+                </p>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Envio.Notas))
+    {
+        <div style="margin-top: 20px; padding: 12px 16px; background: #f9fafb; border-radius: 6px;">
+            <label class="empresa-info-label">Notas</label>
+            <p style="font-size: 13px;">@Model.Envio.Notas</p>
+        </div>
+    }
+</div>
+
+<!-- Info de entrega / fallo -->
+@if (Model.Envio.Estado == "Entregado")
+{
+    <div class="module-card" style="padding: 28px; margin-bottom: 20px; background: #ecfdf5; border-left: 4px solid #10b981;">
+        <h3 class="form-section-title" style="color: #065f46;">✅ Entrega completada</h3>
+        <div class="form-row" style="margin-top: 12px;">
+            <div>
+                <label class="empresa-info-label">Recibió</label>
+                <p><strong>@(Model.Envio.NombreRecibio ?? "—")</strong></p>
+            </div>
+            <div>
+                <label class="empresa-info-label">Fecha y hora</label>
+                <p><strong>@(Model.Envio.FechaEntregaReal?.ToString("dd/MM/yyyy HH:mm") ?? "—")</strong></p>
+            </div>
+        </div>
+        @if (!string.IsNullOrEmpty(Model.Envio.RepartidorNombre))
+        {
+            <div style="margin-top: 12px;">
+                <label class="empresa-info-label">Entregado por</label>
+                <p style="font-size: 13px;">@Model.Envio.RepartidorNombre @(string.IsNullOrEmpty(Model.Envio.Vehiculo) ? "" : $"({Model.Envio.Vehiculo})")</p>
+            </div>
+        }
+    </div>
+}
+else if (Model.Envio.Estado == "Fallido")
+{
+    <div class="module-card" style="padding: 28px; margin-bottom: 20px; background: #fef2f2; border-left: 4px solid #dc2626;">
+        <h3 class="form-section-title" style="color: #991b1b;">❌ Entrega fallida</h3>
+        <div style="margin-top: 12px;">
+            <label class="empresa-info-label">Motivo del fallo</label>
+            <p style="font-size: 13.5px;">@(Model.Envio.MotivoFallo ?? "—")</p>
+        </div>
+        @if (Model.Envio.FechaEntregaReal.HasValue)
+        {
+            <div style="margin-top: 12px;">
+                <label class="empresa-info-label">Fecha del intento</label>
+                <p style="font-size: 13px;">@Model.Envio.FechaEntregaReal.Value.ToString("dd/MM/yyyy HH:mm")</p>
+            </div>
+        }
+    </div>
+}
+
+<!-- ============================================ -->
+<!-- BANNER: ENVÍO SIN RUTA                        -->
+<!-- ============================================ -->
+@if (!Model.PuedeProcesar && Model.Envio.Estado != "Entregado" && Model.Envio.Estado != "Cancelado" && Model.Envio.Estado != "Fallido")
+{
+    <div class="module-card" style="padding: 24px; margin-bottom: 20px; border-left: 4px solid #f59e0b; background: #fffbeb;">
+        <div style="display: flex; gap: 14px; align-items: flex-start;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 28px; height: 28px; flex-shrink: 0;">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <div style="flex: 1;">
+                <h3 style="font-size: 15px; font-weight: 700; color: #92400e; margin-bottom: 6px;">
+                    Este envío aún no está en una ruta
+                </h3>
+                <p style="font-size: 13.5px; color: #92400e; margin: 0; line-height: 1.6;">
+                    Para poder marcar este envío como <strong>Entregado</strong> o <strong>Fallido</strong>,
+                    primero debes asignarlo a una ruta de despacho y despacharla.
+                </p>
+                @if (Model.PuedeCrearRuta)
+                {
+                    <a asp-page="/Logistica/Rutas/Create" asp-route-envioId="@Model.Envio.Id"
+                       class="btn-primary" style="margin-top: 12px; display: inline-flex; background: #d97706;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        Crear ruta con este envío
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ============================================ -->
+<!-- ACCIONES (según estado Y si tiene ruta)       -->
+<!-- ============================================ -->
+@if (Model.PuedeEditar && Model.PuedeProcesar && Model.Envio.Estado != "Entregado" && Model.Envio.Estado != "Cancelado")
+{
+    <div class="module-card" style="padding: 28px; margin-bottom: 20px;">
+        <h3 class="form-section-title">Acciones disponibles</h3>
+
+        @if (Model.Envio.Estado == "EnRuta" || Model.Envio.Estado == "Pendiente")
+        {
+            <div class="panel-grid" style="margin-top: 16px;">
+                <!-- MARCAR ENTREGADO -->
+                <div style="padding: 20px; border: 2px solid #10b981; border-radius: 8px; background: #ecfdf5;">
+                    <h4 style="font-size: 14px; font-weight: 700; color: #065f46; margin-bottom: 6px;">✅ Marcar como entregado</h4>
+                    <p style="font-size: 12.5px; color: #065f46; margin-bottom: 14px;">Registrar la entrega exitosa al cliente.</p>
+
+                    <form method="post" asp-page-handler="MarcarEntregado" asp-route-id="@Model.Envio.Id">
+                        <div class="form-field">
+                            <label style="font-size: 12.5px; font-weight: 600;">Nombre de quien recibe *</label>
+                            <input name="NombreRecibio" class="form-input" placeholder="Ej: Juan Pérez" required />
+                        </div>
+                        <div class="form-field">
+                            <label style="font-size: 12.5px; font-weight: 600;">Notas (opcional)</label>
+                            <input name="NotasAccion" class="form-input" placeholder="Observaciones de la entrega" />
+                        </div>
+                        <button type="submit" class="btn-primary" style="width: 100%; background: #10b981;">
+                            Confirmar entrega
+                        </button>
+                    </form>
+                </div>
+
+                <!-- MARCAR FALLIDO -->
+                <div style="padding: 20px; border: 2px solid #dc2626; border-radius: 8px; background: #fef2f2;">
+                    <h4 style="font-size: 14px; font-weight: 700; color: #991b1b; margin-bottom: 6px;">❌ Marcar como fallido</h4>
+                    <p style="font-size: 12.5px; color: #991b1b; margin-bottom: 14px;">Registrar que la entrega no se pudo completar.</p>
+
+                    <form method="post" asp-page-handler="MarcarFallido" asp-route-id="@Model.Envio.Id">
+                        <div class="form-field">
+                            <label style="font-size: 12.5px; font-weight: 600;">Motivo del fallo *</label>
+                            <textarea name="MotivoFallo" class="form-input" rows="3" placeholder="Ej: Cliente ausente, dirección incorrecta, etc." required></textarea>
+                        </div>
+                        <button type="submit" class="btn-danger" style="width: 100%;">
+                            Confirmar fallo
+                        </button>
+                    </form>
+                </div>
+            </div>
+        }
+
+        @if (Model.Envio.Estado == "Fallido")
+        {
+            <div style="margin-top: 16px; padding: 20px; border: 2px solid #4f46e5; border-radius: 8px; background: #eef2ff;">
+                <h4 style="font-size: 14px; font-weight: 700; color: #4f46e5; margin-bottom: 6px;">🔄 Reagendar envío</h4>
+                <p style="font-size: 12.5px; color: #4f46e5; margin-bottom: 14px;">Devuelve el envío a estado Pendiente para asignarlo a una nueva ruta.</p>
+
+                <form method="post" asp-page-handler="Reagendar" asp-route-id="@Model.Envio.Id">
+                    <div class="form-field">
+                        <label style="font-size: 12.5px; font-weight: 600;">Notas del reagendamiento (opcional)</label>
+                        <textarea name="NotasAccion" class="form-input" rows="2" placeholder="Ej: Reagendado para mañana en la mañana"></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%;">
+                        Reagendar envío
+                    </button>
+                </form>
+            </div>
+        }
+    </div>
+}
+
+<!-- ============================================ -->
+<!-- ACCIÓN ESPECIAL: REAGENDAR SIN RUTA           -->
+<!-- (solo si está Fallido, que es el único caso   -->
+<!-- donde se permite sin ruta asignada)           -->
+<!-- ============================================ -->
+@if (Model.PuedeEditar && !Model.PuedeProcesar && Model.Envio.Estado == "Fallido")
+{
+    <div class="module-card" style="padding: 28px; margin-bottom: 20px;">
+        <h3 class="form-section-title">Acciones disponibles</h3>
+        <div style="margin-top: 16px; padding: 20px; border: 2px solid #4f46e5; border-radius: 8px; background: #eef2ff;">
+            <h4 style="font-size: 14px; font-weight: 700; color: #4f46e5; margin-bottom: 6px;">🔄 Reagendar envío</h4>
+            <p style="font-size: 12.5px; color: #4f46e5; margin-bottom: 14px;">Devuelve el envío a estado Pendiente para asignarlo a una nueva ruta.</p>
+
+            <form method="post" asp-page-handler="Reagendar" asp-route-id="@Model.Envio.Id">
+                <div class="form-field">
+                    <label style="font-size: 12.5px; font-weight: 600;">Notas del reagendamiento (opcional)</label>
+                    <textarea name="NotasAccion" class="form-input" rows="2"></textarea>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%;">
+                    Reagendar envío
+                </button>
+            </form>
+        </div>
+    </div>
+}
+
+<!-- ============================================ -->
+<!-- HISTORIAL DE EVENTOS                          -->
+<!-- ============================================ -->
+@if (Model.Historial.Count > 0)
+{
+    <div class="module-card" style="padding: 28px;">
+        <h3 class="form-section-title">Historial de eventos</h3>
+
+        <div class="timeline" style="margin-top: 16px;">
+            @foreach (var h in Model.Historial)
+            {
+                var color = h.Evento switch
+                {
+                    "Entregado" => "#10b981",
+                    "Fallido" => "#ef4444",
+                    "Reagendado" => "#4f46e5",
+                    "Despachada" => "#3b82f6",
+                    _ => "#6b7280"
+                };
+                <div class="timeline-item">
+                    <div class="timeline-dot" style="background: @color;"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-header">
+                            <strong>@h.Evento</strong>
+                            <span class="timeline-date">@h.Fecha.ToString("dd/MM/yyyy HH:mm")</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(h.Detalle))
+                        {
+                            <p class="timeline-detail">@h.Detalle</p>
+                        }
+                        @if (!string.IsNullOrEmpty(h.UsuarioNombre))
+                        {
+                            <span class="table-user-sub">👤 @h.UsuarioNombre</span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}

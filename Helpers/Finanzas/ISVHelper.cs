@@ -6,7 +6,7 @@ namespace Kirkenta.Helpers.Finanzas
     /// <summary>
     /// Helper para cálculo y desglose de ISV/IVA.
     /// NO hardcodea tasas: siempre lee del catálogo Impuestos.
-    /// Si el SAR activa una nueva tasa, se crea desde /Impuestos y ya queda disponible.
+    /// Soporta monto de envío que se suma al subtotal y se grava con la tasa predeterminada.
     /// </summary>
     public static class ISVHelper
     {
@@ -15,75 +15,44 @@ namespace Kirkenta.Helpers.Finanzas
         /// </summary>
         public class ResultadoISV
         {
-            /// <summary>
-            /// Base gravable por cada tasa (ej: {15: 1000, 18: 500})
-            /// </summary>
             public Dictionary<decimal, decimal> BasePorTasa { get; set; } = new();
-
-            /// <summary>
-            /// Monto de ISV por cada tasa (ej: {15: 150, 18: 90})
-            /// </summary>
             public Dictionary<decimal, decimal> ISVPorTasa { get; set; } = new();
 
-            /// <summary>
-            /// Base gravable total (suma de todas las bases)
-            /// </summary>
             public decimal BaseGravableTotal { get; set; }
-
-            /// <summary>
-            /// Base exenta total (productos sin impuesto o con tasa 0)
-            /// </summary>
             public decimal BaseExentaTotal { get; set; }
-
-            /// <summary>
-            /// ISV total a pagar (suma de todos los ISV por tasa)
-            /// </summary>
             public decimal ISVTotal { get; set; }
-
-            /// <summary>
-            /// Subtotal antes de impuestos (base gravable + base exenta)
-            /// </summary>
             public decimal Subtotal { get; set; }
-
-            /// <summary>
-            /// Total de la factura (subtotal + ISV - descuento)
-            /// </summary>
+            public decimal MontoEnvio { get; set; }
             public decimal Total { get; set; }
-
-            /// <summary>
-            /// Descuento aplicado
-            /// </summary>
             public decimal Descuento { get; set; }
 
-            /// <summary>
-            /// Lista de tasas que aplican en esta factura (para iterar en la vista)
-            /// </summary>
             public List<decimal> TasasAplicadas => BasePorTasa.Keys.OrderBy(t => t).ToList();
         }
 
         /// <summary>
-        /// Calcula el ISV de una lista de items (a nivel de línea).
-        /// Cada item debe traer: Cantidad, PrecioUnitario, Descuento, ImpuestoId del producto.
+        /// Calcula el ISV de una lista de items + un monto de envío opcional.
+        /// El envío se grava con la tasa predeterminada del catálogo.
         /// </summary>
         public static ResultadoISV Calcular(
             ApplicationDbContext context,
             List<ItemParaISV> items,
-            decimal descuentoGlobal = 0)
+            decimal descuentoGlobal = 0,
+            decimal montoEnvio = 0)
         {
             var resultado = new ResultadoISV();
             resultado.Descuento = descuentoGlobal;
+            resultado.MontoEnvio = montoEnvio;
 
-            // Cargar catálogo de impuestos en memoria
             var impuestos = context.Impuestos
                 .Where(i => i.Activo)
                 .ToList();
 
             var impuestosDict = impuestos.ToDictionary(i => i.Id, i => i.Porcentaje);
 
-            // Impuesto predeterminado (si el producto no tiene uno)
             var impuestoPredeterminado = impuestos
                 .FirstOrDefault(i => i.EsPredeterminado)?.Porcentaje ?? 0m;
 
+            // ===== ITEMS NORMALES =====
             foreach (var item in items)
             {
                 var bruto = item.Cantidad * item.PrecioUnitario;
@@ -91,7 +60,6 @@ namespace Kirkenta.Helpers.Finanzas
 
                 if (neto <= 0) continue;
 
-                // Determinar la tasa de este item
                 decimal tasa = 0m;
                 if (item.ImpuestoId.HasValue && impuestosDict.ContainsKey(item.ImpuestoId.Value))
                 {
@@ -102,7 +70,6 @@ namespace Kirkenta.Helpers.Finanzas
                     tasa = impuestoPredeterminado;
                 }
 
-                // Acumular base
                 if (tasa > 0)
                 {
                     if (!resultado.BasePorTasa.ContainsKey(tasa))
@@ -121,7 +88,28 @@ namespace Kirkenta.Helpers.Finanzas
                 resultado.Subtotal += neto;
             }
 
-            // Calcular ISV por tasa
+            // ===== ENVÍO (se grava con la tasa predeterminada) =====
+            if (montoEnvio > 0)
+            {
+                if (impuestoPredeterminado > 0)
+                {
+                    if (!resultado.BasePorTasa.ContainsKey(impuestoPredeterminado))
+                    {
+                        resultado.BasePorTasa[impuestoPredeterminado] = 0;
+                        resultado.ISVPorTasa[impuestoPredeterminado] = 0;
+                    }
+                    resultado.BasePorTasa[impuestoPredeterminado] += montoEnvio;
+                    resultado.BaseGravableTotal += montoEnvio;
+                }
+                else
+                {
+                    resultado.BaseExentaTotal += montoEnvio;
+                }
+
+                resultado.Subtotal += montoEnvio;
+            }
+
+            // ===== CALCULAR ISV POR TASA =====
             foreach (var tasa in resultado.BasePorTasa.Keys.ToList())
             {
                 var baseTasa = resultado.BasePorTasa[tasa];
@@ -130,7 +118,6 @@ namespace Kirkenta.Helpers.Finanzas
                 resultado.ISVTotal += isv;
             }
 
-            // Total final
             resultado.Total = Math.Round(resultado.Subtotal + resultado.ISVTotal - descuentoGlobal, 2);
             if (resultado.Total < 0) resultado.Total = 0;
 
@@ -138,8 +125,7 @@ namespace Kirkenta.Helpers.Finanzas
         }
 
         /// <summary>
-        /// Calcula el ISV de un único item (usado al agregar al carrito del POS).
-        /// Devuelve la tasa que aplica.
+        /// Devuelve la tasa de ISV que aplica a un producto (o la predeterminada).
         /// </summary>
         public static decimal ObtenerTasaProducto(ApplicationDbContext context, int? impuestoId)
         {
@@ -150,7 +136,6 @@ namespace Kirkenta.Helpers.Finanzas
                 if (imp != null) return imp.Porcentaje;
             }
 
-            // Fallback: predeterminado
             var predeterminado = context.Impuestos
                 .FirstOrDefault(i => i.EsPredeterminado && i.Activo);
             return predeterminado?.Porcentaje ?? 0m;
@@ -158,8 +143,6 @@ namespace Kirkenta.Helpers.Finanzas
 
         /// <summary>
         /// Recalcula los items de una factura usando el catálogo de impuestos.
-        /// Se usa para sincronizar cuando un producto cambió de tasa.
-        /// Devuelve true si hubo cambios.
         /// </summary>
         public static bool SincronizarItems(
             ApplicationDbContext context,
@@ -200,6 +183,7 @@ namespace Kirkenta.Helpers.Finanzas
         /// <summary>
         /// Recalcula el ISV de una factura existente (re-sincronizando con el catálogo)
         /// y devuelve true si hubo cambios que se deban guardar.
+        /// Considera el monto de envío en el total.
         /// </summary>
         public static bool RecalcularFactura(
             ApplicationDbContext context,
@@ -232,7 +216,6 @@ namespace Kirkenta.Helpers.Finanzas
                 factura.Impuestos = impuestos;
                 factura.Total = total;
 
-                // Ajustar el saldo si aún no está pagada
                 if (factura.Estado == "Emitida" || factura.Estado == "PagadaParcial")
                 {
                     factura.Saldo = total;
@@ -243,7 +226,7 @@ namespace Kirkenta.Helpers.Finanzas
         }
 
         /// <summary>
-        /// Obtiene las tasas activas del catálogo (para iterar en la vista).
+        /// Obtiene las tasas activas del catálogo.
         /// </summary>
         public static List<Impuesto> ObtenerTasasActivas(ApplicationDbContext context)
         {
@@ -255,7 +238,7 @@ namespace Kirkenta.Helpers.Finanzas
     }
 
     /// <summary>
-    /// Item mínimo para calcular ISV (se usa desde cualquier origen: factura, cotización, venta).
+    /// Item mínimo para calcular ISV.
     /// </summary>
     public class ItemParaISV
     {

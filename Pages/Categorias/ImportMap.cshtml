@@ -1,0 +1,133 @@
+@page
+@model Kirkenta.Pages.Categorias.ImportMapModel
+@{
+    ViewData["Title"] = Model.WizardConfig.TituloMapa;
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a href="@Model.WizardConfig.UrlImport" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver al paso anterior
+        </a>
+        <h2>@Model.WizardConfig.TituloMapa</h2>
+        <p>Asocia cada campo del sistema con una columna de tu archivo</p>
+    </div>
+</div>
+
+@await Html.PartialAsync("_ImportStepIndicator", new { Paso = 2 })
+
+<form method="post">
+    <div class="module-card" style="padding: 28px; margin-bottom: 20px;">
+        <h3 class="form-section-title">Mapeo de columnas</h3>
+        <p class="form-section-desc">
+            Hemos detectado <strong>@Model.HeadersArchivo.Count columnas</strong> y
+            <strong>@Model.FilasArchivo.Count filas</strong>.
+        </p>
+
+        <div class="table-wrapper" style="margin-top: 16px;">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Campo del sistema</th>
+                        <th>Columna de tu archivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var campo in Model.WizardConfig.Campos)
+                    {
+                        var sugerido = Model.MapaSugerido.GetValueOrDefault(campo.Key);
+                        <tr>
+                            <td>
+                                <strong>@campo.Label</strong>
+                                @if (campo.Requerido)
+                                {
+                                    <span style="color: var(--color-danger);">*</span>
+                                }
+                            </td>
+                            <td>
+                                <select name="Mapeo[@campo.Key]" class="form-input">
+                                    <option value="">— Ignorar este campo —</option>
+                                    @foreach (var header in Model.HeadersArchivo)
+                                    {
+                                        if (header == sugerido)
+                                        {
+                                            <option value="@header" selected>@header</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@header">@header</option>
+                                        }
+                                    }
+                                </select>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="module-card" style="padding: 28px; margin-bottom: 20px;">
+        <h3 class="form-section-title">Opciones de importación</h3>
+
+        <div class="form-field" style="margin-top: 12px;">
+            <label style="display:block; margin-bottom:8px;">¿Qué hacer si una categoría ya existe?</label>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <label style="display:flex; align-items:center; gap:10px; font-size:13.5px; cursor:pointer;">
+                    <input type="radio" name="ModoImportacion" value="upsert" checked />
+                    <span><strong>Crear o actualizar</strong></span>
+                </label>
+                <label style="display:flex; align-items:center; gap:10px; font-size:13.5px; cursor:pointer;">
+                    <input type="radio" name="ModoImportacion" value="crear" />
+                    <span><strong>Solo crear nuevas</strong></span>
+                </label>
+                <label style="display:flex; align-items:center; gap:10px; font-size:13.5px; cursor:pointer;">
+                    <input type="radio" name="ModoImportacion" value="actualizar" />
+                    <span><strong>Solo actualizar existentes</strong></span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="module-card" style="padding: 28px; margin-bottom: 20px;">
+        <h3 class="form-section-title">Vista previa (primeras 5 filas)</h3>
+
+        <div class="table-wrapper" style="margin-top: 16px;">
+            <table class="erp-table" style="font-size: 12.5px;">
+                <thead>
+                    <tr>
+                        @foreach (var header in Model.HeadersArchivo)
+                        {
+                            <th>@header</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var fila in Model.FilasArchivo.Take(5))
+                    {
+                        <tr>
+                            @foreach (var header in Model.HeadersArchivo)
+                            {
+                                <td>@fila.GetValueOrDefault(header)</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="form-actions" style="border-top:none; margin-top:0;">
+        <a href="@Model.WizardConfig.UrlImport" class="btn-secondary">Atrás</a>
+        <button type="submit" class="btn-primary" style="background: var(--color-success);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Importar @Model.FilasArchivo.Count categorías
+        </button>
+    </div>
+</form>
