@@ -288,13 +288,16 @@ namespace Kirkenta.Helpers.Finanzas
         private static RevisionIntegridad MovimientosValidos(ApplicationDbContext db, DateTime d, DateTime h)
         {
             var q = db.MovimientosFinancieros.AsNoTracking().Where(m => m.Fecha >= d && m.Fecha < h && m.Estado == "Activo");
-            var datos = q.Select(m => new { m.Id, m.Numero, m.Tipo, m.Monto, m.CuentaId, m.CuentaDestinoId, m.Concepto }).ToList();
+            var datos = q.Select(m => new { m.Id, m.Numero, m.Tipo, m.Monto, m.CuentaId, m.CuentaDestinoId, m.Concepto, m.Origen, m.Notas }).ToList();
             var cuentas = db.CuentasFinancieras.AsNoTracking().Select(c => c.Id).ToList().ToHashSet();
             var lista = new List<HallazgoIntegridad>();
             foreach (var m in datos)
             {
                 string? problema = null;
-                if (m.Monto <= 0) problema = "Monto cero o negativo";
+                // La reversa del costo de una devolución es un egreso NEGATIVO solo contable (no toca caja): es válido
+                var reversaCosto = m.Monto < 0 && m.Tipo == "Egreso" && m.Origen == "Devolucion"
+                                   && (m.Notas ?? "").Contains(SaldoHelper.MarcaSoloContable);
+                if (m.Monto <= 0 && !reversaCosto) problema = "Monto cero o negativo";
                 else if (!cuentas.Contains(m.CuentaId)) problema = "La cuenta ya no existe";
                 else if (m.Tipo == "Transferencia" && (m.CuentaDestinoId == null || !cuentas.Contains(m.CuentaDestinoId.Value) || m.CuentaDestinoId == m.CuentaId))
                     problema = "Transferencia sin cuenta destino válida";

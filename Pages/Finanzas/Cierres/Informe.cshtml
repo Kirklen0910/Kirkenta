@@ -1,40 +1,10 @@
 @page "{id:int?}"
 @model Kirkenta.Pages.Finanzas.Cierres.InformeModel
-@using System.Globalization
 @{
     ViewData["Title"] = Model.Titulo;
-    var inf = Model.Informe;
-    var inv = CultureInfo.InvariantCulture;
-    string L(decimal v) => "L. " + v.ToString("N2", inv);
-    var activo = inf.Filtro;
-    string ClaseChip(string clave) => activo == clave ? "kk-inf-chip is-on" : "kk-inf-chip";
-    var totalVentas = inf.VentasContado + inf.VentasCredito;
 }
 
-<style>
-    .kk-inf-chips { display:flex; flex-wrap:wrap; gap:8px; margin: 4px 0 18px; }
-    .kk-inf-chip { padding:7px 14px; border-radius:999px; border:1px solid var(--color-border-strong); background:var(--color-surface); color:var(--color-text); font-size:13px; text-decoration:none; }
-    .kk-inf-chip:hover { background:var(--color-surface-2); }
-    .kk-inf-chip.is-on { background:var(--color-primary); border-color:var(--color-primary); color:var(--color-on-primary); }
-    .kk-inf-kpis { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); margin-bottom:18px; }
-    .kk-inf-card { background:var(--color-surface); border:1px solid var(--color-border); border-radius:14px; padding:16px 18px; box-shadow:var(--shadow-sm); text-decoration:none; color:var(--color-text); display:block; }
-    a.kk-inf-card:hover { border-color:var(--color-primary); }
-    .kk-inf-card.is-on { border-color:var(--color-primary); box-shadow:0 0 0 2px var(--color-primary-soft); }
-    .kk-inf-label { font-size:12px; color:var(--color-muted); text-transform:uppercase; letter-spacing:.04em; }
-    .kk-inf-value { font-size:24px; font-weight:700; margin:4px 0 2px; }
-    .kk-inf-sub { font-size:13px; color:var(--color-muted); }
-    .kk-inf-bar { height:6px; border-radius:99px; background:var(--color-surface-3); margin-top:10px; overflow:hidden; }
-    .kk-inf-bar > i { display:block; height:100%; background:var(--color-primary); border-radius:99px; }
-    .kk-inf-h { font-size:15px; font-weight:600; margin:22px 0 10px; }
-    .kk-inf-table { width:100%; border-collapse:collapse; font-size:14px; }
-    .kk-inf-table th { text-align:left; font-size:12px; color:var(--color-muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--color-border); }
-    .kk-inf-table td { padding:9px 10px; border-bottom:1px solid var(--color-border); }
-    .kk-inf-table .num { text-align:right; font-variant-numeric:tabular-nums; }
-    .kk-inf-table tfoot td { font-weight:700; border-top:2px solid var(--color-border-strong); }
-    @@media print { .kk-inf-noprint { display:none !important; } .kk-inf-card { box-shadow:none; } }
-</style>
-
-<div class="module-header kk-inf-noprint">
+<div class="module-header">
     <div class="module-header-left">
         @if (Model.Id.HasValue)
         {
@@ -45,7 +15,7 @@
             <a asp-page="/Finanzas/Cierres/Index" class="back-link">← Volver a cierres</a>
         }
         <h2>@Model.Titulo</h2>
-        <p>@Model.Empresa • @Model.PeriodoTexto</p>
+        <p>@Model.Empresa · @Model.PeriodoTexto</p>
     </div>
     <div class="module-header-right">
         <button type="button" class="btn-secondary" onclick="window.print()">Imprimir / PDF</button>
@@ -54,107 +24,23 @@
 
 @if (!Model.Id.HasValue)
 {
-    <form method="get" class="module-card kk-inf-noprint" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
-        <div><label class="form-label" for="desde">Desde</label><input id="desde" type="date" name="desde" class="form-input" value="@Model.Desde?.ToString("yyyy-MM-dd")" /></div>
-        <div><label class="form-label" for="hasta">Hasta</label><input id="hasta" type="date" name="hasta" class="form-input" value="@Model.Hasta?.ToString("yyyy-MM-dd")" /></div>
-        <input type="hidden" name="metodo" value="@(activo == "todos" ? "" : activo)" />
-        <button type="submit" class="btn-primary">Generar</button>
+    <form method="get" class="kk-inf-periodo no-pdf">
+        <div><label for="desde">Desde</label><input id="desde" type="date" name="desde" class="form-input" value="@Model.Desde?.ToString("yyyy-MM-dd")" onchange="this.form.submit()" /></div>
+        <div><label for="hasta">Hasta</label><input id="hasta" type="date" name="hasta" class="form-input" value="@Model.Hasta?.ToString("yyyy-MM-dd")" onchange="this.form.submit()" /></div>
+        @{
+            var hoy = DateTime.Today;
+            var rapidos = new[] { ("Hoy", hoy), ("7 días", hoy.AddDays(-6)), ("Este mes", new DateTime(hoy.Year, hoy.Month, 1)) };
+        }
+        <div class="kk-inf-periodo-rapido">
+            @foreach (var (texto, desdeRapido) in rapidos)
+            {
+                var activo = Model.Desde?.Date == desdeRapido && Model.Hasta?.Date == hoy;
+                <a href="?desde=@desdeRapido.ToString("yyyy-MM-dd")&hasta=@hoy.ToString("yyyy-MM-dd")" class="@(activo ? "is-on" : "")">@texto</a>
+            }
+        </div>
     </form>
 }
 
-<div class="kk-inf-chips kk-inf-noprint" role="navigation" aria-label="Filtrar por método de pago">
-    <a class="@ClaseChip("todos")" href="@Model.EnlaceMetodo(null)">Todos</a>
-    @foreach (var m in inf.Metodos)
-    {
-        <a class="@ClaseChip(m.Clave)" href="@Model.EnlaceMetodo(m.Nombre)">@m.Nombre</a>
-    }
-    <a class="@ClaseChip("credito")" href="@Model.EnlaceMetodo("credito")">Crédito</a>
-</div>
-
-<div class="kk-inf-kpis">
-    <div class="kk-inf-card">
-        <div class="kk-inf-label">Total cobrado</div>
-        <div class="kk-inf-value">@L(inf.TotalCobrado)</div>
-        <div class="kk-inf-sub">@inf.TotalTransacciones cobro(s)</div>
-    </div>
-    <div class="kk-inf-card">
-        <div class="kk-inf-label">Ventas del período</div>
-        <div class="kk-inf-value">@L(totalVentas)</div>
-        <div class="kk-inf-sub">Contado @L(inf.VentasContado) • Crédito @L(inf.VentasCredito)</div>
-    </div>
-    <div class="kk-inf-card">
-        <div class="kk-inf-label">Salidas (egresos)</div>
-        <div class="kk-inf-value">@L(inf.TotalEgresos)</div>
-        <div class="kk-inf-sub">@inf.Egresos.Sum(e => e.Cantidad) movimiento(s)</div>
-    </div>
-    <div class="kk-inf-card">
-        <div class="kk-inf-label">Crédito por cobrar</div>
-        <div class="kk-inf-value">@L(inf.SaldoCreditoPendiente)</div>
-        <div class="kk-inf-sub">@inf.CantidadCredito venta(s) a crédito</div>
-    </div>
-</div>
-
-<h3 class="kk-inf-h">Cobros por método de pago</h3>
-@if (inf.Metodos.Count == 0)
-{
-    <div class="module-card"><p style="margin:0;color:var(--color-muted);">No hay cobros en este período.</p></div>
-}
-else
-{
-    <div class="kk-inf-kpis">
-        @foreach (var m in inf.Metodos)
-        {
-            <a class="kk-inf-card @(activo == m.Clave ? "is-on" : "")" href="@Model.EnlaceMetodo(m.Nombre)">
-                <div class="kk-inf-label">@m.Nombre</div>
-                <div class="kk-inf-value">@L(m.Total)</div>
-                <div class="kk-inf-sub">@m.Cantidad cobro(s) • @m.Porcentaje.ToString("0.#", inv)%</div>
-                <div class="kk-inf-bar"><i style="width:@(Math.Min(100, (double)m.Porcentaje).ToString("0.#", inv))%"></i></div>
-            </a>
-        }
-    </div>
-}
-
-@if (inf.Egresos.Count > 0)
-{
-    <h3 class="kk-inf-h">Salidas por forma de pago</h3>
-    <div class="module-card" style="overflow-x:auto;">
-        <table class="kk-inf-table">
-            <thead><tr><th>Forma de pago</th><th class="num">Movimientos</th><th class="num">Total</th><th class="num">%</th></tr></thead>
-            <tbody>
-            @foreach (var e in inf.Egresos)
-            {
-                <tr><td>@e.Nombre</td><td class="num">@e.Cantidad</td><td class="num">@L(e.Total)</td><td class="num">@e.Porcentaje.ToString("0.#", inv)%</td></tr>
-            }
-            </tbody>
-            <tfoot><tr><td>Total</td><td class="num">@inf.Egresos.Sum(e => e.Cantidad)</td><td class="num">@L(inf.TotalEgresos)</td><td></td></tr></tfoot>
-        </table>
-    </div>
-}
-
-<partial name="_InformeDescuentos" model="inf.Descuentos" />
-<partial name="_InformeSaldoFavor" model="inf.SaldoFavor" />
-
-<h3 class="kk-inf-h">Detalle: @inf.FiltroEtiqueta</h3>
-<div class="module-card" style="overflow-x:auto;">
-    @if (inf.Detalle.Count == 0)
-    {
-        <p style="margin:0;color:var(--color-muted);">No hay transacciones para este filtro en el período.</p>
-    }
-    else
-    {
-        <table class="kk-inf-table">
-            <thead><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th>Método</th><th>Referencia</th><th class="num">Monto</th></tr></thead>
-            <tbody>
-            @foreach (var t in inf.Detalle.Take(500))
-            {
-                <tr>
-                    <td>@t.Fecha.ToString("dd/MM HH:mm")</td><td>@t.Documento</td><td>@t.Cliente</td><td>@t.Metodo</td>
-                    <td>@(t.Referencia ?? "—")</td><td class="num">@L(t.Monto)</td>
-                </tr>
-            }
-            </tbody>
-            <tfoot><tr><td colspan="5">Total (@inf.Detalle.Count)</td><td class="num">@L(inf.TotalDetalle)</td></tr></tfoot>
-        </table>
-        @if (inf.Detalle.Count > 500) { <p class="kk-inf-sub" style="margin-top:8px;">Se muestran las primeras 500 transacciones.</p> }
-    }
-</div>
+<partial name="_InformeMetodos" model="Model.Informe" />
+<partial name="_InformeDescuentos" model="Model.Informe.Descuentos" />
+<partial name="_InformeSaldoFavor" model="Model.Informe.SaldoFavor" />

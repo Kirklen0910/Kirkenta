@@ -1,4 +1,6 @@
-/* Informe por método de pago: pestañas (Todo / método / Crédito) que recalculan tarjetas, salidas y detalle.
+/* Informe por método de pago (cierres de caja): un selector (Todo / cada método / Crédito) que recalcula
+   el resumen, la distribución, las salidas y el detalle sin recargar la página.
+   Las secciones marcadas con [data-kk-inf-todo] (descuentos, saldo a favor) solo se ven en "Todo".
    Toda la información se pinta con textContent (sin innerHTML). */
 (function () {
     'use strict';
@@ -20,13 +22,17 @@
         return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     }
     function pct(a, b) { return b > 0 ? Math.round(a / b * 1000) / 10 : 0; }
+    function esEfectivo(m) { return /efectivo|cash/.test(norm(m.nombre) + ' ' + norm(m.tipo)); }
 
-    function kpi(label, value, sub) {
-        var c = el('div', 'kk-inf-card');
-        c.appendChild(el('div', 'kk-inf-label', label));
-        c.appendChild(el('div', 'kk-inf-value', value));
-        if (sub) c.appendChild(el('div', 'kk-inf-sub', sub));
-        return c;
+    // Colores de la barra de distribución (se repiten si hay muchos métodos)
+    var COLORES = ['var(--color-primary)', '#10b981', '#f59e0b', '#06b6d4', '#ec4899', '#8b5cf6', '#64748b'];
+
+    function stat(etiqueta, valor, nota, alerta) {
+        var s = el('div', 'kk-inf-stat');
+        s.appendChild(el('span', 'kk-inf-etq', etiqueta));
+        s.appendChild(el('strong', '', valor));
+        if (nota) s.appendChild(el('small', alerta ? 'is-alerta' : '', nota));
+        return s;
     }
 
     function tabla(cols, filas, pie, numCols) {
@@ -51,107 +57,150 @@
         return wrap;
     }
 
+    function seccion(root, titulo, sub) {
+        var h = el('div', 'kk-inf-h');
+        h.appendChild(el('h3', '', titulo));
+        if (sub) h.appendChild(el('span', '', sub));
+        root.appendChild(h);
+    }
+
     function render(root, d, sel) {
         root.textContent = '';
         var metodos = d.metodos || [];
         var todas = d.todas || [];
-        var conteo = function (clave) { return todas.filter(function (x) { return x.clave === clave; }).length; };
+        var m = metodos.filter(function (x) { return x.clave === sel; })[0];
+        if (sel !== 'todo' && sel !== 'credito' && !m) sel = 'todo';
+        var totalVentas = (d.ventasContado || 0) + (d.ventasCredito || 0);
+        var irA = function (clave) { return function () { render(root, d, clave); }; };
 
-        // ── Pestañas ──
+        // Secciones que solo aplican a la vista completa (descuentos, saldo a favor)
+        var doc = root.ownerDocument;
+        [].forEach.call(doc.querySelectorAll('[data-kk-inf-todo]'), function (n) { n.hidden = sel !== 'todo'; });
+        try {
+            var u = new URL(window.location.href);
+            if (sel === 'todo') u.searchParams.delete('metodo'); else u.searchParams.set('metodo', sel);
+            if (/\/Cierres\/(Informe|Details|Aprobar)/.test(u.pathname)) window.history.replaceState(null, '', u);
+        } catch (e) { /* sin URL */ }
+
+        // ── Selector ──
         var tabs = el('div', 'kk-inf-tabs');
         tabs.setAttribute('role', 'tablist');
-        function tab(clave, texto, sub) {
+        function tab(clave, texto, monto) {
             var b = el('button', 'kk-inf-tab' + (sel === clave ? ' is-on' : ''));
             b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', sel === clave ? 'true' : 'false');
-            b.appendChild(document.createTextNode(texto));
-            if (sub) b.appendChild(el('small', '', sub));
-            b.addEventListener('click', function () { render(root, d, clave); });
+            b.appendChild(el('span', '', texto));
+            b.appendChild(el('small', '', money(monto)));
+            b.addEventListener('click', irA(clave));
             tabs.appendChild(b);
         }
-        tab('todo', 'Todo', money(d.totalCobrado));
-        metodos.forEach(function (m) { tab(m.clave, m.nombre, money(m.total)); });
-        tab('credito', 'Crédito', money(d.ventasCredito));
+        tab('todo', 'Todo', d.totalCobrado);
+        metodos.forEach(function (x) { tab(x.clave, x.nombre, x.total); });
+        tab('credito', 'Crédito', d.ventasCredito);
         root.appendChild(tabs);
 
-        var m = metodos.filter(function (x) { return x.clave === sel; })[0];
-        var totalVentas = (d.ventasContado || 0) + (d.ventasCredito || 0);
+        // ── Resumen de la vista elegida ──
+        var hero = el('section', 'kk-inf-hero');
+        var principal = el('div', 'kk-inf-principal');
+        var stats = el('div', 'kk-inf-stats');
+        var cajaTexto = d.efectivo ? 'inicial ' + money(d.efectivo.saldoInicial) + ' + entradas ' + money(d.efectivo.ingresos) + ' − salidas ' + money(d.efectivo.egresos) : '';
+        var nSalidas = (d.egresos || []).reduce(function (a, e) { return a + e.cantidad; }, 0);
 
-        // ── Tarjetas resumen (cambian según la pestaña) ──
-        var k = el('div', 'kk-inf-kpis');
         if (sel === 'todo') {
-            k.appendChild(kpi('Total cobrado', money(d.totalCobrado), d.totalTransacciones + ' cobro(s)'));
-            k.appendChild(kpi('Ventas del período', money(totalVentas), 'Contado ' + money(d.ventasContado) + ' • Crédito ' + money(d.ventasCredito)));
-            k.appendChild(kpi('Salidas (egresos)', money(d.totalEgresos), (d.egresos || []).reduce(function (a, e) { return a + e.cantidad; }, 0) + ' movimiento(s)'));
-            k.appendChild(kpi('Crédito por cobrar', money(d.saldoCredito), d.cantidadCredito + ' venta(s) a crédito'));
-            if (d.efectivo) k.appendChild(kpi('Efectivo esperado en caja', money(d.efectivo.esperado),
-                'Inicial ' + money(d.efectivo.saldoInicial) + ' + ingresos ' + money(d.efectivo.ingresos) + ' − egresos ' + money(d.efectivo.egresos)));
+            principal.appendChild(el('span', 'kk-inf-etq', 'Total cobrado'));
+            principal.appendChild(el('span', 'kk-inf-monto', money(d.totalCobrado)));
+            principal.appendChild(el('span', 'kk-inf-nota', d.totalTransacciones + ' cobro(s) en el período'));
+            stats.appendChild(stat('Ventas', money(totalVentas), 'contado ' + money(d.ventasContado) + ' · crédito ' + money(d.ventasCredito)));
+            stats.appendChild(stat('Salidas', money(d.totalEgresos), nSalidas + ' movimiento(s)'));
+            stats.appendChild(stat('Crédito por cobrar', money(d.saldoCredito), d.cantidadCredito + ' venta(s) a crédito', d.saldoCredito > 0));
+            if (d.efectivo) stats.appendChild(stat('Efectivo esperado en caja', money(d.efectivo.esperado), cajaTexto));
         } else if (sel === 'credito') {
-            k.appendChild(kpi('Ventas a crédito', money(d.ventasCredito), d.cantidadCredito + ' venta(s)'));
-            k.appendChild(kpi('Saldo por cobrar', money(d.saldoCredito), 'De las ventas a crédito de este período'));
-            k.appendChild(kpi('Peso en las ventas', pct(d.ventasCredito, totalVentas) + '%', 'Del total vendido: ' + money(totalVentas)));
-            k.appendChild(kpi('Promedio por venta', money(d.cantidadCredito ? d.ventasCredito / d.cantidadCredito : 0), ''));
-        } else if (m) {
-            k.appendChild(kpi('Cobrado con ' + m.nombre, money(m.total), m.cantidad + ' cobro(s)'));
-            k.appendChild(kpi('Peso en lo cobrado', pct(m.total, d.totalCobrado) + '%', 'Del total cobrado: ' + money(d.totalCobrado)));
-            k.appendChild(kpi('Ticket promedio', money(m.cantidad ? m.total / m.cantidad : 0), ''));
-            if (d.efectivo && /efectivo/.test(norm(m.nombre) + ' ' + norm(m.tipo)))
-                k.appendChild(kpi('Efectivo esperado en caja', money(d.efectivo.esperado),
-                    'Inicial ' + money(d.efectivo.saldoInicial) + ' + ingresos ' + money(d.efectivo.ingresos) + ' − egresos ' + money(d.efectivo.egresos)));
+            principal.appendChild(el('span', 'kk-inf-etq', 'Vendido a crédito'));
+            principal.appendChild(el('span', 'kk-inf-monto', money(d.ventasCredito)));
+            principal.appendChild(el('span', 'kk-inf-nota', d.cantidadCredito + ' venta(s) · no entra a caja hasta que se cobre'));
+            stats.appendChild(stat('Por cobrar', money(d.saldoCredito), 'de estas ventas', d.saldoCredito > 0));
+            stats.appendChild(stat('Ya abonado', money(Math.max(0, d.ventasCredito - d.saldoCredito)), ''));
+            stats.appendChild(stat('Peso en las ventas', pct(d.ventasCredito, totalVentas) + '%', 'de ' + money(totalVentas)));
+            stats.appendChild(stat('Promedio por venta', money(d.cantidadCredito ? d.ventasCredito / d.cantidadCredito : 0), ''));
+        } else {
+            principal.appendChild(el('span', 'kk-inf-etq', 'Cobrado con ' + m.nombre));
+            principal.appendChild(el('span', 'kk-inf-monto', money(m.total)));
+            principal.appendChild(el('span', 'kk-inf-nota', m.cantidad + ' cobro(s)'));
+            stats.appendChild(stat('Peso en lo cobrado', pct(m.total, d.totalCobrado) + '%', 'de ' + money(d.totalCobrado)));
+            stats.appendChild(stat('Ticket promedio', money(m.cantidad ? m.total / m.cantidad : 0), ''));
+            if (d.efectivo && esEfectivo(m)) stats.appendChild(stat('Efectivo esperado en caja', money(d.efectivo.esperado), cajaTexto));
         }
-        root.appendChild(k);
+        hero.appendChild(principal);
+        hero.appendChild(stats);
+        root.appendChild(hero);
 
-        // ── Tarjetas por método (clic = cambia de pestaña) ──
-        root.appendChild(el('h3', 'kk-inf-h', 'Cómo se mueve el negocio'));
-        var g = el('div', 'kk-inf-kpis');
-        metodos.forEach(function (x) {
-            var c = el('button', 'kk-inf-card' + (sel === x.clave ? ' is-on' : '')); c.type = 'button';
-            c.appendChild(el('div', 'kk-inf-label', x.nombre));
-            c.appendChild(el('div', 'kk-inf-value', money(x.total)));
-            c.appendChild(el('div', 'kk-inf-sub', x.cantidad + ' cobro(s) • ' + pct(x.total, d.totalCobrado) + '%'));
-            var bar = el('div', 'kk-inf-bar'), i = el('i'); i.style.width = Math.min(100, pct(x.total, d.totalCobrado)) + '%';
-            bar.appendChild(i); c.appendChild(bar);
-            c.addEventListener('click', function () { render(root, d, x.clave); });
-            g.appendChild(c);
-        });
-        var cc = el('button', 'kk-inf-card' + (sel === 'credito' ? ' is-on' : '')); cc.type = 'button';
-        cc.appendChild(el('div', 'kk-inf-label', 'Crédito (ventas)'));
-        cc.appendChild(el('div', 'kk-inf-value', money(d.ventasCredito)));
-        cc.appendChild(el('div', 'kk-inf-sub', d.cantidadCredito + ' venta(s) • por cobrar ' + money(d.saldoCredito)));
-        var bar2 = el('div', 'kk-inf-bar'), i2 = el('i'); i2.style.width = Math.min(100, pct(d.ventasCredito, totalVentas)) + '%';
-        bar2.appendChild(i2); cc.appendChild(bar2);
-        cc.addEventListener('click', function () { render(root, d, 'credito'); });
-        g.appendChild(cc);
-        root.appendChild(g);
+        // ── Distribución (solo en Todo): una barra y la lista de métodos; clic = ver ese método ──
+        if (sel === 'todo' && (d.totalCobrado > 0 || d.ventasCredito > 0)) {
+            seccion(root, 'Cómo se cobró', 'toca un método para ver su detalle');
+            var caja = el('div', 'kk-inf-box kk-inf-dist');
+            var barra = el('div', 'kk-inf-barra');
+            var lista = el('ul', 'kk-inf-leyenda');
+            var conCobro = metodos.filter(function (x) { return x.total > 0; });
+            conCobro.forEach(function (x, i) {
+                var color = COLORES[i % COLORES.length];
+                var seg = el('i'); seg.style.width = pct(x.total, d.totalCobrado) + '%'; seg.style.background = color; seg.title = x.nombre;
+                barra.appendChild(seg);
+                var li = el('li');
+                var b = el('button', ''); b.type = 'button'; b.addEventListener('click', irA(x.clave));
+                var punto = el('span', 'kk-inf-punto'); punto.style.background = color;
+                b.appendChild(punto);
+                b.appendChild(el('span', 'kk-inf-leyenda-nombre', x.nombre));
+                b.appendChild(el('span', 'kk-inf-leyenda-pct', pct(x.total, d.totalCobrado) + '%'));
+                b.appendChild(el('strong', '', money(x.total)));
+                li.appendChild(b); lista.appendChild(li);
+            });
+            if (d.ventasCredito > 0) {
+                var li2 = el('li', 'is-aparte');
+                var b2 = el('button', ''); b2.type = 'button'; b2.addEventListener('click', irA('credito'));
+                var p2 = el('span', 'kk-inf-punto is-hueco');
+                b2.appendChild(p2);
+                b2.appendChild(el('span', 'kk-inf-leyenda-nombre', 'Crédito (aún no cobrado)'));
+                b2.appendChild(el('span', 'kk-inf-leyenda-pct', ''));
+                b2.appendChild(el('strong', '', money(d.saldoCredito)));
+                li2.appendChild(b2); lista.appendChild(li2);
+            }
+            if (conCobro.length) caja.appendChild(barra);
+            caja.appendChild(lista);
+            root.appendChild(caja);
+        }
 
-        // ── Salidas (se ajustan a la pestaña) ──
+        // ── Salidas (según la vista) ──
         var egr = d.egresos || [];
-        if (sel !== 'todo' && sel !== 'credito' && m) {
+        if (sel === 'credito') egr = [];
+        else if (sel !== 'todo') {
             var buscar = [norm(m.nombre), norm(m.tipo)].filter(function (s) { return s; });
             egr = egr.filter(function (e) { var n = norm(e.nombre); return buscar.some(function (b) { return n.indexOf(b) >= 0 || b.indexOf(n) >= 0; }); });
-        } else if (sel === 'credito') { egr = []; }
+        }
         if (egr.length) {
-            root.appendChild(el('h3', 'kk-inf-h', 'Salidas por forma de pago'));
             var tot = egr.reduce(function (a, e) { return a + e.total; }, 0);
-            root.appendChild(tabla(['Forma de pago', 'Movimientos', 'Total', '%'],
-                egr.map(function (e) { return [e.nombre, String(e.cantidad), money(e.total), pct(e.total, tot) + '%']; }),
-                ['Total', String(egr.reduce(function (a, e) { return a + e.cantidad; }, 0)), money(tot), ''], [1, 2, 3]));
+            seccion(root, 'Salidas', money(tot));
+            root.appendChild(tabla(['Forma de pago', 'Movimientos', 'Total'],
+                egr.map(function (e) { return [e.nombre, String(e.cantidad), money(e.total)]; }),
+                null, [1, 2]));
         }
 
-        // ── Detalle filtrado ──
-        var lista = sel === 'todo' ? todas : todas.filter(function (x) { return x.clave === sel; });
-        var titulo = sel === 'todo' ? 'Todas las transacciones' : sel === 'credito' ? 'Ventas a crédito' : (m ? m.nombre : 'Detalle');
-        root.appendChild(el('h3', 'kk-inf-h', 'Detalle: ' + titulo));
-        if (!lista.length) {
+        // ── Detalle (sin la columna de método cuando ya se filtró por uno) ──
+        var filas = sel === 'todo' ? todas : todas.filter(function (x) { return x.clave === sel; });
+        var conMetodo = sel === 'todo';
+        var titulo = sel === 'todo' ? 'Todas las transacciones' : sel === 'credito' ? 'Ventas a crédito' : 'Cobros con ' + m.nombre;
+        var totalL = filas.reduce(function (a, x) { return a + x.monto; }, 0);
+        seccion(root, titulo, filas.length ? filas.length + ' · ' + money(totalL) : '');
+        if (!filas.length) {
             var vacio = el('div', 'kk-inf-box'); vacio.appendChild(el('p', 'kk-inf-empty', 'No hay transacciones para esta vista en el período.'));
             root.appendChild(vacio);
         } else {
-            var totalL = lista.reduce(function (a, x) { return a + x.monto; }, 0);
-            var filas = lista.slice(0, 500).map(function (x) {
-                return [x.fecha, x.doc, x.cliente, x.metodo, x.ref || '—', money(x.monto)];
+            var cols = conMetodo ? ['Fecha', 'Documento', 'Cliente', 'Método', 'Referencia', 'Monto'] : ['Fecha', 'Documento', 'Cliente', 'Referencia', 'Monto'];
+            var datos = filas.slice(0, 500).map(function (x) {
+                return conMetodo ? [x.fecha, x.doc, x.cliente, x.metodo, x.ref || '—', money(x.monto)]
+                                 : [x.fecha, x.doc, x.cliente, x.ref || '—', money(x.monto)];
             });
-            root.appendChild(tabla(['Fecha', 'Documento', 'Cliente', 'Método', 'Referencia', 'Monto'], filas,
-                ['Total (' + lista.length + ')', '', '', '', '', money(totalL)], [5]));
-            if (lista.length > 500) root.appendChild(el('p', 'kk-inf-sub', 'Se muestran las primeras 500 transacciones.'));
+            var pie = conMetodo ? ['Total', '', '', '', '', money(totalL)] : ['Total', '', '', '', money(totalL)];
+            root.appendChild(tabla(cols, datos, pie, [cols.length - 1]));
+            if (filas.length > 500) root.appendChild(el('p', 'kk-inf-nota', 'Se muestran las primeras 500 transacciones.'));
         }
     }
 
@@ -170,7 +219,9 @@
                 if (q) {
                     q = norm(q);
                     var claves = (d.metodos || []).map(function (x) { return x.clave; }).concat(['credito']);
-                    if (claves.indexOf(q) >= 0) inicial = q;
+                    var exacta = claves.filter(function (c) { return c === q; })[0];
+                    var parecida = claves.filter(function (c) { return c.indexOf(q) >= 0; })[0];
+                    inicial = exacta || parecida || 'todo';
                 }
             } catch (e) { /* sin filtro inicial */ }
             render(root, d, inicial);

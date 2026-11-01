@@ -58,47 +58,20 @@ namespace Kirkenta.Pages.Reportes
             Hasta = hasta;
             var hastaExcl = hasta.AddDays(1);
 
-            var facturas = _context.Facturas
-                .Where(f => f.Fecha >= desde && f.Fecha < hastaExcl)
-                .OrderBy(f => f.Fecha).ThenBy(f => f.Numero).ToList();
-            var ids = facturas.Select(f => f.Id).ToList();
-            var detalles = _context.DetalleFacturas.Where(d => ids.Contains(d.FacturaId)).ToList()
-                .GroupBy(d => d.FacturaId).ToDictionary(g => g.Key, g => g.ToList());
-            var clientes = _context.Clientes.ToDictionary(c => c.Id, c => c);
-
-            foreach (var f in facturas)
+            // Mismo cálculo que la declaración mensual (DeclaracionISVHelper): libro y declaración siempre cuadran
+            foreach (var l in DeclaracionISVHelper.Ventas(_context, desde, hastaExcl))
             {
-                clientes.TryGetValue(f.ClienteId, out var cli);
                 var fila = new FilaLibro
                 {
-                    Fecha = f.Fecha,
-                    Numero = f.Numero,
-                    Cliente = cli?.Nombre ?? "Consumidor final",
-                    RTN = cli?.RTN,
-                    Anulada = f.Estado == "Anulada"
+                    Fecha = l.Fecha, Numero = l.Documento, Cliente = l.Tercero, RTN = l.RTN, Anulada = l.Anulada,
+                    Exento = l.Exento, Exonerado = l.Exonerado,
+                    Gravado15 = l.Gravado15, Isv15 = l.Isv15, Gravado18 = l.Gravado18, Isv18 = l.Isv18,
+                    OtroGravado = l.OtroGravado, OtroIsv = l.OtroIsv, Total = l.Total
                 };
-
                 if (!fila.Anulada)
                 {
-                    if (detalles.TryGetValue(f.Id, out var dets))
-                    {
-                        foreach (var d in dets)
-                        {
-                            var baseLinea = d.Subtotal;
-                            var isv = d.Total - d.Subtotal;
-                            if (d.ImpuestoPorcentaje == 0)
-                            {
-                                if (f.EsExonerada) fila.Exonerado += baseLinea;
-                                else fila.Exento += baseLinea;
-                            }
-                            else if (d.ImpuestoPorcentaje == 15m) { fila.Gravado15 += baseLinea; fila.Isv15 += isv; }
-                            else if (d.ImpuestoPorcentaje == 18m) { fila.Gravado18 += baseLinea; fila.Isv18 += isv; }
-                            else { fila.OtroGravado += baseLinea; fila.OtroIsv += isv; }
-                        }
-                    }
-                    fila.Total = f.Total;
                     var partes = fila.Exento + fila.Exonerado + fila.Gravado15 + fila.Isv15 + fila.Gravado18 + fila.Isv18 + fila.OtroGravado + fila.OtroIsv;
-                    fila.Ajustes = fila.Total - partes; // envío, descuento general, redondeos
+                    fila.Ajustes = fila.Total - partes; // redondeos de centavos
                 }
                 Filas.Add(fila);
             }

@@ -1,28 +1,85 @@
 /* Informe por método de pago (dinámico). Usa los tokens del tema claro/oscuro. */
 .kk-inf { margin: 8px 0 20px; }
-.kk-inf-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 16px; }
-.kk-inf-tab { appearance:none; cursor:pointer; padding:8px 14px; border-radius:999px; border:1px solid var(--color-border-strong); background:var(--color-surface); color:var(--color-text); font:inherit; font-size:13px; display:inline-flex; gap:8px; align-items:center; }
-.kk-inf-tab:hover { background:var(--color-surface-2); }
-.kk-inf-tab.is-on { background:var(--color-primary); border-color:var(--color-primary); color:var(--color-on-primary); }
-.kk-inf-tab small { opacity:.8; font-size:12px; }
-.kk-inf-kpis { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); margin-bottom:16px; }
-.kk-inf-card { background:var(--color-surface); border:1px solid var(--color-border); border-radius:14px; padding:14px 16px; box-shadow:var(--shadow-sm); text-align:left; font:inherit; color:var(--color-text); }
-button.kk-inf-card { cursor:pointer; }
-button.kk-inf-card:hover { border-color:var(--color-primary); }
-.kk-inf-card.is-on { border-color:var(--color-primary); box-shadow:0 0 0 2px var(--color-primary-soft); }
-.kk-inf-label { font-size:12px; color:var(--color-muted); text-transform:uppercase; letter-spacing:.04em; }
-.kk-inf-value { font-size:22px; font-weight:700; margin:4px 0 2px; font-variant-numeric:tabular-nums; }
-.kk-inf-sub { font-size:13px; color:var(--color-muted); }
-.kk-inf-bar { height:6px; border-radius:99px; background:var(--color-surface-3); margin-top:10px; overflow:hidden; }
-.kk-inf-bar > i { display:block; height:100%; background:var(--color-primary); border-radius:99px; }
-.kk-inf-h { font-size:15px; font-weight:600; margin:20px 0 10px; }
-.kk-inf-box { background:var(--color-surface); border:1px solid var(--color-border); border-radius:14px; padding:6px 10px; overflow-x:auto; }
-.kk-inf-table { width:100%; border-collapse:collapse; font-size:14px; }
-.kk-inf-table th { text-align:left; font-size:12px; color:var(--color-muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--color-border); }
-.kk-inf-table td { padding:9px 10px; border-bottom:1px solid var(--color-border); }
-.kk-inf-table tbody tr:last-child td { border-bottom:0; }
-.kk-inf-table .num { text-align:right; font-variant-numeric:tabular-nums; }
-.kk-inf-table tfoot td { font-weight:700; border-top:2px solid var(--color-border-strong); border-bottom:0; }
-.kk-inf-empty { margin:10px 4px; color:var(--color-muted); font-size:14px; }
-.kk-inf-conteo input { width:130px; }
-@media print { .kk-inf-tabs { display:none; } .kk-inf-card { box-shadow:none; } }
+.kk-inf-sub, .kk-inf-nota { font-size: 12.5px; color: var(--color-muted); }
+
+/* Selector: Todo / métodos / Crédito */
+.kk-inf-tabs { display: flex; gap: 4px; padding: 4px; margin: 0 0 16px; background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.kk-inf-tab { appearance: none; cursor: pointer; flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 7px 14px; border: 0; border-radius: 9px; background: transparent; color: var(--color-muted); font: inherit; font-size: 13px; font-weight: 600; }
+.kk-inf-tab small { font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.kk-inf-tab:hover { color: var(--color-text); }
+.kk-inf-tab.is-on { background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-xs, 0 1px 2px rgba(0,0,0,.06)); }
+.kk-inf-tab.is-on small { color: var(--color-primary); }
+
+/* Resumen de la vista elegida */
+.kk-inf-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 20px; align-items: center; padding: 20px 22px; margin-bottom: 18px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px; }
+.kk-inf-principal { display: flex; flex-direction: column; gap: 3px; }
+.kk-inf-etq { font-size: 12px; color: var(--color-muted); font-weight: 500; }
+.kk-inf-monto { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.kk-inf-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); border-left: 1px solid var(--color-border); }
+.kk-inf-stat { display: flex; flex-direction: column; gap: 2px; padding: 2px 16px; min-width: 0; }
+.kk-inf-stat + .kk-inf-stat { border-left: 1px solid var(--color-border); }
+.kk-inf-stat strong { font-size: 16px; font-variant-numeric: tabular-nums; }
+.kk-inf-stat small { font-size: 11.5px; color: var(--color-muted); }
+.kk-inf-stat small.is-alerta { color: var(--color-warning-text, var(--color-danger-text)); }
+
+/* Encabezado de sección */
+.kk-inf-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 20px 0 8px; }
+.kk-inf-h h3 { font-size: 14.5px; font-weight: 600; margin: 0; }
+.kk-inf-h span { font-size: 12px; color: var(--color-muted); font-variant-numeric: tabular-nums; }
+/* Los títulos de las secciones de servidor (descuentos, saldo a favor) usan la misma clase sobre un h3 */
+h3.kk-inf-h { display: block; }
+
+/* Distribución por método */
+.kk-inf-dist { padding: 14px 16px !important; }
+.kk-inf-barra { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--color-surface-3); margin-bottom: 10px; }
+.kk-inf-barra i { display: block; height: 100%; }
+.kk-inf-barra i + i { border-left: 2px solid var(--color-surface); }
+.kk-inf-leyenda { list-style: none; margin: 0; padding: 0; }
+.kk-inf-leyenda li + li { border-top: 1px solid var(--color-border); }
+.kk-inf-leyenda li.is-aparte { border-top-style: dashed; }
+.kk-inf-leyenda button { appearance: none; width: 100%; display: grid; grid-template-columns: 12px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 9px 4px; border: 0; background: transparent; color: var(--color-text); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; border-radius: 6px; }
+.kk-inf-leyenda button:hover { background: var(--color-surface-2); }
+.kk-inf-leyenda strong { font-variant-numeric: tabular-nums; min-width: 110px; text-align: right; }
+.kk-inf-punto { width: 10px; height: 10px; border-radius: 50%; }
+.kk-inf-punto.is-hueco { background: transparent !important; border: 2px solid var(--color-muted); width: 8px; height: 8px; }
+.kk-inf-leyenda-nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kk-inf-leyenda-pct { font-size: 12px; color: var(--color-muted); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
+
+/* Tablas */
+.kk-inf-box { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 4px 8px; overflow-x: auto; }
+.kk-inf-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.kk-inf-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--color-muted); font-weight: 600; padding: 9px 10px; border-bottom: 1px solid var(--color-border); white-space: nowrap; }
+.kk-inf-table td { padding: 9px 10px; border-bottom: 1px solid var(--color-border); }
+.kk-inf-table tbody tr:last-child td { border-bottom: 0; }
+.kk-inf-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kk-inf-table tfoot td { font-weight: 700; border-top: 1px solid var(--color-border-strong); border-bottom: 0; }
+.kk-inf-empty { margin: 10px 4px; color: var(--color-muted); font-size: 13.5px; }
+.kk-inf-conteo input { width: 130px; }
+
+@media (max-width: 900px) {
+    .kk-inf-hero { grid-template-columns: 1fr; }
+    .kk-inf-stats { border-left: 0; border-top: 1px solid var(--color-border); padding-top: 12px; }
+    .kk-inf-stat:first-child { padding-left: 0; }
+}
+@media (max-width: 560px) {
+    .kk-inf-stats { grid-template-columns: 1fr 1fr; row-gap: 12px; }
+    .kk-inf-stat { padding: 0 10px 0 0; }
+    .kk-inf-stat + .kk-inf-stat { border-left: 0; }
+    .kk-inf-monto { font-size: 26px; }
+    .kk-inf-leyenda strong { min-width: 0; }
+}
+@media print {
+    .kk-inf-tabs { display: none; }
+    .kk-inf-hero, .kk-inf-box { break-inside: avoid; }
+}
+
+/* Selector de período (pantalla Informe) */
+.kk-inf-periodo { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin: 0 0 14px; }
+.kk-inf-periodo > div { display: flex; flex-direction: column; gap: 4px; }
+.kk-inf-periodo label { font-size: 12px; color: var(--color-muted); font-weight: 500; }
+.kk-inf-periodo .form-input { padding: 7px 10px; }
+.kk-inf-periodo-rapido { flex-direction: row !important; gap: 6px !important; padding-bottom: 6px; }
+.kk-inf-periodo-rapido a { font-size: 12.5px; padding: 5px 10px; border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-text); text-decoration: none; }
+.kk-inf-periodo-rapido a:hover { border-color: var(--color-primary); color: var(--color-primary); }
+@media print { .kk-inf-periodo { display: none; } }
+.kk-inf-periodo-rapido a.is-on { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-primary); }

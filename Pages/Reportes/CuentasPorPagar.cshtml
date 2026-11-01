@@ -7,8 +7,8 @@
 <div class="module-header">
     <div class="module-header-left">
         <a asp-page="/Reportes/Index" class="back-link">← Volver a reportes</a>
-        <h2>Cuentas por pagar (proveedores)</h2>
-        <p>Saldos de órdenes de compra según días de vencimiento (fecha de recepción + días de crédito del proveedor) al @DateTime.Today.ToString("dd/MM/yyyy")</p>
+        <h2>Cuentas por pagar</h2>
+        <p>Lo que se les debe a los proveedores al @DateTime.Today.ToString("dd/MM/yyyy"). Una orden vence en su fecha de recepción más los días de crédito del proveedor.</p>
     </div>
     <div class="module-header-right">
         <a asp-page="/Reportes/CuentasPorPagar" asp-page-handler="Csv" class="btn-secondary">Exportar CSV</a>
@@ -16,13 +16,93 @@
     </div>
 </div>
 
+<div class="kpi-grid" style="margin-bottom:20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total por pagar</span>
+        <span class="kpi-value">L. @Model.Totales.Total.ToString("N2")</span>
+        <span class="kpi-trend">@Model.Ordenes.Count(o => o.Saldo > 0) orden(es) pendiente(s)</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Vencido</span>
+        <span class="kpi-value" style="@(Model.TotalVencido > 0 ? "color:var(--color-danger-text);" : "")">L. @Model.TotalVencido.ToString("N2")</span>
+        <span class="kpi-trend">@Model.Ordenes.Count(o => o.EstadoPago == "Vencida") orden(es) vencida(s)</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Al día</span>
+        <span class="kpi-value">L. @Model.Totales.Corriente.ToString("N2")</span>
+        <span class="kpi-trend">todavía dentro del crédito</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Pagado últimos 30 días</span>
+        <span class="kpi-value">L. @Model.PagadoUltimos30.ToString("N2")</span>
+        <a asp-page="/PagosProveedor/Index" class="kpi-trend">Ver pagos →</a>
+    </div>
+</div>
+
+<div class="module-card" style="margin-bottom:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:16px 16px 12px;">
+        <h3 style="font-size:15px;margin:0;">Órdenes de compra</h3>
+        @if (Model.VerPagadas)
+        {
+            <a asp-page="/Reportes/CuentasPorPagar" class="btn-secondary btn-sm">Solo pendientes</a>
+        }
+        else
+        {
+            <a asp-page="/Reportes/CuentasPorPagar" asp-route-pagadas="true" class="btn-secondary btn-sm">Ver también las pagadas (90 días)</a>
+        }
+    </div>
+    <div class="table-wrapper" style="border:0;border-radius:0;">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>Orden</th>
+                    <th>Proveedor</th>
+                    <th>Vence</th>
+                    <th style="text-align:right;">Total</th>
+                    <th style="text-align:right;">Pagado</th>
+                    <th style="text-align:right;">Pendiente</th>
+                    <th>Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Ordenes.Any())
+                {
+                    <tr><td colspan="8" style="text-align:center;padding:24px;">No hay órdenes pendientes de pago 🎉</td></tr>
+                }
+                @foreach (var o in Model.Ordenes)
+                {
+                    var badge = o.EstadoPago switch { "Pagada" => "badge-success", "Vencida" => "badge-danger", "Abonada" => "badge-warning", _ => "badge-muted" };
+                    <tr>
+                        <td><a asp-page="/OrdenesCompra/Details" asp-route-id="@o.Id"><strong>@o.Numero</strong></a></td>
+                        <td>@o.Proveedor</td>
+                        <td>@o.Vence.ToString("dd/MM/yyyy")@if (o.DiasVencida > 0 && o.Saldo > 0) { <span class="table-user-sub" style="color:var(--color-danger-text);">hace @o.DiasVencida día(s)</span> }</td>
+                        <td style="text-align:right;">@o.Total.ToString("N2")</td>
+                        <td style="text-align:right;">@o.Pagado.ToString("N2")</td>
+                        <td style="text-align:right;"><strong>@o.Saldo.ToString("N2")</strong></td>
+                        <td><span class="badge @badge">@o.EstadoPago</span></td>
+                        <td style="text-align:right;">
+                            @if (o.Saldo > 0)
+                            {
+                                <a asp-page="/PagosProveedor/Create" asp-route-ordenId="@o.Id" class="btn-secondary btn-sm">Pagar</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
 <div class="module-card">
-    <div class="table-wrapper">
+    <h3 style="font-size:15px;margin:0;padding:16px 16px 4px;">Antigüedad por proveedor</h3>
+    <p class="table-user-sub" style="margin:0;padding:0 16px 12px;">Días que lleva vencido lo pendiente.</p>
+    <div class="table-wrapper" style="border:0;border-radius:0;">
         <table class="erp-table">
             <thead>
                 <tr>
                     <th>Proveedor</th>
-                    <th style="text-align:right;">Corriente</th>
+                    <th style="text-align:right;">Al día</th>
                     <th style="text-align:right;">1-30</th>
                     <th style="text-align:right;">31-60</th>
                     <th style="text-align:right;">61-90</th>

@@ -62,21 +62,16 @@ namespace Kirkenta.Pages.Finanzas.Cierres
             }
 
             Informe = InformeMetodosPagoHelper.Generar(_db, d, h, Metodo);
-            return Page();
-        }
-
-        /// <summary>Enlace de la misma pantalla filtrando por un método de pago (null = todos).</summary>
-        public string EnlaceMetodo(string? metodo)
-        {
-            var q = new List<string>();
-            if (Id.HasValue) q.Add("id=" + Id.Value);
-            else
+            if (Cierre != null)
             {
-                if (Desde.HasValue) q.Add("desde=" + Desde.Value.ToString("yyyy-MM-dd"));
-                if (Hasta.HasValue) q.Add("hasta=" + Hasta.Value.ToString("yyyy-MM-dd"));
+                // Mismo arqueo que guardó el cierre: la vista "Efectivo" muestra lo que debía haber en caja
+                Informe.Efectivo = new EfectivoCaja
+                {
+                    SaldoInicial = Cierre.SaldoInicialSistema, Ingresos = Cierre.TotalIngresosEfectivo,
+                    Egresos = Cierre.TotalEgresosEfectivo, Esperado = Cierre.EfectivoEsperado
+                };
             }
-            if (!string.IsNullOrWhiteSpace(metodo)) q.Add("metodo=" + Uri.EscapeDataString(metodo));
-            return "/Finanzas/Cierres/Informe" + (q.Count > 0 ? "?" + string.Join("&", q) : "");
+            return Page();
         }
     }
 }

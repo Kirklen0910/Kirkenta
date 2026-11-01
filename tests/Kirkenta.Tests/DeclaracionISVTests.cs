@@ -91,6 +91,36 @@ namespace Kirkenta.Tests
             }
 
             [Fact]
+            public void Ventas_ConDescuentoYaEnLasLineas_NoLoRestaDosVeces()
+            {
+                using var db = TestDb.Crear();
+                // POS: 2 x L100 con 10% de descuento general repartido en la línea (base 180, ISV 27, total 207).
+                // La factura guarda Descuento = 20 (suma de descuentos de línea) y las líneas ya vienen netas.
+                db.Facturas.Add(new Factura { Id = 1, Numero = "F-1", ClienteId = 1, Fecha = new DateTime(2026, 9, 10), Subtotal = 200m, Descuento = 20m, Impuestos = 27m, Total = 207m });
+                db.DetalleFacturas.Add(new DetalleFactura { FacturaId = 1, ProductoId = 1, Cantidad = 2, PrecioUnitario = 100m, Descuento = 20m, ImpuestoPorcentaje = 15m, Subtotal = 180m, Total = 207m });
+                db.SaveChanges();
+
+                var l = DeclaracionISVHelper.Ventas(db, new DateTime(2026, 9, 1), new DateTime(2026, 10, 1)).Single();
+                Assert.Equal(180m, l.Gravado15);
+                Assert.Equal(27m, l.Isv15);
+            }
+
+            [Fact]
+            public void Compras_ConDescuentoEnLinea_CreditoFiscalSobreLaBaseNeta()
+            {
+                using var db = TestDb.Crear();
+                // 10 x L100 con descuento de L100 en la línea: base 900, ISV 135, total 1035 (Subtotal guarda el bruto 1000)
+                db.OrdenesCompra.Add(new OrdenCompra { Id = 1, Numero = "OC-1", ProveedorId = 1, Estado = "Recibida", Fecha = new DateTime(2026, 9, 5), FechaRecepcion = new DateTime(2026, 9, 5), Subtotal = 1000m, Descuento = 100m, Impuestos = 135m, Total = 1035m });
+                db.DetalleOrdenesCompra.Add(new DetalleOrdenCompra { OrdenCompraId = 1, ProductoId = 1, Cantidad = 10, CantidadRecibida = 10, PrecioUnitario = 100m, Descuento = 100m, ImpuestoPorcentaje = 15m, Subtotal = 1000m, Total = 1035m });
+                db.SaveChanges();
+
+                var l = DeclaracionISVHelper.Compras(db, new DateTime(2026, 9, 1), new DateTime(2026, 10, 1)).Single();
+                Assert.Equal(900m, l.Gravado15);
+                Assert.Equal(135m, l.Isv15);
+                Assert.Equal(1035m, l.Total);
+            }
+
+            [Fact]
             public void Ventas_ConEnvioGravado_IncluyeElIsvDelEnvio()
             {
                 using var db = TestDb.Crear();

@@ -230,9 +230,9 @@
 
     <!-- Adjuntos -->
     <div class="no-pdf" style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--color-border);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
             <h4 style="font-size: 14px; font-weight: 600;">Documentos adjuntos</h4>
-            <form method="post" asp-page-handler="SubirAdjunto" asp-route-id="@Model.Orden.Id" enctype="multipart/form-data" style="display: inline-flex; gap: 8px; align-items: center;">
+            <form method="post" asp-page-handler="SubirAdjunto" asp-route-id="@Model.Orden.Id" enctype="multipart/form-data" style="display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 100%;">
                 <select name="tipoDoc" class="filter-select" style="padding: 6px 10px; font-size: 12.5px;">
                     <option value="Factura">Factura</option>
                     <option value="Comprobante de pago">Comprobante de pago</option>

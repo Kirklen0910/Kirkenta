@@ -3,103 +3,101 @@
 @{
     ViewData["Title"] = "Panel del dueño";
     var sube = Model.VariacionPct >= 0;
+    string L(decimal v) => "L. " + v.ToString("N2");
 }
 
 <div class="module-header">
     <div class="module-header-left">
         <h2>Panel del dueño</h2>
-        <p>Cómo va el negocio en @Model.MesActualTexto frente al mes pasado, al mismo día del mes.</p>
+        <p>@(string.IsNullOrEmpty(Model.MesActualTexto) ? "Este mes" : char.ToUpper(Model.MesActualTexto[0]) + Model.MesActualTexto[1..]) frente al mes pasado, al mismo día</p>
     </div>
     <div class="module-header-right">
-        <a asp-page="/Reportes/Rentabilidad" class="btn-secondary">Rentabilidad por producto</a>
+        <a asp-page="/Reportes/Rentabilidad" class="btn-secondary">Rentabilidad</a>
         <a asp-page="/Compras/Sugerencias" class="btn-primary">Qué comprar</a>
     </div>
 </div>
 
-<div class="kpi-grid" style="margin-bottom: 20px;">
-    <div class="kpi-card">
-        <span class="kpi-label">Ventas del mes</span>
-        <span class="kpi-value">L. @Model.VentasMes.ToString("N2")</span>
-        <span class="kpi-trend @(sube ? "up" : "down")">@(sube ? "↑" : "↓") @Math.Abs(Model.VariacionPct)% vs mes pasado (L. @Model.VentasMesAnteriorMismoPeriodo.ToString("N2"))</span>
+<section class="module-card pd-hero">
+    <div class="pd-hero-principal">
+        <span class="pd-etiqueta">Ventas del mes</span>
+        <span class="pd-monto">@L(Model.VentasMes)</span>
+        @if (Model.VentasMesAnteriorMismoPeriodo > 0)
+        {
+            <span class="pd-variacion @(sube ? "is-sube" : "is-baja")">@(sube ? "▲" : "▼") @Math.Abs(Model.VariacionPct)% <span>vs @L(Model.VentasMesAnteriorMismoPeriodo) el mes pasado</span></span>
+        }
+        else
+        {
+            <span class="pd-variacion"><span>Sin ventas el mes pasado a esta fecha</span></span>
+        }
     </div>
-    <div class="kpi-card">
-        <span class="kpi-label">Utilidad bruta</span>
-        <span class="kpi-value" style="color: var(--color-primary);">L. @Model.UtilidadBruta.ToString("N2")</span>
-        <span class="kpi-trend">Margen @Model.MargenPct%</span>
+    <div class="pd-stats">
+        <div>
+            <span class="pd-etiqueta">Utilidad bruta</span>
+            <strong>@L(Model.UtilidadBruta)</strong>
+            <small>margen @Model.MargenPct%</small>
+        </div>
+        <div>
+            <span class="pd-etiqueta">Ticket promedio</span>
+            <strong>@L(Model.TicketPromedio)</strong>
+            <small>@Model.TransaccionesMes venta(s)</small>
+        </div>
+        <div>
+            <span class="pd-etiqueta">Por cobrar</span>
+            <strong>@L(Model.PorCobrar)</strong>
+            <small class="@(Model.PorCobrarVencido > 0 ? "is-alerta" : "")">@(Model.PorCobrarVencido > 0 ? L(Model.PorCobrarVencido) + " vencido" : "nada vencido")</small>
+        </div>
+        <div>
+            <span class="pd-etiqueta">Inventario a costo</span>
+            <strong>@L(Model.ValorInventario)</strong>
+            <small class="@(Model.CapitalParado > 0 ? "is-alerta" : "")">@(Model.CapitalParado > 0 ? L(Model.CapitalParado) + " sin venta en 60 días" : "todo con movimiento")</small>
+        </div>
     </div>
-    <div class="kpi-card">
-        <span class="kpi-label">Ticket promedio</span>
-        <span class="kpi-value">L. @Model.TicketPromedio.ToString("N2")</span>
-        <span class="kpi-trend">@Model.TransaccionesMes ventas</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">Por cobrar</span>
-        <span class="kpi-value">L. @Model.PorCobrar.ToString("N2")</span>
-        <span class="kpi-trend down">@(Model.PorCobrarVencido > 0 ? "L. " + Model.PorCobrarVencido.ToString("N2") + " vencido" : "Nada vencido")</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">Inventario a costo</span>
-        <span class="kpi-value">L. @Model.ValorInventario.ToString("N2")</span>
-        <span class="kpi-trend down">L. @Model.CapitalParado.ToString("N2") parado (@Model.ProductosParados productos sin venta en 60 días)</span>
-    </div>
-</div>
+</section>
 
-<div class="module-card" style="margin-bottom: 20px;">
-    <h3 style="margin-top:0;">Ventas acumuladas del mes</h3>
-    <div style="height: 300px;"><canvas id="chartAcumulado"></canvas></div>
-</div>
+<section class="module-card pd-bloque" style="margin-bottom:16px;">
+    <header><h3>Ventas acumuladas</h3><span>este mes vs. el pasado</span></header>
+    <div style="height:260px;"><canvas id="chartAcumulado"></canvas></div>
+</section>
 
-<div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); align-items: start;">
-    <div class="module-card">
-        <h3 style="margin-top:0;">Productos que más dejan (utilidad)</h3>
-        @if (Model.TopUtilidad.Count == 0) { <p class="table-user-sub">Sin ventas este mes.</p> }
-        else
-        {
-            <table class="erp-table">
-                <thead><tr><th>Producto</th><th style="text-align:right;">Vendido</th><th style="text-align:right;">Utilidad</th></tr></thead>
-                <tbody>
-                @foreach (var f in Model.TopUtilidad)
-                {
-                    <tr><td>@f.Nombre</td><td style="text-align:right;">L. @f.Extra.ToString("N2")</td><td style="text-align:right;"><strong>L. @f.Valor.ToString("N2")</strong></td></tr>
-                }
-                </tbody>
-            </table>
-        }
-    </div>
-    <div class="module-card">
-        <h3 style="margin-top:0;">Mejores clientes del mes</h3>
-        @if (Model.TopClientes.Count == 0) { <p class="table-user-sub">Sin ventas a clientes registrados.</p> }
-        else
-        {
-            <table class="erp-table">
-                <thead><tr><th>Cliente</th><th style="text-align:right;">Compras</th><th style="text-align:right;">Total</th></tr></thead>
-                <tbody>
-                @foreach (var f in Model.TopClientes)
-                {
-                    <tr><td>@f.Nombre</td><td style="text-align:right;">@f.Extra.ToString("N0")</td><td style="text-align:right;"><strong>L. @f.Valor.ToString("N2")</strong></td></tr>
-                }
-                </tbody>
-            </table>
-        }
-    </div>
-    <div class="module-card">
-        <h3 style="margin-top:0;">Dinero parado en inventario</h3>
-        @if (Model.Parados.Count == 0) { <p class="table-user-sub">Todo el inventario con existencia tuvo ventas en los últimos 60 días. ✅</p> }
-        else
-        {
-            <table class="erp-table">
-                <thead><tr><th>Producto</th><th style="text-align:right;">Existencia</th><th style="text-align:right;">Costo</th></tr></thead>
-                <tbody>
-                @foreach (var f in Model.Parados)
-                {
-                    <tr><td>@f.Nombre</td><td style="text-align:right;">@f.Extra.ToString("N2")</td><td style="text-align:right;"><strong>L. @f.Valor.ToString("N2")</strong></td></tr>
-                }
-                </tbody>
-            </table>
-            <p class="table-user-sub" style="margin-top:8px;">Considera promoción o devolución al proveedor.</p>
-        }
-    </div>
+@{
+    void Lista(string titulo, string sub, List<Kirkenta.Pages.Reportes.PanelDuenoModel.Fila> filas, Func<Kirkenta.Pages.Reportes.PanelDuenoModel.Fila, string> detalle, string vacio)
+    {
+        var max = filas.Count > 0 ? filas.Max(f => f.Valor) : 0m;
+        <section class="module-card pd-bloque">
+            <header><h3>@titulo</h3><span>@sub</span></header>
+            @if (filas.Count == 0)
+            {
+                <p class="pd-vacio">@vacio</p>
+            }
+            else
+            {
+                <ol class="pd-lista">
+                    @foreach (var f in filas)
+                    {
+                        var pct = max > 0 ? Math.Round(f.Valor / max * 100m, 1) : 0m;
+                        <li>
+                            <div class="pd-lista-fila">
+                                <span class="pd-lista-nombre">@f.Nombre</span>
+                                <strong>@L(f.Valor)</strong>
+                            </div>
+                            <div class="pd-lista-barra"><span style="width:@pct.ToString(System.Globalization.CultureInfo.InvariantCulture)%"></span></div>
+                            <small>@detalle(f)</small>
+                        </li>
+                    }
+                </ol>
+            }
+        </section>
+    }
+}
+<div class="pd-columnas">
+    @{ Lista("Productos que más dejan", "utilidad del mes", Model.TopUtilidad, f => "vendido " + L(f.Extra), "Sin ventas este mes."); }
+    @{ Lista("Mejores clientes", "lo que compraron este mes", Model.TopClientes, f => f.Extra.ToString("N0") + " compra(s)", "Sin ventas a clientes registrados."); }
+    @{ Lista("Dinero parado", "sin venta en 60 días, a costo", Model.Parados, f => "existencia " + f.Extra.ToString("N2"), "Todo el inventario con existencia tuvo ventas en los últimos 60 días ✅"); }
 </div>
+@if (Model.Parados.Count > 0)
+{
+    <p class="pd-vacio" style="margin-top:8px;">Para el dinero parado, considera una promoción o la devolución al proveedor.</p>
+}
 
 @section Scripts {
     <script src="/lib/chartjs/chart.umd.min.js"></script>
@@ -115,15 +113,21 @@
                 data: {
                     labels: d.labels,
                     datasets: [
-                        { label: 'Este mes', data: d.actual, borderColor: 'rgba(79,70,229,1)', backgroundColor: 'rgba(79,70,229,.12)', fill: true, tension: .25, pointRadius: 0, spanGaps: false },
-                        { label: 'Mes pasado', data: d.anterior, borderColor: 'rgba(148,163,184,1)', borderDash: [6, 4], tension: .25, pointRadius: 0, fill: false }
+                        { label: 'Este mes', data: d.actual, borderColor: 'rgba(79,70,229,1)', backgroundColor: 'rgba(79,70,229,.10)', fill: true, tension: .3, pointRadius: 0, borderWidth: 2, spanGaps: false },
+                        { label: 'Mes pasado', data: d.anterior, borderColor: 'rgba(148,163,184,1)', borderDash: [6, 4], tension: .3, pointRadius: 0, borderWidth: 1.5, fill: false }
                     ]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
-                    plugins: { tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': L. ' + (c.parsed.y || 0).toLocaleString('es-HN', { minimumFractionDigits: 2 }); } } } },
-                    scales: { y: { beginAtZero: true, ticks: { callback: function (v) { return 'L. ' + v.toLocaleString(); } } } }
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, boxHeight: 2 } },
+                        tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': L. ' + (c.parsed.y || 0).toLocaleString('es-HN', { minimumFractionDigits: 2 }); } } }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { beginAtZero: true, border: { display: false }, ticks: { maxTicksLimit: 5, callback: function (v) { return 'L. ' + v.toLocaleString(); } } }
+                    }
                 }
             });
         })();

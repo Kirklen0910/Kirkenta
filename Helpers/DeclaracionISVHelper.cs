@@ -98,13 +98,16 @@ namespace Kirkenta.Helpers
                 };
                 if (!l.Anulada)
                 {
-                    // El descuento general se prorratea: las lineas lo traen SIN descontar y el ISV real se calculo despues.
+                    // La base declarada debe ser la de la factura (total − ISV). Las líneas ya traen su propio descuento
+                    // y el porcentaje general repartido; solo un descuento general en monto queda fuera de ellas.
+                    // Por eso el factor se saca de la factura misma: usar f.Descuento lo restaba dos veces (bug 2026-10).
                     decimal factor = 1m;
                     if (detalles.TryGetValue(f.Id, out var dets))
                     {
                         var sumaBase = dets.Sum(d => d.Subtotal);
-                        if (f.Descuento > 0 && sumaBase + f.MontoEnvio > 0)
-                            factor = Math.Max(0m, (sumaBase + f.MontoEnvio - f.Descuento) / (sumaBase + f.MontoEnvio));
+                        var baseFactura = f.Total - f.Impuestos;
+                        if (sumaBase + f.MontoEnvio > 0 && baseFactura < sumaBase + f.MontoEnvio - 0.01m)
+                            factor = Math.Max(0m, baseFactura / (sumaBase + f.MontoEnvio));
                         foreach (var d in dets)
                             l.Agregar(d.ImpuestoPorcentaje, Math.Round(d.Subtotal * factor, 2),
                                       Math.Round((d.Total - d.Subtotal) * factor, 2), f.EsExonerada);
@@ -147,7 +150,9 @@ namespace Kirkenta.Helpers
                     {
                         var factor = o.Estado == "Recibida" ? 1m : (d.Cantidad > 0 ? Math.Min(1m, d.CantidadRecibida / d.Cantidad) : 0m);
                         if (factor <= 0) continue;
-                        var baseLinea = Math.Round(d.Subtotal * factor, 2);
+                        // En las órdenes de compra Subtotal es el BRUTO (antes del descuento de la línea) y Total ya va
+                        // con descuento + ISV: la base es Subtotal − Descuento. Antes el descuento salía restado del ISV.
+                        var baseLinea = Math.Round(Math.Max(0m, d.Subtotal - d.Descuento) * factor, 2);
                         var total = Math.Round(d.Total * factor, 2);
                         l.Agregar(d.ImpuestoPorcentaje, baseLinea, total - baseLinea, false);
                         l.Total += total;

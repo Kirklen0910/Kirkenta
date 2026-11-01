@@ -102,10 +102,18 @@ namespace Kirkenta.Pages.Reportes
 
             var detalles = detallesQuery.ToList();
 
+            // Con filtro de producto, cada venta cuenta solo por las líneas de ese producto y las ventas
+            // que no lo tienen salen del reporte: así total, ticket, clientes y gráfica responden al filtro.
+            var montoPorVenta = !string.IsNullOrWhiteSpace(FiltroProducto)
+                ? detalles.GroupBy(d => d.VentaId).ToDictionary(g => g.Key, g => g.Sum(d => d.Total))
+                : ventas.ToDictionary(v => v.Id, v => v.Total);
+            ventas = ventas.Where(v => montoPorVenta.ContainsKey(v.Id)).ToList();
+            decimal Monto(Models.Venta v) => montoPorVenta[v.Id];
+
             // === KPIs ===
             CantidadVentas = ventas.Count;
-            TotalVendido = ventas.Sum(v => v.Total);
-            TicketPromedio = CantidadVentas > 0 ? TotalVendido / CantidadVentas : 0;
+            TotalVendido = ventas.Sum(Monto);
+            TicketPromedio = CantidadVentas > 0 ? Math.Round(TotalVendido / CantidadVentas, 2) : 0;
             ProductosVendidos = (int)detalles.Sum(d => d.Cantidad);
             ClientesUnicos = ventas.Where(v => v.ClienteId.HasValue).Select(v => v.ClienteId!.Value).Distinct().Count();
 
@@ -141,7 +149,7 @@ namespace Kirkenta.Pages.Reportes
                 {
                     Nombre = (nombresClientes.TryGetValue(g.Key, out var nc) ? nc : null) ?? "—",
                     Ventas = g.Count(),
-                    Total = g.Sum(v => v.Total)
+                    Total = g.Sum(Monto)
                 })
                 .OrderByDescending(x => x.Total)
                 .Take(10)
@@ -154,7 +162,7 @@ namespace Kirkenta.Pages.Reportes
                 .Select(g => new
                 {
                     Fecha = g.Key.ToString("dd/MM"),
-                    Total = g.Sum(v => v.Total)
+                    Total = g.Sum(Monto)
                 })
                 .ToList();
 

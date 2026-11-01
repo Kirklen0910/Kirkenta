@@ -562,9 +562,13 @@
             </div>
         </div>
     </aside>
+    <div class="erp-sidebar-backdrop" id="erpSidebarBackdrop" hidden></div>
 
     <div class="erp-main-wrapper">
         <header class="erp-topbar">
+            <button type="button" class="erp-menu-btn" id="erpMenuBtn" aria-label="Abrir menú" aria-controls="erpSidebar" aria-expanded="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
             <nav class="erp-breadcrumb" aria-label="Breadcrumb">
                 @for (int i = 0; i < breadcrumb.Count; i++)
                 {
@@ -665,6 +669,27 @@
     <script src="~/js/escaner-camara.js" asp-append-version="true"></script>
     <script src="~/js/kirkenta-offline.js" asp-append-version="true"></script>
     <script>
+        // Menú lateral en celular/tablet: en pantallas angostas el menú vive fuera de la pantalla
+        // y no hay mouse para abrirlo con hover, así que se abre con el botón ☰ de la barra superior.
+        (function () {
+            var menu = document.getElementById('erpSidebar');
+            var btn = document.getElementById('erpMenuBtn');
+            var fondo = document.getElementById('erpSidebarBackdrop');
+            if (!menu || !btn || !fondo) return;
+            function abrir(si) {
+                menu.classList.toggle('is-open', si);
+                fondo.hidden = !si;
+                btn.setAttribute('aria-expanded', si ? 'true' : 'false');
+                document.documentElement.classList.toggle('erp-menu-abierto', si);
+            }
+            btn.addEventListener('click', function () { abrir(!menu.classList.contains('is-open')); });
+            fondo.addEventListener('click', function () { abrir(false); });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && menu.classList.contains('is-open')) abrir(false); });
+            // Al elegir una opción (un enlace, no el título de un submenú) se cierra
+            menu.addEventListener('click', function (e) { if (e.target.closest('a[href]')) abrir(false); });
+            window.addEventListener('pageshow', function () { abrir(false); });
+        })();
+
         // Ctrl+K (o Cmd+K) lleva el cursor a la búsqueda global
         document.addEventListener('keydown', function (e) {
             if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {

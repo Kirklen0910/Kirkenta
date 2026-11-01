@@ -178,8 +178,8 @@ namespace Kirkenta.Pages.RRHH.Deducciones
             {
                 if (tramos.Count < 2) return "La tabla del ISR necesita al menos dos tramos (el exento y uno gravado).";
                 var exento = ExentoMensual(topeAnualExento);
-                if (tramos[1].Hasta.HasValue && tramos[1].Hasta.Value <= exento + 0.01m)
-                    return $"El exento anual de L. {topeAnualExento:N2} equivale a L. {exento:N2} mensuales, y no cabe antes del segundo tramo (que termina en L. {tramos[1].Hasta:N2}). Corrige el exento o la tabla.";
+                if (tramos[1].Hasta is decimal hastaSegundo && hastaSegundo <= exento + 0.01m)
+                    return $"El exento anual de L. {topeAnualExento:N2} equivale a L. {exento:N2} mensuales, y no cabe antes del segundo tramo (que termina en L. {hastaSegundo:N2}). Corrige el exento o la tabla.";
                 tramos[0].Hasta = exento;
                 tramos[1].Desde = exento + 0.01m;
             }

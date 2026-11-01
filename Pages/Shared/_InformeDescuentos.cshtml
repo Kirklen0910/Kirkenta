@@ -3,47 +3,44 @@
     var inv = System.Globalization.CultureInfo.InvariantCulture;
     string L(decimal v) => "L. " + v.ToString("N2", inv);
 }
-<style>
-    .kk-desc-table { width:100%; border-collapse:collapse; font-size:14px; }
-    .kk-desc-table th { text-align:left; font-size:12px; color:var(--color-muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--color-border); }
-    .kk-desc-table td { padding:9px 10px; border-bottom:1px solid var(--color-border); }
-    .kk-desc-table .num { text-align:right; font-variant-numeric:tabular-nums; }
-    .kk-desc-table tfoot td { font-weight:700; border-top:2px solid var(--color-border-strong); }
-</style>
-<h3 class="kk-inf-h" style="font-size:15px;font-weight:600;margin:22px 0 10px;">🏷️ Descuentos otorgados</h3>
-<div class="module-card" style="overflow-x:auto;">
-    @if (Model.Lineas.Count == 0)
-    {
-        <p style="margin:0;color:var(--color-muted);">No se dieron descuentos en este período.</p>
-    }
-    else
-    {
-        <p style="margin:0 0 10px;color:var(--color-muted);">
-            <strong>@L(Model.TotalDescuento)</strong> en descuentos
-            (@Model.PorcentajeSobreVentas.ToString("0.##", inv)% de las ventas brutas del período)
-            en @Model.VentasConDescuento venta(s). Incluye el descuento propio de cada producto y la parte del descuento general que le tocó.
-        </p>
-        <table class="kk-desc-table">
-            <thead>
-                <tr><th>Fecha</th><th>Venta</th><th>Cliente</th><th>Producto</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Descuento</th><th class="num">%</th></tr>
-            </thead>
-            <tbody>
-            @foreach (var l in Model.Lineas.Take(500))
-            {
-                <tr>
-                    <td>@l.Fecha.ToString("dd/MM HH:mm")</td>
-                    <td><a asp-page="/Ventas/Details" asp-route-id="@l.VentaId">@l.Venta</a></td>
-                    <td>@l.Cliente</td>
-                    <td><a asp-page="/Productos/Historial" asp-route-id="@l.ProductoId">@l.Producto</a></td>
-                    <td class="num">@l.Cantidad.ToString("0.##", inv)</td>
-                    <td class="num">@L(l.PrecioUnitario)</td>
-                    <td class="num">@L(l.Descuento)</td>
-                    <td class="num">@l.Porcentaje.ToString("0.##", inv)%</td>
-                </tr>
-            }
-            </tbody>
-            <tfoot><tr><td colspan="6">Total</td><td class="num">@L(Model.TotalDescuento)</td><td></td></tr></tfoot>
-        </table>
-        @if (Model.Lineas.Count > 500) { <p style="margin-top:8px;color:var(--color-muted);font-size:13px;">Se muestran las primeras 500 líneas.</p> }
-    }
+@* Solo en la vista "Todo" del informe (informe-metodos.js oculta [data-kk-inf-todo] al elegir un método) *@
+<div data-kk-inf-todo>
+    <div class="kk-inf-h">
+        <h3>Descuentos otorgados</h3>
+        @if (Model.Lineas.Count > 0)
+        {
+            <span>@L(Model.TotalDescuento) · @Model.PorcentajeSobreVentas.ToString("0.##", inv)% de las ventas brutas · @Model.VentasConDescuento venta(s)</span>
+        }
+    </div>
+    <div class="kk-inf-box">
+        @if (Model.Lineas.Count == 0)
+        {
+            <p class="kk-inf-empty">No se dieron descuentos en este período.</p>
+        }
+        else
+        {
+            <table class="kk-inf-table">
+                <thead>
+                    <tr><th>Fecha</th><th>Venta</th><th>Cliente</th><th>Producto</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Descuento</th><th class="num">%</th></tr>
+                </thead>
+                <tbody>
+                @foreach (var l in Model.Lineas.Take(500))
+                {
+                    <tr>
+                        <td>@l.Fecha.ToString("dd/MM HH:mm")</td>
+                        <td><a asp-page="/Ventas/Details" asp-route-id="@l.VentaId">@l.Venta</a></td>
+                        <td>@l.Cliente</td>
+                        <td><a asp-page="/Productos/Historial" asp-route-id="@l.ProductoId">@l.Producto</a></td>
+                        <td class="num">@l.Cantidad.ToString("0.##", inv)</td>
+                        <td class="num">@L(l.PrecioUnitario)</td>
+                        <td class="num">@L(l.Descuento)</td>
+                        <td class="num">@l.Porcentaje.ToString("0.##", inv)%</td>
+                    </tr>
+                }
+                </tbody>
+                <tfoot><tr><td colspan="6">Total</td><td class="num">@L(Model.TotalDescuento)</td><td></td></tr></tfoot>
+            </table>
+            @if (Model.Lineas.Count > 500) { <p class="kk-inf-nota" style="margin:8px 4px;">Se muestran las primeras 500 líneas.</p> }
+        }
+    </div>
 </div>

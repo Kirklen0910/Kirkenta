@@ -44,6 +44,14 @@
 </div>
 
 <!-- KPIs -->
+@{
+    var filtrosActivos = new List<string>();
+    if (!string.IsNullOrWhiteSpace(Model.FiltroCliente)) filtrosActivos.Add("cliente «" + Model.FiltroCliente + "»");
+    if (!string.IsNullOrWhiteSpace(Model.FiltroProducto)) filtrosActivos.Add("producto «" + Model.FiltroProducto + "»");
+}
+<p class="table-user-sub" style="margin:0 0 10px;">
+    Del @Model.Desde.ToString("dd/MM/yyyy") al @Model.Hasta.ToString("dd/MM/yyyy")@(filtrosActivos.Count > 0 ? " · filtrado por " + string.Join(" y ", filtrosActivos) : "")@(string.IsNullOrWhiteSpace(Model.FiltroProducto) ? "" : " (los montos son solo de ese producto)")
+</p>
 <div class="kpi-grid" style="margin-bottom: 20px;">
     <div class="kpi-card">
         <span class="kpi-label">Total vendido</span>

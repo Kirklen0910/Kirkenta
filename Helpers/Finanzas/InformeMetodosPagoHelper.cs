@@ -146,9 +146,11 @@ namespace Kirkenta.Helpers.Finanzas
             var egr = db.MovimientosFinancieros.AsNoTracking()
                 .Where(m => m.Estado == "Activo" && m.Tipo == "Egreso" && m.Fecha >= desde && m.Fecha < hasta && m.Origen != "Apertura"
                          && (m.Notas == null || !m.Notas.Contains(SaldoHelper.MarcaSoloContable)))
-                .Select(m => new { m.FormaPago, m.Monto }).ToList();
+                .Select(m => new { m.FormaPago, m.Monto, m.Concepto }).ToList();
             inf.TotalEgresos = egr.Sum(x => x.Monto);
-            inf.Egresos = egr.GroupBy(x => string.IsNullOrWhiteSpace(x.FormaPago) ? "Sin forma de pago" : x.FormaPago!)
+            // El vuelto de una venta en efectivo se registra como egreso: se separa para que no parezca un gasto
+            inf.Egresos = egr.GroupBy(x => (x.Concepto ?? "").StartsWith("Cambio entregado") ? "Vuelto a clientes (efectivo)"
+                                         : string.IsNullOrWhiteSpace(x.FormaPago) ? "Sin forma de pago" : x.FormaPago!)
                 .Select(g => new ResumenMetodo
                 {
                     Clave = Norm(g.Key), Nombre = g.Key, Total = g.Sum(x => x.Monto), Cantidad = g.Count(),
