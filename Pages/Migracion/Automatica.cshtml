@@ -57,7 +57,7 @@
                                 else
                                 {
                                     @if (x.TercerosCreados > 0 || x.TercerosPorCrear > 0) { <div>Clientes/proveedores nuevos: @(Math.Max(x.TercerosCreados, x.TercerosPorCrear))</div> }
-                                    @if (x.LineasCreadas > 0) { <div>Líneas de venta: @x.LineasCreadas.ToString("N0")</div> }
+                                    @if (x.LineasCreadas > 0) { <div>Líneas de detalle: @x.LineasCreadas.ToString("N0")</div> }
                                     @if (x.Monto > 0) { <div>@(rp.Paso.Destino == "Productos" ? "Valor del inventario al costo" : "Monto"): L. @x.Monto.ToString("N2")</div> }
                                 }
                             </td>
@@ -79,12 +79,64 @@
                 </table>
             </div>
         }
+        @if (res.Conciliacion.Count > 0)
+        {
+            var cuadraTodo = res.Conciliacion.All(c => c.Cuadra);
+            <h3 style="margin:18px 0 6px;font-size:15px">Conciliación: sistema anterior contra Kirkenta</h3>
+            <p style="font-size:13px;color:var(--color-muted);margin:0 0 8px">
+                @(cuadraTodo ? "✅ Todo lo que venía en el sistema anterior está en Kirkenta o tiene explicación." : "⚠️ Hay pasos que no cuadran: revisa su detalle antes de dar la migración por buena.")
+            </p>
+            <div class="table-wrapper">
+                <table class="erp-table">
+                    <thead><tr><th>Paso</th><th style="text-align:right">Filas origen</th><th style="text-align:right">@(res.SoloRevision ? "Se crearían" : "Creados")</th><th style="text-align:right">Ya estaban</th><th style="text-align:right">Descartados</th><th>Monto</th><th style="text-align:right">Origen</th><th style="text-align:right">Kirkenta</th><th>Resultado</th></tr></thead>
+                    <tbody>
+                    @foreach (var c in res.Conciliacion)
+                    {
+                        <tr>
+                            <td><strong>@c.Titulo</strong><div style="font-size:12px;color:var(--color-muted)">@c.Tabla</div></td>
+                            <td style="text-align:right">@c.FilasOrigen.ToString("N0")</td>
+                            <td style="text-align:right">@c.Creados.ToString("N0")</td>
+                            <td style="text-align:right">@c.YaExistian.ToString("N0")</td>
+                            <td style="text-align:right">@c.Descartados.ToString("N0")</td>
+                            <td style="font-size:12px">@(c.Concepto ?? "—")</td>
+                            <td style="text-align:right;white-space:nowrap">@(c.MontoOrigen.HasValue ? "L. " + c.MontoOrigen.Value.ToString("N2") : "—")</td>
+                            <td style="text-align:right;white-space:nowrap">@(c.MontoMigrado.HasValue ? "L. " + c.MontoMigrado.Value.ToString("N2") : "—")</td>
+                            <td style="font-size:12px"><span class="badge @(c.Cuadra ? "badge-success" : "badge-danger")">@(c.Cuadra ? "Cuadra" : "Revisar")</span> @c.Explicacion</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        @if (res.RevisionesIntegridad > 0)
+        {
+            <h3 style="margin:18px 0 6px;font-size:15px">Revisión de integridad del sistema @(res.SoloRevision ? "(como quedaría)" : "migrado")</h3>
+            @if (res.Integridad.Count == 0)
+            {
+                <p style="font-size:13px;margin:0">✅ Las @res.RevisionesIntegridad revisiones salen limpias: ventas, cobros, cuentas, compras, inventario, nómina y contabilidad cuadran.</p>
+            }
+            else
+            {
+                <ul style="font-size:13px;margin:0 0 0 18px">
+                    @foreach (var h in res.Integridad)
+                    {
+                        <li><strong>@h.Area · @h.Titulo:</strong> @h.Total hallazgo(s). @string.Join(" · ", h.Ejemplos)</li>
+                    }
+                </ul>
+                <p style="font-size:12px;color:var(--color-muted);margin-top:6px">Detalle completo en Finanzas → Integridad.</p>
+            }
+        }
+
         @if (res.Aplicado)
         {
             <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
                 <a asp-page="/Productos/Index" class="btn-secondary">Ver productos</a>
                 <a asp-page="/Clientes/Index" class="btn-secondary">Ver clientes</a>
                 <a asp-page="/Finanzas/Cobros/Index" class="btn-secondary">Ver cobros pendientes</a>
+                <a asp-page="/RRHH/Empleados/Index" class="btn-secondary">Ver empleados</a>
+                <a asp-page="/Finanzas/Cuentas/Index" class="btn-secondary">Ver cajas y bancos</a>
+                <a asp-page="/Finanzas/Integridad/Index" class="btn-secondary">Integridad completa</a>
                 <a asp-page="/Migracion/Index" asp-route-continuar="1" class="btn-primary">Ver lotes / deshacer</a>
             </div>
         }

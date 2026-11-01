@@ -120,18 +120,50 @@ namespace Kirkenta.Helpers.Migracion
                     { "DiasCredito", new[] { "diascredito", "plazo", "creditodias" } },
                 }
             },
+            DeOperaciones("PlanCuentas", 7,
+                new[] { "plancuentas", "plandecuentas", "catalogocuentas", "catalogodecuentas", "cuentascontables", "chartofaccounts", "nomenclatura", "plancontable" },
+                new[] { "Naturaleza", "Padre", "Movimiento" }),
+            DeOperaciones("MetodosPago", 8,
+                new[] { "metodospago", "metodosdepago", "formaspago", "formasdepago", "formapago", "paymentmethods", "tipospago", "mediospago" },
+                new[] { "Tipo" }),
+            DeOperaciones("CuentasFinancieras", 9,
+                new[] { "cuentasbancarias", "bancos", "cajas", "cuentasfinancieras", "cuentasbanco", "bankaccounts", "tesoreria", "cajaybancos" },
+                new[] { "NumeroCuenta", "Banco", "Saldo" }),
+            DeOperaciones("Empleados", 10,
+                new[] { "empleados", "empleado", "employees", "employee", "personal", "colaboradores", "trabajadores", "planilla", "staff", "rrhh" },
+                new[] { "Salario", "FechaIngreso", "Cedula", "Puesto" }),
         };
+
+        /// <summary>Entidad de detección para los catálogos de MigracionOperacionesHelper (se importan con la migración automática).</summary>
+        private static EntidadMigracion DeOperaciones(string key, int orden, string[] nombresTabla, string[] distintivos)
+        {
+            var campos = MigracionOperacionesHelper.Campos(key);
+            return new EntidadMigracion
+            {
+                Key = key, Nombre = MigracionOperacionesHelper.Nombre(key), Orden = orden,
+                NombresTabla = nombresTabla, Distintivos = distintivos,
+                // El empleado puede traer el nombre en una sola columna: no se exige «Nombres» para reconocer la tabla
+                Requeridos = key == "Empleados" ? Array.Empty<string>() : campos.Where(c => c.Requerido).Select(c => c.Key).ToArray(),
+                Alias = campos.ToDictionary(c => c.Key, c => c.Alias)
+            };
+        }
 
         /// <summary>Tablas de historial que reconocemos por su nombre (Tipo = herramienta de la etapa 2).</summary>
         private static readonly (string[] Claves, string Texto, string? Tipo)[] Historiales =
         {
-            (new[] { "detalle", "linea", "renglon", "item", "partida" }, "Líneas de documentos: se unen dentro de «Historial de ventas»", null),
+            (new[] { "backup", "respaldo", "bitacora", "auditoria", "logs", "sesion", "migration", "migracion" }, "Copia o registro técnico del sistema anterior: no se migra", null),
+            (new[] { "detalle", "linea", "renglon", "item", "partida" }, "Líneas de documentos: se unen a su venta, compra o cotización", null),
+            (new[] { "vacacion", "nomina", "asistencia", "permisoempleado", "planillapago", "incapacidad" }, "Historial de RRHH (nóminas, vacaciones): se migra el saldo dentro de «Empleados»", null),
             (new[] { "cuentasporcobrar", "cxc", "saldocliente", "receivable", "abonocliente", "carteraclientes" }, "Saldos por cobrar", MigracionHistorialHelper.TipoCxC),
             (new[] { "cuentasporpagar", "cxp", "saldoproveedor", "payable", "carteraproveedor" }, "Saldos por pagar", MigracionHistorialHelper.TipoCxP),
-            (new[] { "kardex", "movimientoinv", "inventariomov", "movinv", "stockmove" }, "Movimientos de inventario (histórico)", MigracionHistorialHelper.TipoKardex),
+            (new[] { "kardex", "movimientoinv", "movimientosinv", "inventariomov", "movinv", "stockmove" }, "Movimientos de inventario (histórico)", MigracionHistorialHelper.TipoKardex),
+            // Compras, cotizaciones y movimientos antes que ventas: «facturascompra» o «facturaproveedor» son compras
+            (new[] { "compra", "purchase", "ordencompra", "facturaproveedor", "ingresomercaderia" }, "Historial de compras", MigracionOperacionesHelper.TipoCompras),
+            (new[] { "cotizacion", "presupuesto", "proforma", "quote", "quotation" }, "Cotizaciones", MigracionOperacionesHelper.TipoCotizaciones),
+            (new[] { "gasto", "egreso", "ingresoscaja", "movimientoscaja", "movimientosbanco", "movimientofinanciero", "movimientosfinanciero", "librocaja", "librobanco", "transaccion", "expense" }, "Ingresos y egresos históricos", MigracionOperacionesHelper.TipoMovimientos),
+            (new[] { "balanza", "balancecomprobacion", "balancedecomprobacion", "saldoscontables", "saldoscuentas", "trialbalance", "aperturacontable", "balanceinicial", "balancegeneral" }, "Balance de apertura (saldos contables)", MigracionOperacionesHelper.TipoSaldosContables),
             (new[] { "venta", "factura", "sales", "invoice", "ticket" }, "Historial de ventas", MigracionHistorialHelper.TipoVentas),
-            (new[] { "compra", "purchase", "ordencompra" }, "Historial de compras (no se importa; los saldos van en «Saldos por pagar»)", null),
-            (new[] { "usuario", "user", "empleado", "employee" }, "Usuarios / empleados (se crean manualmente por seguridad)", null),
+            (new[] { "usuario", "user", "login" }, "Usuarios del sistema (se crean manualmente por seguridad: las contraseñas no se pueden migrar)", null),
         };
 
         public static List<DeteccionTabla> Analizar(IEnumerable<TablaOrigen> tablas)
@@ -167,7 +199,9 @@ namespace Kirkenta.Helpers.Migracion
                 }
             }
 
-            var hist = Historiales.FirstOrDefault(f => f.Claves.Any(c => nombreNorm.Contains(c)));
+            // «inventario» contiene «venta»: para esa palabra se busca sin «inventario»
+            var sinInventario = nombreNorm.Replace("inventario", "~");
+            var hist = Historiales.FirstOrDefault(f => f.Claves.Any(c => (c == "venta" ? sinInventario : nombreNorm).Contains(c)));
             if (hist.Texto != null)
             {
                 det.PosibleFuturo = hist.Texto;
@@ -180,8 +214,10 @@ namespace Kirkenta.Helpers.Migracion
                 det.Puntaje = mejorPuntaje;
                 det.Mapa = mejorMapa;
                 det.Confianza = mejorPuntaje >= 60 ? "Alta" : mejorPuntaje >= 40 ? "Media" : "Baja";
-                // Si el nombre apunta claramente a otra cosa (p. ej. "ventas"), no forzar una entidad débil
-                if (det.PosibleFuturo != null && mejorPuntaje < 60) { det.Entidad = null; det.Confianza = "Sin sugerencia"; }
+                // Si el nombre apunta claramente a otra cosa ("ventas", "movimientos_inventario", "copia de…"),
+                // manda el nombre, salvo que la tabla se llame exactamente como la entidad
+                bool nombreExacto = mejor.NombresTabla.Contains(nombreNorm);
+                if (det.PosibleFuturo != null && (!nombreExacto || mejorPuntaje < 60)) { det.Entidad = null; det.Confianza = "Sin sugerencia"; }
             }
             return det;
         }
@@ -205,6 +241,11 @@ namespace Kirkenta.Helpers.Migracion
 
             bool faltaRequerido = e.Requeridos.Any(r => !mapa.TryGetValue(r, out var v) || v == null);
             if (faltaRequerido) puntaje *= 0.4;
+
+            // Catálogos con pocas columnas (impuestos, unidades, categorías, métodos de pago) se parecen a cualquier
+            // tabla con «nombre» y «tipo» (feriados, monedas, roles…): sin un nombre de tabla que coincida no se sugieren.
+            bool nombreCoincide = nombreTablaNorm.Length > 0 && e.NombresTabla.Any(n => n == nombreTablaNorm || (n.Length >= 4 && nombreTablaNorm.Contains(n)));
+            if (e.Alias.Count <= 4 && !nombreCoincide) puntaje = Math.Min(puntaje, 35);
 
             return (int)Math.Round(puntaje);
         }

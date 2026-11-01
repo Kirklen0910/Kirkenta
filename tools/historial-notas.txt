@@ -55,3 +55,22 @@ Menú lateral: los submenús de todos los módulos están en orden alfabético.
 Nueva pantalla Finanzas > Revisión de movimientos: barra de avance de 0 a 100 % que revisa ventas, cobros, créditos a favor, ingresos, egresos, cuentas, compras, inventario y asientos de un día o período, con informe por pestañas, marcas verdes/rojas, enlace al documento con falla e impresión.
 Migración: los archivos .sql, .json y .jsonl en Latin-1/ANSI de sistemas viejos ya conservan los acentos.
 Migración: ahora también lee Excel viejo (.xls), bases dBase/FoxPro (.dbf) y bases SQLite, reconoce más nombres de columnas y, si una columna no tiene un nombre útil, la identifica por su contenido (correo, RTN, teléfono); para Access y respaldos .bak de SQL Server explica cómo exportarlos.
+== 1.0.15 (2026-10-31) ==
+• Correccion: la declaracion de ISV ya no resta dos veces el descuento de las ventas (se declaraba menos ISV del cobrado)
+• Correccion: el credito fiscal de las compras con descuento ahora se calcula sobre la base correcta
+• El libro de ventas y la declaracion de ISV usan el mismo calculo y siempre cuadran
+• Declaracion de ISV y Panel del dueno con un diseno mas limpio y ordenado
+• Reporte de ventas: total, ticket promedio, clientes y grafica respetan el filtro por producto
+• Cuentas por pagar: cada orden de compra muestra lo pagado, lo pendiente y su estado (pendiente, abonada, vencida o pagada)
+• Informe de cierre y por metodo de pago: selector Todo, Efectivo, Tarjeta, Transferencia o Credito que cambia el resumen y el detalle al instante
+• El vuelto entregado al cliente se muestra aparte y ya no parece un gasto
+• Celular y tablet: boton de menu, botones y filtros que se acomodan a la pantalla y tablas que se deslizan hacia los lados
+• Notas de cada actualizacion generadas automaticamente con lo nuevo desde la version anterior
+• IHSS 5% (2.5% EM + 2.5% IVM) con techo L 11,903.13; RAP 1.5% solo sobre el excedente del techo
+• Tramos ISR 2026 (SAR 02-2026) y calculo exacto del excedente desde el tramo anterior
+• El exento anual de ISR configurado ajusta la tabla y los montos fijos se calculan solos
+• Verificador de integridad: pagos de nomina contra egresos y neto = bruto - deducciones
+• Control "celular + PDF por WhatsApp" en factura, cotizacion, pedido, estado de cuenta, devolucion y orden de compra (descarga el PDF y abre el chat con el mensaje)
+• % de ganancia sobre el costo en crear/editar producto y en el listado
+• Logistica: reagendar o cerrar una ruta recalcula sus paradas (la ruta ya no queda trabada)
+• Service worker: respeta la version (?v=) de CSS/JS y deja de servir archivos viejos tras actualizar

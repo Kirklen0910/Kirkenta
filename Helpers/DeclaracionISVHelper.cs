@@ -127,11 +127,11 @@ namespace Kirkenta.Helpers
             return res;
         }
 
-        /// <summary>Compras recibidas en el período (por fecha de recepción). En recepciones parciales solo cuenta lo recibido.</summary>
+        /// <summary>Compras recibidas en el período (por fecha de recepción). En recepciones parciales solo cuenta lo recibido. Las compras migradas del sistema anterior no cuentan: su ISV ya se declaró allá.</summary>
         public static List<LineaFiscal> Compras(ApplicationDbContext db, DateTime desde, DateTime hastaExclusivo)
         {
             var ordenes = db.OrdenesCompra.AsNoTracking()
-                .Where(o => (o.Estado == "Recibida" || o.Estado == "RecibidaParcial")
+                .Where(o => (o.Estado == "Recibida" || o.Estado == "RecibidaParcial") && o.LoteMigracion == null
                             && (o.FechaRecepcion ?? o.Fecha) >= desde && (o.FechaRecepcion ?? o.Fecha) < hastaExclusivo)
                 .OrderBy(o => o.FechaRecepcion ?? o.Fecha).ThenBy(o => o.Numero).ToList();
             var ids = ordenes.Select(o => o.Id).ToList();

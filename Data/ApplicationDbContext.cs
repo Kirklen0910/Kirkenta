@@ -89,6 +89,7 @@ namespace Kirkenta.Data
         public DbSet<VentaOffline> VentasOffline { get; set; }
         public DbSet<CatalogoWebConfig> CatalogoWebConfig { get; set; }
         public DbSet<PedidoWeb> PedidosWeb { get; set; }
+        public DbSet<RegistroMigracion> RegistrosMigracion { get; set; }
         public DbSet<CierreContable> CierresContables { get; set; }
         public DbSet<ConciliacionBancaria> ConciliacionesBancarias { get; set; }
         public DbSet<ConciliacionDetalle> ConciliacionesDetalle { get; set; }

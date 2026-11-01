@@ -25,7 +25,8 @@ namespace Kirkenta.Helpers.Migracion
         public const string OrigenKardex = "Migracion";
         public const string GenericoSku = "MIG-GENERICO";
 
-        public static readonly string[] Tipos = { TipoCxC, TipoCxP, TipoVentas, TipoKardex };
+        public static readonly string[] Tipos =
+            new[] { TipoCxC, TipoCxP, TipoVentas, TipoKardex }.Concat(MigracionOperacionesHelper.Historiales).ToArray();
 
         public static string NombreTipo(string tipo) => tipo switch
         {
@@ -33,7 +34,7 @@ namespace Kirkenta.Helpers.Migracion
             TipoCxP => "Saldos por pagar (proveedores)",
             TipoVentas => "Historial de ventas / facturas",
             TipoKardex => "Movimientos de inventario (kardex histórico)",
-            _ => tipo
+            _ => MigracionOperacionesHelper.Nombre(tipo)
         };
 
         // ================= Definición de campos =================
@@ -100,13 +101,13 @@ namespace Kirkenta.Helpers.Migracion
                 new() { Key = "StockResultante", Label = "Existencia resultante (opcional)", Alias = new[] { "existencia", "saldo", "stock", "balance", "stockposterior" } },
                 new() { Key = "Notas", Label = "Notas (opcional)", Alias = new[] { "notas", "observaciones", "comentario" } },
             },
-            _ => new()
+            _ => MigracionOperacionesHelper.CamposHistorial(tipo)
         };
 
         /// <summary>Líneas de las ventas (solo para el historial de ventas; tabla aparte).</summary>
         public static List<CampoDef> CamposDetalle() => new()
         {
-            new() { Key = "Documento", Label = "N.º de factura / venta (para unirla)", Requerido = true, Alias = new[] { "documento", "factura", "numero", "nodocumento", "numerofactura", "folio", "ticket", "venta", "idventa", "doc" } },
+            new() { Key = "Documento", Label = "N.º de documento (para unirla)", Requerido = true, Alias = new[] { "documento", "factura", "numero", "nodocumento", "numerofactura", "folio", "ticket", "venta", "idventa", "doc", "compra", "idcompra", "ordencompra", "cotizacion", "idcotizacion", "presupuesto" } },
             new() { Key = "ProductoCodigo", Label = "Código / SKU del producto", Alias = new[] { "sku", "codigo", "codigoproducto", "codigoarticulo", "code", "cod", "barras" } },
             new() { Key = "ProductoNombre", Label = "Nombre del producto", Alias = new[] { "producto", "nombreproducto", "articulo", "descripcion", "nombre", "detalle" } },
             new() { Key = "Cantidad", Label = "Cantidad", Requerido = true, Alias = new[] { "cantidad", "qty", "unidades" } },
@@ -119,9 +120,18 @@ namespace Kirkenta.Helpers.Migracion
         public static Dictionary<string, string?> Detectar(List<string> headers, List<CampoDef> campos) =>
             ColumnMapper.Detectar(headers, campos.ToDictionary(c => c.Key, c => c.Alias));
 
-        /// <summary>Busca entre las demás tablas la que parece contener las líneas de las ventas.</summary>
-        public static int? SugerirTablaDetalle(List<TablaOrigen> tablas, int indicePrincipal)
+        /// <summary>Busca entre las demás tablas la que parece contener las líneas del documento (ventas, compras o cotizaciones).</summary>
+        public static int? SugerirTablaDetalle(List<TablaOrigen> tablas, int indicePrincipal, string tipo = TipoVentas)
         {
+            // Pistas del nombre según el documento: «detallecompras» va con compras, no con ventas
+            var pistas = tipo switch
+            {
+                MigracionOperacionesHelper.TipoCompras => new[] { "compra", "purchase", "orden" },
+                MigracionOperacionesHelper.TipoCotizaciones => new[] { "cotiz", "presup", "proforma", "quote" },
+                _ => new[] { "venta", "factura", "ticket", "sale", "invoice" }
+            };
+            var otras = new[] { "compra", "purchase", "cotiz", "presup", "venta", "factura", "ticket", "sale", "invoice" }.Except(pistas).ToArray();
+            var principal = ColumnMapper.Normalizar(tablas[indicePrincipal].Nombre);
             var campos = CamposDetalle();
             int? mejor = null; int mejorPuntos = 0;
             for (int i = 0; i < tablas.Count; i++)
@@ -131,8 +141,10 @@ namespace Kirkenta.Helpers.Migracion
                 bool doc = mapa["Documento"] != null, cant = mapa["Cantidad"] != null, precio = mapa["Precio"] != null;
                 if (!(doc && cant && precio)) continue;
                 var nombre = ColumnMapper.Normalizar(tablas[i].Nombre);
+                if (otras.Any(nombre.Contains) && !pistas.Any(nombre.Contains)) continue;   // líneas de otro tipo de documento
                 int puntos = 3 + (nombre.Contains("detalle") || nombre.Contains("linea") || nombre.Contains("item") ? 3 : 0)
-                               + (mapa["ProductoCodigo"] != null || mapa["ProductoNombre"] != null ? 2 : 0);
+                               + (mapa["ProductoCodigo"] != null || mapa["ProductoNombre"] != null ? 2 : 0)
+                               + (pistas.Any(nombre.Contains) || (principal.Length > 3 && nombre.Contains(principal)) ? 4 : 0);
                 if (puntos > mejorPuntos) { mejorPuntos = puntos; mejor = i; }
             }
             return mejor;
@@ -303,6 +315,7 @@ namespace Kirkenta.Helpers.Migracion
         public static Resultado Procesar(ApplicationDbContext ctx, TablaOrigen tabla, Opciones op, bool aplicar, int? usuarioId)
         {
             if (op.Tipo == TipoKardex) return ProcesarKardex(ctx, tabla, op, aplicar, usuarioId);
+            if (MigracionOperacionesHelper.EsHistorial(op.Tipo)) return MigracionOperacionesHelper.ProcesarHistorial(ctx, tabla, op, aplicar, usuarioId);
 
             var r = new Resultado { Tipo = op.Tipo, Filas = tabla.Rows.Count, Tolerante = op.Tolerante };
             var campos = Campos(op.Tipo);
@@ -689,7 +702,7 @@ namespace Kirkenta.Helpers.Migracion
         }
 
         /// <summary>Producto inactivo que representa «artículo del sistema anterior que no existe en el catálogo».</summary>
-        private static int ProductoGenerico(ApplicationDbContext ctx)
+        internal static int ProductoGenerico(ApplicationDbContext ctx)
         {
             var p = ctx.Productos.FirstOrDefault(x => x.SKU == GenericoSku);
             if (p != null) return p.Id;
@@ -802,6 +815,8 @@ namespace Kirkenta.Helpers.Migracion
             public int SaldosCxC { get; set; }
             public int SaldosCxP { get; set; }
             public int Kardex { get; set; }
+            /// <summary>Empleados, cuentas, cotizaciones, compras y demás registros del lote.</summary>
+            public int Otros { get; set; }
             public DateTime? Fecha => DateTime.TryParseExact(Lote.Replace("MIG-", ""), "yyyyMMdd-HHmmss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var f) ? f : null;
         }
 
@@ -823,6 +838,9 @@ namespace Kirkenta.Helpers.Migracion
             foreach (var g in ctx.MovimientosInventario.AsNoTracking().Where(m => m.Origen == OrigenKardex && m.Notas != null && m.Notas.StartsWith("[MIG-"))
                 .Select(m => m.Notas!.Substring(1, 19)).ToList().GroupBy(x => x))
                 Get(g.Key).Kardex += g.Count();
+
+            foreach (var par in MigracionOperacionesHelper.ContarRegistros(ctx))
+                Get(par.Key).Otros += par.Value;
 
             return lotes.Values.OrderByDescending(l => l.Lote).ToList();
         }
@@ -854,6 +872,7 @@ namespace Kirkenta.Helpers.Migracion
                 foreach (var o in ordenes)
                 {
                     if (ctx.PagosProveedor.Any(p => p.OrdenCompraId == o.Id)) { conservados.Add($"Orden {o.Numero}: ya tiene pagos."); continue; }
+                    ctx.DetalleOrdenesCompra.RemoveRange(ctx.DetalleOrdenesCompra.Where(d => d.OrdenCompraId == o.Id));
                     ctx.OrdenesCompra.Remove(o);
                     borrados++;
                 }
@@ -864,6 +883,7 @@ namespace Kirkenta.Helpers.Migracion
                 ctx.MovimientosInventario.RemoveRange(kardex);
 
                 ctx.SaveChanges();
+                borrados += MigracionOperacionesHelper.DeshacerRegistros(ctx, lote, conservados);
                 tx.Commit();
             }
             catch

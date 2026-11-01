@@ -79,17 +79,22 @@ namespace Kirkenta.Helpers.Migracion
                     }
                 case ".mdb":
                 case ".accdb":
-                    r.Avisos.Add($"«{nombre}»: las bases de Access no se pueden leer directamente. Ábrela en Access y exporta cada tabla a Excel (.xlsx) o CSV, o a .sql, y súbelas (puedes meterlas todas en un .zip).");
+                    MigracionArchivosEspeciales.LeerAccess(nombre, stream, r);
                     break;
                 case ".bak":
                 case ".mdf":
                 case ".ldf":
                 case ".bacpac":
-                    r.Avisos.Add($"«{nombre}»: los respaldos binarios de SQL Server no se pueden leer sin restaurarlos. Restáuralo en SQL Server y genera el script de solo datos (Generate Scripts → Types of data to script: Data only) y súbelo como .sql.");
+                    MigracionArchivosEspeciales.LeerSqlServer(nombre, stream, r);
+                    break;
+                case ".fdb":
+                case ".gdb":
+                case ".ib":
+                    MigracionArchivosEspeciales.LeerFirebird(nombre, stream, r);
                     break;
                 default:
                     r.Avisos.Add($"«{nombre}»: formato {(ext.Length == 0 ? "desconocido" : ext)} no soportado " +
-                                 "(usa .json, .zip, .xlsx, .xls, .csv, .sql, .dbf o SQLite).");
+                                 "(usa .json, .zip, .xlsx, .xls, .csv, .sql, .dbf, SQLite, Access, .bak/.mdf de SQL Server o .fdb de Firebird).");
                     break;
             }
         }

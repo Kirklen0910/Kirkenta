@@ -71,6 +71,28 @@ namespace Kirkenta.Pages.Migracion
                 lectura = MigracionLector.Leer(Archivo.FileName, ms);
             }
 
+            return Analizar(lectura, Path.GetFileName(Archivo.FileName));
+        }
+
+        /// <summary>Datos de conexión a la base del sistema anterior (no se guardan en ningún lado).</summary>
+        [BindProperty] public DatosConexion Conexion { get; set; } = new();
+
+        /// <summary>Lee todas las tablas directamente de la base del sistema anterior (solo lectura).</summary>
+        public IActionResult OnPostConectar()
+        {
+            if (!EsAdmin()) return RedirectToPage("/Index");
+            if (!MigracionConexionDirecta.Motores.Contains(Conexion.Motor) || string.IsNullOrWhiteSpace(Conexion.BaseDatos))
+            {
+                TempData["Error"] = "Elige el tipo de base de datos y escribe el nombre de la base (o la ruta del archivo .fdb).";
+                return RedirectToPage();
+            }
+            var lectura = MigracionConexionDirecta.Leer(Conexion);
+            Conexion.Clave = "";   // no se devuelve a la pantalla
+            return Analizar(lectura, $"{MigracionConexionDirecta.NombreMotor(Conexion.Motor)} · {Conexion.BaseDatos}");
+        }
+
+        private IActionResult Analizar(ResultadoMigracionLectura lectura, string origen)
+        {
             if (lectura.Tablas.Count == 0)
             {
                 TempData["Error"] = "No se encontraron tablas con datos. " + string.Join(" ", lectura.Avisos);
@@ -84,11 +106,11 @@ namespace Kirkenta.Pages.Migracion
             HttpContext.Session.SetString(MigracionAlmacen.SessionToken, token);
 
             var user = _context.Usuarios.FirstOrDefault(x => x.Username == User.Identity!.Name);
-            ActividadHelper.Registrar(_context, user?.Id ?? 0, "Migración: analizar archivo",
-                $"Analizó «{Path.GetFileName(Archivo.FileName)}»: {lectura.Tablas.Count} tablas, {lectura.Tablas.Sum(t => t.Rows.Count)} filas",
+            ActividadHelper.Registrar(_context, user?.Id ?? 0, "Migración: analizar datos",
+                $"Analizó «{origen}»: {lectura.Tablas.Count} tablas, {lectura.Tablas.Sum(t => t.Rows.Count)} filas",
                 HttpContext.Connection.RemoteIpAddress?.ToString());
 
-            NombreArchivo = Path.GetFileName(Archivo.FileName);
+            NombreArchivo = origen;
             Lotes = MigracionHistorialHelper.ListarLotes(_context);
             CargarAnalisis(token, lectura.Tablas);
             Avisos = lectura.Avisos;
@@ -124,6 +146,28 @@ namespace Kirkenta.Pages.Migracion
             }
 
             var t = tablas[tabla];
+
+            // Empleados, cajas y bancos, plan de cuentas y métodos de pago no tienen asistente de columnas:
+            // se importan directo con las columnas detectadas (todo o nada) y se informa el resultado.
+            if (string.IsNullOrEmpty(ent.UrlImportMap))
+            {
+                var mapa = MigracionCatalogosHelper.Detectar(t.Headers, ent.Key);
+                var falta = MigracionCatalogosHelper.Faltantes(ent.Key, mapa);
+                HttpContext.Session.SetString(MigracionAlmacen.SessionToken, token);
+                if (falta.Count > 0)
+                {
+                    TempData["Error"] = $"«{t.Nombre}»: no se encontró la columna de {string.Join(", ", falta)}. Usa la migración automática para elegir las columnas.";
+                    return RedirectToPage(new { continuar = 1 });
+                }
+                var usuario = _context.Usuarios.FirstOrDefault(x => x.Username == User.Identity!.Name);
+                using var tx = _context.Database.BeginTransaction();
+                var r = MigracionCatalogosHelper.Procesar(_context, t, ent.Key, mapa, usuario?.Id, true);
+                tx.Commit();
+                TempData["Success"] = $"{ent.Nombre}: {r.Creados} creado(s), {r.YaImportados} ya existían, {r.DescartadasTotal} fila(s) descartadas."
+                    + (r.Advertencias.Count > 0 ? " " + string.Join(" ", r.Advertencias.Take(3)) : "");
+                return RedirectToPage(new { continuar = 1 });
+            }
+
             if (lote < 0) lote = 0;
             var filas = t.Rows.Skip(lote * MigracionAlmacen.FilasPorLote).Take(MigracionAlmacen.FilasPorLote).ToList();
             if (filas.Count == 0)

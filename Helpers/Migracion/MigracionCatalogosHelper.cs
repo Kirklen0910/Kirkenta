@@ -14,7 +14,11 @@ namespace Kirkenta.Helpers.Migracion
     /// </summary>
     public static class MigracionCatalogosHelper
     {
-        public static readonly string[] Orden = { "Impuestos", "UnidadesMedida", "Categorias", "Productos", "Clientes", "Proveedores" };
+        public static readonly string[] Orden =
+        {
+            "PlanCuentas", "MetodosPago", "CuentasFinancieras",
+            "Impuestos", "UnidadesMedida", "Categorias", "Productos", "Clientes", "Proveedores", "Empleados"
+        };
 
         public static string Nombre(string key) => key switch
         {
@@ -24,7 +28,7 @@ namespace Kirkenta.Helpers.Migracion
             "Productos" => "Productos / inventario (con stock inicial)",
             "Clientes" => "Clientes",
             "Proveedores" => "Proveedores",
-            _ => key
+            _ => MigracionOperacionesHelper.Nombre(key)
         };
 
         public static List<CampoDef> Campos(string key) => key switch
@@ -67,7 +71,7 @@ namespace Kirkenta.Helpers.Migracion
             },
             "Clientes" => Terceros(false),
             "Proveedores" => Terceros(true),
-            _ => new()
+            _ => MigracionOperacionesHelper.Campos(key)
         };
 
         private static List<CampoDef> Terceros(bool proveedor)
@@ -102,6 +106,7 @@ namespace Kirkenta.Helpers.Migracion
         /// <summary>Detecta columnas y corrige casos típicos (p. ej. el nombre viene en «descripción» o «razón social»).</summary>
         public static Dictionary<string, string> Detectar(List<string> headers, string key)
         {
+            if (MigracionOperacionesHelper.EsCatalogo(key)) return MigracionOperacionesHelper.Detectar(headers, key);
             var campos = Campos(key);
             var mapa = MigracionHistorialHelper.Detectar(headers, campos)
                 .Where(p => p.Value != null).ToDictionary(p => p.Key, p => p.Value!);
@@ -122,7 +127,8 @@ namespace Kirkenta.Helpers.Migracion
         }
 
         public static List<string> Faltantes(string key, Dictionary<string, string> mapa) =>
-            Campos(key).Where(c => c.Requerido && !mapa.ContainsKey(c.Key)).Select(c => c.Label).ToList();
+            MigracionOperacionesHelper.EsCatalogo(key) ? MigracionOperacionesHelper.Faltantes(key, mapa)
+            : Campos(key).Where(c => c.Requerido && !mapa.ContainsKey(c.Key)).Select(c => c.Label).ToList();
 
         // ================= Procesar =================
         public static Resultado Procesar(ApplicationDbContext ctx, TablaOrigen tabla, string key,
@@ -144,7 +150,10 @@ namespace Kirkenta.Helpers.Migracion
                 case "Productos": Productos(ctx, tabla, mapa, r, usuarioId); break;
                 case "Clientes": Terceros(ctx, tabla, mapa, r, usuarioId, false); break;
                 case "Proveedores": Terceros(ctx, tabla, mapa, r, usuarioId, true); break;
-                default: r.Errores.Add("Tipo de catálogo desconocido."); break;
+                default:
+                    if (MigracionOperacionesHelper.EsCatalogo(key)) MigracionOperacionesHelper.ProcesarCatalogo(ctx, tabla, key, mapa, r, usuarioId);
+                    else r.Errores.Add("Tipo de catálogo desconocido.");
+                    break;
             }
             r.Aplicado = r.Errores.Count == 0;
             return r;

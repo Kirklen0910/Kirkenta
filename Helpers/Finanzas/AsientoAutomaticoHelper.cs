@@ -25,6 +25,16 @@ namespace Kirkenta.Helpers.Finanzas
     public static class AsientoAutomaticoHelper
     {
         public const string PrefijoReferencia = "MOV:";
+
+        /// <summary>
+        /// Movimiento que no lleva asiento automático porque su efecto contable ya está en otro asiento
+        /// (p. ej. la apertura de una caja migrada cuando se importó el balance de apertura del sistema anterior).
+        /// </summary>
+        public const string MarcaSinAsiento = "[SIN-ASIENTO]";
+
+        /// <summary>Los históricos migrados y los marcados no generan asiento: su efecto ya está en el asiento de apertura.</summary>
+        public static bool GeneraAsiento(MovimientoFinanciero m) =>
+            m.Origen != "Migracion" && (m.Notas == null || !m.Notas.Contains(MarcaSinAsiento));
         public const string PrefijoDevengo = "DEV:";
 
         public class Resultado
@@ -186,15 +196,15 @@ namespace Kirkenta.Helpers.Finanzas
                 var referencia = PrefijoReferencia + mov.Id;
                 porReferencia.TryGetValue(referencia, out var existentes);
 
-                // Movimiento anulado: se anulan sus asientos
-                if (mov.Estado != "Activo")
+                // Movimiento anulado (o que no lleva asiento propio): se anulan sus asientos
+                if (mov.Estado != "Activo" || !GeneraAsiento(mov))
                 {
                     if (existentes != null)
                     {
                         foreach (var a in existentes)
                         {
                             a.Estado = "Anulado";
-                            a.MotivoAnulacion = $"Movimiento {mov.Numero} anulado";
+                            a.MotivoAnulacion = mov.Estado != "Activo" ? $"Movimiento {mov.Numero} anulado" : $"Movimiento {mov.Numero}: su efecto está en el asiento de apertura";
                             r.Anulados++;
                         }
                     }

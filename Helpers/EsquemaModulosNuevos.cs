@@ -19,7 +19,7 @@ namespace Kirkenta.Helpers
             "OrdenesProduccion", "DetallesOrdenProduccion", "InspeccionesCalidad",
             "GastosCajaChica", "ConteosCierreCaja", "VentasOffline", "CatalogoWebConfig", "PedidosWeb",
             "TomasFisicas", "DetallesTomaFisica",
-            "AsientosContables", "DetallesAsiento"
+            "AsientosContables", "DetallesAsiento", "RegistrosMigracion"
         };
 
         public static void Aplicar(ApplicationDbContext db)

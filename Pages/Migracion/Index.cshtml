@@ -28,21 +28,55 @@
             <h3 style="margin-bottom:8px">1. Sube el archivo del sistema anterior</h3>
             <p style="font-size:13px;color:var(--color-muted);margin-bottom:12px">
                 Formatos: <strong>.json</strong> (varias tablas o una lista), <strong>.zip</strong> (incluye los respaldos de Kirkenta y zips con un archivo por tabla),
-                <strong>.xlsx</strong> / <strong>.xls</strong> (cada hoja es una tabla), <strong>.csv</strong>, <strong>.sql</strong> (volcado de MySQL, PostgreSQL o SQL Server con sentencias INSERT), <strong>.dbf</strong> (dBase/FoxPro) y bases <strong>SQLite</strong> (.db, .sqlite).
+                <strong>.xlsx</strong> / <strong>.xls</strong> (cada hoja es una tabla), <strong>.csv</strong>, <strong>.sql</strong> (volcado de MySQL, PostgreSQL o SQL Server con sentencias INSERT), <strong>.dbf</strong> (dBase/FoxPro), bases <strong>SQLite</strong> (.db, .sqlite), <strong>Access</strong> (.mdb, .accdb),
+                respaldos de <strong>SQL Server</strong> (.bak, .mdf) y bases <strong>Firebird</strong> (.fdb).
                 Máximo 200 MB. El archivo no se ejecuta: solo se lee.
             </p>
-            <input type="file" name="Archivo" accept=".json,.jsonl,.zip,.xlsx,.xls,.csv,.tsv,.txt,.sql,.dbf,.db,.sqlite,.sqlite3,.db3,.mdb,.accdb,.bak" required />
+            <input type="file" name="Archivo" accept=".json,.jsonl,.zip,.xlsx,.xls,.csv,.tsv,.txt,.sql,.dbf,.db,.sqlite,.sqlite3,.db3,.mdb,.accdb,.bak,.mdf,.fdb,.gdb" required />
             <div style="margin-top:14px">
                 <button type="submit" class="btn-primary">Analizar archivo</button>
             </div>
         </form>
 
+        <hr style="margin:20px 0" />
+        <form method="post" asp-page-handler="Conectar" class="erp-form" autocomplete="off">
+            <h3 style="margin-bottom:8px">…o conéctate directo a la base del sistema anterior</h3>
+            <p style="font-size:13px;color:var(--color-muted);margin-bottom:12px">
+                Sin exportar nada: Kirkenta lee todas las tablas directamente. <strong>Solo lee</strong>, nunca modifica la base del sistema anterior,
+                y la contraseña no se guarda. Funciona con SQL Server, MySQL/MariaDB, PostgreSQL y Firebird.
+            </p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">
+                <div class="form-field"><label>Tipo de base</label>
+                    <select name="Conexion.Motor" class="form-input" id="kkMigMotor">
+                        @foreach (var m in Kirkenta.Helpers.Migracion.MigracionConexionDirecta.Motores)
+                        {
+                            <option value="@m" data-puerto="@Kirkenta.Helpers.Migracion.MigracionConexionDirecta.PuertoPorDefecto(m)">@Kirkenta.Helpers.Migracion.MigracionConexionDirecta.NombreMotor(m)</option>
+                        }
+                    </select></div>
+                <div class="form-field"><label>Servidor</label><input name="Conexion.Servidor" class="form-input" placeholder="localhost o 192.168.1.10\SQLEXPRESS" /></div>
+                <div class="form-field"><label>Puerto</label><input name="Conexion.Puerto" type="number" class="form-input" id="kkMigPuerto" placeholder="1433" /></div>
+                <div class="form-field"><label>Base de datos</label><input name="Conexion.BaseDatos" class="form-input" required placeholder="Nombre de la base o ruta del .fdb" /></div>
+                <div class="form-field"><label>Usuario</label><input name="Conexion.Usuario" class="form-input" autocomplete="off" /></div>
+                <div class="form-field"><label>Contraseña</label><input name="Conexion.Clave" type="password" class="form-input" autocomplete="new-password" /></div>
+            </div>
+            <label class="form-checkbox" style="margin-top:8px;font-size:13px"><input type="checkbox" name="Conexion.SeguridadWindows" value="true" /> <span>SQL Server: usar la sesión de Windows (sin usuario ni contraseña)</span></label>
+            <div style="margin-top:12px"><button type="submit" class="btn-primary">Conectar y analizar</button></div>
+        </form>
+        <script>
+            (function () {
+                var m = document.getElementById('kkMigMotor'), p = document.getElementById('kkMigPuerto');
+                if (!m || !p) return;
+                function poner() { p.placeholder = m.options[m.selectedIndex].getAttribute('data-puerto'); }
+                m.addEventListener('change', poner); poner();
+            })();
+        </script>
+
         <details style="margin-top:18px;font-size:13px">
-            <summary style="cursor:pointer;font-weight:600">¿Mi sistema viejo usa otro tipo de base de datos?</summary>
+            <summary style="cursor:pointer;font-weight:600">¿El sistema viejo usa Access, un respaldo .bak o un archivo de Firebird?</summary>
             <p style="margin-top:8px;color:var(--color-muted)">
-                Si es SQL Server, MySQL o PostgreSQL, genera un respaldo en texto (<em>Generate Scripts → solo datos</em>, <em>mysqldump</em> o <em>pg_dump --inserts</em>) y súbelo como .sql.
-                Si es Access, SQLite, Excel o un programa comercial, exporta cada tabla a Excel o CSV (casi todos los programas tienen "Exportar") y súbelo.
-                Si solo tienes acceso directo a la base de datos, dime cuál es y se agrega un conector.
+                <strong>Access (.mdb / .accdb):</strong> súbelo como archivo; se lee directo (si el servidor no tiene el motor de Access, se indica cómo instalarlo gratis).
+                <strong>Respaldo de SQL Server (.bak):</strong> súbelo como archivo; se restaura en una base temporal del SQL Server de este equipo, se lee y se borra.
+                <strong>Firebird (.fdb / .gdb):</strong> súbelo como archivo si este equipo tiene Firebird, o usa la conexión directa de arriba escribiendo la ruta del archivo como "Base de datos".
             </p>
         </details>
 
@@ -123,7 +157,7 @@ else
                                         <optgroup label="Catálogos">
                                         @foreach (var e in MigracionAnalizador.Entidades)
                                         {
-                                            <option value="@e.Key" selected="@(d.Entidad?.Key == e.Key)">@e.Nombre</option>
+                                            <option value="@e.Key" selected="@(d.Entidad?.Key == e.Key && d.Confianza is "Alta" or "Media")">@e.Nombre</option>
                                         }
                                         </optgroup>
                                     </select>
@@ -155,7 +189,7 @@ else
         <p style="font-size:13px;color:var(--color-muted);margin-bottom:10px">Si algo se importó mal, deshaz el lote completo. Se conservan los registros que ya tengan cobros, pagos, facturas o devoluciones.</p>
         <div class="table-wrapper">
             <table class="erp-table">
-                <thead><tr><th>Lote</th><th>Fecha</th><th style="text-align:right">Ventas históricas</th><th style="text-align:right">Saldos por cobrar</th><th style="text-align:right">Saldos por pagar</th><th style="text-align:right">Kardex</th><th></th></tr></thead>
+                <thead><tr><th>Lote</th><th>Fecha</th><th style="text-align:right">Ventas históricas</th><th style="text-align:right">Saldos por cobrar</th><th style="text-align:right">Compras y saldos por pagar</th><th style="text-align:right">Kardex</th><th style="text-align:right">Empleados, cuentas y otros</th><th></th></tr></thead>
                 <tbody>
                 @foreach (var l in Model.Lotes)
                 {
@@ -166,6 +200,7 @@ else
                         <td style="text-align:right">@l.SaldosCxC.ToString("N0")</td>
                         <td style="text-align:right">@l.SaldosCxP.ToString("N0")</td>
                         <td style="text-align:right">@l.Kardex.ToString("N0")</td>
+                        <td style="text-align:right">@l.Otros.ToString("N0")</td>
                         <td>
                             <form method="post" asp-page-handler="DeshacerLote" onsubmit="return confirm('¿Deshacer el lote @l.Lote?');">
                                 <input type="hidden" name="lote" value="@l.Lote" />
