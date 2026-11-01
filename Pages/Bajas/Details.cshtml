@@ -17,7 +17,7 @@
         <p>Solicitada el @Model.Baja.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
     </div>
     <div class="module-header-right">
-        @if (Model.Baja.Estado == "Pendiente" && Model.EsAdmin)
+        @if (Model.Baja.Estado == "Pendiente" && Model.PuedeAprobar)
         {
             <a asp-page="/Bajas/Aprobar" asp-route-id="@Model.Baja.Id" class="btn-primary" style="background: var(--color-warning);">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
@@ -26,7 +26,7 @@
                 Aprobar / Rechazar
             </a>
         }
-        @if (Model.Baja.Estado == "Aprobada" && !Model.Baja.Revertida && Model.EsAdmin)
+        @if (Model.Baja.Estado == "Aprobada" && !Model.Baja.Revertida && Model.PuedeRevertir)
         {
             <a asp-page="/Bajas/Revertir" asp-route-id="@Model.Baja.Id" class="btn-secondary" style="color: var(--color-danger); border-color: var(--color-danger-border);">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">

@@ -21,9 +21,9 @@ namespace Kirkenta.Pages.MetodosPago
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "MetodosPago", "eliminar"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para eliminar aquí";
                 return RedirectToPage("/MetodosPago/Index");
             }
 
@@ -42,9 +42,9 @@ namespace Kirkenta.Pages.MetodosPago
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "MetodosPago", "eliminar"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para eliminar aquí";
                 return RedirectToPage("/MetodosPago/Index");
             }
 
@@ -56,7 +56,7 @@ namespace Kirkenta.Pages.MetodosPago
             }
 
             // Verificar que no tenga pagos
-            if (_context.Pagos.Any(p => p.MetodoPagoId == id))
+            if (_context.Pagos.Any(p => p.MetodoPagoId == id) || _context.PagosProveedor.Any(p => p.MetodoPagoId == id))
             {
                 TempData["Error"] = "No se puede eliminar un método que tiene pagos registrados";
                 return RedirectToPage("/MetodosPago/Index");

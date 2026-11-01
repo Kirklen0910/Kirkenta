@@ -5,14 +5,16 @@ namespace Kirkenta.Helpers.RRHH
 {
     public static class NominaHelper
     {
+        /// <summary>
+        /// Deducción anual de gastos médicos sin comprobante (Ley ISR, L. 40,000). El SAR publica la tabla
+        /// anual sobre la renta neta; la tabla mensual que usa la nómina es (anual + esta deducción) / 12.
+        /// </summary>
+        public const decimal DeduccionGastosMedicosAnual = 40000m;
+
         // ============================================================
         // CONFIGURACIÓN DE DEDUCCIONES POR AÑO
         // ============================================================
 
-        /// <summary>
-        /// Obtiene la configuración de deducciones vigente para un año.
-        /// Si no existe, la crea con valores por defecto de Honduras.
-        /// </summary>
         public static ConfiguracionDeduccion ObtenerConfiguracion(ApplicationDbContext context, int anio)
         {
             var config = context.ConfiguracionDeducciones
@@ -28,16 +30,21 @@ namespace Kirkenta.Helpers.RRHH
 
         private static ConfiguracionDeduccion CrearConfiguracionPorDefecto(ApplicationDbContext context, int anio)
         {
+            // Si ya hay un año anterior configurado, se parte de ese (con sus tasas, topes y tramos ya corregidos)
+            var anterior = context.ConfiguracionDeducciones.Where(c => c.Anio < anio).OrderByDescending(c => c.Anio).FirstOrDefault();
+            if (anterior != null)
+                return Kirkenta.Pages.RRHH.Deducciones.IndexModel.CopiarConfiguracion(context, anterior, anio);
+
             var config = new ConfiguracionDeduccion
             {
                 Anio = anio,
                 AplicaIHSS = true,
-                PorcentajeIHSS = 2.5m,
-                TopeIHSS = 11995.00m,
+                PorcentajeIHSS = 5.0m,      // 2.5% EM + 2.5% IVM
+                TopeIHSS = 11903.13m,       // techo IHSS 2026 (también piso del RAP)
                 AplicaRAP = true,
                 PorcentajeRAP = 1.5m,
                 AplicaISR = true,
-                TopeAnualExentoISR = 250000.00m,
+                TopeAnualExentoISR = 228324.32m,   // SAR 2026 → L. 22,360.36 mensuales
                 MetodoISR = "Acumulativo",
                 Activa = true,
                 FechaCreacion = DateTime.Now,
@@ -47,13 +54,18 @@ namespace Kirkenta.Helpers.RRHH
             context.ConfiguracionDeducciones.Add(config);
             context.SaveChanges();
 
-            // Tramos ISR por defecto (Honduras 2024)
+            // Tramos ISR MENSUALES 2026 (comunicado SAR 02-2026). Son la tabla anual más la deducción de
+            // L. 40,000 de gastos médicos, divididas entre 12; por eso se aplican directo sobre el bruto mensual:
+            //   Hasta L. 22,360.36 → exento
+            //   L. 22,360.37 a L. 32,346.18 → 15% sobre excedente
+            //   L. 32,346.19 a L. 70,805.06 → L. 1,497.87 + 20% sobre excedente
+            //   Más de L. 70,805.06 → L. 9,189.65 + 25% sobre excedente
             var tramos = new List<TramoISR>
             {
-                new() { ConfiguracionDeduccionId = config.Id, Orden = 1, Desde = 0, Hasta = 15692.25m, Porcentaje = 0, MontoFijo = 0, Descripcion = "Exento" },
-                new() { ConfiguracionDeduccionId = config.Id, Orden = 2, Desde = 15692.26m, Hasta = 23246.20m, Porcentaje = 15, MontoFijo = 0, Descripcion = "15% sobre excedente" },
-                new() { ConfiguracionDeduccionId = config.Id, Orden = 3, Desde = 23246.21m, Hasta = 55170.68m, Porcentaje = 20, MontoFijo = 1133.09m, Descripcion = "L. 1,133.09 + 20% sobre excedente" },
-                new() { ConfiguracionDeduccionId = config.Id, Orden = 4, Desde = 55170.69m, Hasta = null, Porcentaje = 25, MontoFijo = 7517.98m, Descripcion = "L. 7,517.98 + 25% sobre excedente" }
+                new() { ConfiguracionDeduccionId = config.Id, Orden = 1, Desde = 0, Hasta = 22360.36m, Porcentaje = 0, MontoFijo = 0, Descripcion = "Exento" },
+                new() { ConfiguracionDeduccionId = config.Id, Orden = 2, Desde = 22360.37m, Hasta = 32346.18m, Porcentaje = 15, MontoFijo = 0, Descripcion = "15% sobre excedente" },
+                new() { ConfiguracionDeduccionId = config.Id, Orden = 3, Desde = 32346.19m, Hasta = 70805.06m, Porcentaje = 20, MontoFijo = 1497.87m, Descripcion = "L. 1,497.87 + 20% sobre excedente" },
+                new() { ConfiguracionDeduccionId = config.Id, Orden = 4, Desde = 70805.07m, Hasta = null, Porcentaje = 25, MontoFijo = 9189.65m, Descripcion = "L. 9,189.65 + 25% sobre excedente" }
             };
 
             context.TramosISR.AddRange(tramos);
@@ -67,31 +79,43 @@ namespace Kirkenta.Helpers.RRHH
         // ============================================================
 
         /// <summary>
-        /// Calcula el ISR mensual según la tabla de tramos.
+        /// Calcula el ISR MENSUAL sobre una base MENSUAL usando la tabla de tramos mensuales.
         /// </summary>
         public static decimal CalcularISRMensual(decimal salarioBrutoMensual, List<TramoISR> tramos)
         {
             if (tramos == null || tramos.Count == 0)
                 return 0;
 
+            // Tramo con el "Desde" más alto que no supere el salario. Así un salario que cae entre dos tramos
+            // (por ejemplo 15,692.255 entre "hasta 15,692.25" y "desde 15,692.26") no se queda sin ISR.
             var tramo = tramos
-                .OrderBy(t => t.Orden)
-                .FirstOrDefault(t =>
-                    salarioBrutoMensual >= t.Desde &&
-                    (!t.Hasta.HasValue || salarioBrutoMensual <= t.Hasta.Value));
+                .Where(t => salarioBrutoMensual >= t.Desde)
+                .OrderByDescending(t => t.Desde)
+                .FirstOrDefault();
 
             if (tramo == null) return 0;
 
-            var excedente = salarioBrutoMensual - tramo.Desde;
+            // El excedente se mide desde el "Hasta" del tramo anterior (22,360.36), no desde el "Desde" del
+            // tramo (22,360.37): así no se pierde el centavo de diferencia entre tramos.
+            var limiteAnterior = tramos
+                .Where(t => t.Hasta.HasValue && t.Hasta.Value < tramo.Desde)
+                .Select(t => (decimal?)t.Hasta!.Value)
+                .Max();
+            var excedente = salarioBrutoMensual - (limiteAnterior ?? tramo.Desde);
             return Math.Round(tramo.MontoFijo + (excedente * (tramo.Porcentaje / 100m)), 2);
         }
 
         /// <summary>
         /// Calcula el ISR a retener en el mes actual, usando el método ACUMULATIVO ANUAL.
-        /// Según el SAR de Honduras:
-        ///   - Se acumula el salario bruto del año
-        ///   - Si el acumulado supera el tope anual exento, se cobra sobre el excedente
-        ///   - Se resta lo ya retenido en meses anteriores
+        /// 🔒 FIX: La tabla ISR es MENSUAL. Para comparar contra el acumulado anual
+        /// se debe convertir el acumulado a un "promedio mensual" antes de aplicar la tabla,
+        /// o bien anualizar los tramos. Usamos el enfoque SAR: calcular el ISR anual
+        /// aplicando la tabla mensual sobre el promedio mensual del acumulado, y luego
+        /// restar lo ya retenido.
+        ///
+        /// Fórmula SAR:
+        ///   ISR_anual_proyectado = ISR_mensual(promedio_mensual) × meses_trabajados
+        ///   ISR_mes = ISR_anual_proyectado − ISR_retenido_antes
         /// </summary>
         public static decimal CalcularISRAcumulativo(
             ApplicationDbContext context,
@@ -104,38 +128,51 @@ namespace Kirkenta.Helpers.RRHH
             if (!config.AplicaISR)
                 return 0;
 
-            // 1. Calcular acumulado del año ANTES del mes actual
             var inicioAnio = new DateTime(anio, 1, 1);
             var inicioMesActual = new DateTime(anio, mesActual, 1);
 
+            // Solo cuentan nóminas vigentes: una nómina anulada/rechazada NO retuvo ISR de verdad
             var nominasDelAnio = context.Nominas
-                .Where(n => n.FechaInicio >= inicioAnio && n.FechaInicio < inicioMesActual)
-                .Select(n => n.Id)
+                .Where(n => n.FechaInicio >= inicioAnio && n.FechaInicio < inicioMesActual
+                         && n.Estado != "Anulada")
+                .Select(n => new { n.Id, n.FechaInicio })
                 .ToList();
+            var idsNominas = nominasDelAnio.Select(n => n.Id).ToList();
 
             var detallesAnteriores = context.DetalleNominas
-                .Where(d => d.EmpleadoId == empleadoId && nominasDelAnio.Contains(d.NominaId))
+                .Where(d => d.EmpleadoId == empleadoId && idsNominas.Contains(d.NominaId))
                 .ToList();
 
             decimal acumuladoBrutoAntes = detallesAnteriores.Sum(d => d.TotalBruto);
             decimal isrRetenidoAntes = detallesAnteriores.Sum(d => d.DeduccionISR);
 
-            // 2. Acumulado incluyendo el mes actual
+            // Meses realmente pagados a este empleado (más el actual): si entró a mitad de año
+            // no se diluye el promedio con meses en los que no trabajaba.
+            var mesesConPago = detallesAnteriores
+                .Select(d => nominasDelAnio.First(n => n.Id == d.NominaId).FechaInicio.Month)
+                .Distinct()
+                .Count();
+            int mesesProcesados = mesesConPago + 1;
+
             decimal acumuladoBrutoConMes = acumuladoBrutoAntes + salarioBrutoMes;
 
-            // 3. Aplicar tabla ISR sobre el ACUMULADO (para calcular el impuesto total anual)
+            // Promedio mensual del acumulado (base para aplicar la tabla mensual)
+            decimal promedioMensual = acumuladoBrutoConMes / mesesProcesados;
+
             var tramos = context.TramosISR
                 .Where(t => t.ConfiguracionDeduccionId == config.Id)
                 .OrderBy(t => t.Orden)
                 .ToList();
 
-            // ISR anual que le corresponde por el acumulado
-            decimal isrAnualCalculado = CalcularISRMensual(acumuladoBrutoConMes, tramos);
+            // ISR mensual teórico según la tabla
+            decimal isrMensualTeorico = CalcularISRMensual(promedioMensual, tramos);
 
-            // 4. Retención del mes = ISR anual calculado - ISR ya retenido
-            decimal retencionMes = isrAnualCalculado - isrRetenidoAntes;
+            // ISR anual proyectado = mensual × meses procesados
+            decimal isrAnualProyectado = isrMensualTeorico * mesesProcesados;
 
-            // Si es negativa, no devolvemos, retenemos 0
+            // Retención del mes = ISR proyectado − ISR ya retenido
+            decimal retencionMes = isrAnualProyectado - isrRetenidoAntes;
+
             if (retencionMes < 0) retencionMes = 0;
 
             return Math.Round(retencionMes, 2);
@@ -145,22 +182,32 @@ namespace Kirkenta.Helpers.RRHH
         // IHSS Y RAP
         // ============================================================
 
-        public static decimal CalcularIHSS(decimal salarioBase, ConfiguracionDeduccion config)
+        /// <summary>
+        /// IHSS del trabajador: PorcentajeIHSS (2.5% Enfermedad y Maternidad + 2.5% IVM = 5%)
+        /// sobre el salario mensual, topado al techo de cotización (L. 11,903.13 en 2026).
+        /// </summary>
+        public static decimal CalcularIHSS(decimal salarioMensual, ConfiguracionDeduccion config)
         {
             if (!config.AplicaIHSS) return 0;
-            var baseCalculo = Math.Min(salarioBase, config.TopeIHSS);
+            var baseCalculo = Math.Min(salarioMensual, config.TopeIHSS);
             return Math.Round(baseCalculo * (config.PorcentajeIHSS / 100m), 2);
         }
 
-        public static decimal CalcularRAP(decimal salarioBase, ConfiguracionDeduccion config)
+        /// <summary>
+        /// RAP / FOVIIF del trabajador (Decreto 47-2024): PorcentajeRAP (1.5%) solo sobre la parte del
+        /// salario que EXCEDE el techo IVM del IHSS (TopeIHSS, que funciona como piso del RAP).
+        /// Un salario igual o menor al techo del IHSS no paga RAP. TopeRAP, si se define, limita la base.
+        /// </summary>
+        public static decimal CalcularRAP(decimal salarioMensual, ConfiguracionDeduccion config)
         {
             if (!config.AplicaRAP) return 0;
 
-            var baseCalculo = config.TopeRAP.HasValue
-                ? Math.Min(salarioBase, config.TopeRAP.Value)
-                : salarioBase;
+            var salarioTopado = config.TopeRAP.HasValue
+                ? Math.Min(salarioMensual, config.TopeRAP.Value)
+                : salarioMensual;
+            var excedente = Math.Max(0m, salarioTopado - config.TopeIHSS);
 
-            return Math.Round(baseCalculo * (config.PorcentajeRAP / 100m), 2);
+            return Math.Round(excedente * (config.PorcentajeRAP / 100m), 2);
         }
 
         // ============================================================
@@ -261,6 +308,8 @@ namespace Kirkenta.Helpers.RRHH
             var totalBruto = Math.Round(salarioBaseProporcional + bonoTransporte + bonoAlimentacion + otrosBonos, 2);
 
             // ===== IHSS =====
+            // Se calcula sobre el salario base mensual (los bonos de transporte/alimentación no cotizan),
+            // se topa al techo y se prorratea al período.
             decimal deduccionIHSS = 0;
             if (empleado.CotizaIHSS)
             {
@@ -280,7 +329,9 @@ namespace Kirkenta.Helpers.RRHH
             decimal deduccionISR = 0;
             if (empleado.AplicaISR && config.AplicaISR)
             {
-                if (config.MetodoISR == "Acumulativo")
+                // El método acumulativo trabaja con meses completos; para nóminas semanales,
+                // catorcenales o quincenales se usa el equivalente mensual prorrateado.
+                if (config.MetodoISR == "Acumulativo" && diasPeriodo == 30)
                 {
                     deduccionISR = CalcularISRAcumulativo(
                         context,
@@ -292,19 +343,24 @@ namespace Kirkenta.Helpers.RRHH
                 }
                 else
                 {
-                    // Método mensual simple
                     var tramos = context.TramosISR
                         .Where(t => t.ConfiguracionDeduccionId == config.Id)
                         .OrderBy(t => t.Orden)
                         .ToList();
 
-                    var isrMensualCompleto = CalcularISRMensual(empleado.SalarioBase, tramos);
+                    // Base: bruto mensual equivalente (el salario más bonos), no solo el salario base
+                    var brutoMensualEquivalente = totalBruto * 30m / Math.Max(diasPeriodo, 1);
+                    var isrMensualCompleto = CalcularISRMensual(brutoMensualEquivalente, tramos);
                     deduccionISR = Math.Round(isrMensualCompleto * (diasPeriodo / 30m), 2);
                 }
             }
 
             // ===== VALES =====
             var (deduccionVales, _) = CalcularDescuentoVales(context, empleado.Id);
+
+            // Los vales no pueden descontar más de lo que queda después de las deducciones de ley
+            var disponibleParaVales = Math.Max(0m, totalBruto - deduccionIHSS - deduccionRAP - deduccionISR);
+            if (deduccionVales > disponibleParaVales) deduccionVales = disponibleParaVales;
 
             // ===== OTRAS DEDUCCIONES =====
             decimal otrasDeducciones = 0;

@@ -1,0 +1,89 @@
+@page
+@model Kirkenta.Pages.Seguridad.AuditoriaModel
+@{
+    ViewData["Title"] = "Auditoría";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Seguridad/Index" class="back-link">← Volver a seguridad</a>
+        <h2>Auditoría</h2>
+        <p>Bitácora de acciones y accesos de los usuarios</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Seguridad/Auditoria" asp-page-handler="Exportar"
+           asp-route-Q="@Model.Q" asp-route-UsuarioId="@Model.UsuarioId"
+           asp-route-Desde="@(Model.Desde?.ToString("yyyy-MM-dd"))" asp-route-Hasta="@(Model.Hasta?.ToString("yyyy-MM-dd"))"
+           asp-route-SoloFallos="@Model.SoloFallos" class="btn-secondary">Exportar CSV</a>
+    </div>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">@TempData["Error"]</div>
+}
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="search-box">
+            <input type="text" name="Q" value="@Model.Q" placeholder="Buscar acción, detalle o IP..." />
+        </div>
+        <div class="filter-group">
+            <select name="UsuarioId" class="filter-select">
+                <option value="">Todos los usuarios</option>
+                @foreach (var u in Model.Usuarios)
+                {
+                    <option value="@u.Id" selected="@(Model.UsuarioId == u.Id)">@u.Username</option>
+                }
+            </select>
+            <input type="date" name="Desde" class="filter-select" value="@(Model.Desde?.ToString("yyyy-MM-dd"))" />
+            <input type="date" name="Hasta" class="filter-select" value="@(Model.Hasta?.ToString("yyyy-MM-dd"))" />
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+                <input type="checkbox" name="SoloFallos" value="true" checked="@Model.SoloFallos" /> Solo logins fallidos
+            </label>
+            <button type="submit" class="btn-secondary">Filtrar</button>
+            <a asp-page="/Seguridad/Auditoria" class="btn-secondary">Limpiar</a>
+        </div>
+    </form>
+
+    @if (Model.Registros.Count == 0)
+    {
+        <div class="empty-state">
+            <h3>Sin registros</h3>
+            <p>No hay eventos que coincidan con los filtros</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th><th>IP</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in Model.Registros)
+                    {
+                        var fallo = a.Accion.Contains("Login fallido");
+                        <tr style="@(fallo ? "background: var(--color-danger-bg);" : "")">
+                            <td>@a.Fecha.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                            <td>@(Model.Nombres.TryGetValue(a.UsuarioId, out var nombre) ? nombre : "—")</td>
+                            <td>
+                                @if (fallo)
+                                {
+                                    <span class="badge badge-danger">@a.Accion</span>
+                                }
+                                else
+                                {
+                                    @a.Accion
+                                }
+                            </td>
+                            <td>@a.Detalle</td>
+                            <td>@a.Ip</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+    }
+</div>

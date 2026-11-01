@@ -339,13 +339,13 @@
                                     @if (Model.PuedeEditar && (p.Estado == "Pendiente" || p.Estado == "EnRuta"))
                                     {
                                         <button type="button" class="btn-icon-action" title="Marcar entregado" style="color: #10b981;"
-                                                onclick="abrirModalEntregar(@p.Id, '@p.Numero', '@Html.Raw(p.ClienteNombre.Replace("'", "\\'"))')">
+                                                onclick="abrirModalEntregar(@p.Id, this.dataset.numero, this.dataset.cliente)" data-numero="@p.Numero" data-cliente="@p.ClienteNombre">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <polyline points="20 6 9 17 4 12"/>
                                             </svg>
                                         </button>
                                         <button type="button" class="btn-icon-action btn-icon-action-danger" title="Marcar fallido"
-                                                onclick="abrirModalFallar(@p.Id, '@p.Numero', '@Html.Raw(p.ClienteNombre.Replace("'", "\\'"))')">
+                                                onclick="abrirModalFallar(@p.Id, this.dataset.numero, this.dataset.cliente)" data-numero="@p.Numero" data-cliente="@p.ClienteNombre">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <line x1="18" y1="6" x2="6" y2="18"/>
                                                 <line x1="6" y1="6" x2="18" y2="18"/>

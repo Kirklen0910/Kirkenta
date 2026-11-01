@@ -1,0 +1,114 @@
+@page
+@model Kirkenta.Pages.Conversiones.IndexModel
+@{
+    ViewData["Title"] = "Conversiones de inventario";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Conversiones de inventario</h2>
+        <p>Fraccionar un producto en otro (lance → pies, bolsa → libras). El costo se traslada, no es pérdida.</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Bajas/Index" class="btn-secondary">Bajas</a>
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/Conversiones/Create" class="btn-primary">Nueva conversión</a>
+        }
+    </div>
+</div>
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="filter-group">
+            <select name="Estado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="Pendiente" selected="@(Model.Estado == "Pendiente")">Pendiente</option>
+                <option value="Aprobada" selected="@(Model.Estado == "Aprobada")">Aprobada</option>
+                <option value="Rechazada" selected="@(Model.Estado == "Rechazada")">Rechazada</option>
+            </select>
+            <button type="submit" class="btn-secondary">Filtrar</button>
+        </div>
+    </form>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="module-alert module-alert-success">@TempData["Success"]</div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="module-alert module-alert-error">@TempData["Error"]</div>
+    }
+
+    @if (Model.Conversiones.Count == 0)
+    {
+        <div class="empty-state">
+            <h3>No hay conversiones</h3>
+            <p>Úsalas cuando un producto se venda fraccionado (por pie, por libra, etc.).</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Fecha</th>
+                        <th>Sale de</th>
+                        <th>Entra a</th>
+                        <th style="text-align:right">Costo trasladado</th>
+                        <th>Estado</th>
+                        <th style="text-align:right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.Conversiones)
+                    {
+                        var badge = c.Estado switch { "Pendiente" => "badge badge-warning", "Aprobada" => "badge badge-success", _ => "badge badge-danger" };
+                        var nomO = Model.Nombres.GetValueOrDefault(c.ProductoOrigenId, "—");
+                        var nomD = c.ProductoDestinoId.HasValue ? Model.Nombres.GetValueOrDefault(c.ProductoDestinoId.Value, "—") : (c.NuevoProductoNombre + " (nuevo)");
+                        <tr>
+                            <td><strong>@c.Numero</strong></td>
+                            <td>@c.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                <a asp-page="/Productos/Historial" asp-route-id="@c.ProductoOrigenId">@nomO</a><br />
+                                <small>- @c.CantidadOrigen.ToString("0.####")</small>
+                            </td>
+                            <td>
+                                @if (c.ProductoDestinoId.HasValue)
+                                {
+                                    <a asp-page="/Productos/Historial" asp-route-id="@c.ProductoDestinoId">@nomD</a>
+                                }
+                                else
+                                {
+                                    @nomD
+                                }
+                                <br /><small>+ @c.CantidadDestino.ToString("0.####")</small>
+                            </td>
+                            <td style="text-align:right">@(c.Estado == "Aprobada" ? "L. " + c.CostoTotal.ToString("N2") : "—")</td>
+                            <td>
+                                <span class="@badge">@c.Estado</span>
+                                @if (!string.IsNullOrEmpty(c.MotivoRechazo)) { <br /><small>@c.MotivoRechazo</small> }
+                            </td>
+                            <td style="text-align:right">
+                                @if (c.Estado == "Pendiente" && Model.PuedeAprobar)
+                                {
+                                    <form method="post" asp-page-handler="Aprobar" asp-route-id="@c.Id" style="display:inline" onsubmit="return confirm('¿Aprobar esta conversión? Se moverá el inventario.');">
+                                        <button type="submit" class="btn-primary">Aprobar</button>
+                                    </form>
+                                    <form method="post" asp-page-handler="Rechazar" asp-route-id="@c.Id" style="display:inline-flex;gap:4px">
+                                        <input type="text" name="motivoRechazo" class="form-input" placeholder="Motivo del rechazo" style="width:150px" />
+                                        <button type="submit" class="btn-secondary">Rechazar</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                        <tr><td colspan="7" style="color:var(--color-muted);font-size:12px">@c.Motivo</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+    }
+</div>

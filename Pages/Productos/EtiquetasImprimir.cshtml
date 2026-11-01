@@ -1,0 +1,84 @@
+@page
+@model Kirkenta.Pages.Productos.EtiquetasImprimirModel
+@using Kirkenta.Helpers
+@{
+    Layout = null;
+    var f = Model.Formato;
+    var px = f.EsRollo ? 0 : f.MargenSupMm;
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Etiquetas de código de barras</title>
+    <style>
+        :root { --w: @EtiquetasHelper.Mm(f.AnchoMm); --h: @EtiquetasHelper.Mm(f.AltoMm); --fs: @Model.FuenteBase.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)pt; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #e5e7eb; color: #000; }
+        .barra { position: sticky; top: 0; z-index: 5; background: #111827; color: #fff; padding: 10px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 14px; }
+        .barra button, .barra a { background: #2563eb; color: #fff; border: 0; border-radius: 6px; padding: 8px 14px; font-size: 14px; cursor: pointer; text-decoration: none; }
+        .barra a.sec { background: #374151; }
+        .aviso { background: #fef3c7; color: #92400e; padding: 8px 16px; font-size: 13px; }
+        .hoja { width: @EtiquetasHelper.Mm(f.PaginaAnchoMm); background: #fff; margin: 12px auto; padding: @EtiquetasHelper.Mm(px) 0 0 @EtiquetasHelper.Mm(f.EsRollo ? 0 : f.MargenIzqMm);
+                display: grid; grid-template-columns: repeat(@f.Columnas, var(--w)); grid-auto-rows: var(--h);
+                column-gap: @EtiquetasHelper.Mm(f.SepXMm); row-gap: @EtiquetasHelper.Mm(f.SepYMm); align-content: start; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+        .hoja.rollo { height: var(--h); }
+        .etiqueta { width: var(--w); height: var(--h); padding: 1.2mm 1.6mm; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; font-size: var(--fs); line-height: 1.15; outline: 1px dashed #cbd5e1; }
+        .etiqueta .emp { font-size: .8em; text-transform: uppercase; letter-spacing: .03em; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .etiqueta .nom { font-weight: 700; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-align: center; }
+        .etiqueta .cod { flex: 1 1 auto; min-height: 0; margin: .6mm 0; }
+        .etiqueta .cod svg { width: 100%; height: 100%; display: block; }
+        .etiqueta .num { font-family: "Courier New", monospace; text-align: center; font-size: .95em; letter-spacing: .06em; }
+        .etiqueta .pie { display: flex; justify-content: space-between; align-items: baseline; gap: 2mm; }
+        .etiqueta .pre { font-weight: 700; font-size: 1.35em; margin-left: auto; }
+        .etiqueta .sku { font-size: .85em; }
+        @@page { size: @EtiquetasHelper.Mm(f.PaginaAnchoMm) @EtiquetasHelper.Mm(f.PaginaAltoMm); margin: 0; }
+        @@media print {
+            body { background: #fff; }
+            .barra, .aviso { display: none !important; }
+            .hoja { margin: 0; box-shadow: none; page-break-after: always; break-after: page; }
+            .hoja:last-of-type { page-break-after: auto; break-after: auto; }
+            .etiqueta { outline: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="barra">
+        <strong>@Model.Total etiqueta(s)</strong>
+        <span>@f.Nombre</span>
+        <button type="button" onclick="window.print()">🖨️ Imprimir</button>
+        <a class="sec" href="javascript:window.close()">Cerrar</a>
+        <span style="opacity:.8;font-size:12px;">En el cuadro de impresión: tamaño real (100 %), márgenes “Ninguno” y sin encabezados.</span>
+    </div>
+    @if (Model.Omitidos.Count > 0)
+    {
+        <div class="aviso">No se imprimieron: @string.Join("; ", Model.Omitidos). Asígnales un código desde Productos → Etiquetas.</div>
+    }
+    @if (Model.Total == 0)
+    {
+        <div class="aviso">No hay etiquetas para imprimir. Vuelve a Productos → Etiquetas y elige al menos un producto con código.</div>
+    }
+    @foreach (var pagina in Model.Paginas)
+    {
+        <section class="hoja @(f.EsRollo ? "rollo" : "")">
+            @foreach (var e in pagina)
+            {
+                <div class="etiqueta">
+                    @if (Model.Empresa && !string.IsNullOrWhiteSpace(Model.NombreEmpresa)) { <div class="emp">@Model.NombreEmpresa</div> }
+                    @if (Model.Nombre) { <div class="nom">@e.Nombre</div> }
+                    <div class="cod">@Html.Raw(e.Svg)</div>
+                    <div class="num">@e.Codigo</div>
+                    @if (Model.Precio || (Model.Sku && !string.IsNullOrWhiteSpace(e.Sku)))
+                    {
+                        <div class="pie">
+                            @if (Model.Sku && !string.IsNullOrWhiteSpace(e.Sku)) { <span class="sku">SKU @e.Sku</span> }
+                            @if (Model.Precio) { <span class="pre">L. @e.Precio.ToString("N2")</span> }
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+    }
+</body>
+</html>

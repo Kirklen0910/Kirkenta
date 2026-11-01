@@ -139,6 +139,7 @@ namespace Kirkenta.Pages.Usuarios
 
             if (!ModelState.IsValid)
             {
+                CargarPermisosDesdeInput();
                 return Page();
             }
 
@@ -153,8 +154,14 @@ namespace Kirkenta.Pages.Usuarios
             if (_context.Roles.Any(r => r.Nombre.ToLower() == Input.Nombre.ToLower() && r.Id != Input.Id))
             {
                 ModelState.AddModelError("Input.Nombre", "Ya existe un rol con este nombre");
+                CargarPermisosDesdeInput();
                 return Page();
             }
+
+            // Datos del rol ANTES de cambiarlos (para la auditoría)
+            var nombreAntes = rol.Nombre;
+            var descripcionAntes = rol.Descripcion;
+            var colorAntes = rol.Color;
 
             // Actualizar rol
             if (!rol.EsSistema)
@@ -164,49 +171,137 @@ namespace Kirkenta.Pages.Usuarios
             rol.Descripcion = Input.Descripcion;
             rol.Color = Input.Color;
 
-            // Borrar permisos viejos
-            var permisosViejos = _context.Permisos.Where(p => p.RolId == rol.Id);
+            // Borrar permisos viejos (se guardan antes para comparar)
+            var permisosViejos = _context.Permisos.Where(p => p.RolId == rol.Id).ToList();
+            var antes = permisosViejos.ToDictionary(
+                p => (p.Modulo, p.Submodulo ?? ""),
+                p => PermisoTexto(p.PuedeVer, p.PuedeCrear, p.PuedeEditar, p.PuedeEliminar));
             _context.Permisos.RemoveRange(permisosViejos);
+            var despues = new Dictionary<(string, string), string>();
 
-            // Insertar permisos nuevos
-            foreach (var moduloKvp in Input.Permisos)
+            // Insertar permisos nuevos: UNA fila por cada módulo y submódulo de ModulosERP.
+            // Lo que no llegó marcado en el formulario se guarda explícitamente en falso.
+            // (Los checkboxes sin marcar no se envían, y antes eso dejaba filas sin crear,
+            // que luego PermisoSeeder rellenaba copiando los permisos del módulo padre.)
+            // Las claves enviadas que no existan en ModulosERP se ignoran.
+            foreach (var (modulo, submodulos) in ModulosERP.Modulos)
             {
-                var modulo = moduloKvp.Key;
-                var permisoModulo = moduloKvp.Value;
+                Input.Permisos.TryGetValue(modulo, out var permisoModulo);
 
                 _context.Permisos.Add(new Permiso
                 {
                     RolId = rol.Id,
                     Modulo = modulo,
                     Submodulo = null,
-                    PuedeVer = permisoModulo.PuedeVer,
-                    PuedeCrear = permisoModulo.PuedeCrear,
-                    PuedeEditar = permisoModulo.PuedeEditar,
-                    PuedeEliminar = permisoModulo.PuedeEliminar
+                    PuedeVer = permisoModulo?.PuedeVer ?? false,
+                    PuedeCrear = permisoModulo?.PuedeCrear ?? false,
+                    PuedeEditar = permisoModulo?.PuedeEditar ?? false,
+                    PuedeEliminar = permisoModulo?.PuedeEliminar ?? false
                 });
+                despues[(modulo, "")] = PermisoTexto(
+                    permisoModulo?.PuedeVer ?? false, permisoModulo?.PuedeCrear ?? false,
+                    permisoModulo?.PuedeEditar ?? false, permisoModulo?.PuedeEliminar ?? false);
 
-                foreach (var subKvp in permisoModulo.Submodulos)
+                foreach (var submodulo in submodulos)
                 {
-                    var submodulo = subKvp.Key;
-                    var permisoSub = subKvp.Value;
+                    PermisoModuloInput? permisoSub = null;
+                    if (permisoModulo != null)
+                    {
+                        permisoModulo.Submodulos.TryGetValue(submodulo, out permisoSub);
+                    }
 
                     _context.Permisos.Add(new Permiso
                     {
                         RolId = rol.Id,
                         Modulo = modulo,
                         Submodulo = submodulo,
+                        PuedeVer = permisoSub?.PuedeVer ?? false,
+                        PuedeCrear = permisoSub?.PuedeCrear ?? false,
+                        PuedeEditar = permisoSub?.PuedeEditar ?? false,
+                        PuedeEliminar = permisoSub?.PuedeEliminar ?? false
+                    });
+                    despues[(modulo, submodulo)] = PermisoTexto(
+                        permisoSub?.PuedeVer ?? false, permisoSub?.PuedeCrear ?? false,
+                        permisoSub?.PuedeEditar ?? false, permisoSub?.PuedeEliminar ?? false);
+                }
+            }
+
+            // Un solo SaveChanges: EF lo ejecuta como una transacción (borrado + inserción)
+            _context.SaveChanges();
+
+            // Auditoría: qué cambió exactamente (permisos con antes → después)
+            var cambiosPermisos = new List<string>();
+            foreach (var (clave, nuevoTexto) in despues)
+            {
+                antes.TryGetValue(clave, out var textoAntes);
+                textoAntes ??= "(sin fila)";
+                if (textoAntes != nuevoTexto)
+                {
+                    var nombre = clave.Item2 == "" ? clave.Item1 : $"{clave.Item1}/{clave.Item2}";
+                    cambiosPermisos.Add($"{nombre}: {textoAntes} → {nuevoTexto}");
+                }
+            }
+            var cambiosRol = CambiosHelper.Describir(
+                ("Nombre", nombreAntes, rol.Nombre),
+                ("Descripción", descripcionAntes, rol.Descripcion),
+                ("Color", colorAntes, rol.Color));
+            var detalleAuditoria = $"Rol '{rol.Nombre}'. " +
+                (cambiosRol.StartsWith("sin cambios") ? "" : cambiosRol + ". ") +
+                (cambiosPermisos.Count == 0
+                    ? "Permisos sin cambios."
+                    : $"{cambiosPermisos.Count} permiso(s) modificados: " +
+                      string.Join(" | ", cambiosPermisos.Take(25)) +
+                      (cambiosPermisos.Count > 25 ? $" | … y {cambiosPermisos.Count - 25} más" : ""));
+            ActividadHelper.Registrar(_context, currentUser.Id, "Editar rol y permisos",
+                detalleAuditoria.Length > 1800 ? detalleAuditoria.Substring(0, 1800) : detalleAuditoria,
+                HttpContext.Connection.RemoteIpAddress?.ToString());
+
+            TempData["Success"] = $"Rol '{rol.Nombre}' actualizado correctamente";
+            return RedirectToPage("/Usuarios/Roles");
+        }
+
+        private static string PermisoTexto(bool ver, bool crear, bool editar, bool eliminar)
+        {
+            var partes = new List<string>();
+            if (ver) partes.Add("ver");
+            if (crear) partes.Add("crear");
+            if (editar) partes.Add("editar");
+            if (eliminar) partes.Add("eliminar");
+            return partes.Count == 0 ? "ninguno" : string.Join("+", partes);
+        }
+
+        /// <summary>
+        /// Si el formulario vuelve a mostrarse por un error de validación, repone en la vista
+        /// lo que el usuario había marcado. Antes volvía con todo desmarcado, y si el usuario
+        /// guardaba de nuevo, el rol se quedaba sin permisos.
+        /// </summary>
+        private void CargarPermisosDesdeInput()
+        {
+            PermisosExistentes = new Dictionary<string, PermisoModuloView>();
+
+            foreach (var (modulo, permisoModulo) in Input.Permisos)
+            {
+                var vista = new PermisoModuloView
+                {
+                    PuedeVer = permisoModulo.PuedeVer,
+                    PuedeCrear = permisoModulo.PuedeCrear,
+                    PuedeEditar = permisoModulo.PuedeEditar,
+                    PuedeEliminar = permisoModulo.PuedeEliminar
+                };
+
+                foreach (var (submodulo, permisoSub) in permisoModulo.Submodulos)
+                {
+                    vista.Submodulos[submodulo] = new PermisoModuloView
+                    {
                         PuedeVer = permisoSub.PuedeVer,
                         PuedeCrear = permisoSub.PuedeCrear,
                         PuedeEditar = permisoSub.PuedeEditar,
                         PuedeEliminar = permisoSub.PuedeEliminar
-                    });
+                    };
                 }
+
+                PermisosExistentes[modulo] = vista;
             }
-
-            _context.SaveChanges();
-
-            TempData["Success"] = $"Rol '{rol.Nombre}' actualizado correctamente";
-            return RedirectToPage("/Usuarios/Roles");
         }
     }
 }

@@ -5,6 +5,7 @@ using Kirkenta.Helpers.RRHH;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 
 namespace Kirkenta.Pages.RRHH.Nomina
@@ -97,11 +98,50 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 return Page();
             }
 
-            if (cuenta.SaldoActual < nomina.TotalNeto)
+            // Si ya se pagó a algunos empleados de forma individual, aquí solo se paga el resto
+            // (antes se pagaba la nómina completa y esos empleados cobraban dos veces).
+            var yaPagadosIds = _context.PagosNominaEmpleado
+                .Where(p => p.NominaId == nomina.Id && p.Estado == "Pagado")
+                .Select(p => p.DetalleNominaId)
+                .ToHashSet();
+            var detallesPendientes = _context.DetalleNominas
+                .Where(d => d.NominaId == nomina.Id)
+                .ToList()
+                .Where(d => !yaPagadosIds.Contains(d.Id))
+                .ToList();
+            var montoPagar = detallesPendientes.Sum(d => d.SalarioNeto);
+
+            if (detallesPendientes.Count == 0 || montoPagar <= 0)
+            {
+                ModelState.AddModelError(string.Empty, "Todos los empleados de esta nómina ya fueron pagados.");
+                return Page();
+            }
+
+            if (cuenta.SaldoActual < montoPagar)
             {
                 ModelState.AddModelError("CuentaId",
-                    $"Saldo insuficiente en '{cuenta.Nombre}'. Disponible: L. {cuenta.SaldoActual:N2}, requerido: L. {nomina.TotalNeto:N2}");
+                    $"Saldo insuficiente en '{cuenta.Nombre}'. Disponible: L. {cuenta.SaldoActual:N2}, requerido: L. {montoPagar:N2}");
                 return Page();
+            }
+
+            // Todo o nada: movimiento + saldo + documento origen en una sola transacción
+            using var tx = _context.Database.BeginTransaction();
+
+            // Bloqueo de la nómina y revalidación: dos personas pagando la misma nómina (o un pago total y uno
+            // individual a la vez) ya no pueden pagar dos veces a los mismos empleados.
+            if (_context.Database.IsRelational())
+            {
+                _context.Nominas.Where(n => n.Id == nomina.Id)
+                    .ExecuteUpdate(u => u.SetProperty(n => n.Estado, n => n.Estado));
+                var estadoActual = _context.Nominas.AsNoTracking().Where(n => n.Id == nomina.Id).Select(n => n.Estado).First();
+                var pagadosAhora = _context.PagosNominaEmpleado.Count(p => p.NominaId == nomina.Id && p.Estado == "Pagado");
+                if (estadoActual != "Aprobada" || pagadosAhora != yaPagadosIds.Count)
+                {
+                    tx.Rollback();
+                    _context.ChangeTracker.Clear();
+                    TempData["Error"] = "La nómina cambió mientras la pagabas (otra persona registró pagos). Revísala e inténtalo de nuevo.";
+                    return RedirectToPage("/RRHH/Nomina/Details", new { id });
+                }
             }
 
             // Generar movimiento de egreso
@@ -121,7 +161,7 @@ namespace Kirkenta.Pages.RRHH.Nomina
                     EsSistema = true,
                     Activa = true,
                     FechaCreacion = DateTime.Now,
-                    EmpresaId = 1
+                    EmpresaId = EmpresaActual.Id
                 };
                 _context.CategoriasFinancieras.Add(categoria);
                 _context.SaveChanges();
@@ -134,19 +174,19 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 Fecha = DateTime.Now,
                 CuentaId = CuentaId,
                 CategoriaId = categoria.Id,
-                Monto = nomina.TotalNeto,
+                Monto = montoPagar,
                 MonedaId = monedaDefecto,
                 TipoCambio = 1,
                 Concepto = $"Pago de nómina {nomina.Numero} — {nomina.PeriodoDescripcion}",
                 Referencia = nomina.Numero,
-                FormaPago = "Transferencia",
+                FormaPago = cuenta.Tipo == "Caja" ? "Efectivo" : "Transferencia",
                 Origen = "Nomina",
                 OrigenId = nomina.Id,
                 EsAutomatico = true,
                 Estado = "Activo",
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = currentUser?.Id,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             _context.MovimientosFinancieros.Add(movimiento);
@@ -167,9 +207,31 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 nomina.Notas = (nomina.Notas ?? "") + $"\n[Pago {DateTime.Now:dd/MM HH:mm}] {Notas}";
             }
 
+            // Un registro de pago por empleado (igual que el pago individual), todos ligados al mismo movimiento
+            foreach (var detalle in detallesPendientes)
+            {
+                _context.PagosNominaEmpleado.Add(new PagoNominaEmpleado
+                {
+                    Numero = NumeroDocumentoHelper.GenerarSiguiente(_context, "PagoNomina"),
+                    NominaId = nomina.Id,
+                    EmpleadoId = detalle.EmpleadoId,
+                    DetalleNominaId = detalle.Id,
+                    Monto = detalle.SalarioNeto,
+                    MetodoPago = movimiento.FormaPago ?? "Transferencia",
+                    Referencia = nomina.Numero,
+                    CuentaId = CuentaId,
+                    MovimientoId = movimiento.Id,
+                    FechaPago = DateTime.Now,
+                    UsuarioPagoId = currentUser?.Id,
+                    Estado = "Pagado",
+                    Notas = Notas,
+                    EmpresaId = EmpresaActual.Id
+                });
+                _context.SaveChanges();
+            }
+
             // DESCONTAR VALES
-            var detalles = _context.DetalleNominas.Where(d => d.NominaId == nomina.Id).ToList();
-            foreach (var detalle in detalles)
+            foreach (var detalle in detallesPendientes)
             {
                 if (detalle.DeduccionVales > 0)
                 {
@@ -178,12 +240,13 @@ namespace Kirkenta.Pages.RRHH.Nomina
             }
 
             _context.SaveChanges();
+            tx.Commit();
 
             ActividadHelper.Registrar(
                 _context,
                 currentUser?.Id ?? 0,
                 "Pagar nómina",
-                $"Pagó nómina {nomina.Numero} por L. {nomina.TotalNeto:N2} desde cuenta '{cuenta.Nombre}'",
+                $"Pagó nómina {nomina.Numero} por L. {montoPagar:N2} desde cuenta '{cuenta.Nombre}'",
                 HttpContext.Connection.RemoteIpAddress?.ToString());
 
             TempData["Success"] = $"Nómina {nomina.Numero} pagada. Movimiento {movimiento.Numero} en Finanzas.";

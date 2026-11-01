@@ -1,0 +1,33 @@
+﻿@model Kirkenta.Helpers.PagerInfo
+@{
+    string Url(int p)
+    {
+        var q = Context.Request.Query
+            .Where(k => k.Key != "p")
+            .ToDictionary(k => k.Key, k => (string?)k.Value.ToString());
+        q["p"] = p.ToString();
+        return Context.Request.Path.Value + QueryString.Create(q).ToString();
+    }
+}
+@if (Model.TotalPages > 1)
+{
+    <div class="pager" style="display:flex;gap:6px;align-items:center;justify-content:flex-end;padding:12px 16px;flex-wrap:wrap;">
+        <span style="margin-right:auto;color:var(--color-text-muted);font-size:13px;">
+            @Model.Total registro(s) · página @Model.Page de @Model.TotalPages
+        </span>
+        @if (Model.Page > 1)
+        {
+            <a href="@Url(1)" class="btn-secondary">«</a>
+            <a href="@Url(Model.Page - 1)" class="btn-secondary">‹ Anterior</a>
+        }
+        @if (Model.Page < Model.TotalPages)
+        {
+            <a href="@Url(Model.Page + 1)" class="btn-secondary">Siguiente ›</a>
+            <a href="@Url(Model.TotalPages)" class="btn-secondary">»</a>
+        }
+    </div>
+}
+else if (Model.Total > 0)
+{
+    <div style="padding:8px 16px;color:var(--color-text-muted);font-size:13px;">@Model.Total registro(s)</div>
+}

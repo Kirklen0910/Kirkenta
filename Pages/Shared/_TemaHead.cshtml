@@ -1,0 +1,10 @@
+﻿<script>
+    (function () {
+        try {
+            var h = document.documentElement, p = h.getAttribute('data-pref');
+            var d = p === 'oscuro' || (p === 'sistema' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+            h.setAttribute('data-theme', d ? 'dark' : 'light');
+            h.setAttribute('data-bs-theme', d ? 'dark' : 'light');
+        } catch (e) { }
+    })();
+</script>

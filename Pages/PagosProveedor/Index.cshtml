@@ -64,26 +64,28 @@
 {
     <!-- TAB: Historial de pagos -->
     <div class="module-card">
-        <div class="module-toolbar">
+        <form method="get" class="module-toolbar">
+            <input type="hidden" name="tab" value="pagos" />
             <div class="search-box">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="11" cy="11" r="8"/>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
-                <input type="text" id="searchInput" placeholder="Buscar por número o proveedor..." />
+                <input type="text" id="searchInput" name="Q" value="@Model.Q" placeholder="Buscar por número o proveedor..." />
             </div>
             <div class="filter-group">
-                <select id="filterProveedor" class="filter-select">
+                <select id="filterProveedor" name="ProveedorId" class="filter-select">
                     <option value="">Todos los proveedores</option>
                     @foreach (var p in Model.Proveedores)
                     {
-                        <option value="@p.Id">@p.Nombre</option>
+                        <option value="@p.Id" selected="@(Model.ProveedorId == p.Id)">@p.Nombre</option>
                     }
                 </select>
+                <button type="submit" class="btn-secondary">Filtrar</button>
             </div>
-        </div>
+        </form>
 
-        @if (Model.Pagos.Count == 0)
+        @if (Model.Pager.Total == 0)
         {
             <div class="empty-state">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -142,6 +144,7 @@
                     </tbody>
                 </table>
             </div>
+            <partial name="_Pager" model="Model.Pager" />
         }
     </div>
 }

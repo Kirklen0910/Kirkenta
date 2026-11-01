@@ -39,9 +39,9 @@ namespace Kirkenta.Pages.Impuestos
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Impuestos", "crear"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para crear o importar aquí";
                 return RedirectToPage("/Impuestos/Index");
             }
             return Page();
@@ -51,9 +51,9 @@ namespace Kirkenta.Pages.Impuestos
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Impuestos", "crear"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para crear o importar aquí";
                 return RedirectToPage("/Impuestos/Index");
             }
 

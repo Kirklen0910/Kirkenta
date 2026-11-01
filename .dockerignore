@@ -1,0 +1,27 @@
+# Nada de esto debe entrar a la imagen
+**/bin/
+**/obj/
+.git/
+.vs/
+.vscode/
+tests/
+tools/
+certs/
+logs/
+respaldos/
+App_Data/
+wwwroot/uploads/
+appsettings.Production.json
+appsettings.Development.json
+secrets.json
+*.pem
+*.pfx
+*.cer
+*.lic
+llave*
+licencias-emitidas/
+*.md
+docker-compose*.yml
+.env
+Dockerfile
+instalador/

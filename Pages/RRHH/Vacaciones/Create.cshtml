@@ -38,7 +38,7 @@
                 <option value="">— Selecciona un empleado —</option>
                 @foreach (var e in Model.Empleados)
                 {
-                    <option value="@e.Id">@e.Codigo — @e.Nombres @e.Apellidos (@(e.DiasVacacionesDisponibles) días disponibles)</option>
+                    <option value="@e.Id">@e.Codigo — @e.Nombres @e.Apellidos (@(e.DiasVacacionesDisponibles.ToString("0.##")) días disponibles)</option>
                 }
             </select>
         </div>
@@ -59,7 +59,7 @@
             <textarea asp-for="Input.Motivo" class="form-input" rows="3" placeholder="Ej: Vacaciones anuales, viaje familiar..."></textarea>
         </div>
 
-        <div class="module-alert" style="background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary);">
+        <div class="module-alert" style="background: var(--color-primary-soft); border: 1px solid var(--color-primary-border); color: var(--color-primary);">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="12" y1="16" x2="12" y2="12"/>

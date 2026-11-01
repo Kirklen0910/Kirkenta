@@ -1,0 +1,83 @@
+@page
+@model Kirkenta.Pages.InventarioAvanzado.TomaFisica.IndexModel
+@{
+    ViewData["Title"] = "Toma física de inventario";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Toma física de inventario</h2>
+        <p>Cuenta el inventario real y ajusta el sistema con rastro en el kardex</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+@if (Model.PuedeCrear)
+{
+    <div class="module-card" style="padding: 24px; margin-bottom: 20px;">
+        <h3 class="form-section-title">Iniciar nueva toma</h3>
+        <form method="post" asp-page-handler="Crear" class="erp-form">
+            <div class="form-row">
+                <div class="form-field">
+                    <label>Descripción</label>
+                    <input name="Descripcion" class="form-input" maxlength="200" placeholder="Ej. Inventario de cierre de mes" />
+                </div>
+                <div class="form-field">
+                    <label>Categoría (opcional)</label>
+                    <select name="CategoriaId" class="form-input">
+                        <option value="">Todas las categorías</option>
+                        @foreach (var c in Model.Categorias)
+                        {
+                            <option value="@c.Id">@c.Nombre</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions"><button type="submit" class="btn-primary">Iniciar toma física</button></div>
+        </form>
+    </div>
+}
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="filter-group">
+            <select name="Estado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="EnConteo" selected="@(Model.Estado == "EnConteo")">En conteo</option>
+                <option value="Aplicada" selected="@(Model.Estado == "Aplicada")">Aplicada</option>
+                <option value="Cancelada" selected="@(Model.Estado == "Cancelada")">Cancelada</option>
+            </select>
+            <button type="submit" class="btn-secondary">Filtrar</button>
+        </div>
+    </form>
+
+    @if (Model.Tomas.Count == 0)
+    {
+        <div class="empty-state"><h3>No hay tomas físicas registradas</h3></div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Número</th><th>Fecha</th><th>Descripción</th><th>Avance</th><th>Estado</th><th style="text-align:right;">Acciones</th></tr></thead>
+                <tbody>
+                    @foreach (var t in Model.Tomas)
+                    {
+                        Model.Avance.TryGetValue(t.Id, out var av);
+                        <tr>
+                            <td><strong>@t.Numero</strong></td>
+                            <td>@t.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>@t.Descripcion</td>
+                            <td>@av.Contados / @av.Total contados</td>
+                            <td><span class="badge @(t.Estado == "Aplicada" ? "badge-success" : t.Estado == "Cancelada" ? "badge-danger" : "badge-warning")">@(t.Estado == "EnConteo" ? "En conteo" : t.Estado)</span></td>
+                            <td style="text-align:right;"><a asp-page="/InventarioAvanzado/TomaFisica/Details" asp-route-id="@t.Id" class="btn-secondary">Abrir</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+    }
+</div>

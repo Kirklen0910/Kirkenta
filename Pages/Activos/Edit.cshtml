@@ -1,0 +1,95 @@
+@page "{id:int?}"
+@model Kirkenta.Pages.Activos.EditModel
+@{
+    ViewData["Title"] = Model.EsNuevo ? "Nuevo activo fijo" : "Editar activo fijo";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Activos/Index" class="back-link">← Volver a activos</a>
+        <h2>@(Model.EsNuevo ? "Nuevo activo fijo" : "Editar activo fijo")</h2>
+        <p>Código: <strong>@Model.Codigo</strong></p>
+    </div>
+</div>
+
+<div class="module-card" style="padding: 28px;">
+    <form method="post" class="erp-form">
+        <input type="hidden" asp-for="Input.Id" />
+        <div asp-validation-summary="ModelOnly" class="module-alert module-alert-error"></div>
+
+        @if (Model.FinancieroBloqueado)
+        {
+            <div class="module-alert module-alert-warning">
+                Este activo ya tiene depreciación registrada: el costo, valor residual, vida útil y fecha de adquisición no se pueden modificar.
+            </div>
+        }
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Nombre">Nombre *</label>
+                <input asp-for="Input.Nombre" class="form-input" />
+                <span asp-validation-for="Input.Nombre" class="field-error"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Categoria">Categoría *</label>
+                <select asp-for="Input.Categoria" class="form-input">
+                    @foreach (var c in Kirkenta.Pages.Activos.IndexModel.Categorias)
+                    {
+                        <option value="@c">@c</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Descripcion">Descripción</label>
+            <textarea asp-for="Input.Descripcion" class="form-input" rows="2"></textarea>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.FechaAdquisicion">Fecha de adquisición *</label>
+                <input asp-for="Input.FechaAdquisicion" type="date" class="form-input" readonly="@Model.FinancieroBloqueado" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.CostoAdquisicion">Costo de adquisición (L.) *</label>
+                <input asp-for="Input.CostoAdquisicion" type="number" step="0.01" min="0" class="form-input" readonly="@Model.FinancieroBloqueado" />
+                <span asp-validation-for="Input.CostoAdquisicion" class="field-error"></span>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.ValorResidual">Valor residual (L.)</label>
+                <input asp-for="Input.ValorResidual" type="number" step="0.01" min="0" class="form-input" readonly="@Model.FinancieroBloqueado" />
+                <span asp-validation-for="Input.ValorResidual" class="field-error"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.VidaUtilMeses">Vida útil (meses) *</label>
+                <input asp-for="Input.VidaUtilMeses" type="number" min="1" class="form-input" readonly="@Model.FinancieroBloqueado" />
+                <span asp-validation-for="Input.VidaUtilMeses" class="field-error"></span>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.Ubicacion">Ubicación</label>
+                <input asp-for="Input.Ubicacion" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Responsable">Responsable</label>
+                <input asp-for="Input.Responsable" class="form-input" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.NumeroSerie">Número de serie</label>
+            <input asp-for="Input.NumeroSerie" class="form-input" />
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Activos/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">@(Model.EsNuevo ? "Registrar activo" : "Guardar cambios")</button>
+        </div>
+    </form>
+</div>

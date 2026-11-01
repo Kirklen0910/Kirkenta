@@ -7,7 +7,7 @@
 <div class="module-header">
     <div class="module-header-left">
         <h2>Finanzas</h2>
-        <p>Control de caja, bancos, ingresos y egresos</p>
+        <p>Panorama financiero de @DateTime.Today.ToString("dddd d 'de' MMMM yyyy", Es())</p>
     </div>
     <div class="module-header-right">
         <a asp-page="/Finanzas/Movimientos/Create" class="btn-primary">
@@ -31,50 +31,178 @@
     </div>
 }
 
-<!-- KPIs principales -->
-<div class="kpi-grid" style="margin-bottom: 24px;">
-    <div class="kpi-card">
-        <span class="kpi-label">Saldo total</span>
-        <span class="kpi-value" style="color: var(--color-primary);">L. @Model.SaldoTotal.ToString("N2")</span>
-        <span class="kpi-trend">@Model.CantidadCuentas cuentas activas</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">En cajas</span>
-        <span class="kpi-value">L. @Model.SaldoTotalCajas.ToString("N2")</span>
-        <span class="kpi-trend">Efectivo disponible</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">En bancos</span>
-        <span class="kpi-value">L. @Model.SaldoTotalBancos.ToString("N2")</span>
-        <span class="kpi-trend">Cuentas bancarias</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">Vales pendientes</span>
-        <span class="kpi-value" style="color: var(--color-warning);">L. @Model.ValesPendientes.ToString("N2")</span>
-        <span class="kpi-trend">@Model.CantidadValesPendientes vales</span>
+@functions {
+    static System.Globalization.CultureInfo Es()
+    {
+        try { return new System.Globalization.CultureInfo("es-HN"); }
+        catch (System.Globalization.CultureNotFoundException) { return System.Globalization.CultureInfo.InvariantCulture; }
+    }
+    static string Delta(decimal actual, decimal anterior, bool masEsMejor)
+    {
+        if (anterior == 0) return actual == 0 ? "" : "nuevo este mes";
+        var p = (actual - anterior) / Math.Abs(anterior) * 100m;
+        var flecha = p >= 0 ? "▲" : "▼";
+        return $"{flecha} {Math.Abs(p):0.#}% vs. mes anterior";
+    }
+    static string ClaseDelta(decimal actual, decimal anterior, bool masEsMejor)
+    {
+        if (anterior == 0 || actual == anterior) return "fin-delta-neutro";
+        var sube = actual > anterior;
+        return (sube == masEsMejor) ? "fin-delta-bien" : "fin-delta-mal";
+    }
+}
+
+<style>
+    .fin-hero { position: relative; overflow: hidden; border-radius: 18px; padding: 28px 30px; margin-bottom: 22px; color: #fff;
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #4338ca 100%); box-shadow: 0 12px 30px rgba(49,46,129,.28); }
+    .fin-hero::after { content: ""; position: absolute; right: -80px; top: -90px; width: 320px; height: 320px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(255,255,255,.18) 0%, rgba(255,255,255,0) 70%); pointer-events: none; }
+    .fin-hero-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 28px; align-items: center; position: relative; z-index: 1; }
+    .fin-hero-label { font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; opacity: .75; font-weight: 600; }
+    .fin-hero-value { font-size: 40px; font-weight: 700; letter-spacing: -.02em; margin: 4px 0 2px; line-height: 1.1; }
+    .fin-hero-sub { font-size: 13px; opacity: .8; }
+    .fin-split { margin-top: 18px; }
+    .fin-split-bar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; background: rgba(255,255,255,.18); }
+    .fin-split-bar span:first-child { background: #34d399; }
+    .fin-split-bar span:last-child { background: #93c5fd; }
+    .fin-split-leg { display: flex; gap: 22px; margin-top: 10px; font-size: 12.5px; opacity: .92; flex-wrap: wrap; }
+    .fin-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+    .fin-hero-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .fin-hero-stat { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.16); border-radius: 14px; padding: 12px 14px; backdrop-filter: blur(4px); }
+    .fin-hero-stat b { display: block; font-size: 18px; margin-top: 2px; }
+    .fin-hero-stat small { font-size: 11.5px; opacity: .75; }
+    .fin-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    .fin-actions a { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.22); padding: 8px 14px; border-radius: 10px; font-size: 13px; text-decoration: none; transition: background .15s; }
+    .fin-actions a:hover { background: rgba(255,255,255,.26); }
+
+    .fin-section-title { font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--color-muted); font-weight: 700; margin: 6px 2px 10px; }
+    .fin-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+    .fin-card { display: block; text-decoration: none; color: inherit; background: var(--color-surface); border: 1px solid var(--color-border);
+        border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow-xs); position: relative; transition: transform .15s, box-shadow .15s, border-color .15s; }
+    a.fin-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--color-primary); }
+    .fin-card::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0; background: var(--acento, var(--color-primary)); }
+    .fin-card-label { font-size: 12.5px; color: var(--color-muted); font-weight: 500; }
+    .fin-card-value { font-size: 24px; font-weight: 700; margin: 4px 0 2px; letter-spacing: -.01em; }
+    .fin-card-note { font-size: 12px; color: var(--color-muted); }
+    .fin-delta-bien { color: var(--color-success); font-weight: 600; }
+    .fin-delta-mal { color: var(--color-danger); font-weight: 600; }
+    .fin-delta-neutro { color: var(--color-muted); }
+    .fin-cards-3 { grid-template-columns: repeat(3, 1fr); }
+    .fin-salud { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; background: var(--color-surface); border: 1px solid var(--color-border);
+        border-radius: 14px; padding: 12px 18px; margin-bottom: 22px; font-size: 13px; }
+    .fin-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 99px; font-weight: 600; font-size: 12.5px; }
+    .fin-pill-ok { background: rgba(16,185,129,.14); color: #059669; }
+    .fin-pill-warn { background: rgba(245,158,11,.16); color: #b45309; }
+    .fin-pill-bad { background: rgba(239,68,68,.14); color: #dc2626; }
+    @@media (max-width: 1000px) { .fin-hero-grid { grid-template-columns: 1fr; } .fin-cards, .fin-cards-3 { grid-template-columns: repeat(2, 1fr); } }
+    @@media (max-width: 560px) { .fin-cards, .fin-cards-3 { grid-template-columns: 1fr; } .fin-hero-value { font-size: 32px; } }
+</style>
+
+@{
+    var totalLiquido = Model.SaldoTotalCajas + Model.SaldoTotalBancos;
+    var pctCajas = totalLiquido > 0 ? Math.Max(0m, Math.Min(100m, Model.SaldoTotalCajas / totalLiquido * 100m)) : 0m;
+}
+
+<!-- Hero: liquidez -->
+<div class="fin-hero">
+    <div class="fin-hero-grid">
+        <div>
+            <div class="fin-hero-label">Liquidez total</div>
+            <div class="fin-hero-value">L. @Model.SaldoTotal.ToString("N2")</div>
+            <div class="fin-hero-sub">En @Model.CantidadCuentas cuentas activas (cajas y bancos)</div>
+            <div class="fin-split">
+                <div class="fin-split-bar">
+                    <span style="width: @pctCajas.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></span>
+                    <span style="width: @((100m - pctCajas).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%"></span>
+                </div>
+                <div class="fin-split-leg">
+                    <span><i class="fin-dot" style="background:#34d399"></i>Cajas · L. @Model.SaldoTotalCajas.ToString("N2")</span>
+                    <span><i class="fin-dot" style="background:#93c5fd"></i>Bancos · L. @Model.SaldoTotalBancos.ToString("N2")</span>
+                </div>
+            </div>
+            <div class="fin-actions">
+                <a asp-page="/Finanzas/Movimientos/Create">＋ Nuevo movimiento</a>
+                <a asp-page="/Finanzas/Cierres/Index">🔐 Cierres de caja</a>
+                <a asp-page="/Finanzas/Cobros/Index">💰 Por cobrar</a>
+                <a asp-page="/Finanzas/Contabilidad/BalanceGeneral">⚖️ Balance</a>
+            </div>
+        </div>
+        <div class="fin-hero-stats">
+            <div class="fin-hero-stat"><small>Cajas abiertas</small><b>@Model.CajasAbiertas</b></div>
+            <div class="fin-hero-stat"><small>Caja chica</small><b>L. @Model.SaldoCajaChica.ToString("N2")</b></div>
+            <div class="fin-hero-stat"><small>Vales pendientes</small><b>L. @Model.ValesPendientes.ToString("N2")</b></div>
+            <div class="fin-hero-stat"><small>Vales activos</small><b>@Model.CantidadValesPendientes</b></div>
+        </div>
     </div>
 </div>
 
-<!-- KPIs del mes -->
-<div class="kpi-grid" style="margin-bottom: 24px;">
-    <div class="kpi-card">
-        <span class="kpi-label">Ingresos del mes</span>
-        <span class="kpi-value" style="color: var(--color-success);">+ L. @Model.IngresosMes.ToString("N2")</span>
+<!-- Posición del negocio -->
+<div class="fin-section-title">Posición del negocio</div>
+<div class="fin-cards">
+    <a class="fin-card" style="--acento: var(--color-success);" asp-page="/Finanzas/Cobros/Index">
+        <div class="fin-card-label">Clientes nos deben</div>
+        <div class="fin-card-value">L. @Model.PorCobrar.ToString("N2")</div>
+        <div class="fin-card-note">Ventas a crédito y facturas por cobrar</div>
+    </a>
+    <div class="fin-card" style="--acento: var(--color-warning);">
+        <div class="fin-card-label">Debemos a proveedores</div>
+        <div class="fin-card-value">L. @Model.PorPagar.ToString("N2")</div>
+        <div class="fin-card-note">Mercadería recibida y sin pagar</div>
     </div>
-    <div class="kpi-card">
-        <span class="kpi-label">Egresos del mes</span>
-        <span class="kpi-value" style="color: var(--color-danger);">- L. @Model.EgresosMes.ToString("N2")</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-label">Balance del mes</span>
-        <span class="kpi-value" style="color: @(Model.BalanceMes >= 0 ? "var(--color-success)" : "var(--color-danger)");">
-            L. @Model.BalanceMes.ToString("N2")
-        </span>
-        <span class="kpi-trend @(Model.BalanceMes >= 0 ? "up" : "down")">
-            @(Model.BalanceMes >= 0 ? "↑ Superávit" : "↓ Déficit")
-        </span>
+    <a class="fin-card" style="--acento: #8b5cf6;" asp-page="/Finanzas/Impuestos/PagarIsv">
+        <div class="fin-card-label">ISV por pagar al SAR</div>
+        <div class="fin-card-value">L. @Model.IsvNeto.ToString("N2")</div>
+        <div class="fin-card-note">@(Model.BalanceDisponible ? (Model.IsvNeto < 0 ? "Crédito fiscal a favor" : "ISV cobrado menos crédito fiscal") : "No disponible")</div>
+    </a>
+    <div class="fin-card" style="--acento: #06b6d4;">
+        <div class="fin-card-label">Saldo a favor de clientes</div>
+        <div class="fin-card-value">L. @Model.SaldoFavorClientes.ToString("N2")</div>
+        <div class="fin-card-note">Crédito por devoluciones aún sin usar</div>
     </div>
 </div>
+
+<!-- Mes en curso -->
+<div class="fin-section-title">@DateTime.Today.ToString("MMMM yyyy", Es()) · flujo de efectivo</div>
+<div class="fin-cards fin-cards-3">
+    <div class="fin-card" style="--acento: var(--color-success);">
+        <div class="fin-card-label">Ingresos del mes</div>
+        <div class="fin-card-value" style="color: var(--color-success);">+ L. @Model.IngresosMes.ToString("N2")</div>
+        <div class="fin-card-note @ClaseDelta(Model.IngresosMes, Model.IngresosMesAnterior, true)">@Delta(Model.IngresosMes, Model.IngresosMesAnterior, true)</div>
+    </div>
+    <div class="fin-card" style="--acento: var(--color-danger);">
+        <div class="fin-card-label">Egresos del mes</div>
+        <div class="fin-card-value" style="color: var(--color-danger);">- L. @Model.EgresosMes.ToString("N2")</div>
+        <div class="fin-card-note @ClaseDelta(Model.EgresosMes, Model.EgresosMesAnterior, false)">@Delta(Model.EgresosMes, Model.EgresosMesAnterior, false)</div>
+    </div>
+    <div class="fin-card" style="--acento: @(Model.BalanceMes >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+        <div class="fin-card-label">Resultado de caja del mes</div>
+        <div class="fin-card-value" style="color: @(Model.BalanceMes >= 0 ? "var(--color-success)" : "var(--color-danger)");">L. @Model.BalanceMes.ToString("N2")</div>
+        <div class="fin-card-note">@(Model.BalanceMes >= 0 ? "↑ Superávit" : "↓ Déficit")</div>
+    </div>
+</div>
+
+@if (Model.BalanceDisponible)
+{
+    <div class="fin-salud">
+        <strong>Salud contable</strong>
+        @if (Model.BalanceCuadra)
+        {
+            <span class="fin-pill fin-pill-ok">✔ El balance cuadra</span>
+        }
+        else
+        {
+            <span class="fin-pill fin-pill-bad">✖ Diferencia en balance: L. @Model.BalanceDiferencia.ToString("N2")</span>
+        }
+        @if (Model.MovimientosSinClasificar > 0)
+        {
+            <a class="fin-pill fin-pill-warn" style="text-decoration:none;" asp-page="/Finanzas/Movimientos/Index">⚠ @Model.MovimientosSinClasificar movimientos sin clasificar</a>
+        }
+        else
+        {
+            <span class="fin-pill fin-pill-ok">✔ Todo clasificado</span>
+        }
+    </div>
+}
 
 <!-- Gráficos -->
 <div class="panel-grid" style="margin-bottom: 24px;">
@@ -189,13 +317,14 @@
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="/lib/chartjs/chart.umd.min.js"></script>
     <script>
         (function () {
             // === Flujo mensual (barras) ===
-            var flujo = JSON.parse('@Html.Raw(Model.FlujoMensualJson)');
+            var flujo = @Html.Raw(Model.FlujoMensualJson);
             var ctxFlujo = document.getElementById('chartFlujoMensual');
             if (ctxFlujo && flujo.labels && flujo.labels.length > 0) {
+                if (window.Chart) { Chart.defaults.color = kkCss('--color-muted'); Chart.defaults.borderColor = kkCss('--color-border'); }
                 new Chart(ctxFlujo, {
                     type: 'bar',
                     data: {
@@ -234,7 +363,7 @@
             }
 
             // === Categorías egresos (doughnut) ===
-            var cats = JSON.parse('@Html.Raw(Model.CategoriasEgresosJson)');
+            var cats = @Html.Raw(Model.CategoriasEgresosJson);
             var ctxCat = document.getElementById('chartCategoriasEgresos');
             if (ctxCat && cats.labels && cats.labels.length > 0) {
                 new Chart(ctxCat, {
@@ -245,7 +374,7 @@
                             data: cats.data,
                             backgroundColor: cats.colors,
                             borderWidth: 2,
-                            borderColor: '#ffffff'
+                            borderColor: kkCss('--color-surface')
                         }]
                     },
                     options: {

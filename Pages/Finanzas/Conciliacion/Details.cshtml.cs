@@ -137,6 +137,12 @@ namespace Kirkenta.Pages.Finanzas.Conciliacion
 
         public IActionResult OnPostEliminarBanco(int id, int detalleId)
         {
+            if (ConciliacionCerrada(id))
+            {
+                TempData["Error"] = "La conciliación ya está cerrada o cancelada";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
 
@@ -177,6 +183,12 @@ namespace Kirkenta.Pages.Finanzas.Conciliacion
 
         public IActionResult OnPostMatchingAuto(int id)
         {
+            if (ConciliacionCerrada(id))
+            {
+                TempData["Error"] = "La conciliación ya está cerrada o cancelada";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
 
@@ -201,6 +213,12 @@ namespace Kirkenta.Pages.Finanzas.Conciliacion
 
         public IActionResult OnPostMatchingManual(int id, int detalleSistemaId, int detalleBancoId)
         {
+            if (ConciliacionCerrada(id))
+            {
+                TempData["Error"] = "La conciliación ya está cerrada o cancelada";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
 
@@ -232,6 +250,12 @@ namespace Kirkenta.Pages.Finanzas.Conciliacion
 
         public IActionResult OnPostDeshacerMatch(int id, int detalleId)
         {
+            if (ConciliacionCerrada(id))
+            {
+                TempData["Error"] = "La conciliación ya está cerrada o cancelada";
+                return RedirectToPage("/Finanzas/Conciliacion/Details", new { id });
+            }
+
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
 
@@ -346,6 +370,12 @@ namespace Kirkenta.Pages.Finanzas.Conciliacion
 
             TempData["Success"] = "Conciliación cancelada";
             return RedirectToPage("/Finanzas/Conciliacion/Index");
+        }
+
+        private bool ConciliacionCerrada(int id)
+        {
+            return _context.ConciliacionesBancarias
+                .Any(c => c.Id == id && (c.Estado == "Conciliada" || c.Estado == "Cancelada"));
         }
 
         private bool CargarConciliacion(int id)

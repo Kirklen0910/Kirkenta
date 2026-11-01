@@ -73,6 +73,24 @@ namespace Kirkenta.Pages.Cotizaciones
                 return Page();
             }
 
+            var errLineas = LineasDocumentoHelper.Validar(_context, Input.Items
+                .Select(i => new LineasDocumentoHelper.Linea(i.ProductoId, i.Cantidad, i.PrecioUnitario, i.Descuento, i.ImpuestoPorcentaje))
+                .ToList());
+            if (errLineas != null)
+            {
+                ModelState.AddModelError(string.Empty, errLineas);
+                return Page();
+            }
+
+            if (!_context.Clientes.Any(c => c.Id == Input.ClienteId && c.Activo))
+            {
+                ModelState.AddModelError(string.Empty, "El cliente no existe o está inactivo");
+                return Page();
+            }
+
+            if (Input.Validez < 1 || Input.Validez > 365) Input.Validez = 30;
+
+            using var tx = _context.Database.BeginTransaction();
             var numero = NumeroDocumentoHelper.GenerarSiguiente(_context, "Cotizacion");
 
             decimal subtotal = 0, descuento = 0, impuestos = 0, total = 0;
@@ -127,6 +145,7 @@ namespace Kirkenta.Pages.Cotizaciones
                 _context.DetalleCotizaciones.Add(d);
             }
             _context.SaveChanges();
+            tx.Commit();
 
             ActividadHelper.Registrar(
                 _context,
@@ -150,7 +169,9 @@ namespace Kirkenta.Pages.Cotizaciones
                 .Select(p => new { p.Id, p.Nombre, p.SKU, p.Stock, p.PrecioVenta, p.ImpuestoId })
                 .ToList();
 
-            var impuestosDict = _context.Impuestos.ToDictionary(i => i.Id, i => i.Porcentaje);
+            var impuestosDict = _context.Impuestos.Where(i => i.Activo).ToDictionary(i => i.Id, i => i.Porcentaje);
+            // Producto sin impuesto propio: se usa el predeterminado del sistema (igual que el POS y la factura)
+            var tasaPredeterminada = _context.Impuestos.Where(i => i.Activo && i.EsPredeterminado).Select(i => (decimal?)i.Porcentaje).FirstOrDefault() ?? 0m;
 
             var productosList = productos.Select(p => new
             {
@@ -159,7 +180,7 @@ namespace Kirkenta.Pages.Cotizaciones
                 sku = p.SKU,
                 stock = p.Stock,
                 precio = p.PrecioVenta,
-                impuesto = p.ImpuestoId.HasValue && impuestosDict.ContainsKey(p.ImpuestoId.Value) ? impuestosDict[p.ImpuestoId.Value] : 0m
+                impuesto = p.ImpuestoId.HasValue && impuestosDict.ContainsKey(p.ImpuestoId.Value) ? impuestosDict[p.ImpuestoId.Value] : tasaPredeterminada
             }).ToList();
 
             ProductosJson = JsonSerializer.Serialize(productosList);

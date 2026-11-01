@@ -10,21 +10,26 @@ namespace Kirkenta.Helpers.Export
             var sb = new StringBuilder();
 
             // BOM para que Excel detecte UTF-8 (y muestre bien los acentos)
-            sb.Append('\uFEFF');
+            sb.Append('﻿');
+
+            // Excel en español usa ";" como separador de listas: sin esta línea abre todo en una sola columna
+            sb.Append("sep=,\r\n");
 
             // Headers
-            sb.AppendLine(string.Join(",", columns.Select(c => EscapeCsv(c.Header))));
+            sb.Append(string.Join(",", columns.Select(c => EscapeCsv(c.Header))));
+            sb.Append("\r\n");
 
-            // Data
+            // Data (TODAS las celdas se escapan: direcciones con coma, notas con saltos de línea, etc.)
             foreach (var item in items)
             {
-                var valores = new List<string>();
+                var valores = new List<string>(columns.Count);
                 foreach (var col in columns)
                 {
                     var value = col.Value(item);
-                    valores.Add(FormatValue(value, col.Format));
+                    valores.Add(EscapeCsv(FormatValue(value, col.Format)));
                 }
-                sb.AppendLine(string.Join(",", valores));
+                sb.Append(string.Join(",", valores));
+                sb.Append("\r\n");
             }
 
             return Encoding.UTF8.GetBytes(sb.ToString());
@@ -36,14 +41,19 @@ namespace Kirkenta.Helpers.Export
 
             return value switch
             {
-                decimal dec => dec.ToString(format ?? "0.00", CultureInfo.InvariantCulture),
-                double dbl => dbl.ToString(format ?? "0.00", CultureInfo.InvariantCulture),
+                // Sin separador de miles: "1,234.50" dentro de un CSV separado por comas es ambiguo
+                decimal dec => dec.ToString(SinMiles(format) ?? "0.00", CultureInfo.InvariantCulture),
+                double dbl => dbl.ToString(SinMiles(format) ?? "0.00", CultureInfo.InvariantCulture),
                 int i => i.ToString(CultureInfo.InvariantCulture),
+                long l => l.ToString(CultureInfo.InvariantCulture),
                 DateTime dt => dt.ToString(format ?? "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
                 bool b => b ? "1" : "0",
                 _ => value.ToString() ?? ""
             };
         }
+
+        private static string? SinMiles(string? format) =>
+            format?.Replace("#,##0", "0").Replace(",", "");
 
         private static string EscapeCsv(string texto)
         {

@@ -1,0 +1,96 @@
+@page "{id:int}"
+@model Kirkenta.Pages.InventarioAvanzado.TomaFisica.DetailsModel
+@{
+    ViewData["Title"] = $"Toma física {Model.Toma.Numero}";
+    var ci = System.Globalization.CultureInfo.InvariantCulture;
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/InventarioAvanzado/TomaFisica/Index" class="back-link">← Volver a tomas físicas</a>
+        <h2>@Model.Toma.Numero — @Model.Toma.Descripcion</h2>
+        <p>Iniciada el @Model.Toma.Fecha.ToString("dd/MM/yyyy HH:mm") · @(Model.Toma.Estado == "EnConteo" ? "En conteo" : Model.Toma.Estado)</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card"><span class="kpi-label">Productos</span><span class="kpi-value">@Model.Total</span></div>
+    <div class="kpi-card"><span class="kpi-label">Contados</span><span class="kpi-value" style="color: var(--color-success);">@Model.Contados</span><span class="kpi-trend">@(Model.Total - Model.Contados) pendientes</span></div>
+    <div class="kpi-card"><span class="kpi-label">Con diferencia</span><span class="kpi-value" style="color: var(--color-warning);">@Model.ConDiferencia</span></div>
+    <div class="kpi-card"><span class="kpi-label">Impacto a costo</span><span class="kpi-value" style="color: @(Model.ImpactoValor < 0 ? "var(--color-danger)" : "var(--color-success)");">L. @Model.ImpactoValor.ToString("N2")</span></div>
+</div>
+
+@if (Model.PuedeEditar && Model.StockCambio > 0)
+{
+    <div class="module-alert module-alert-warning">
+        @Model.StockCambio producto(s) tuvieron movimientos (ventas, compras, etc.) desde que inició la toma. Al aplicar, el stock quedará igual a lo contado.
+    </div>
+}
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="search-box"><input type="text" name="Q" value="@Model.Q" placeholder="Buscar producto, SKU o código de barras..." data-escaner="enviar" /></div>
+        <div class="filter-group">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" name="SoloPendientes" value="true" checked="@Model.SoloPendientes" /> Solo pendientes</label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" name="SoloDiferencias" value="true" checked="@Model.SoloDiferencias" /> Solo diferencias</label>
+            <button type="submit" class="btn-secondary">Filtrar</button>
+        </div>
+    </form>
+
+    <form method="post" asp-page-handler="Guardar" asp-route-id="@Model.Toma.Id">
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr><th>Producto</th><th>SKU</th><th style="text-align:right;">Sistema</th><th style="text-align:right; width:140px;">Contado</th><th style="text-align:right;">Diferencia</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var f in Model.Filas)
+                    {
+                        <tr>
+                            <td>@(f.Producto?.Nombre ?? "Producto eliminado")</td>
+                            <td>@f.Producto?.SKU</td>
+                            <td style="text-align:right;">@f.Detalle.StockSistema.ToString("0.##")</td>
+                            <td style="text-align:right;">
+                                @if (Model.PuedeEditar)
+                                {
+                                    <input type="text" inputmode="decimal" name="conteos[@f.Detalle.Id]" class="form-input" style="width:110px; text-align:right;"
+                                           value="@(f.Detalle.StockContado.HasValue ? f.Detalle.StockContado.Value.ToString("0.####", ci) : "")" />
+                                }
+                                else
+                                {
+                                    @(f.Detalle.StockContado.HasValue ? f.Detalle.StockContado.Value.ToString("0.##") : "—")
+                                }
+                            </td>
+                            <td style="text-align:right; font-weight:600; color: @(f.Diferencia > 0 ? "var(--color-success)" : f.Diferencia < 0 ? "var(--color-danger)" : "inherit");">
+                                @(f.Diferencia.HasValue ? (f.Diferencia.Value > 0 ? "+" : "") + f.Diferencia.Value.ToString("0.##") : "")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+
+        @if (Model.PuedeEditar)
+        {
+            <div style="padding: 16px 20px; display:flex; gap:10px; flex-wrap: wrap;">
+                <button type="submit" class="btn-primary">Guardar conteos de esta página</button>
+            </div>
+        }
+    </form>
+
+    @if (Model.PuedeEditar)
+    {
+        <div style="padding: 0 20px 20px; display:flex; gap:10px; flex-wrap: wrap;">
+            <form method="post" asp-page-handler="Aplicar" asp-route-id="@Model.Toma.Id" onsubmit="return confirm('Se ajustará el inventario con lo contado. ¿Aplicar la toma física?');">
+                <button type="submit" class="btn-primary" style="background: var(--color-success);">Aplicar al inventario</button>
+            </form>
+            <form method="post" asp-page-handler="Cancelar" asp-route-id="@Model.Toma.Id" onsubmit="return confirm('¿Cancelar la toma sin ajustar el inventario?');">
+                <button type="submit" class="btn-secondary">Cancelar toma</button>
+            </form>
+        </div>
+    }
+</div>

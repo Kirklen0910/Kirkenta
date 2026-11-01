@@ -27,9 +27,9 @@ namespace Kirkenta.Pages.Categorias
 
             WizardConfig = BuildConfig();
 
-            if (currentRol != "Admin")
+            if (!Kirkenta.Helpers.PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "Categorias", "crear"))
             {
-                TempData["Error"] = "Solo administradores pueden importar categorías";
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
                 return Redirect(WizardConfig.UrlIndex);
             }
 
@@ -44,9 +44,9 @@ namespace Kirkenta.Pages.Categorias
 
             WizardConfig = BuildConfig();
 
-            if (currentRol != "Admin")
+            if (!Kirkenta.Helpers.PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "Categorias", "crear"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
                 return Redirect(WizardConfig.UrlIndex);
             }
 

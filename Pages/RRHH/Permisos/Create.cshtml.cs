@@ -86,6 +86,28 @@ namespace Kirkenta.Pages.RRHH.Permisos
                 return Page();
             }
 
+            var tiposValidos = new[] { "Personal", "Enfermedad", "Duelo", "Maternidad", "Paternidad", "Estudio", "CitaMedica", "Otro" };
+            if (!tiposValidos.Contains(Input.Tipo))
+                ModelState.AddModelError("Input.Tipo", "Tipo de permiso no válido");
+
+            if ((Input.FechaFin.Date - Input.FechaInicio.Date).Days > 90)
+                ModelState.AddModelError("Input.FechaFin", "Un permiso no puede exceder 90 días");
+
+            var emp0 = _context.Empleados.FirstOrDefault(e => e.Id == Input.EmpleadoId);
+            if (emp0 == null || emp0.Estado == "Baja")
+                ModelState.AddModelError("Input.EmpleadoId", "Empleado no válido o dado de baja");
+
+            if (ModelState.IsValid)
+            {
+                var ini = Input.FechaInicio.Date;
+                var fin = Input.FechaFin.Date;
+                var solapa = _context.PermisosEmpleado.Any(p => p.EmpleadoId == Input.EmpleadoId
+                    && (p.Estado == "Solicitado" || p.Estado == "Aprobado")
+                    && p.FechaInicio.Date <= fin && p.FechaFin.Date >= ini);
+                if (solapa)
+                    ModelState.AddModelError(string.Empty, "El empleado ya tiene un permiso solicitado/aprobado que se cruza con esas fechas");
+            }
+
             if (!ModelState.IsValid) return Page();
 
             var dias = (Input.FechaFin.Date - Input.FechaInicio.Date).Days + 1;
@@ -105,7 +127,7 @@ namespace Kirkenta.Pages.RRHH.Permisos
                 UsuarioSolicitaId = currentUser?.Id,
                 Motivo = Input.Motivo,
                 Notas = Input.Notas,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             _context.PermisosEmpleado.Add(permiso);

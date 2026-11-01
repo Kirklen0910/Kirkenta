@@ -16,9 +16,50 @@
         <h2>Pedido @Model.Pedido.Numero</h2>
         <p>Creado el @Model.Pedido.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
     </div>
+    <div class="module-header-right" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <partial name="_WhatsAppPdf" model="@(new Kirkenta.Helpers.WhatsAppPdf(Model.Cliente.Telefono, Kirkenta.Helpers.WhatsAppHelper.MensajePedido(Model.EmpresaNombre, (string.IsNullOrWhiteSpace(Model.Cliente.Nombre) || Model.Cliente.Nombre!.Contains("consumidor final", StringComparison.OrdinalIgnoreCase) ? null : Model.Cliente.Nombre), Model.Pedido.Numero, Model.Pedido.Estado, Model.Pedido.Total), "Pedido-" + Model.Pedido.Numero + ".pdf"))" />
+        @if (Model.Pedido.FacturaId != null)
+        {
+            <a asp-page="/Facturas/Details" asp-route-id="@Model.Pedido.FacturaId" class="btn-primary">Ver factura</a>
+        }
+        else if (Model.Pedido.Estado != "Cancelado")
+        {
+            <form method="post" asp-page-handler="Facturar" asp-route-id="@Model.Pedido.Id" style="display:inline;"
+                  onsubmit="return confirm('¿Facturar este pedido? Se descontará el inventario.');">
+                <button type="submit" class="btn-primary">Facturar pedido</button>
+            </form>
+        }
+        @{
+            var siguientes = Model.Pedido.Estado switch
+            {
+                "Pendiente" => new[] { "En preparacion", "Cancelado" },
+                "En preparacion" => new[] { "Enviado", "Entregado", "Cancelado" },
+                "Enviado" => new[] { "Entregado" },
+                _ => Array.Empty<string>()
+            };
+        }
+        @foreach (var s in siguientes)
+        {
+            if (s == "Cancelado" && Model.Pedido.FacturaId != null) { continue; }
+            <form method="post" asp-page-handler="Estado" asp-route-id="@Model.Pedido.Id" style="display:inline;"
+                  onsubmit="@(s == "Cancelado" ? "return confirm('¿Cancelar este pedido?');" : "return true;")">
+                <input type="hidden" name="nuevoEstado" value="@s" />
+                <button type="submit" class="btn-secondary">@(s == "En preparacion" ? "Pasar a preparación" : s == "Enviado" ? "Marcar enviado" : s == "Entregado" ? "Marcar entregado" : "Cancelar")</button>
+            </form>
+        }
+    </div>
 </div>
 
-<div class="module-card" style="padding: 28px;">
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">@TempData["Error"]</div>
+}
+
+<div class="module-card" style="padding: 28px;" data-pdf-doc>
     <div class="cotizacion-header">
         <div class="cotizacion-info">
             <h3>Cliente</h3>

@@ -1,0 +1,78 @@
+# Kirkenta ERP + MySQL. Uso:
+#   1) copia .env.example a .env y cambia las claves
+#   2) docker compose up -d --build
+#   3) abre http://localhost:8080   (o, para otros equipos de la red con HTTPS: docker compose --profile https up -d)
+name: kirkenta
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Define MYSQL_ROOT_PASSWORD en .env}
+      MYSQL_DATABASE: Kirkenta
+      MYSQL_USER: kirkenta_app
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Define MYSQL_PASSWORD en .env}
+      TZ: America/Tegucigalpa
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--default-time-zone=-06:00", "--local-infile=0", "--skip-symbolic-links"]
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - kk-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    # La base NO se publica a la red: solo la ve el sistema
+
+  kirkenta:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__DefaultConnection: "Server=mysql;Port=3306;Database=Kirkenta;User=kirkenta_app;Password=${MYSQL_PASSWORD};"
+      # false = se entra por http://IP:8080 ; true = solo por HTTPS (perfil https)
+      Seguridad__CookieSoloHttps: "${COOKIE_SOLO_HTTPS:-false}"
+      # true SOLO si usas el perfil https (Caddy delante): así los límites por IP ven la IP real de cada equipo
+      Seguridad__ConfiarEnProxy: "${CONFIAR_PROXY:-false}"
+      # Clave para CIFRAR los respaldos (vacía = sin cifrar). Guárdala fuera del servidor: sin ella no se pueden restaurar.
+      Seguridad__ClaveRespaldos: "${CLAVE_RESPALDOS:-}"
+      Inicial__AdminUsuario: "${ADMIN_USUARIO:-admin}"
+      Inicial__AdminClave: "${ADMIN_CLAVE:-}"
+    ports:
+      - "${PUERTO_HTTP:-8080}:8080"
+    # Endurecimiento del contenedor: sin privilegios extra y sin capacidades especiales de Linux
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - kk-appdata:/app/App_Data
+      - kk-logs:/app/logs
+      - kk-respaldos:/app/respaldos
+      - kk-uploads:/app/wwwroot/uploads
+
+  # Opcional: HTTPS en la red local (necesario para el POS sin internet y la cámara desde otros equipos)
+  https:
+    image: caddy:2
+    profiles: ["https"]
+    restart: unless-stopped
+    depends_on: [kirkenta]
+    environment:
+      KIRKENTA_HOST: ${HOST_HTTPS:-localhost}
+    ports:
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - kk-caddy:/data
+
+volumes:
+  kk-mysql:
+  kk-appdata:
+  kk-logs:
+  kk-respaldos:
+  kk-uploads:
+  kk-caddy:

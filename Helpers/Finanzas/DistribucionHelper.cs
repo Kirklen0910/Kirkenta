@@ -22,6 +22,47 @@ namespace Kirkenta.Helpers.Finanzas
             List<DistribucionInput> distribuciones,
             int usuarioId)
         {
+            // Las distribuciones generan movimientos con fecha de hoy: respetar el cierre contable
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(context, DateTime.Now);
+            if (!periodoOk) return (false, periodoError);
+
+            // Todo o nada: si falla a la mitad no quedan movimientos ni saldos a medias
+            var abrimosTx = context.Database.CurrentTransaction == null;
+            var tx = abrimosTx ? context.Database.BeginTransaction() : null;
+            try
+            {
+                var resultado = RegistrarDistribucionesInterno(
+                    context, cierreId, cuentaOrigenId, efectivoContado, distribuciones, usuarioId);
+
+                if (resultado.ok) tx?.Commit();
+                else
+                {
+                    tx?.Rollback();
+                    if (abrimosTx) context.ChangeTracker.Clear();
+                }
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                tx?.Rollback();
+                if (abrimosTx) context.ChangeTracker.Clear();
+                Console.WriteLine($"[DistribucionHelper] Error: {ex.Message}");
+                return (false, ex.Message);
+            }
+            finally
+            {
+                tx?.Dispose();
+            }
+        }
+
+        private static (bool ok, string? error) RegistrarDistribucionesInterno(
+            ApplicationDbContext context,
+            int cierreId,
+            int cuentaOrigenId,
+            decimal efectivoContado,
+            List<DistribucionInput> distribuciones,
+            int usuarioId)
+        {
             try
             {
                 // Validar que la suma coincida
@@ -211,7 +252,7 @@ namespace Kirkenta.Helpers.Finanzas
                 Estado = "Activo",
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = usuarioId,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             context.MovimientosFinancieros.Add(mov);
@@ -234,23 +275,26 @@ namespace Kirkenta.Helpers.Finanzas
             int monedaId,
             string categoriaNombre)
         {
+            // Entregar efectivo a administración no es un gasto: el dinero sigue siendo de la empresa
+            // (1.1.04 efectivo por rendir). El pago directo y otras salidas sí son gasto (6.3.02).
+            var codigoPlan = categoriaNombre == "Entrega a administración" ? "1.1.04" : "6.3.02";
             var categoria = context.CategoriasFinancieras
-                .FirstOrDefault(c => c.Tipo == "Egreso" && c.Nombre.Contains(categoriaNombre));
+                .FirstOrDefault(c => c.Tipo == "Egreso" && c.Nombre == categoriaNombre);
 
             if (categoria == null)
             {
-                categoria = new CategoriaFinanciera
+                categoria = MovimientoManualHelper.ObtenerOCrearCategoria(context, "Egreso", categoriaNombre, codigoPlan, "#f59e0b");
+            }
+            else if (categoria.PlanCuentaId == null)
+            {
+                // Categoría creada antes sin cuenta contable: se enlaza para que no quede sin clasificar
+                var planId = context.PlanCuentas.Where(p => p.Codigo == codigoPlan).Select(p => (int?)p.Id).FirstOrDefault();
+                if (planId != null)
                 {
-                    Tipo = "Egreso",
-                    Nombre = categoriaNombre,
-                    Color = "#f59e0b",
-                    EsSistema = true,
-                    Activa = true,
-                    FechaCreacion = DateTime.Now,
-                    EmpresaId = 1
-                };
-                context.CategoriasFinancieras.Add(categoria);
-                context.SaveChanges();
+                    categoria.PlanCuentaId = planId;
+                    categoria.CuentaContable = codigoPlan;
+                    context.SaveChanges();
+                }
             }
 
             var numero = NumeroDocumentoHelper.GenerarSiguiente(context, "MovimientoFinanciero");
@@ -274,7 +318,7 @@ namespace Kirkenta.Helpers.Finanzas
                 Estado = "Activo",
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = usuarioId,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             context.MovimientosFinancieros.Add(mov);

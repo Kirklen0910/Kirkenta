@@ -1,5 +1,6 @@
 using Kirkenta.Data;
 using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -19,6 +20,7 @@ namespace Kirkenta.Pages.Finanzas.Cierres
         public CierreCaja Cierre { get; set; } = new();
         public string CuentaNombre { get; set; } = "";
         public string UsuarioCierra { get; set; } = "";
+        public InformeMetodosPago Informe { get; set; } = new();
 
         [BindProperty]
         [Required(ErrorMessage = "Debes seleccionar una acción")]
@@ -59,6 +61,14 @@ namespace Kirkenta.Pages.Finanzas.Cierres
             UsuarioCierra = _context.Usuarios
                 .FirstOrDefault(u => u.Id == cierre.UsuarioCierraId)?.Username ?? "—";
 
+            var (infDesde, infHasta) = InformeMetodosPagoHelper.RangoDeCierre(_context, cierre);
+            Informe = InformeMetodosPagoHelper.Generar(_context, infDesde, infHasta, null);
+            Informe.Efectivo = new EfectivoCaja
+            {
+                SaldoInicial = cierre.SaldoInicialSistema, Ingresos = cierre.TotalIngresosEfectivo,
+                Egresos = cierre.TotalEgresosEfectivo, Esperado = cierre.EfectivoEsperado
+            };
+
             return Page();
         }
 
@@ -79,6 +89,13 @@ namespace Kirkenta.Pages.Finanzas.Cierres
             {
                 TempData["Error"] = "El cierre no se puede aprobar";
                 return RedirectToPage("/Finanzas/Cierres/Index");
+            }
+
+            // Control cruzado: quien cerró la caja no aprueba su propio cierre (el administrador sí puede)
+            if (Accion == "aprobar" && currentRol != "Admin" && currentUser != null && cierre.UsuarioCierraId == currentUser.Id)
+            {
+                TempData["Error"] = "No puedes aprobar un cierre que tú mismo hiciste. Debe aprobarlo otra persona o un administrador.";
+                return RedirectToPage("/Finanzas/Cierres/Details", new { id });
             }
 
             if (Accion != "aprobar" && Accion != "rechazar")

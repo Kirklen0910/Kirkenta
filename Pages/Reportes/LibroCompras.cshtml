@@ -1,0 +1,77 @@
+@page
+@model Kirkenta.Pages.Reportes.LibroComprasModel
+@{
+    ViewData["Title"] = "Libro de compras";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Reportes/Index" class="back-link">← Volver a reportes</a>
+        <h2>Libro de compras</h2>
+        <p>Compras recibidas del @Model.Desde?.ToString("dd/MM/yyyy") al @Model.Hasta?.ToString("dd/MM/yyyy") · de aquí sale tu crédito fiscal de ISV</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Reportes/LibroCompras" asp-page-handler="Csv" asp-route-desde="@Model.Desde?.ToString("yyyy-MM-dd")" asp-route-hasta="@Model.Hasta?.ToString("yyyy-MM-dd")" class="btn-secondary">Exportar CSV</a>
+        <button type="button" class="btn-secondary" onclick="window.print()">Imprimir</button>
+    </div>
+</div>
+
+<div class="module-card">
+    <form method="get" class="module-toolbar" style="gap:12px;flex-wrap:wrap;">
+        <div class="form-field"><label>Desde</label><input type="date" name="Desde" class="form-input" value="@Model.Desde?.ToString("yyyy-MM-dd")" /></div>
+        <div class="form-field"><label>Hasta</label><input type="date" name="Hasta" class="form-input" value="@Model.Hasta?.ToString("yyyy-MM-dd")" /></div>
+        <div class="form-field" style="align-self:flex-end;"><button type="submit" class="btn-primary">Filtrar</button></div>
+    </form>
+
+    <div class="table-wrapper">
+        <table class="erp-table" style="font-size:12px;">
+            <thead>
+                <tr>
+                    <th>Fecha</th><th>Orden</th><th>Proveedor</th><th>RTN</th>
+                    <th style="text-align:right;">Exento</th>
+                    <th style="text-align:right;">Gravado 15%</th><th style="text-align:right;">ISV 15%</th>
+                    <th style="text-align:right;">Gravado 18%</th><th style="text-align:right;">ISV 18%</th>
+                    <th style="text-align:right;">Otro grav.</th><th style="text-align:right;">Otro ISV</th>
+                    <th style="text-align:right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Filas.Any())
+                {
+                    <tr><td colspan="12" style="text-align:center;padding:24px;">Sin compras recibidas en el período</td></tr>
+                }
+                @foreach (var f in Model.Filas)
+                {
+                    <tr>
+                        <td>@f.Fecha.ToString("dd/MM/yyyy")</td>
+                        <td>@f.Documento</td>
+                        <td>@f.Tercero</td>
+                        <td>@f.RTN</td>
+                        <td style="text-align:right;">@((f.Exento + f.Exonerado).ToString("N2"))</td>
+                        <td style="text-align:right;">@f.Gravado15.ToString("N2")</td>
+                        <td style="text-align:right;">@f.Isv15.ToString("N2")</td>
+                        <td style="text-align:right;">@f.Gravado18.ToString("N2")</td>
+                        <td style="text-align:right;">@f.Isv18.ToString("N2")</td>
+                        <td style="text-align:right;">@f.OtroGravado.ToString("N2")</td>
+                        <td style="text-align:right;">@f.OtroIsv.ToString("N2")</td>
+                        <td style="text-align:right;"><strong>@f.Total.ToString("N2")</strong></td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="4"><strong>TOTAL</strong></td>
+                    <td style="text-align:right;"><strong>@((Model.Totales.Exento + Model.Totales.Exonerado).ToString("N2"))</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.Gravado15.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.Isv15.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.Gravado18.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.Isv18.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.OtroGravado.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.OtroIsv.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.Total.ToString("N2")</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    <p style="color:var(--color-muted);font-size:13px;margin:10px 0 0;">Solo cuentan las compras con estado <em>Recibida</em> o <em>Recibida parcial</em> (en las parciales, únicamente lo recibido).</p>
+</div>

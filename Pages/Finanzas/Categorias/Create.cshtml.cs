@@ -129,7 +129,7 @@ namespace Kirkenta.Pages.Finanzas.Categorias
                 EsSistema = false,
                 Activa = Input.Activa,
                 FechaCreacion = DateTime.Now,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             _context.CategoriasFinancieras.Add(categoria);

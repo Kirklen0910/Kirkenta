@@ -1,0 +1,197 @@
+@page
+@model Kirkenta.Pages.Migracion.HistorialModel
+@using static Kirkenta.Helpers.Migracion.MigracionHistorialHelper
+@{
+    ViewData["Title"] = "Migración: " + Model.NombreTipo;
+
+    string Elegido(Dictionary<string, string> enviado, Dictionary<string, string?> sugerido, string clave)
+    {
+        if (enviado.Count > 0) return enviado.GetValueOrDefault(clave) ?? "";
+        return sugerido.GetValueOrDefault(clave) ?? "";
+    }
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>@Model.NombreTipo</h2>
+        <p>Tabla «@Model.Principal.Nombre» · @Model.Principal.Rows.Count.ToString("N0") filas</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Migracion/Index" asp-route-continuar="1" class="btn-secondary">Volver a la migración</a>
+    </div>
+</div>
+
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="module-card" style="padding:16px;margin-bottom:12px;font-size:13px">
+    @if (Model.Tipo == TipoCxC)
+    {
+        <strong>Qué hace:</strong> <span>cada saldo se crea como una venta a crédito con su fecha y vencimiento. Aparece en <em>Finanzas → Cobros</em> y en el estado de cuenta del cliente, y se cobra normal (ahí sí entra el dinero a caja/banco). No mueve inventario ni caja al importar.</span>
+    }
+    else if (Model.Tipo == TipoCxP)
+    {
+        <strong>Qué hace:</strong> <span>cada saldo se crea como una orden de compra ya recibida con su saldo pendiente. Se paga desde <em>Pagos a proveedores</em> (ahí sí sale el dinero). No mueve inventario ni caja al importar.</span>
+    }
+    else if (Model.Tipo == TipoVentas)
+    {
+        <strong>Qué hace:</strong> <span>guarda las ventas pasadas para consultas, estado de cuenta y reportes de ventas. No mueve stock ni caja (eso ya pasó en el sistema anterior), no genera asientos y no se pueden anular ni devolver. Si no traes las líneas, cada venta queda con una sola línea «Venta histórica». Las ventas al crédito con saldo pendiente van en «Saldos por cobrar», no aquí.</span>
+    }
+    else
+    {
+        <strong>Qué hace:</strong> <span>guarda el movimiento histórico en el kardex de cada producto (solo consulta). <u>No cambia el stock actual</u>: ese lo define el «stock inicial» al importar Productos. Los productos deben existir antes.</span>
+    }
+</div>
+
+@if (Model.EsVentas)
+{
+    <form method="get" class="module-card" style="padding:16px;margin-bottom:12px">
+        <input type="hidden" name="Token" value="@Model.Token" />
+        <input type="hidden" name="Tabla" value="@Model.Tabla" />
+        <input type="hidden" name="Tipo" value="@Model.Tipo" />
+        <label><strong>Tabla con las líneas de cada venta (productos, cantidades, precios):</strong></label>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+            <select name="Detalle" class="filter-select">
+                <option value="">— No tengo / no usar —</option>
+                @for (int i = 0; i < Model.Tablas.Count; i++)
+                {
+                    if (i == Model.Tabla) { continue; }
+                    <option value="@i" selected="@(Model.Detalle == i)">@Model.Tablas[i].Nombre (@Model.Tablas[i].Rows.Count.ToString("N0") filas)</option>
+                }
+            </select>
+            <button type="submit" class="btn-secondary">Usar esta tabla</button>
+        </div>
+        @if (Model.Detalle == null) { <input type="hidden" name="sinDetalle" value="1" /> }
+    </form>
+}
+
+<form method="post" class="module-card" style="padding:16px">
+    <input type="hidden" name="Token" value="@Model.Token" />
+    <input type="hidden" name="Tabla" value="@Model.Tabla" />
+    <input type="hidden" name="Tipo" value="@Model.Tipo" />
+    @if (Model.Detalle.HasValue) { <input type="hidden" name="Detalle" value="@Model.Detalle" /> }
+
+    <h3 style="margin-bottom:8px">Columnas del archivo → campos del sistema</h3>
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead><tr><th>Campo del sistema</th><th>Columna de «@Model.Principal.Nombre»</th><th>Ejemplo</th></tr></thead>
+            <tbody>
+            @foreach (var c in Model.Campos)
+            {
+                var sel = Elegido(Model.Mapa, Model.Sugerido, c.Key);
+                var ejemplo = sel != "" && Model.Principal.Rows.Count > 0 && Model.Principal.Rows[0].TryGetValue(sel, out var ej) ? ej : "";
+                <tr>
+                    <td>@c.Label @if (c.Requerido) { <span style="color:#b91c1c">*</span> }</td>
+                    <td>
+                        <select name="Mapa[@c.Key]" class="filter-select" style="@(c.Requerido && sel == "" ? "border-color:#b91c1c" : (sel == "" ? "" : ""))">
+                            <option value="">— no usar —</option>
+                            @foreach (var h in Model.Principal.Headers)
+                            {
+                                <option value="@h" selected="@(h == sel)">@h</option>
+                            }
+                        </select>
+                    </td>
+                    <td style="font-size:12px;color:var(--color-muted)">@ejemplo</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.EsVentas && Model.DetalleTabla != null)
+    {
+        <h3 style="margin:16px 0 8px">Líneas: columnas de «@Model.DetalleTabla.Nombre»</h3>
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Campo del sistema</th><th>Columna</th><th>Ejemplo</th></tr></thead>
+                <tbody>
+                @foreach (var c in Model.CamposDet)
+                {
+                    var sel = Elegido(Model.MapaDet, Model.SugeridoDet, c.Key);
+                    var ejemplo = sel != "" && Model.DetalleTabla.Rows.Count > 0 && Model.DetalleTabla.Rows[0].TryGetValue(sel, out var ej2) ? ej2 : "";
+                    <tr>
+                        <td>@c.Label @if (c.Requerido) { <span style="color:#b91c1c">*</span> }</td>
+                        <td>
+                            <select name="MapaDet[@c.Key]" class="filter-select">
+                                <option value="">— no usar —</option>
+                                @foreach (var h in Model.DetalleTabla.Headers)
+                                {
+                                    <option value="@h" selected="@(h == sel)">@h</option>
+                                }
+                            </select>
+                        </td>
+                        <td style="font-size:12px;color:var(--color-muted)">@ejemplo</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (Model.Tipo != TipoKardex)
+    {
+        <div style="margin-top:14px">
+            <label><strong>Si @(Model.Tipo == TipoCxP ? "el proveedor" : "el cliente") no existe en el sistema:</strong></label>
+            <select name="TerceroNoExiste" class="filter-select" style="margin-left:6px">
+                <option value="crear" selected="@(Model.TerceroNoExiste != "sin")">Crearlo automáticamente</option>
+                @if (Model.EsVentas) { <option value="sin" selected="@(Model.TerceroNoExiste == "sin")">Dejar la venta a consumidor final</option> }
+            </select>
+            <div style="font-size:12px;color:var(--color-muted);margin-top:4px">
+                Se busca primero por código, luego por RTN y por último por nombre (sin importar mayúsculas ni acentos). Conviene importar antes Clientes/Proveedores para no duplicar.
+            </div>
+        </div>
+    }
+
+    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+        <button type="submit" asp-page-handler="Previsualizar" class="btn-secondary">1. Revisar (no guarda nada)</button>
+        <button type="submit" asp-page-handler="Importar" class="btn-primary"
+                onclick="return confirm('¿Importar ahora? Se guarda todo junto y luego podrás deshacer el lote.');">2. Importar</button>
+    </div>
+</form>
+
+@if (Model.Res != null)
+{
+    var r = Model.Res;
+    <div class="module-card" style="padding:16px;margin-top:12px">
+        <h3 style="margin-bottom:8px">@(r.Aplicado ? "✅ Importación terminada" : "Revisión (todavía no se guardó nada)")</h3>
+        <ul style="font-size:14px;line-height:1.7">
+            <li>Filas leídas: <strong>@r.Filas.ToString("N0")</strong></li>
+            <li>@(r.Aplicado ? "Registros creados" : "Se crearían"): <strong>@r.Creados.ToString("N0")</strong>
+                @if (r.Tipo != TipoKardex) { <text> · Monto: <strong>L. @r.Monto.ToString("N2")</strong></text> }
+            </li>
+            @if (r.LineasCreadas > 0) { <li>Líneas de venta creadas: <strong>@r.LineasCreadas.ToString("N0")</strong></li> }
+            @if (r.YaImportados > 0) { <li>Ya estaban importados (se saltan): @r.YaImportados.ToString("N0")</li> }
+            @if (r.Omitidos > 0) { <li>Omitidos: @r.Omitidos.ToString("N0")</li> }
+            @if (r.TercerosPorCrear > 0 || r.TercerosCreados > 0)
+            {
+                <li>@(r.Aplicado ? "Clientes/proveedores creados" : "Clientes/proveedores que se crearían"): <strong>@(r.Aplicado ? r.TercerosCreados : r.TercerosPorCrear)</strong></li>
+            }
+            @if (r.Aplicado && r.Lote != null) { <li>Lote: <code>@r.Lote</code></li> }
+        </ul>
+
+        @if (r.Errores.Count > 0)
+        {
+            <div class="module-alert module-alert-error">
+                <strong>Hay que corregir antes de importar:</strong>
+                <ul>@foreach (var e in r.Errores) { <li>@e</li> }</ul>
+            </div>
+        }
+        @if (r.Advertencias.Count > 0)
+        {
+            <details>
+                <summary><strong>Avisos (@r.Advertencias.Count)</strong> — no impiden importar</summary>
+                <ul style="font-size:13px">@foreach (var a in r.Advertencias) { <li>@a</li> }</ul>
+            </details>
+        }
+
+        @if (r.Aplicado && r.Lote != null)
+        {
+            <form method="post" asp-page-handler="Deshacer" onsubmit="return confirm('¿Deshacer este lote y borrar lo importado?');" style="margin-top:12px">
+                <input type="hidden" name="Token" value="@Model.Token" />
+                <input type="hidden" name="Tabla" value="@Model.Tabla" />
+                <input type="hidden" name="Tipo" value="@Model.Tipo" />
+                <input type="hidden" name="lote" value="@r.Lote" />
+                <button type="submit" class="btn-secondary">Deshacer este lote</button>
+            </form>
+        }
+    </div>
+}

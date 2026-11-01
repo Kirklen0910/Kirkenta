@@ -1,0 +1,71 @@
+@page
+@model Kirkenta.Pages.Import.ResultadoModel
+@{
+    ViewData["Title"] = "Resultado de la importación";
+    var d = Model.Datos;
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a href="@d.UrlIndex" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver al listado
+        </a>
+        <h2>Resultado de la importación</h2>
+        <p>@d.Resumen</p>
+    </div>
+</div>
+
+<div class="module-alert" style="background:#fffbeb; border:1px solid #fde68a; color:#92400e;">
+    <div>
+        <strong style="display:block; font-size:13.5px;">
+            La importación terminó, pero @d.Errores fila(s) no se pudieron importar@(d.Advertencias > 0 ? $" y hay {d.Advertencias} advertencia(s)" : "").
+        </strong>
+        <span style="font-size:12.5px;">
+            Las demás filas ya quedaron guardadas. Descarga el reporte, corrige solo las filas fallidas (se indica el motivo de cada una) y vuelve a importarlo.
+        </span>
+    </div>
+</div>
+
+<div class="module-card" style="padding: 28px; margin-bottom: 20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+        <h3 class="form-section-title" style="margin:0;">Filas con problemas</h3>
+        <a href="/Import/Errores" class="btn-primary" style="text-decoration:none;">Descargar reporte (CSV)</a>
+    </div>
+
+    <div class="table-wrapper">
+        <table class="erp-table" style="font-size: 12.5px;">
+            <thead>
+                <tr>
+                    <th>Fila</th>
+                    <th>Tipo</th>
+                    <th>Motivo</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var f in d.Filas.Take(Kirkenta.Pages.Import.ResultadoModel.MaxFilasEnPantalla))
+                {
+                    <tr>
+                        <td>@f.Fila</td>
+                        <td>@f.Tipo</td>
+                        <td>@f.Mensaje</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (d.Filas.Count > Kirkenta.Pages.Import.ResultadoModel.MaxFilasEnPantalla)
+    {
+        <p style="font-size:12.5px; color:var(--color-muted); margin-top:12px;">
+            Se muestran las primeras @Kirkenta.Pages.Import.ResultadoModel.MaxFilasEnPantalla de @d.Filas.Count. El reporte descargable las incluye todas.
+        </p>
+    }
+</div>
+
+<div class="form-actions" style="border-top:none; margin-top:0;">
+    <a href="@d.UrlIndex" class="btn-secondary">Volver al listado</a>
+</div>

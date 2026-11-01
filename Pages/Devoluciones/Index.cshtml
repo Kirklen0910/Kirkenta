@@ -9,9 +9,20 @@
         <h2>Devoluciones</h2>
         <p>Notas de crédito y devoluciones de clientes</p>
     </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/Devoluciones/Create" class="btn-primary">Nueva devolución</a>
+        }
+    </div>
 </div>
 
 <div class="module-card">
+    @if (TempData["Error"] != null)
+    {
+        <div class="module-alert module-alert-error">@TempData["Error"]</div>
+    }
+
     @if (TempData["Success"] != null)
     {
         <div class="module-alert module-alert-success">
@@ -23,7 +34,13 @@
         </div>
     }
 
-    @if (Model.Devoluciones.Count == 0)
+    <form method="get" style="display:flex;gap:8px;margin-bottom:12px">
+        <input type="text" name="Q" value="@Model.Q" placeholder="Buscar por devolución, venta, factura o cliente..." style="flex:1" />
+        <button type="submit" class="btn-primary">Buscar</button>
+        @if (!string.IsNullOrWhiteSpace(Model.Q)) { <a asp-page="/Devoluciones/Index" class="btn-secondary">Limpiar</a> }
+    </form>
+
+    @if (Model.Pager.Total == 0)
     {
         <div class="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -31,7 +48,7 @@
                 <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
             </svg>
             <h3>No hay devoluciones</h3>
-            <p>Las devoluciones se registran desde las facturas</p>
+            <p>Las devoluciones se registran desde el detalle de una venta o con el botón "Nueva devolución"</p>
         </div>
     }
     else
@@ -42,28 +59,34 @@
                     <tr>
                         <th>Número</th>
                         <th>Cliente</th>
+                        <th>Venta</th>
                         <th>Factura</th>
                         <th>Fecha</th>
                         <th>Total</th>
                         <th>Estado</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var d in Model.Devoluciones)
                     {
                         var cliente = Model.Clientes.FirstOrDefault(c => c.Id == d.ClienteId);
+                        var ventaDev = d.VentaId.HasValue ? Model.Ventas.FirstOrDefault(v => v.Id == d.VentaId.Value) : null;
                         var factura = d.FacturaId.HasValue ? Model.Facturas.FirstOrDefault(f => f.Id == d.FacturaId.Value) : null;
                         <tr>
                             <td><strong>@d.Numero</strong></td>
                             <td>@(cliente?.Nombre ?? "—")</td>
+                            <td>@(ventaDev?.Numero ?? "—")</td>
                             <td>@(factura?.Numero ?? "—")</td>
                             <td>@d.Fecha.ToString("dd/MM/yyyy")</td>
                             <td><strong>L. @d.Total.ToString("N2")</strong></td>
                             <td><span class="badge badge-success">@d.Estado</span></td>
+                            <td><a asp-page="/Devoluciones/Details" asp-route-id="@d.Id" class="btn-secondary">Ver</a></td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
+        <partial name="_Pager" model="Model.Pager" />
     }
 </div>

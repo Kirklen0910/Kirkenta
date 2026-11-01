@@ -24,27 +24,27 @@
 </div>
 
 <div class="module-card">
-    <div class="module-toolbar">
+    <form method="get" class="module-toolbar">
         <div class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input type="text" id="searchInput" placeholder="Buscar por número, cliente o RTN..." />
+            <input type="text" id="searchInput" name="Q" value="@Model.Q" placeholder="Buscar por número, cliente o RTN..." />
         </div>
         <div class="filter-group">
-            <select id="filterEstado" class="filter-select">
+            <select id="filterEstado" name="Estado" class="filter-select" onchange="this.form.submit()">
                 <option value="">Todos los estados</option>
-                <option value="Borrador">Borrador</option>
-                <option value="Enviada">Enviada</option>
-                <option value="Aceptada">Aceptada</option>
-                <option value="Rechazada">Rechazada</option>
-                <option value="Vencida">Vencida</option>
-                <option value="Convertida">Convertida</option>
-                <option value="Cancelada">Cancelada</option>
+                <option value="Borrador" selected="@(Model.Estado == "Borrador")">Borrador</option>
+                <option value="Enviada" selected="@(Model.Estado == "Enviada")">Enviada</option>
+                <option value="Aceptada" selected="@(Model.Estado == "Aceptada")">Aceptada</option>
+                <option value="Rechazada" selected="@(Model.Estado == "Rechazada")">Rechazada</option>
+                <option value="Vencida" selected="@(Model.Estado == "Vencida")">Vencida</option>
+                <option value="Convertida" selected="@(Model.Estado == "Convertida")">Convertida</option>
+                <option value="Cancelada" selected="@(Model.Estado == "Cancelada")">Cancelada</option>
             </select>
         </div>
-    </div>
+    </form>
 
     @if (TempData["Success"] != null)
     {
@@ -69,7 +69,7 @@
         </div>
     }
 
-    @if (Model.Cotizaciones.Count == 0)
+    @if (Model.Pager.Total == 0)
     {
         <div class="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -100,9 +100,10 @@
                     @foreach (var c in Model.Cotizaciones)
                     {
                         var cliente = Model.Clientes.FirstOrDefault(x => x.Id == c.ClienteId);
-                        var badgeClass = c.Estado switch
+                        var estadoReal = string.IsNullOrEmpty(c.Estado) ? "Borrador" : c.Estado;
+                        var badgeClass = estadoReal switch
                         {
-                            "Borrador" => "badge",
+                            "Borrador" => "badge badge-info",
                             "Enviada" => "badge badge-info",
                             "Aceptada" => "badge badge-success",
                             "Rechazada" => "badge badge-danger",
@@ -114,7 +115,7 @@
                         <tr data-numero="@c.Numero.ToLower()"
                             data-cliente="@(cliente?.Nombre.ToLower() ?? "")"
                             data-rtn="@(cliente?.RTN?.ToLower() ?? "")"
-                            data-estado="@c.Estado">
+                            data-estado="@estadoReal">
                             <td><strong>@c.Numero</strong></td>
                             <td>@(cliente?.Nombre ?? "—")</td>
                             <td>
@@ -131,8 +132,8 @@
                             <td>
                                 @if (c.FechaVencimiento.HasValue)
                                 {
-                                    var vencida = c.FechaVencimiento.Value < DateTime.Now && c.Estado != "Convertida" && c.Estado != "Aceptada";
-                                    <span style="@(vencida ? "color: var(--color-danger);" : "")">
+                                    var vencida = c.FechaVencimiento.Value.Date < DateTime.Today && estadoReal != "Convertida" && estadoReal != "Aceptada" && estadoReal != "Rechazada";
+                                    <span style="@(vencida ? "color: var(--color-danger); font-weight: 600;" : "")">
                                         @c.FechaVencimiento.Value.ToString("dd/MM/yyyy")
                                     </span>
                                 }
@@ -142,7 +143,7 @@
                                 }
                             </td>
                             <td><strong>L. @c.Total.ToString("N2")</strong></td>
-                            <td><span class="@badgeClass">@c.Estado</span></td>
+                            <td><span class="@badgeClass">@estadoReal</span></td>
                             <td>
                                 <div class="table-actions">
                                     <a asp-page="/Cotizaciones/Details" asp-route-id="@c.Id" class="btn-icon-action" title="Ver detalle">
@@ -151,7 +152,7 @@
                                             <circle cx="12" cy="12" r="3"/>
                                         </svg>
                                     </a>
-                                    @if (c.Estado != "Convertida" && c.Estado != "Cancelada" && Model.PuedeEditar)
+                                    @if (estadoReal != "Convertida" && estadoReal != "Cancelada" && Model.PuedeEditar)
                                     {
                                         <a asp-page="/Cotizaciones/Edit" asp-route-id="@c.Id" class="btn-icon-action" title="Editar">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -160,24 +161,17 @@
                                             </svg>
                                         </a>
                                     }
-                                    @if (c.Estado == "Aceptada")
+                                    @if ((estadoReal == "Borrador" || estadoReal == "Aceptada") && Model.PuedeEditar)
                                     {
-                                        <a asp-page="/POS/Index" asp-route-cotizacionId="@c.Id" class="btn-icon-action" title="Cobrar en POS" style="color: #10b981;">
+                                        <a asp-page="/POS/Index" asp-route-cotizacionId="@c.Id" class="btn-icon-action" title="Cobrar en POS" style="color: var(--color-success);">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <circle cx="9" cy="21" r="1"/>
                                                 <circle cx="20" cy="21" r="1"/>
                                                 <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
                                             </svg>
                                         </a>
-                                        <form method="post" asp-page-handler="Convertir" asp-route-id="@c.Id" style="display:inline;" onsubmit="return confirm('¿Convertir a factura sin cobrar?');">
-                                            <button type="submit" class="btn-icon-action" title="Facturar sin cobrar">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <polyline points="20 6 9 17 4 12"/>
-                                                </svg>
-                                            </button>
-                                        </form>
                                     }
-                                    @if (c.Estado == "Convertida" && c.FacturaId.HasValue)
+                                    @if (estadoReal == "Convertida" && c.FacturaId.HasValue)
                                     {
                                         <a asp-page="/Facturas/Details" asp-route-id="@c.FacturaId" class="btn-icon-action" title="Ver factura" style="color: var(--color-success);">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -186,7 +180,7 @@
                                             </svg>
                                         </a>
                                     }
-                                    @if (c.Estado != "Convertida" && Model.PuedeEliminar)
+                                    @if (estadoReal != "Convertida" && Model.PuedeEliminar)
                                     {
                                         <a asp-page="/Cotizaciones/Delete" asp-route-id="@c.Id" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -202,37 +196,7 @@
                 </tbody>
             </table>
         </div>
+        <partial name="_Pager" model="Model.Pager" />
     }
 </div>
 
-@section Scripts {
-    <script>
-        (function () {
-            var searchInput = document.getElementById('searchInput');
-            var filterEstado = document.getElementById('filterEstado');
-            var table = document.getElementById('cotizacionesTable');
-            if (!table) return;
-            var rows = table.querySelectorAll('tbody tr');
-
-            function filterRows() {
-                var search = (searchInput?.value || '').toLowerCase().trim();
-                var estado = filterEstado?.value || '';
-
-                rows.forEach(function (row) {
-                    var numero = row.dataset.numero || '';
-                    var cliente = row.dataset.cliente || '';
-                    var rtn = row.dataset.rtn || '';
-                    var rowEstado = row.dataset.estado || '';
-
-                    var matchSearch = !search || numero.includes(search) || cliente.includes(search) || rtn.includes(search);
-                    var matchEstado = !estado || rowEstado === estado;
-
-                    row.style.display = (matchSearch && matchEstado) ? '' : 'none';
-                });
-            }
-
-            searchInput?.addEventListener('input', filterRows);
-            filterEstado?.addEventListener('change', filterRows);
-        })();
-    </script>
-}

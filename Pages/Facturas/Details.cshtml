@@ -27,6 +27,22 @@
                 Registrar pago
             </a>
         }
+        @if (Model.PuedeAnular)
+        {
+            <form method="post" asp-page-handler="Anular" asp-route-id="@Model.Factura.Id" style="display:inline-flex;gap:6px;align-items:center;"
+                  onsubmit="return confirm('¿Anular esta factura?\n\nSe devolverá el inventario y se revertirán los pagos y el costo registrados en Finanzas. Esta acción no se puede deshacer.');">
+                <input type="text" name="motivo" required maxlength="200" class="form-input" placeholder="Motivo de anulación" style="width:200px;" />
+                <button type="submit" class="btn-secondary" style="color:var(--color-danger-text);">Anular factura</button>
+            </form>
+        }
+        <a asp-page="/Facturas/Ticket" asp-route-id="@Model.Factura.Id" target="_blank" class="btn-secondary">Ticket 80 mm</a>
+        <span id="kkImprDirecto" style="display:inline-block;">@Html.AntiForgeryToken()<button type="button" class="btn-secondary" data-imprimir-directo="@Url.Page("/Impresion/Directa", "Factura", new { id = Model.Factura.Id })" title="Imprime en la impresora térmica configurada y abre la gaveta">🖨️ Imprimir directo</button></span>
+        <a asp-page="/Facturas/Carta" asp-route-id="@Model.Factura.Id" target="_blank" class="btn-secondary">PDF / Carta</a>
+        @{
+            var waNombre = (string.IsNullOrWhiteSpace(Model.Cliente.Nombre) || Model.Cliente.Nombre!.Contains("consumidor final", StringComparison.OrdinalIgnoreCase) ? null : Model.Cliente.Nombre);
+            var waMensaje = Kirkenta.Helpers.WhatsAppHelper.MensajeFactura(Model.Empresa.Nombre, waNombre, Model.Factura.Numero, Model.Factura.Total, Model.Factura.Estado == "Anulada" ? 0 : Model.Factura.Saldo, Model.Factura.FechaVencimiento);
+        }
+        <partial name="_WhatsAppPdf" model="@(new Kirkenta.Helpers.WhatsAppPdf(Model.Cliente.Telefono, waMensaje, "Factura-" + Model.Factura.Numero + ".pdf", Url.Page("/Facturas/Carta", new { id = Model.Factura.Id })))" />
         <button type="button" class="btn-secondary" onclick="window.print()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                 <polyline points="6 9 6 2 18 2 18 9"/>
@@ -50,7 +66,7 @@
 }
 
 @* ===== ALERTAS CAI ===== *@
-@if (Model.CaiVencido)
+@if (Model.FiscalActiva && Model.CaiVencido)
 {
     <div class="module-alert module-alert-error">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -65,7 +81,7 @@
         </div>
     </div>
 }
-else if (Model.CaiPorVencer)
+else if (Model.FiscalActiva && Model.CaiPorVencer)
 {
     <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -90,7 +106,7 @@ else if (Model.CaiPorVencer)
         </svg>
         <div>
             <strong>⚠️ Rango CAI agotado</strong> — El número de esta factura está fuera del rango autorizado
-            (@Model.Empresa.RangoInicial — @Model.Empresa.RangoFinal).
+            (@Model.Factura.RangoInicial — @Model.Factura.RangoFinal).
         </div>
     </div>
 }
@@ -142,7 +158,7 @@ else if (Model.CaiPorVencer)
     <div class="factura-info-grid">
         <div>
             <h4 class="factura-info-label">Cliente</h4>
-            <p><strong>@Model.Cliente.Nombre</strong></p>
+            <p><strong><a asp-page="/Clientes/Details" asp-route-id="@Model.Cliente.Id">@Model.Cliente.Nombre</a></strong></p>
             @if (!string.IsNullOrEmpty(Model.Cliente.RTN))
             {
                 <p>RTN: @Model.Cliente.RTN</p>
@@ -167,17 +183,17 @@ else if (Model.CaiPorVencer)
             {
                 <p><strong>Vencimiento:</strong> @Model.Factura.FechaVencimiento.Value.ToString("dd/MM/yyyy")</p>
             }
-            @if (!string.IsNullOrEmpty(Model.Empresa.CAI))
+            @if (!string.IsNullOrEmpty(Model.Factura.CAI))
             {
-                <p><strong>CAI:</strong> @Model.Empresa.CAI</p>
+                <p><strong>CAI:</strong> @Model.Factura.CAI</p>
             }
-            @if (!string.IsNullOrEmpty(Model.Empresa.RangoInicial))
+            @if (!string.IsNullOrEmpty(Model.Factura.RangoInicial))
             {
-                <p><strong>Rango:</strong> @Model.Empresa.RangoInicial — @Model.Empresa.RangoFinal</p>
+                <p><strong>Rango:</strong> @Model.Factura.RangoInicial — @Model.Factura.RangoFinal</p>
             }
-            @if (Model.Empresa.FechaLimiteEmision.HasValue)
+            @if (Model.Factura.FechaLimiteEmision.HasValue)
             {
-                <p><strong>Fecha límite:</strong> @Model.Empresa.FechaLimiteEmision.Value.ToString("dd/MM/yyyy")</p>
+                <p><strong>Fecha límite:</strong> @Model.Factura.FechaLimiteEmision.Value.ToString("dd/MM/yyyy")</p>
             }
         </div>
     </div>
@@ -199,7 +215,7 @@ else if (Model.CaiPorVencer)
                 {
                     var prod = Model.Productos.FirstOrDefault(p => p.Id == item.ProductoId);
                     <tr>
-                        <td>@(prod?.Nombre ?? "—")</td>
+                        <td>@if (prod != null) { <a asp-page="/Productos/Historial" asp-route-id="@prod.Id">@prod.Nombre</a> } else { <text>—</text> }</td>
                         <td style="text-align: right;">@item.Cantidad</td>
                         <td style="text-align: right;">L. @item.PrecioUnitario.ToString("N2")</td>
                         <td style="text-align: right;">L. @item.Descuento.ToString("N2")</td>
@@ -212,9 +228,9 @@ else if (Model.CaiPorVencer)
     </div>
 
     @* ===== DESGLOSE ISV POR TASA ===== *@
-    @if (Model.DesgloseISV != null && Model.DesgloseISV.BaseGravableTotal + Model.DesgloseISV.BaseExentaTotal > 0)
+    @if (Model.DesgloseISV != null && Model.DesgloseISV.BaseGravableTotal + Model.DesgloseISV.BaseExentaTotal + Model.DesgloseISV.BaseExoneradaTotal > 0)
     {
-        <div style="margin-top: 24px; padding: 16px 20px; background: #f9fafb; border-radius: 8px; border: 1px solid var(--color-border);">
+        <div style="margin-top: 24px; padding: 16px 20px; background: var(--color-surface-2); border-radius: 8px; border: 1px solid var(--color-border);">
             <h4 style="font-size: 12px; font-weight: 700; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">
                 Desglose de ISV
             </h4>
@@ -234,6 +250,22 @@ else if (Model.CaiPorVencer)
                             </td>
                             <td style="padding: 4px 0; text-align: right; font-weight: 600;">
                                 L. @Model.DesgloseISV.ISVPorTasa[tasa].ToString("N2")
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.DesgloseISV.BaseExoneradaTotal > 0)
+                    {
+                        <tr>
+                            <td style="padding: 4px 0;">
+                                Base <strong>exonerada</strong>:
+                            </td>
+                            <td style="padding: 4px 0; text-align: right;">
+                                L. @Model.DesgloseISV.BaseExoneradaTotal.ToString("N2")
+                            </td>
+                            <td colspan="2" style="padding: 4px 0 4px 24px; font-size: 12px;">
+                                Constancia: @(Model.Factura.ExoneradoConstancia ?? "—")
+                                · O.C. exenta: @(Model.Factura.ExoneradoOrdenCompraExenta ?? "—")
+                                · Reg. SAG: @(Model.Factura.ExoneradoRegistroSag ?? "—")
                             </td>
                         </tr>
                     }
@@ -319,3 +351,7 @@ else if (Model.CaiPorVencer)
         </div>
     }
 </div>
+
+@section Scripts {
+    <script src="~/js/kirkenta-impresion.js" asp-append-version="true" defer></script>
+}

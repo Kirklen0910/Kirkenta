@@ -1,0 +1,100 @@
+@page
+@model Kirkenta.Pages.InventarioAvanzado.ValoracionModel
+@{
+    ViewData["Title"] = "Valoración de inventario";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Valoración de inventario</h2>
+        <p>Valor del stock a costo promedio y a precio de venta, alertas de reabastecimiento</p>
+    </div>
+</div>
+
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+@if (Model.StockNegativo > 0)
+{
+    <div class="module-alert module-alert-warning">Hay @Model.StockNegativo producto(s) con stock negativo. Corrígelos con una toma física o un ajuste.</div>
+}
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card"><span class="kpi-label">Productos activos</span><span class="kpi-value">@Model.TotalProductos</span><span class="kpi-trend">@Model.TotalUnidades.ToString("N0") unidades</span></div>
+    <div class="kpi-card"><span class="kpi-label">Valor a costo</span><span class="kpi-value">L. @Model.ValorCostoTotal.ToString("N2")</span></div>
+    <div class="kpi-card"><span class="kpi-label">Valor a precio de venta</span><span class="kpi-value">L. @Model.ValorVentaTotal.ToString("N2")</span></div>
+    <div class="kpi-card"><span class="kpi-label">Utilidad potencial</span><span class="kpi-value" style="color: var(--color-success);">L. @Model.UtilidadPotencial.ToString("N2")</span></div>
+</div>
+
+<div class="module-card" style="margin-bottom: 20px;">
+    <div style="padding: 16px 20px; font-weight: 600;">Valoración por categoría</div>
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead><tr><th>Categoría</th><th style="text-align:right;">Productos</th><th style="text-align:right;">Unidades</th><th style="text-align:right;">Valor a costo</th><th style="text-align:right;">Valor a venta</th></tr></thead>
+            <tbody>
+                @foreach (var f in Model.PorCategoria)
+                {
+                    <tr>
+                        <td>@f.Nombre</td>
+                        <td style="text-align:right;">@f.Productos</td>
+                        <td style="text-align:right;">@f.Unidades.ToString("N2")</td>
+                        <td style="text-align:right;">L. @f.ValorCosto.ToString("N2")</td>
+                        <td style="text-align:right;">L. @f.ValorVenta.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="module-card" style="margin-bottom: 20px;">
+    <div style="padding: 16px 20px; font-weight: 600;">Por reabastecer (stock en o bajo el mínimo)</div>
+    @if (Model.BajoMinimo.Count == 0)
+    {
+        <div class="empty-state"><h3>Todo el inventario está sobre el mínimo</h3></div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Producto</th><th style="text-align:right;">Stock</th><th style="text-align:right;">Mínimo</th><th style="text-align:right;">Sugerido a pedir</th></tr></thead>
+                <tbody>
+                    @foreach (var p in Model.BajoMinimo)
+                    {
+                        <tr>
+                            <td>@p.Nombre</td>
+                            <td style="text-align:right; color: var(--color-danger); font-weight:600;">@p.Stock.ToString("0.##")</td>
+                            <td style="text-align:right;">@p.StockMinimo.ToString("0.##")</td>
+                            <td style="text-align:right;">@(Math.Max(p.StockMinimo * 2 - p.Stock, 0).ToString("0.##"))</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="module-card">
+    <div style="padding: 16px 20px; font-weight: 600;">Sin movimiento en 90 días (capital inmovilizado)</div>
+    @if (Model.SinMovimiento.Count == 0)
+    {
+        <div class="empty-state"><h3>No hay productos estancados</h3></div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Producto</th><th style="text-align:right;">Stock</th><th style="text-align:right;">Valor a costo</th></tr></thead>
+                <tbody>
+                    @foreach (var p in Model.SinMovimiento)
+                    {
+                        <tr>
+                            <td>@p.Nombre</td>
+                            <td style="text-align:right;">@p.Stock.ToString("0.##")</td>
+                            <td style="text-align:right;">L. @((p.Stock * p.PrecioCompra).ToString("N2"))</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

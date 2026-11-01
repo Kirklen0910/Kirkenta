@@ -112,7 +112,7 @@ namespace Kirkenta.Pages.Finanzas.PlanCuentas
                 Descripcion = Input.Descripcion,
                 Activa = Input.Activa,
                 FechaCreacion = DateTime.Now,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             _context.PlanCuentas.Add(cuenta);

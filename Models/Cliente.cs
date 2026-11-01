@@ -41,6 +41,19 @@ namespace Kirkenta.Models
         public decimal LimiteCredito { get; set; } = 0;
         public int DiasCredito { get; set; } = 0;
 
+        // ===== EXONERACIÓN DE ISV =====
+        // Clientes con constancia de exoneración (embajadas, ONG, diplomáticos, zonas libres, etc.)
+        public bool EsExonerado { get; set; } = false;
+
+        [StringLength(50)]
+        public string? ExoneradoConstancia { get; set; }
+
+        [StringLength(50)]
+        public string? ExoneradoOrdenCompraExenta { get; set; }
+
+        [StringLength(50)]
+        public string? ExoneradoRegistroSag { get; set; }
+
         public string? Notas { get; set; }
         public bool Activo { get; set; } = true;
         public DateTime FechaCreacion { get; set; } = DateTime.Now;

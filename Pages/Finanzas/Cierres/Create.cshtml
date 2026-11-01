@@ -52,14 +52,14 @@
         </div>
 
         <div class="form-row">
-            <div class="form-field">
+            <div class="form-field" id="campoContado">
                 <label asp-for="Input.EfectivoContado">Efectivo contado físicamente *</label>
-                <input asp-for="Input.EfectivoContado" type="number" step="0.01" min="0" class="form-input" id="contadoInput" required />
-                <small class="form-help">Total del dinero que cuentas en la caja</small>
+                <input asp-for="Input.EfectivoContado" asp-format="{0:0.00}" type="number" step="0.01" min="0" class="form-input" id="contadoInput" required />
+                <small class="form-help">Total del dinero que cuentas en la caja. <strong id="ayudaEsperado"></strong></small>
             </div>
             <div class="form-field">
                 <label asp-for="Input.Tolerancia">Tolerancia (L.)</label>
-                <input asp-for="Input.Tolerancia" type="number" step="0.01" min="0" class="form-input" value="20.00" />
+                <input asp-for="Input.Tolerancia" asp-format="{0:0.00}" type="number" step="0.01" min="0" class="form-input" value="20.00" />
             </div>
         </div>
 
@@ -68,6 +68,39 @@
             <textarea asp-for="Input.Notas" class="form-input" rows="2" placeholder="Observaciones generales..."></textarea>
         </div>
 
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">📊 Informe previo del día</h3>
+        <p class="form-section-desc">Revísalo antes de cerrar: cambia entre Todo, Efectivo, Tarjeta, Transferencia o Crédito para ver cómo se movió cada método.</p>
+        <div id="informePrevio"><p class="form-help">Selecciona la cuenta para ver el informe.</p></div>
+
+        <div id="bloqueConteo" style="display:none;margin-top:14px;">
+            <h4 style="margin:0 0 6px;font-size:14px;">Conteo de vouchers y comprobantes (opcional)</h4>
+            <p class="form-help" style="margin:0 0 8px;">Escribe lo que contaste de tarjeta, transferencias u otros métodos para compararlo con el sistema. Queda registrado en las notas del cierre.</p>
+            <div id="filasConteo" class="kk-inf-box"></div>
+            <input type="hidden" asp-for="Input.ConteoJson" id="conteoJson" />
+        </div>
+
+        <div class="module-card" style="margin-top:16px;background:var(--color-surface-2);">
+            <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;">
+                <input type="checkbox" asp-for="Input.SinConteo" id="sinConteo" style="margin-top:4px;" />
+                <span><strong>Cerrar sin contar el efectivo ni los comprobantes</strong><br />
+                <span class="form-help">El sistema usará el efectivo esperado y lo dejará marcado en el cierre. Requiere el usuario y la contraseña de un administrador.</span></span>
+            </label>
+            <div id="bloqueAutorizacion" style="display:none;margin-top:12px;">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label asp-for="Input.AutorizadorUsuario">Usuario administrador</label>
+                        <input asp-for="Input.AutorizadorUsuario" class="form-input" autocomplete="off" />
+                    </div>
+                    <div class="form-field">
+                        <label asp-for="Input.AutorizadorPassword">Contraseña</label>
+                        <input asp-for="Input.AutorizadorPassword" type="password" value="" class="form-input" autocomplete="new-password" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="bloqueDistribucion">
         <div class="form-divider"></div>
         <h3 class="form-section-title">2. Distribución del efectivo</h3>
         <p class="form-section-desc">
@@ -86,7 +119,7 @@
         <div class="form-row">
             <div class="form-field">
                 <label asp-for="Input.MontoRetiroBanco">🏦 Retiro a banco</label>
-                <input asp-for="Input.MontoRetiroBanco" type="number" step="0.01" min="0" class="form-input distribucion-input" id="retiroInput" placeholder="0.00" />
+                <input asp-for="Input.MontoRetiroBanco" asp-format="{0:0.00}" type="number" step="0.01" min="0" class="form-input distribucion-input" id="retiroInput" placeholder="0.00" />
                 <small class="form-help">Monto que llevas al banco</small>
             </div>
             <div class="form-field">
@@ -109,12 +142,12 @@
         <div class="form-row">
             <div class="form-field">
                 <label asp-for="Input.MontoFondoCaja">💰 Fondo para próximo día</label>
-                <input asp-for="Input.MontoFondoCaja" type="number" step="0.01" min="0" class="form-input distribucion-input" id="fondoInput" placeholder="0.00" />
+                <input asp-for="Input.MontoFondoCaja" asp-format="{0:0.00}" type="number" step="0.01" min="0" class="form-input distribucion-input" id="fondoInput" placeholder="0.00" />
                 <small class="form-help">Efectivo que se queda en caja para dar cambio</small>
             </div>
             <div class="form-field">
                 <label asp-for="Input.MontoEntregaAdmin">👤 Entrega a administración</label>
-                <input asp-for="Input.MontoEntregaAdmin" type="number" step="0.01" min="0" class="form-input distribucion-input" id="entregaInput" placeholder="0.00" />
+                <input asp-for="Input.MontoEntregaAdmin" asp-format="{0:0.00}" type="number" step="0.01" min="0" class="form-input distribucion-input" id="entregaInput" placeholder="0.00" />
                 <small class="form-help">Si se entrega el efectivo a otra persona</small>
             </div>
         </div>
@@ -141,6 +174,8 @@
             <input asp-for="Input.ReferenciaEntrega" class="form-input" placeholder="Ej: Recibo #001" />
         </div>
 
+        </div>
+
         <div class="form-divider"></div>
         <h3 class="form-section-title">3. Adjuntos / Comprobantes</h3>
         <p class="form-section-desc">Sube fotos de las boletas de depósito, recibos, etc.</p>
@@ -165,6 +200,96 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/informe-metodos.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            var cuenta = document.getElementById('Input_CuentaId');
+            var fecha = document.getElementById('Input_Fecha');
+            var panel = document.getElementById('informePrevio');
+            var bloqueConteo = document.getElementById('bloqueConteo');
+            var filas = document.getElementById('filasConteo');
+            var json = document.getElementById('conteoJson');
+            var ayuda = document.getElementById('ayudaEsperado');
+            var sin = document.getElementById('sinConteo');
+            var auth = document.getElementById('bloqueAutorizacion');
+            var dist = document.getElementById('bloqueDistribucion');
+            var contado = document.getElementById('contadoInput');
+            var campoContado = document.getElementById('campoContado');
+            var datos = null;
+
+            function money(n) { return 'L. ' + (Number(n) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+            function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+            function esEfectivo(m) { return /efectivo/.test(norm(m.nombre) + ' ' + norm(m.tipo)); }
+
+            function actualizarConteo() {
+                var lista = [];
+                filas.querySelectorAll('[data-fila]').forEach(function (f) {
+                    var inp = f.querySelector('input');
+                    var s = parseFloat(f.getAttribute('data-sistema')) || 0;
+                    var dif = f.querySelector('[data-dif]');
+                    if (inp.value === '') { dif.textContent = '—'; dif.style.color = ''; return; }
+                    var c = parseFloat(inp.value) || 0;
+                    var d = c - s;
+                    dif.textContent = (d === 0 ? 'Cuadra' : money(d));
+                    dif.style.color = Math.abs(d) < 0.01 ? 'var(--color-success)' : 'var(--color-danger)';
+                    lista.push({ n: f.getAttribute('data-nombre'), s: s, c: c });
+                });
+                json.value = lista.length ? JSON.stringify(lista) : '';
+            }
+
+            function armarConteo(d) {
+                filas.textContent = '';
+                var conMov = (d.metodos || []).filter(function (m) { return !esEfectivo(m) && m.total > 0; });
+                bloqueConteo.style.display = conMov.length && !sin.checked ? '' : 'none';
+                conMov.forEach(function (m) {
+                    var f = document.createElement('div');
+                    f.setAttribute('data-fila', '1'); f.setAttribute('data-sistema', m.total); f.setAttribute('data-nombre', m.nombre);
+                    f.style.cssText = 'display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:10px;align-items:center;padding:8px 6px;border-bottom:1px solid var(--color-border);';
+                    var a = document.createElement('strong'); a.textContent = m.nombre;
+                    var b = document.createElement('span'); b.textContent = 'Sistema: ' + money(m.total);
+                    var wrap = document.createElement('span');
+                    var inp = document.createElement('input'); inp.type = 'number'; inp.step = '0.01'; inp.min = '0'; inp.className = 'form-input'; inp.placeholder = 'Contado';
+                    inp.setAttribute('aria-label', 'Contado de ' + m.nombre);
+                    inp.addEventListener('input', actualizarConteo);
+                    wrap.appendChild(inp);
+                    var dif = document.createElement('span'); dif.setAttribute('data-dif', '1'); dif.textContent = '—';
+                    f.appendChild(a); f.appendChild(b); f.appendChild(wrap); f.appendChild(dif);
+                    filas.appendChild(f);
+                });
+                ayuda.textContent = d.efectivo ? 'El sistema espera ' + money(d.efectivo.esperado) + ' en efectivo.' : '';
+                actualizarConteo();
+            }
+
+            function cargarPrevio() {
+                if (!cuenta.value) {
+                    panel.textContent = 'Selecciona la cuenta para ver el informe.';
+                    bloqueConteo.style.display = 'none'; ayuda.textContent = ''; return;
+                }
+                panel.textContent = 'Cargando informe…';
+                fetch(window.location.pathname + '?handler=Previo&cuentaId=' + encodeURIComponent(cuenta.value) + '&fecha=' + encodeURIComponent(fecha.value), { credentials: 'same-origin' })
+                    .then(function (r) { if (!r.ok) throw new Error('http'); return r.text(); })
+                    .then(function (html) { panel.innerHTML = html; window.kkInformeInit(panel); })
+                    .catch(function () { panel.textContent = 'No se pudo cargar el informe previo. Puedes continuar con el cierre.'; });
+            }
+
+            panel.addEventListener('kk-informe-listo', function (e) { datos = e.detail; armarConteo(datos); });
+            cuenta.addEventListener('change', cargarPrevio);
+            fecha.addEventListener('change', cargarPrevio);
+
+            function aplicarSinConteo() {
+                var on = sin.checked;
+                auth.style.display = on ? '' : 'none';
+                dist.style.display = on ? 'none' : '';
+                campoContado.style.display = on ? 'none' : '';
+                contado.required = !on;
+                contado.disabled = on;
+                if (datos) armarConteo(datos);
+            }
+            sin.addEventListener('change', aplicarSinConteo);
+            aplicarSinConteo();
+            if (cuenta.value) cargarPrevio();
+        })();
+    </script>
     <script>
         (function () {
             var contado = document.getElementById('contadoInput');

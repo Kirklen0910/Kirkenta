@@ -1,5 +1,6 @@
 using Kirkenta.Data;
 using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -127,6 +128,23 @@ namespace Kirkenta.Pages.Finanzas.Cuentas
                 return Page();
             }
 
+            // Una caja con apertura activa no se puede desactivar: el POS y el cierre dependen de ella
+            if (c.Activa && !Input.Activa && _context.AperturasCaja.Any(a => a.CuentaId == c.Id && a.Activa))
+            {
+                ModelState.AddModelError("Input.Activa", "No puedes desactivar una cuenta con una apertura de caja activa. Cierra la caja primero.");
+                return Page();
+            }
+
+            // Cambiar el tipo o convertirla en/desde Cuentas por Cobrar descuadra el efectivo, los cierres y el balance
+            var nuevoSubtipo = Input.Tipo == "Caja" ? Input.Subtipo : null;
+            bool cambiaNaturaleza = c.Tipo != Input.Tipo
+                || ((c.Subtipo == "CuentasPorCobrar") != (nuevoSubtipo == "CuentasPorCobrar"));
+            if (cambiaNaturaleza && _context.MovimientosFinancieros.Any(m => m.CuentaId == c.Id || m.CuentaDestinoId == c.Id))
+            {
+                ModelState.AddModelError("Input.Tipo", "No puedes cambiar el tipo de una cuenta que ya tiene movimientos. Crea otra cuenta y transfiere el saldo.");
+                return Page();
+            }
+
             c.Codigo = Input.Codigo;
             c.Nombre = Input.Nombre;
             c.Tipo = Input.Tipo;
@@ -140,6 +158,16 @@ namespace Kirkenta.Pages.Finanzas.Cuentas
             c.Activa = Input.Activa;
 
             _context.SaveChanges();
+
+            // ✅ Si cambió el nombre, actualizar el movimiento de apertura
+            var movApertura = _context.MovimientosFinancieros
+                .FirstOrDefault(m => m.Origen == "Apertura" && m.OrigenId == c.Id && m.Estado == "Activo");
+
+            if (movApertura != null)
+            {
+                movApertura.Concepto = $"Saldo inicial de {c.Nombre}";
+                _context.SaveChanges();
+            }
 
             ActividadHelper.Registrar(
                 _context,

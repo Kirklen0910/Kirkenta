@@ -1,0 +1,181 @@
+@page
+@model Kirkenta.Pages.Migracion.IndexModel
+@using Kirkenta.Helpers.Migracion
+@{
+    ViewData["Title"] = "Migración desde otro sistema";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Migración desde otro sistema</h2>
+        <p>Sube el respaldo o la exportación del sistema anterior: Kirkenta lee las tablas, adivina a qué módulo va cada una y te lleva a revisar el mapeo antes de importar.</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">@TempData["Error"]</div>
+}
+
+@if (Model.Token == null)
+{
+    <div class="module-card form-card-wide" style="padding:20px">
+        <form method="post" asp-page-handler="Subir" enctype="multipart/form-data" class="erp-form">
+            <h3 style="margin-bottom:8px">1. Sube el archivo del sistema anterior</h3>
+            <p style="font-size:13px;color:var(--color-muted);margin-bottom:12px">
+                Formatos: <strong>.json</strong> (varias tablas o una lista), <strong>.zip</strong> (incluye los respaldos de Kirkenta y zips con un archivo por tabla),
+                <strong>.xlsx</strong> / <strong>.xls</strong> (cada hoja es una tabla), <strong>.csv</strong>, <strong>.sql</strong> (volcado de MySQL, PostgreSQL o SQL Server con sentencias INSERT), <strong>.dbf</strong> (dBase/FoxPro) y bases <strong>SQLite</strong> (.db, .sqlite).
+                Máximo 200 MB. El archivo no se ejecuta: solo se lee.
+            </p>
+            <input type="file" name="Archivo" accept=".json,.jsonl,.zip,.xlsx,.xls,.csv,.tsv,.txt,.sql,.dbf,.db,.sqlite,.sqlite3,.db3,.mdb,.accdb,.bak" required />
+            <div style="margin-top:14px">
+                <button type="submit" class="btn-primary">Analizar archivo</button>
+            </div>
+        </form>
+
+        <details style="margin-top:18px;font-size:13px">
+            <summary style="cursor:pointer;font-weight:600">¿Mi sistema viejo usa otro tipo de base de datos?</summary>
+            <p style="margin-top:8px;color:var(--color-muted)">
+                Si es SQL Server, MySQL o PostgreSQL, genera un respaldo en texto (<em>Generate Scripts → solo datos</em>, <em>mysqldump</em> o <em>pg_dump --inserts</em>) y súbelo como .sql.
+                Si es Access, SQLite, Excel o un programa comercial, exporta cada tabla a Excel o CSV (casi todos los programas tienen "Exportar") y súbelo.
+                Si solo tienes acceso directo a la base de datos, dime cuál es y se agrega un conector.
+            </p>
+        </details>
+
+        @if (Model.HayPrevio)
+        {
+            <hr style="margin:18px 0" />
+            <p>Tienes una migración en curso (los datos temporales se guardan 24 horas).</p>
+            <a asp-page="/Migracion/Index" asp-route-continuar="1" class="btn-secondary">Continuar migración</a>
+        }
+    </div>
+}
+else
+{
+    @if (Model.Avisos.Count > 0)
+    {
+        <div class="module-alert module-alert-error">
+            @foreach (var a in Model.Avisos) { <div>@a</div> }
+        </div>
+    }
+
+    <div class="module-card" style="padding:16px;margin-bottom:12px;border:2px solid var(--color-primary, #2563eb)">
+        <h3 style="margin-bottom:6px">⚡ Migración automática (recomendada)</h3>
+        <p style="font-size:13px;color:var(--color-muted);margin-bottom:10px">
+            Importa todo de una vez en el orden correcto: impuestos, unidades, categorías, productos con su stock inicial, clientes, proveedores, ventas históricas, saldos por cobrar/pagar y kardex.
+            Primero puedes «Revisar todo» sin guardar; al migrar se hace un respaldo y todo entra completo o no entra nada.
+        </p>
+        <a asp-page="/Migracion/Automatica" asp-route-token="@Model.Token" class="btn-primary">Abrir migración automática</a>
+    </div>
+
+    <div class="module-card" style="padding:16px">
+        <h3 style="margin-bottom:6px">Modo manual: revisa lo que encontramos @(string.IsNullOrEmpty(Model.NombreArchivo) ? "" : "en " + Model.NombreArchivo)</h3>
+        <p style="font-size:13px;color:var(--color-muted);margin-bottom:12px">
+            Orden recomendado: impuestos → unidades → categorías → productos (con su stock inicial) → clientes → proveedores → y al final los saldos por cobrar/pagar, el historial de ventas y el kardex.
+            «Enviar» abre el asistente de importación del módulo con las columnas ya adivinadas; ahí revisas, corriges y confirmas.
+            Nada se guarda hasta que confirmes en ese asistente. Puedes importar en modo «solo agregar nuevos» o «actualizar existentes».
+        </p>
+
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Tabla del archivo</th>
+                        <th style="text-align:right">Filas</th>
+                        <th>Columnas</th>
+                        <th>Destino sugerido</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var d in Model.Detecciones)
+                {
+                    var lotes = MigracionAlmacen.TotalLotes(d.Tabla.Rows.Count);
+                    foreach (var lote in Enumerable.Range(0, lotes))
+                    {
+                        <tr>
+                            <td>
+                                <strong>@d.Tabla.Nombre</strong>
+                                @if (lotes > 1) { <div style="font-size:12px;color:var(--color-muted)">Lote @(lote + 1) de @lotes</div> }
+                                @if (d.PosibleFuturo != null) { <div style="font-size:12px;color:var(--color-muted)">@d.PosibleFuturo</div> }
+                            </td>
+                            <td style="text-align:right">@d.Tabla.Rows.Count.ToString("N0")</td>
+                            <td style="font-size:12px;max-width:340px">
+                                @string.Join(", ", d.Tabla.Headers.Take(10))@(d.Tabla.Headers.Count > 10 ? $" … (+{d.Tabla.Headers.Count - 10})" : "")
+                            </td>
+                            <td colspan="2">
+                                <form method="post" asp-page-handler="Enviar" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                                    <input type="hidden" name="token" value="@Model.Token" />
+                                    <input type="hidden" name="tabla" value="@d.Indice" />
+                                    <input type="hidden" name="lote" value="@lote" />
+                                    <select name="entidad" class="filter-select">
+                                        <option value="">— No migrar / elegir —</option>
+                                        <optgroup label="Historial y saldos">
+                                            @foreach (var h in MigracionHistorialHelper.Tipos)
+                                            {
+                                                <option value="@("@" + h)" selected="@(d.Entidad == null && d.TipoHistorial == h)">@MigracionHistorialHelper.NombreTipo(h)</option>
+                                            }
+                                        </optgroup>
+                                        <optgroup label="Catálogos">
+                                        @foreach (var e in MigracionAnalizador.Entidades)
+                                        {
+                                            <option value="@e.Key" selected="@(d.Entidad?.Key == e.Key)">@e.Nombre</option>
+                                        }
+                                        </optgroup>
+                                    </select>
+                                    @if (d.Entidad != null)
+                                    {
+                                        var color = d.Confianza == "Alta" ? "#15803d" : d.Confianza == "Media" ? "#b45309" : "#b91c1c";
+                                        <span style="font-size:12px;font-weight:600;color:@color">@d.Confianza (@d.Puntaje)</span>
+                                    }
+                                    <button type="submit" class="btn-primary">Enviar</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+
+        <form method="post" asp-page-handler="Descartar" style="margin-top:14px" onsubmit="return confirm('¿Descartar la migración y borrar los datos temporales?');">
+            <button type="submit" class="btn-secondary">Descartar y empezar de nuevo</button>
+        </form>
+    </div>
+}
+
+@if (Model.Lotes.Count > 0)
+{
+    <div class="module-card" style="padding:16px;margin-top:16px">
+        <h3 style="margin-bottom:6px">Lotes ya importados</h3>
+        <p style="font-size:13px;color:var(--color-muted);margin-bottom:10px">Si algo se importó mal, deshaz el lote completo. Se conservan los registros que ya tengan cobros, pagos, facturas o devoluciones.</p>
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Lote</th><th>Fecha</th><th style="text-align:right">Ventas históricas</th><th style="text-align:right">Saldos por cobrar</th><th style="text-align:right">Saldos por pagar</th><th style="text-align:right">Kardex</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var l in Model.Lotes)
+                {
+                    <tr>
+                        <td><code>@l.Lote</code></td>
+                        <td>@(l.Fecha?.ToString("dd/MM/yyyy HH:mm"))</td>
+                        <td style="text-align:right">@l.Ventas.ToString("N0")</td>
+                        <td style="text-align:right">@l.SaldosCxC.ToString("N0")</td>
+                        <td style="text-align:right">@l.SaldosCxP.ToString("N0")</td>
+                        <td style="text-align:right">@l.Kardex.ToString("N0")</td>
+                        <td>
+                            <form method="post" asp-page-handler="DeshacerLote" onsubmit="return confirm('¿Deshacer el lote @l.Lote?');">
+                                <input type="hidden" name="lote" value="@l.Lote" />
+                                <button type="submit" class="btn-secondary">Deshacer</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

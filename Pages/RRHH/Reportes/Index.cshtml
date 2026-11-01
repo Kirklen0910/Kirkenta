@@ -201,7 +201,7 @@
                     }
                 </tbody>
                 <tfoot>
-                    <tr style="background: #f9fafb; font-weight: 700; border-top: 2px solid var(--color-border);">
+                    <tr style="background: var(--color-surface-2); font-weight: 700; border-top: 2px solid var(--color-border);">
                         <td>TOTAL</td>
                         <td style="text-align: right;">@Model.TotalEmpleados</td>
                         <td style="text-align: right;">100.0%</td>
@@ -259,7 +259,7 @@
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="/lib/chartjs/chart.umd.min.js"></script>
     <script>
         (function () {
             var colores = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#0ea5e9'];
@@ -267,7 +267,7 @@
             // Opciones globales de Chart.js para todos los gráficos
             Chart.defaults.font.family = "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
             Chart.defaults.font.size = 12;
-            Chart.defaults.color = '#6b7280';
+            Chart.defaults.color = kkCss('--color-muted');
 
             // ===== Chart: Empleados por departamento =====
             var canvasDep = document.getElementById('chartDepartamentos');
@@ -275,6 +275,7 @@
                 var labelsDep = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.EmpleadosPorDepartamento.Select(d => d.Departamento)));
                 var dataDep = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.EmpleadosPorDepartamento.Select(d => d.Cantidad)));
 
+                if (window.Chart) { Chart.defaults.color = kkCss('--color-muted'); Chart.defaults.borderColor = kkCss('--color-border'); }
                 new Chart(canvasDep, {
                     type: 'bar',
                     data: {
@@ -312,7 +313,7 @@
                             y: {
                                 beginAtZero: true,
                                 ticks: { stepSize: 1, precision: 0 },
-                                grid: { color: '#f3f4f6' }
+                                grid: { color: kkCss('--color-border') }
                             }
                         }
                     }
@@ -333,7 +334,7 @@
                             data: dataEst,
                             backgroundColor: colores,
                             borderWidth: 2,
-                            borderColor: '#ffffff'
+                            borderColor: kkCss('--color-surface')
                         }]
                     },
                     options: {
@@ -404,7 +405,7 @@
                                         return 'L. ' + v;
                                     }
                                 },
-                                grid: { color: '#f3f4f6' }
+                                grid: { color: kkCss('--color-border') }
                             }
                         }
                     }

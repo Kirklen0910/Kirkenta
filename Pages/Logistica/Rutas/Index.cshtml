@@ -65,19 +65,19 @@
         <span class="kpi-value" style="color: var(--color-primary);">@Model.TotalEnReparto</span>
         <span class="kpi-trend">@Model.TotalParadasPendientes parada(s) pendiente(s)</span>
     </a>
-    <a asp-page="/Logistica/Rutas/Index" asp-route-filtro="atrasadas" class="kpi-card" style="text-decoration: none; cursor: pointer; border-left: 4px solid #ef4444; @(Model.FiltroAlerta == "atrasadas" ? "box-shadow: 0 0 0 2px #ef4444;" : "")">
+    <a asp-page="/Logistica/Rutas/Index" asp-route-filtro="atrasadas" class="kpi-card" style="text-decoration: none; cursor: pointer; border-left: 4px solid var(--color-danger); @(Model.FiltroAlerta == "atrasadas" ? "box-shadow: 0 0 0 2px #ef4444;" : "")">
         <span class="kpi-label">🔴 Atrasadas</span>
-        <span class="kpi-value" style="color: #ef4444;">@Model.TotalAtrasadas</span>
+        <span class="kpi-value" style="color: var(--color-danger);">@Model.TotalAtrasadas</span>
         <span class="kpi-trend">Con paradas vencidas</span>
     </a>
     <a asp-page="/Logistica/Rutas/Index" asp-route-filtro="completadas" class="kpi-card" style="text-decoration: none; cursor: pointer; @(Model.FiltroAlerta == "completadas" ? "box-shadow: 0 0 0 2px #10b981;" : "")">
         <span class="kpi-label">✅ Completadas</span>
-        <span class="kpi-value" style="color: #10b981;">@Model.TotalCompletadas</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.TotalCompletadas</span>
         <span class="kpi-trend">Cerradas con éxito</span>
     </a>
     <a asp-page="/Logistica/Rutas/Index" class="kpi-card" style="text-decoration: none; cursor: pointer;">
         <span class="kpi-label">❌ Canceladas</span>
-        <span class="kpi-value" style="color: #6b7280;">@Model.TotalCanceladas</span>
+        <span class="kpi-value" style="color: var(--color-muted);">@Model.TotalCanceladas</span>
         <span class="kpi-trend">Historial</span>
     </a>
 </div>
@@ -96,12 +96,12 @@
     </div>
     <div class="kpi-card">
         <span class="kpi-label">🟢 Entregadas</span>
-        <span class="kpi-value" style="color: #10b981;">@Model.TotalParadasEntregadas</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.TotalParadasEntregadas</span>
         <span class="kpi-trend">Completadas</span>
     </div>
     <div class="kpi-card">
         <span class="kpi-label">🔴 Fallidas</span>
-        <span class="kpi-value" style="color: #dc2626;">@Model.TotalParadasFallidas</span>
+        <span class="kpi-value" style="color: var(--color-danger-strong);">@Model.TotalParadasFallidas</span>
         <span class="kpi-trend">Requieren reagendar</span>
     </div>
 </div>
@@ -177,7 +177,7 @@
             "atrasadas" => "🔴 Mostrando solo rutas ATRASADAS",
             _ => ""
         };
-        <div style="padding: 10px 16px; background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary); border-radius: 6px; font-size: 13px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="padding: 10px 16px; background: var(--color-primary-soft); border: 1px solid var(--color-primary-border); color: var(--color-primary); border-radius: 6px; font-size: 13px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
             <span><strong>@texto</strong></span>
             <a asp-page="/Logistica/Rutas/Index" style="font-size: 12px; text-decoration: underline;">Quitar filtro</a>
         </div>
@@ -283,12 +283,12 @@
                                     <span style="font-size: 12px; font-weight: 600;">
                                         @(r.ParadasEntregadas + r.ParadasFallidas) / @r.TotalParadas (@r.Progreso%)
                                     </span>
-                                    <div style="width: 80px; height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden;">
+                                    <div style="width: 80px; height: 6px; background: var(--color-border); border-radius: 3px; overflow: hidden;">
                                         <div style="width: @(r.Progreso)%; height: 100%; background: @(r.Progreso == 100 ? "#10b981" : r.EsAtrasada ? "#ef4444" : "#4f46e5");"></div>
                                     </div>
                                     @if (r.ParadasAtrasadas > 0)
                                     {
-                                        <span class="table-user-sub" style="color: #ef4444; font-size: 11px;">
+                                        <span class="table-user-sub" style="color: var(--color-danger); font-size: 11px;">
                                             🔴 @r.ParadasAtrasadas atrasada(s)
                                         </span>
                                     }

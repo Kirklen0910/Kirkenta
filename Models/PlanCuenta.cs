@@ -59,6 +59,6 @@ namespace Kirkenta.Models
         public string? Descripcion { get; set; }
 
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
-        public int EmpresaId { get; set; } = 1;
+        public int EmpresaId { get; set; } = Kirkenta.Helpers.EmpresaActual.Id;
     }
 }

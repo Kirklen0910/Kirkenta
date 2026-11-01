@@ -30,6 +30,28 @@ namespace Kirkenta.Pages.Finanzas
 
         public int CantidadCuentas { get; set; }
 
+        // Mes anterior (para comparar)
+        public decimal IngresosMesAnterior { get; set; }
+        public decimal EgresosMesAnterior { get; set; }
+
+        // Posición del negocio (devengado)
+        public decimal PorCobrar { get; set; }
+        public decimal PorPagar { get; set; }
+        public decimal IsvNeto { get; set; }
+        public decimal SaldoFavorClientes { get; set; }
+        public decimal SaldoCajaChica { get; set; }
+        public int CajasAbiertas { get; set; }
+
+        // Salud contable
+        public bool BalanceDisponible { get; set; }
+        public bool BalanceCuadra { get; set; }
+        public decimal BalanceDiferencia { get; set; }
+        public int MovimientosSinClasificar { get; set; }
+
+        private static readonly object _candadoBalance = new();
+        private static Helpers.Finanzas.ContabilidadHelper.BalanceGeneral? _balanceCache;
+        private static DateTime _balanceCacheHora = DateTime.MinValue;
+
         // Listas
         public List<CuentaResumen> Cuentas { get; set; } = new();
         public List<MovimientoItem> UltimosMovimientos { get; set; } = new();
@@ -104,9 +126,60 @@ namespace Kirkenta.Pages.Finanzas
                 .Where(m => m.Fecha >= inicioMes && m.Fecha < finMes && m.Estado == "Activo")
                 .ToList();
 
+            // Flujo de caja = efectivo real: se excluyen los movimientos solo contables (costo de ventas)
+            var catsSoloContables = Kirkenta.Helpers.Finanzas.FlujoCajaHelper.CategoriasSoloContables(_context);
+            movimientosMes = movimientosMes
+                .Where(m => !Kirkenta.Helpers.Finanzas.FlujoCajaHelper.EsSoloContable(m, catsSoloContables))
+                .ToList();
+
             IngresosMes = movimientosMes.Where(m => m.Tipo == "Ingreso").Sum(m => m.Monto);
             EgresosMes = movimientosMes.Where(m => m.Tipo == "Egreso").Sum(m => m.Monto);
             BalanceMes = IngresosMes - EgresosMes;
+
+            // Mes anterior
+            var inicioMesAnt = inicioMes.AddMonths(-1);
+            var movsAnt = _context.MovimientosFinancieros.AsNoTracking()
+                .Where(m => m.Fecha >= inicioMesAnt && m.Fecha < inicioMes && m.Estado == "Activo")
+                .Select(m => new { m.Tipo, m.Monto, m.Notas, m.CategoriaId }).ToList()
+                .Where(m => !Kirkenta.Helpers.Finanzas.FlujoCajaHelper.EsSoloContable(m.Notas, m.Tipo, m.CategoriaId, catsSoloContables))
+                .ToList();
+            IngresosMesAnterior = movsAnt.Where(m => m.Tipo == "Ingreso").Sum(m => m.Monto);
+            EgresosMesAnterior = movsAnt.Where(m => m.Tipo == "Egreso").Sum(m => m.Monto);
+
+            // Posición del negocio: lo que nos deben, lo que debemos y el crédito de clientes
+            try
+            {
+                var devengo = Kirkenta.Helpers.Finanzas.DevengoHelper.Calcular(_context, null, hoy.AddDays(1));
+                PorCobrar = devengo.CuentasPorCobrar;
+                PorPagar = devengo.CuentasPorPagar;
+                SaldoFavorClientes = _context.SaldoFavorMovimientos.AsNoTracking().Sum(m => (decimal?)m.Monto) ?? 0m;
+            }
+            catch (Exception ex) { Console.WriteLine($"[Finanzas.Index] Posición: {ex.Message}"); }
+
+            SaldoCajaChica = cuentas.Where(c => c.Subtipo == "Chica").Sum(c => c.SaldoActual);
+            CajasAbiertas = _context.AperturasCaja.AsNoTracking().Count(a => a.Activa);
+
+            // Salud contable: el Balance (en caché 2 minutos) dice el ISV por pagar y si cuadra
+            try
+            {
+                Helpers.Finanzas.ContabilidadHelper.BalanceGeneral? balance;
+                lock (_candadoBalance)
+                {
+                    if (_balanceCache == null || (DateTime.Now - _balanceCacheHora).TotalSeconds > 120 || _balanceCache.FechaCorte != hoy)
+                    {
+                        _balanceCache = Helpers.Finanzas.ContabilidadHelper.GenerarBalanceGeneral(_context, hoy);
+                        _balanceCacheHora = DateTime.Now;
+                    }
+                    balance = _balanceCache;
+                }
+                BalanceDisponible = true;
+                BalanceCuadra = balance.Cuadra;
+                BalanceDiferencia = balance.Diferencia;
+                MovimientosSinClasificar = balance.MovimientosSinClasificar;
+                IsvNeto = (balance.Pasivos.FirstOrDefault(l => l.Codigo == "2.1.02.001")?.Monto ?? 0m)
+                        - (balance.Activos.FirstOrDefault(l => l.Codigo == "1.1.05")?.Monto ?? 0m);
+            }
+            catch (Exception ex) { Console.WriteLine($"[Finanzas.Index] Balance: {ex.Message}"); }
 
             // Vales pendientes
             var valesPendientes = _context.ValesEmpleado
@@ -153,7 +226,9 @@ namespace Kirkenta.Pages.Finanzas
             var movimientosRango = _context.MovimientosFinancieros
                 .AsNoTracking()
                 .Where(m => m.Fecha >= inicioRango && m.Fecha < finMes && m.Estado == "Activo")
-                .Select(m => new { m.Fecha, m.Tipo, m.Monto })
+                .Select(m => new { m.Fecha, m.Tipo, m.Monto, m.Notas, m.CategoriaId })
+                .ToList()
+                .Where(m => !Kirkenta.Helpers.Finanzas.FlujoCajaHelper.EsSoloContable(m.Notas, m.Tipo, m.CategoriaId, catsSoloContables))
                 .ToList();
 
             var labels = new List<string>();

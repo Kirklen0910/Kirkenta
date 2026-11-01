@@ -36,7 +36,9 @@ namespace Kirkenta.Pages.Configuracion
             public string? RazonSocial { get; set; }
 
             [StringLength(20)]
-            public string? RTN { get; set; }
+            [Rtn]
+            public string? RTN { get => _rtn; set => _rtn = DocumentoHonduras.FormatearRtn(value); }
+            private string? _rtn;
 
             [StringLength(300)]
             public string? Direccion { get; set; }
@@ -48,6 +50,7 @@ namespace Kirkenta.Pages.Configuracion
             public string? Pais { get; set; }
 
             [StringLength(30)]
+            [Telefono]
             public string? Telefono { get; set; }
 
             [EmailAddress]
@@ -69,6 +72,19 @@ namespace Kirkenta.Pages.Configuracion
 
             public DateTime? FechaLimiteEmision { get; set; }
 
+            public bool FacturacionFiscalActiva { get; set; }
+
+            [StringLength(50)]
+            public string? NotaCreditoCAI { get; set; }
+
+            [StringLength(30)]
+            public string? NotaCreditoRangoInicial { get; set; }
+
+            [StringLength(30)]
+            public string? NotaCreditoRangoFinal { get; set; }
+
+            public DateTime? NotaCreditoFechaLimite { get; set; }
+
             public string? NotasFactura { get; set; }
         }
 
@@ -76,9 +92,9 @@ namespace Kirkenta.Pages.Configuracion
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Empresa", "editar"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para editar o aprobar aquí";
                 return RedirectToPage("/Index");
             }
 
@@ -107,6 +123,11 @@ namespace Kirkenta.Pages.Configuracion
                 RangoInicial = empresa.RangoInicial,
                 RangoFinal = empresa.RangoFinal,
                 FechaLimiteEmision = empresa.FechaLimiteEmision,
+                FacturacionFiscalActiva = empresa.FacturacionFiscalActiva,
+                NotaCreditoCAI = empresa.NotaCreditoCAI,
+                NotaCreditoRangoInicial = empresa.NotaCreditoRangoInicial,
+                NotaCreditoRangoFinal = empresa.NotaCreditoRangoFinal,
+                NotaCreditoFechaLimite = empresa.NotaCreditoFechaLimite,
                 NotasFactura = empresa.NotasFactura
             };
 
@@ -117,10 +138,28 @@ namespace Kirkenta.Pages.Configuracion
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Empresa", "editar"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para editar o aprobar aquí";
                 return RedirectToPage("/Index");
+            }
+
+            if (Input.FacturacionFiscalActiva)
+            {
+                var errorFiscal = FacturacionFiscalHelper.ValidarConfiguracion(
+                    Input.CAI, Input.RangoInicial, Input.RangoFinal, Input.FechaLimiteEmision);
+                if (errorFiscal != null)
+                    ModelState.AddModelError("Input.CAI", errorFiscal);
+            }
+
+            if (Input.FacturacionFiscalActiva
+                && NotaCreditoFiscalHelper.HayDatos(Input.NotaCreditoCAI, Input.NotaCreditoRangoInicial,
+                                                    Input.NotaCreditoRangoFinal, Input.NotaCreditoFechaLimite))
+            {
+                var errorNc = FacturacionFiscalHelper.ValidarConfiguracion(
+                    Input.NotaCreditoCAI, Input.NotaCreditoRangoInicial, Input.NotaCreditoRangoFinal, Input.NotaCreditoFechaLimite);
+                if (errorNc != null)
+                    ModelState.AddModelError("Input.NotaCreditoCAI", "Notas de crédito: " + errorNc);
             }
 
             if (!ModelState.IsValid) return Page();
@@ -162,10 +201,11 @@ namespace Kirkenta.Pages.Configuracion
                 // Eliminar archivo anterior si existe
                 if (!string.IsNullOrEmpty(empresa.LogoPath))
                 {
-                    var rutaAnterior = Path.Combine(_env.WebRootPath, empresa.LogoPath.TrimStart('/').Replace("uploads/", "uploads/"));
+                    var rutaRelativa = empresa.LogoPath.Split('?')[0].TrimStart('/');
+                    var rutaAnterior = Path.Combine(_env.WebRootPath, rutaRelativa);
                     if (System.IO.File.Exists(rutaAnterior))
                     {
-                        try { System.IO.File.Delete(rutaAnterior); } catch { }
+                        try { System.IO.File.Delete(rutaAnterior); } catch (IOException) { /* archivo en uso: se sobrescribe/queda huérfano */ } catch (UnauthorizedAccessException) { }
                     }
                 }
 
@@ -179,9 +219,26 @@ namespace Kirkenta.Pages.Configuracion
             }
             else
             {
-                // Mantener el logo existente
-                empresa.LogoPath = Input.LogoPath;
+                // Mantener el logo existente (no confiar en la ruta enviada por el formulario)
             }
+
+            // Auditoría: valores de antes vs después de los datos que importan (fiscales y de identidad)
+            var cambiosConfig = CambiosHelper.Describir(
+                ("Nombre", empresa.Nombre, Input.Nombre),
+                ("Razón social", empresa.RazonSocial, Input.RazonSocial),
+                ("RTN", empresa.RTN, Input.RTN),
+                ("Facturación fiscal", empresa.FacturacionFiscalActiva, Input.FacturacionFiscalActiva),
+                ("CAI", empresa.CAI, Input.CAI),
+                ("Rango inicial", empresa.RangoInicial, Input.RangoInicial),
+                ("Rango final", empresa.RangoFinal, Input.RangoFinal),
+                ("Fecha límite", empresa.FechaLimiteEmision, Input.FechaLimiteEmision),
+                ("CAI NC", empresa.NotaCreditoCAI, Input.NotaCreditoCAI),
+                ("Rango inicial NC", empresa.NotaCreditoRangoInicial, Input.NotaCreditoRangoInicial),
+                ("Rango final NC", empresa.NotaCreditoRangoFinal, Input.NotaCreditoRangoFinal),
+                ("Fecha límite NC", empresa.NotaCreditoFechaLimite, Input.NotaCreditoFechaLimite),
+                ("Dirección", empresa.Direccion, Input.Direccion),
+                ("Teléfono", empresa.Telefono, Input.Telefono),
+                ("Email", empresa.Email, Input.Email));
 
             empresa.Nombre = Input.Nombre;
             empresa.RazonSocial = Input.RazonSocial;
@@ -192,10 +249,26 @@ namespace Kirkenta.Pages.Configuracion
             empresa.Telefono = Input.Telefono;
             empresa.Email = Input.Email;
             empresa.SitioWeb = Input.SitioWeb;
+            // Si cambió el CAI o el rango, el contador fiscal se reinicia al nuevo rango inicial
+            bool cambioRango = !string.Equals(empresa.CAI, Input.CAI, StringComparison.Ordinal)
+                            || !string.Equals(empresa.RangoInicial, Input.RangoInicial, StringComparison.Ordinal)
+                            || !string.Equals(empresa.RangoFinal, Input.RangoFinal, StringComparison.Ordinal);
+
             empresa.CAI = Input.CAI;
             empresa.RangoInicial = Input.RangoInicial;
             empresa.RangoFinal = Input.RangoFinal;
             empresa.FechaLimiteEmision = Input.FechaLimiteEmision;
+            empresa.FacturacionFiscalActiva = Input.FacturacionFiscalActiva;
+            if (cambioRango) empresa.SiguienteNumeroFiscal = 0;
+
+            bool cambioRangoNc = !string.Equals(empresa.NotaCreditoCAI, Input.NotaCreditoCAI, StringComparison.Ordinal)
+                              || !string.Equals(empresa.NotaCreditoRangoInicial, Input.NotaCreditoRangoInicial, StringComparison.Ordinal)
+                              || !string.Equals(empresa.NotaCreditoRangoFinal, Input.NotaCreditoRangoFinal, StringComparison.Ordinal);
+            empresa.NotaCreditoCAI = Input.NotaCreditoCAI;
+            empresa.NotaCreditoRangoInicial = Input.NotaCreditoRangoInicial;
+            empresa.NotaCreditoRangoFinal = Input.NotaCreditoRangoFinal;
+            empresa.NotaCreditoFechaLimite = Input.NotaCreditoFechaLimite;
+            if (cambioRangoNc) empresa.SiguienteNumeroNotaCredito = 0;
             empresa.NotasFactura = Input.NotasFactura;
             empresa.FechaActualizacion = DateTime.Now;
 
@@ -205,7 +278,7 @@ namespace Kirkenta.Pages.Configuracion
                 _context,
                 currentUser?.Id ?? 0,
                 "Actualizar configuración de empresa",
-                "Actualizó los datos de la empresa",
+                "Actualizó los datos de la empresa. " + cambiosConfig,
                 HttpContext.Connection.RemoteIpAddress?.ToString());
 
             TempData["Success"] = "Configuración actualizada correctamente";

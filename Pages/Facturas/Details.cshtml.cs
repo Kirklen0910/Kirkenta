@@ -24,11 +24,11 @@ namespace Kirkenta.Pages.Facturas
         public List<MetodoPago> MetodosPago { get; set; } = new();
         public ConfiguracionEmpresa Empresa { get; set; } = new();
 
-        // ===== DESGLOSE ISV =====
         public ISVHelper.ResultadoISV DesgloseISV { get; set; } = new();
         public List<Impuesto> ImpuestosActivos { get; set; } = new();
 
-        // ===== ALERTAS CAI =====
+        public bool FiscalActiva { get; set; }
+        public bool PuedeAnular { get; set; }
         public bool CaiPorVencer { get; set; }
         public bool CaiVencido { get; set; }
         public int DiasParaVencerCai { get; set; }
@@ -36,6 +36,12 @@ namespace Kirkenta.Pages.Facturas
 
         public IActionResult OnGet(int id)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Facturas", "ver")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             var factura = _context.Facturas.FirstOrDefault(f => f.Id == id);
             if (factura == null)
             {
@@ -44,6 +50,8 @@ namespace Kirkenta.Pages.Facturas
             }
 
             Factura = factura;
+            PuedeAnular = factura.Estado != "Anulada" && !factura.VentaId.HasValue
+                && PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Facturas", "eliminar");
             Cliente = _context.Clientes.FirstOrDefault(c => c.Id == factura.ClienteId) ?? new Cliente();
             Items = _context.DetalleFacturas.Where(d => d.FacturaId == id).ToList();
             Productos = _context.Productos.ToList();
@@ -52,23 +60,15 @@ namespace Kirkenta.Pages.Facturas
             Empresa = _context.ConfiguracionEmpresa.FirstOrDefault()
                 ?? new ConfiguracionEmpresa { Nombre = "Mi Empresa" };
 
-            // ===== CARGAR DESGLOSE ISV =====
             ImpuestosActivos = ISVHelper.ObtenerTasasActivas(_context);
 
-            var itemsParaISV = Items.Select(i => new ItemParaISV
-            {
-                ProductoId = i.ProductoId,
-                Cantidad = i.Cantidad,
-                PrecioUnitario = i.PrecioUnitario,
-                Descuento = i.Descuento,
-                // Buscamos el ImpuestoId real del producto, no el % del detalle
-                ImpuestoId = Productos.FirstOrDefault(p => p.Id == i.ProductoId)?.ImpuestoId
-            }).ToList();
+            // Desglose fiscal con los porcentajes guardados en la factura (no los del producto de hoy)
+            DesgloseISV = ISVHelper.DesglosarFactura(_context, factura, Items);
 
-            DesgloseISV = ISVHelper.Calcular(_context, itemsParaISV, factura.Descuento);
+            FiscalActiva = Empresa.FacturacionFiscalActiva;
 
-            // ===== VALIDAR CAI =====
-            if (!string.IsNullOrEmpty(Empresa.CAI) && Empresa.FechaLimiteEmision.HasValue)
+            // Alertas solo si la facturación fiscal está activa (si no, no hay mensajes de CAI)
+            if (FiscalActiva && !string.IsNullOrEmpty(Empresa.CAI) && Empresa.FechaLimiteEmision.HasValue)
             {
                 var dias = (Empresa.FechaLimiteEmision.Value.Date - DateTime.Today).Days;
                 DiasParaVencerCai = dias;
@@ -76,20 +76,40 @@ namespace Kirkenta.Pages.Facturas
                 CaiVencido = dias < 0;
             }
 
-            // Validar si el rango CAI se agotó
-            if (!string.IsNullOrEmpty(Empresa.RangoInicial) && !string.IsNullOrEmpty(Empresa.RangoFinal))
+            // Se compara contra el rango con el que se emitió la factura (snapshot), no el actual
+            if (FiscalActiva && !string.IsNullOrEmpty(factura.RangoInicial) && !string.IsNullOrEmpty(factura.RangoFinal))
             {
-                var facturaEnRango = EstaEnRango(factura.Numero, Empresa.RangoInicial, Empresa.RangoFinal);
+                var facturaEnRango = EstaEnRango(factura.Numero, factura.RangoInicial, factura.RangoFinal);
                 RangoCaiAgotado = !facturaEnRango;
             }
 
             return Page();
         }
 
-        /// <summary>
-        /// Valida si un número de factura está dentro del rango CAI autorizado.
-        /// Compara solo los dígitos finales del número.
-        /// </summary>
+        public IActionResult OnPostAnular(int id, string? motivo)
+        {
+            if (!PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Facturas", "eliminar"))
+            {
+                TempData["Error"] = "No tienes permiso para anular facturas";
+                return RedirectToPage("/Facturas/Details", new { id });
+            }
+
+            var usuario = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var (ok, error) = AnulacionFacturaHelper.Anular(_context, id, motivo ?? "", usuario?.Id ?? 0);
+            if (!ok)
+            {
+                TempData["Error"] = error ?? "No se pudo anular la factura.";
+                return RedirectToPage("/Facturas/Details", new { id });
+            }
+
+            ActividadHelper.Registrar(_context, usuario?.Id ?? 0, "Anular factura",
+                $"Anuló la factura {id}: {motivo}",
+                HttpContext.Connection.RemoteIpAddress?.ToString());
+
+            TempData["Success"] = "Factura anulada. Se devolvió el inventario y se revirtieron los movimientos financieros.";
+            return RedirectToPage("/Facturas/Details", new { id });
+        }
+
         private static bool EstaEnRango(string numeroFactura, string rangoInicial, string rangoFinal)
         {
             try
@@ -104,7 +124,7 @@ namespace Kirkenta.Pages.Facturas
             }
             catch
             {
-                return true; // Si no se puede validar, asumimos OK
+                return true;
             }
         }
 

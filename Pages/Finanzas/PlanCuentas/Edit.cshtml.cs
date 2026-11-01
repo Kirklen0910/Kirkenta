@@ -1,5 +1,6 @@
 using Kirkenta.Data;
 using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -130,10 +131,39 @@ namespace Kirkenta.Pages.Finanzas.PlanCuentas
                 }
             }
 
+            // No se puede cambiar el codigo ni el tipo de una cuenta en uso (rompe asientos y reportes)
+            var codigoNuevo = Input.Codigo.Trim();
+            if (codigoNuevo != cuenta.Codigo || Input.Tipo != cuenta.Tipo)
+            {
+                var bloqueo = PlanCuentaProteccion.MotivoBloqueoCodigo(_context, cuenta);
+                if (bloqueo != null)
+                {
+                    ModelState.AddModelError("Input.Codigo",
+                        $"No se puede cambiar el código ni el tipo de esta cuenta porque {bloqueo}.");
+                    return Page();
+                }
+            }
+
+            // Una cuenta con asientos no puede dejar de ser de movimiento
+            if (!Input.EsMovimiento && cuenta.EsMovimiento &&
+                _context.DetallesAsiento.Any(d => d.PlanCuentaId == cuenta.Id))
+            {
+                ModelState.AddModelError("Input.EsMovimiento", "Esta cuenta ya tiene asientos: debe seguir siendo de movimiento.");
+                return Page();
+            }
+
             var nivel = Input.Codigo.Split('.').Length;
             var naturaleza = (Input.Tipo == "Activo" || Input.Tipo == "Costo" || Input.Tipo == "Gasto")
                 ? "Deudora"
                 : "Acreedora";
+
+            var cambiosCuenta = CambiosHelper.Describir(
+                ("Código", cuenta.Codigo, Input.Codigo.Trim()),
+                ("Nombre", cuenta.Nombre, Input.Nombre.Trim()),
+                ("Tipo", cuenta.Tipo, Input.Tipo),
+                ("Padre", cuenta.CodigoPadre, string.IsNullOrWhiteSpace(Input.CodigoPadre) ? null : Input.CodigoPadre.Trim()),
+                ("Movimiento", cuenta.EsMovimiento, Input.EsMovimiento),
+                ("Activa", cuenta.Activa, Input.Activa));
 
             cuenta.Codigo = Input.Codigo.Trim();
             cuenta.Nombre = Input.Nombre.Trim();
@@ -151,7 +181,7 @@ namespace Kirkenta.Pages.Finanzas.PlanCuentas
                 _context,
                 currentUser?.Id ?? 0,
                 "Editar cuenta contable",
-                $"Editó la cuenta '{cuenta.Codigo} - {cuenta.Nombre}'",
+                $"Editó la cuenta '{cuenta.Codigo} - {cuenta.Nombre}'. " + cambiosCuenta,
                 HttpContext.Connection.RemoteIpAddress?.ToString());
 
             TempData["Success"] = $"Cuenta '{cuenta.Codigo} - {cuenta.Nombre}' actualizada correctamente";

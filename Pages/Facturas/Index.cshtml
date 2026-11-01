@@ -12,24 +12,25 @@
 </div>
 
 <div class="module-card">
-    <div class="module-toolbar">
+    <form method="get" class="module-toolbar">
         <div class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input type="text" id="searchInput" placeholder="Buscar por número o cliente..." />
+            <input type="text" id="searchInput" name="Q" value="@Model.Q" placeholder="Buscar por factura, venta o cliente..." />
         </div>
         <div class="filter-group">
-            <select id="filterEstado" class="filter-select">
+            <select id="filterEstado" name="Estado" class="filter-select">
                 <option value="">Todos los estados</option>
-                <option value="Emitida">Emitida</option>
-                <option value="PagadaParcial">Pagada parcial</option>
-                <option value="Pagada">Pagada</option>
-                <option value="Anulada">Anulada</option>
+                <option value="Emitida" selected="@(Model.Estado == "Emitida")">Emitida</option>
+                <option value="PagadaParcial" selected="@(Model.Estado == "PagadaParcial")">Pagada parcial</option>
+                <option value="Pagada" selected="@(Model.Estado == "Pagada")">Pagada</option>
+                <option value="Anulada" selected="@(Model.Estado == "Anulada")">Anulada</option>
             </select>
+            <button type="submit" class="btn-secondary">Filtrar</button>
         </div>
-    </div>
+    </form>
 
     @if (TempData["Success"] != null)
     {
@@ -42,7 +43,7 @@
         </div>
     }
 
-    @if (Model.Facturas.Count == 0)
+    @if (Model.Pager.Total == 0)
     {
         <div class="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -59,7 +60,8 @@
             <table class="erp-table" id="facturasTable">
                 <thead>
                     <tr>
-                        <th>Número</th>
+                        <th>Factura</th>
+                        <th>Venta</th>
                         <th>Cliente</th>
                         <th>Fecha</th>
                         <th>Total</th>
@@ -84,6 +86,7 @@
                             data-cliente="@(cliente?.Nombre.ToLower() ?? "")"
                             data-estado="@f.Estado">
                             <td><strong>@f.Numero</strong></td>
+                            <td>@if (f.VentaId.HasValue && Model.VentaNumeros.TryGetValue(f.VentaId.Value, out var vn)) { <a asp-page="/Ventas/Details" asp-route-id="@f.VentaId">@vn</a> } else { <span class="table-user-sub">—</span> }</td>
                             <td>@(cliente?.Nombre ?? "—")</td>
                             <td>@f.Fecha.ToString("dd/MM/yyyy")</td>
                             <td><strong>L. @f.Total.ToString("N2")</strong></td>
@@ -113,32 +116,6 @@
                 </tbody>
             </table>
         </div>
+        <partial name="_Pager" model="Model.Pager" />
     }
 </div>
-
-@section Scripts {
-    <script>
-        (function () {
-            var searchInput = document.getElementById('searchInput');
-            var filterEstado = document.getElementById('filterEstado');
-            var table = document.getElementById('facturasTable');
-            if (!table) return;
-            var rows = table.querySelectorAll('tbody tr');
-
-            function filterRows() {
-                var search = (searchInput?.value || '').toLowerCase().trim();
-                var estado = filterEstado?.value || '';
-                rows.forEach(function (row) {
-                    var numero = row.dataset.numero || '';
-                    var cliente = row.dataset.cliente || '';
-                    var rowEstado = row.dataset.estado || '';
-                    var matchSearch = !search || numero.includes(search) || cliente.includes(search);
-                    var matchEstado = !estado || rowEstado === estado;
-                    row.style.display = (matchSearch && matchEstado) ? '' : 'none';
-                });
-            }
-            searchInput?.addEventListener('input', filterRows);
-            filterEstado?.addEventListener('change', filterRows);
-        })();
-    </script>
-}

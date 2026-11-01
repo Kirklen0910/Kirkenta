@@ -4,6 +4,7 @@ using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 
 namespace Kirkenta.Pages.RRHH.Vales
@@ -99,9 +100,9 @@ namespace Kirkenta.Pages.RRHH.Vales
             if (!ModelState.IsValid) return Page();
 
             var cuenta = _context.CuentasFinancieras.FirstOrDefault(c => c.Id == CuentaId);
-            if (cuenta == null)
+            if (cuenta == null || !cuenta.Activa || cuenta.Tipo != "Caja")
             {
-                ModelState.AddModelError("CuentaId", "Cuenta no encontrada");
+                ModelState.AddModelError("CuentaId", "Selecciona una caja activa");
                 return Page();
             }
 
@@ -111,6 +112,32 @@ namespace Kirkenta.Pages.RRHH.Vales
                 ModelState.AddModelError("CuentaId",
                     $"Saldo insuficiente en '{cuenta.Nombre}' (disponible: L. {cuenta.SaldoActual:N2}, requerido: L. {vale.Monto:N2})");
                 return Page();
+            }
+
+            // Todo o nada: movimiento + saldo + documento origen en una sola transacción
+            using var tx = _context.Database.BeginTransaction();
+
+            // Reclamo atómico: un vale se entrega una sola vez (doble clic / dos personas a la vez)
+            if (_context.Database.IsRelational())
+            {
+                var reclamado = _context.ValesEmpleado
+                    .Where(v => v.Id == vale.Id && v.Estado == "AprobadoRRHH")
+                    .ExecuteUpdate(u => u.SetProperty(v => v.Estado, "Entregado"));
+                if (reclamado == 0)
+                {
+                    tx.Rollback();
+                    TempData["Error"] = "Este vale ya fue entregado por otra persona";
+                    return RedirectToPage("/RRHH/Vales/Index");
+                }
+                _context.Entry(vale).Reload();
+                _context.Entry(cuenta).Reload();
+                if (cuenta.SaldoActual < vale.Monto)
+                {
+                    tx.Rollback();
+                    _context.ChangeTracker.Clear();
+                    TempData["Error"] = $"Saldo insuficiente en '{cuenta.Nombre}' para entregar el vale";
+                    return RedirectToPage("/RRHH/Vales/Index");
+                }
             }
 
             // Generar movimiento de egreso
@@ -130,7 +157,7 @@ namespace Kirkenta.Pages.RRHH.Vales
                     EsSistema = true,
                     Activa = true,
                     FechaCreacion = DateTime.Now,
-                    EmpresaId = 1
+                    EmpresaId = EmpresaActual.Id
                 };
                 _context.CategoriasFinancieras.Add(categoria);
                 _context.SaveChanges();
@@ -155,7 +182,7 @@ namespace Kirkenta.Pages.RRHH.Vales
                 Estado = "Activo",
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = currentUser?.Id,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             _context.MovimientosFinancieros.Add(movimiento);
@@ -178,6 +205,7 @@ namespace Kirkenta.Pages.RRHH.Vales
             }
 
             _context.SaveChanges();
+            tx.Commit();
 
             ActividadHelper.Registrar(
                 _context,

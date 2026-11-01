@@ -4,6 +4,7 @@ using Kirkenta.Helpers.Import;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
 namespace Kirkenta.Pages.Productos
@@ -11,6 +12,8 @@ namespace Kirkenta.Pages.Productos
     public class ImportMapModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly List<(Producto, decimal)> _stockInicialPendiente = new();
+        private int? _usuarioImportId;
 
         public ImportMapModel(ApplicationDbContext context)
         {
@@ -29,7 +32,24 @@ namespace Kirkenta.Pages.Productos
             public bool Requerido { get; set; }
         }
 
-        private static readonly Dictionary<string, string[]> AliasCampos = new()
+        public static readonly List<CampoMapeo> CamposDef = new List<CampoMapeo>
+            {
+            new() { Key = "SKU",              Label = "SKU",                 Requerido = false },
+            new() { Key = "Nombre",           Label = "Nombre",              Requerido = true },
+            new() { Key = "Descripcion",      Label = "Descripción",         Requerido = false },
+            new() { Key = "CodigoBarras",     Label = "Código de barras",    Requerido = false },
+            new() { Key = "Categoria",        Label = "Categoría",           Requerido = false },
+            new() { Key = "Impuesto",         Label = "Impuesto",            Requerido = false },
+            new() { Key = "UnidadMedida",     Label = "Unidad de medida",    Requerido = false },
+            new() { Key = "PrecioCompra",     Label = "Precio compra",       Requerido = false },
+            new() { Key = "PrecioVenta",      Label = "Precio venta",        Requerido = true },
+            new() { Key = "PrecioMayorista",  Label = "Precio mayorista",    Requerido = false },
+            new() { Key = "Stock",            Label = "Stock",               Requerido = false },
+            new() { Key = "StockMinimo",      Label = "Stock mínimo",        Requerido = false },
+            new() { Key = "Activo",           Label = "Activo (Sí/No)",      Requerido = false },
+        };
+
+        private static readonly Dictionary<string, string[]> AliasBase = new()
         {
             { "SKU",           new[] { "sku", "codigo", "code", "cod", "clave", "codigoproducto" } },
             { "CodigoBarras",  new[] { "codigobarras", "barras", "barcode", "ean", "upc" } },
@@ -45,6 +65,20 @@ namespace Kirkenta.Pages.Productos
             { "StockMinimo",   new[] { "stockminimo", "minimo", "minstock", "min" } },
             { "Activo",        new[] { "activo", "active", "estado", "status" } },
         };
+
+        /// <summary>
+        /// Alias de autodetección. Incluye la etiqueta visible de cada campo ("Código de barras",
+        /// "Unidad de medida"...) para que los archivos exportados / la plantilla se mapeen exactos.
+        /// </summary>
+        public static readonly Dictionary<string, string[]> AliasCampos = AliasBase.ToDictionary(
+            p => p.Key,
+            p => p.Value
+                .Append(ColumnMapper.MarcaPropio + ImportWizardConfig.EtiquetaLimpia(
+                    CamposDef.FirstOrDefault(c => c.Key == p.Key)?.Label ?? p.Key))
+                .ToArray());
+
+        public IActionResult OnGetPlantilla() =>
+            File(ImportReportHelper.PlantillaXlsx(CamposDef.Select(c => c.Label)), ImportReportHelper.TipoXlsx, "plantilla_productos.xlsx");
 
         public IActionResult OnGet()
         {
@@ -72,22 +106,7 @@ namespace Kirkenta.Pages.Productos
 
             MapaSugerido = ColumnMapper.Detectar(HeadersArchivo, AliasCampos);
 
-            Campos = new List<CampoMapeo>
-            {
-                new() { Key = "SKU",              Label = "SKU",                 Requerido = false },
-                new() { Key = "Nombre",           Label = "Nombre",              Requerido = true },
-                new() { Key = "Descripcion",      Label = "Descripción",         Requerido = false },
-                new() { Key = "CodigoBarras",     Label = "Código de barras",    Requerido = false },
-                new() { Key = "Categoria",        Label = "Categoría",           Requerido = false },
-                new() { Key = "Impuesto",         Label = "Impuesto",            Requerido = false },
-                new() { Key = "UnidadMedida",     Label = "Unidad de medida",    Requerido = false },
-                new() { Key = "PrecioCompra",     Label = "Precio compra",       Requerido = false },
-                new() { Key = "PrecioVenta",      Label = "Precio venta",        Requerido = true },
-                new() { Key = "PrecioMayorista",  Label = "Precio mayorista",    Requerido = false },
-                new() { Key = "Stock",            Label = "Stock",               Requerido = false },
-                new() { Key = "StockMinimo",      Label = "Stock mínimo",        Requerido = false },
-                new() { Key = "Activo",           Label = "Activo (Sí/No)",      Requerido = false },
-            };
+            Campos = CamposDef;
 
             return Page();
         }
@@ -126,6 +145,7 @@ namespace Kirkenta.Pages.Productos
             }
 
             var filas = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(jsonRows) ?? new();
+            HeadersArchivo = JsonSerializer.Deserialize<List<string>>(jsonHeaders) ?? new();
 
             if (string.IsNullOrEmpty(Mapeo.GetValueOrDefault("Nombre")))
             {
@@ -152,8 +172,9 @@ namespace Kirkenta.Pages.Productos
             HttpContext.Session.Remove("ImportProductos_Headers");
             HttpContext.Session.Remove("ImportProductos_Rows");
 
-            TempData["Success"] = $"Importación completada: {resultado.Resumen()}";
-            return RedirectToPage("/Productos/Index");
+            // Éxito limpio => mensaje y listado. Con errores/advertencias => pantalla de resultado
+            // con el motivo de cada fila y CSV descargable para corregir y reintentar.
+            return ImportReportHelper.Finalizar(this, "/Productos/Index", resultado, HeadersArchivo, filas);
         }
 
         private ImportResult ImportarProductos(
@@ -166,19 +187,25 @@ namespace Kirkenta.Pages.Productos
         {
             var resultado = new ImportResult { TotalFilas = filas.Count };
 
+            _usuarioImportId = _context.Usuarios
+                .Where(u => u.Username == User.Identity!.Name)
+                .Select(u => (int?)u.Id)
+                .FirstOrDefault();
+
             // ===== 1. Precargar catálogos y existentes =====
             var categorias = _context.Categorias.ToList();
             var impuestos = _context.Impuestos.ToList();
+            var unidades = _context.UnidadesMedida.AsNoTracking().ToList();
 
             var skusExistentes = _context.Productos
                 .Where(p => p.SKU != null)
                 .Select(p => p.SKU!)
-                .ToHashSet();
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var codigosBarrasExistentes = _context.Productos
                 .Where(p => p.CodigoBarras != null)
                 .Select(p => p.CodigoBarras!)
-                .ToHashSet();
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             // ===== 2. Serie de SKU y próximo número local =====
             var serieProducto = _context.SeriesDocumentos
@@ -211,6 +238,10 @@ namespace Kirkenta.Pages.Productos
                         return fila.GetValueOrDefault(header)?.Trim();
                     }
 
+                    string Etiq(string campo) => ImportWizardConfig.EtiquetaLimpia(
+                        CamposDef.FirstOrDefault(c => c.Key == campo)?.Label ?? campo);
+                    decimal? Num(string campo) => ImportHelper.Decimal(resultado, filaNum, Etiq(campo), Obtener(campo));
+
                     var nombre = Obtener("Nombre");
                     if (string.IsNullOrWhiteSpace(nombre))
                     {
@@ -228,6 +259,18 @@ namespace Kirkenta.Pages.Productos
                     if (precioVenta == null)
                     {
                         resultado.AgregarError(filaNum, "El campo 'Precio venta' es obligatorio y debe ser numérico");
+                        continue;
+                    }
+
+                    var activo = ImportHelper.Booleano(resultado, filaNum, Etiq("Activo"), Obtener("Activo"));
+                    var precioCompra = Num("PrecioCompra");
+                    var precioMayorista = Num("PrecioMayorista");
+                    var stock = Num("Stock");
+                    var stockMinimo = Num("StockMinimo");
+                    
+                    if ((stock ?? 0) < 0 || (precioCompra ?? 0) < 0 || (precioMayorista ?? 0) < 0 || precioVenta.Value < 0)
+                    {
+                        resultado.AgregarError(filaNum, "Stock y precios no pueden ser negativos");
                         continue;
                     }
 
@@ -257,6 +300,16 @@ namespace Kirkenta.Pages.Productos
                     if (existente == null && !string.IsNullOrEmpty(codigoBarras))
                         existente = _context.Productos.FirstOrDefault(p => p.CodigoBarras == codigoBarras);
 
+                    // Actualizando: el código de barras nuevo no puede pertenecer a otro producto
+                    if (existente != null && !string.IsNullOrEmpty(codigoBarras) &&
+                        !string.Equals(codigoBarras, existente.CodigoBarras, StringComparison.OrdinalIgnoreCase) &&
+                        codigosBarrasExistentes.Contains(codigoBarras))
+                    {
+                        resultado.AgregarAdvertencia(filaNum,
+                            $"El código de barras '{codigoBarras}' ya lo usa otro producto; no se cambió.");
+                        codigoBarras = null;
+                    }
+
                     if (existente != null && modo == "crear")
                     {
                         resultado.Ignorados++;
@@ -268,6 +321,24 @@ namespace Kirkenta.Pages.Productos
                         resultado.AgregarAdvertencia(filaNum, $"Producto '{nombre}' no existe, se ignora (modo: solo actualizar)");
                         resultado.Ignorados++;
                         continue;
+                    }
+
+                    // ===== Duplicados dentro del mismo archivo =====
+                    // (antes dos filas nuevas con el mismo SKU o código de barras hacían fallar TODA la importación)
+                    if (existente == null)
+                    {
+                        if (!string.IsNullOrEmpty(sku) && !skusExistentes.Add(sku))
+                        {
+                            resultado.AgregarAdvertencia(filaNum, $"El SKU '{sku}' está repetido en el archivo; se ignora esta fila.");
+                            resultado.Ignorados++;
+                            continue;
+                        }
+                        if (!string.IsNullOrEmpty(codigoBarras) && !codigosBarrasExistentes.Add(codigoBarras))
+                        {
+                            resultado.AgregarAdvertencia(filaNum, $"El código de barras '{codigoBarras}' está repetido en el archivo; se ignora esta fila.");
+                            resultado.Ignorados++;
+                            continue;
+                        }
                     }
 
                     // ===== Autogenerar SKU si no viene o si fue rechazado =====
@@ -287,17 +358,27 @@ namespace Kirkenta.Pages.Productos
                     int? categoriaId = ResolverCategoria(Obtener("Categoria"), categorias, crearCategoriasAuto, resultado, filaNum);
                     int? impuestoId = ResolverImpuesto(Obtener("Impuesto"), impuestos, crearImpuestosAuto, resultado, filaNum);
 
-                    var activo = ParserHelper.ParsearBool(Obtener("Activo"));
-                    var precioCompra = ParserHelper.ParsearDecimal(Obtener("PrecioCompra"));
-                    var precioMayorista = ParserHelper.ParsearDecimal(Obtener("PrecioMayorista"));
-                    var stock = ParserHelper.ParsearDecimal(Obtener("Stock"));
-                    var stockMinimo = ParserHelper.ParsearDecimal(Obtener("StockMinimo"));
+                    // ===== Unidad de medida: se resuelve contra el catálogo (nombre o abreviatura) =====
                     var unidad = Obtener("UnidadMedida");
-
-                    // ===== VALIDACIÓN: UnidadMedida máx 20 =====
-                    if (!string.IsNullOrEmpty(unidad) && unidad.Length > 20)
+                    if (!string.IsNullOrEmpty(unidad))
                     {
-                        unidad = unidad.Substring(0, 20);
+                        var unidadNorm = ColumnMapper.Normalizar(unidad);
+                        var enCatalogo = unidades.FirstOrDefault(u => ColumnMapper.Normalizar(u.Nombre) == unidadNorm)
+                                         ?? unidades.FirstOrDefault(u => ColumnMapper.Normalizar(u.Abreviatura) == unidadNorm);
+                        if (enCatalogo != null)
+                        {
+                            unidad = enCatalogo.Nombre;
+                        }
+                        else
+                        {
+                            resultado.AgregarAdvertencia(filaNum,
+                                $"La unidad de medida '{unidad}' no está en el catálogo de unidades; se guardó tal cual.");
+                        }
+                        if (unidad.Length > 20)
+                        {
+                            resultado.AgregarAdvertencia(filaNum, "La unidad de medida excede 20 caracteres; se recortó.");
+                            unidad = unidad.Substring(0, 20);
+                        }
                     }
 
                     if (existente != null)
@@ -310,7 +391,10 @@ namespace Kirkenta.Pages.Productos
                         existente.PrecioCompra = precioCompra ?? existente.PrecioCompra;
                         existente.PrecioVenta = precioVenta.Value;
                         existente.PrecioMayorista = precioMayorista ?? existente.PrecioMayorista;
-                        existente.Stock = stock ?? existente.Stock;
+                        // El stock nunca se pisa directo: el cambio queda en el kardex
+                        if (stock.HasValue)
+                            InventarioHelper.Ajustar(_context, existente, stock.Value, "Importacion", _usuarioImportId,
+                                "Ajuste por importación de productos");
                         existente.StockMinimo = stockMinimo ?? existente.StockMinimo;
                         if (!string.IsNullOrEmpty(unidad)) existente.UnidadMedida = unidad;
                         existente.Activo = activo ?? existente.Activo;
@@ -329,7 +413,7 @@ namespace Kirkenta.Pages.Productos
                             PrecioCompra = precioCompra ?? 0,
                             PrecioVenta = precioVenta.Value,
                             PrecioMayorista = precioMayorista ?? 0,
-                            Stock = stock ?? 0,
+                            Stock = 0,
                             StockMinimo = stockMinimo ?? 0,
                             UnidadMedida = string.IsNullOrEmpty(unidad) ? "Unidad" : unidad,
                             Activo = activo ?? true,
@@ -337,6 +421,7 @@ namespace Kirkenta.Pages.Productos
                         };
 
                         _context.Productos.Add(producto);
+                        if ((stock ?? 0) > 0) _stockInicialPendiente.Add((producto, stock!.Value));
                         resultado.Creados++;
                     }
                 }
@@ -346,15 +431,28 @@ namespace Kirkenta.Pages.Productos
                 }
             }
 
-            // ===== 3. Guardar de una sola vez =====
-            _context.SaveChanges();
-
-            // ===== 4. Sincronizar la serie =====
-            if (serieProducto != null && resultado.Creados > 0)
+            // ===== 3. Guardar de una sola vez (todo o nada) =====
+            ImportHelper.GuardarSeguro(_context, resultado, () =>
             {
-                serieProducto.SiguienteNumero = proximoNumeroLocal;
                 _context.SaveChanges();
-            }
+
+                // Stock inicial de productos nuevos: entra por el kardex (ya tienen Id)
+                if (_stockInicialPendiente.Count > 0)
+                {
+                    foreach (var (prod, cant) in _stockInicialPendiente)
+                        InventarioHelper.Registrar(_context, prod, cant, "StockInicial", null, prod.Id,
+                            _usuarioImportId, prod.PrecioCompra, "Stock inicial por importación");
+                    _context.SaveChanges();
+                }
+
+                // ===== 4. Sincronizar la serie =====
+                if (serieProducto != null && resultado.Creados > 0)
+                {
+                    serieProducto.SiguienteNumero = proximoNumeroLocal;
+                    _context.SaveChanges();
+                }
+            });
+            _stockInicialPendiente.Clear();
 
             return resultado;
         }
@@ -372,6 +470,9 @@ namespace Kirkenta.Pages.Productos
                 resultado.AgregarAdvertencia(filaNum, $"Categoría '{valor}' no existe (no se creó)");
                 return null;
             }
+
+            if (valor.Length > 100)
+                resultado.AgregarAdvertencia(filaNum, $"El nombre de la categoría '{valor}' excede 100 caracteres; se recortó.");
 
             var nueva = new Categoria
             {
@@ -393,11 +494,10 @@ namespace Kirkenta.Pages.Productos
             var existente = impuestos.FirstOrDefault(i => ColumnMapper.Normalizar(i.Nombre) == nombreNormalizado);
             if (existente != null) return existente.Id;
 
-            if (decimal.TryParse(valor.Replace("%", "").Trim(),
-                System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out var porcentaje))
+            var porcentajeValor = ParserHelper.ParsearDecimal(valor);
+            if (porcentajeValor.HasValue)
             {
-                var porPorcentaje = impuestos.FirstOrDefault(i => i.Porcentaje == porcentaje);
+                var porPorcentaje = impuestos.FirstOrDefault(i => i.Porcentaje == porcentajeValor.Value);
                 if (porPorcentaje != null) return porPorcentaje.Id;
             }
 
@@ -407,12 +507,18 @@ namespace Kirkenta.Pages.Productos
                 return null;
             }
 
+            // Nunca se crea un impuesto "inventado" al 0 %: sin un porcentaje claro, no se crea
+            if (!porcentajeValor.HasValue || porcentajeValor < 0 || porcentajeValor > 100)
+            {
+                resultado.AgregarAdvertencia(filaNum,
+                    $"Impuesto '{valor}' no existe y no trae un porcentaje válido para crearlo; se dejó sin impuesto.");
+                return null;
+            }
+
             var nuevo = new Impuesto
             {
                 Nombre = valor.Length > 50 ? valor.Substring(0, 50) : valor,
-                Porcentaje = decimal.TryParse(valor.Replace("%", "").Trim(),
-                    System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture, out var p) ? p : 0,
+                Porcentaje = porcentajeValor.Value,
                 Activo = true
             };
             _context.Impuestos.Add(nuevo);

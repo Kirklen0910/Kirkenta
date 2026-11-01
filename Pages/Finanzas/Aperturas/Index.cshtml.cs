@@ -16,6 +16,13 @@ namespace Kirkenta.Pages.Finanzas.Aperturas
             _context = context;
         }
 
+        private const int TamanoPagina = 50;
+
+        [BindProperty(SupportsGet = true, Name = "p")]
+        public int Pagina { get; set; } = 1;
+
+        public PagerInfo Pager { get; set; } = new();
+
         public List<AperturaItem> Aperturas { get; set; } = new();
         public List<CuentaFinanciera> Cuentas { get; set; } = new();
         public int AperturasActivas { get; set; }
@@ -67,15 +74,19 @@ namespace Kirkenta.Pages.Finanzas.Aperturas
                 .AsNoTracking()
                 .ToDictionary(u => u.Id, u => u.Username);
 
-            var cierresDict = _context.CierresCaja
-                .AsNoTracking()
-                .ToDictionary(c => c.Id, c => c.Numero);
-
-            var lista = _context.AperturasCaja
-                .AsNoTracking()
+            var baseQuery = _context.AperturasCaja.AsNoTracking();
+            Pager = new PagerInfo(Pagina, TamanoPagina, baseQuery.Count());
+            var lista = baseQuery
                 .OrderByDescending(a => a.Fecha)
                 .ThenByDescending(a => a.Id)
+                .Skip(Pager.Skip).Take(TamanoPagina)
                 .ToList();
+
+            var idsCierres = lista.Where(a => a.CierreId.HasValue).Select(a => a.CierreId!.Value).Distinct().ToList();
+            var cierresDict = _context.CierresCaja
+                .AsNoTracking()
+                .Where(c => idsCierres.Contains(c.Id))
+                .ToDictionary(c => c.Id, c => c.Numero);
 
             Aperturas = lista.Select(a => new AperturaItem
             {
@@ -91,7 +102,7 @@ namespace Kirkenta.Pages.Finanzas.Aperturas
                 CierreNumero = a.CierreId.HasValue ? cierresDict.GetValueOrDefault(a.CierreId.Value) : null
             }).ToList();
 
-            AperturasActivas = lista.Count(a => a.Activa);
+            AperturasActivas = baseQuery.Count(a => a.Activa);
 
             return Page();
         }

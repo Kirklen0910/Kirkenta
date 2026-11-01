@@ -35,15 +35,19 @@ namespace Kirkenta.Pages.Proveedores
             public string? RazonSocial { get; set; }
 
             [StringLength(20)]
-            public string? RTN { get; set; }
+            [Rtn]
+            public string? RTN { get => _rtn; set => _rtn = DocumentoHonduras.FormatearRtn(value); }
+            private string? _rtn;
 
             [StringLength(100)]
             public string? Contacto { get; set; }
 
             [StringLength(30)]
+            [Telefono]
             public string? TelefonoContacto { get; set; }
 
             [StringLength(30)]
+            [Telefono]
             public string? Telefono { get; set; }
 
             [EmailAddress(ErrorMessage = "Email inválido")]
@@ -159,7 +163,7 @@ namespace Kirkenta.Pages.Proveedores
                 Activo = Input.Activo,
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = currentUser?.Id,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             _context.Proveedores.Add(proveedor);

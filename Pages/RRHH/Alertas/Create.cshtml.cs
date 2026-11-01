@@ -91,7 +91,7 @@ namespace Kirkenta.Pages.RRHH.Alertas
                 MostrarEnDashboard = Input.MostrarEnDashboard,
                 Completada = false,
                 UsuarioCreoId = currentUser?.Id,
-                EmpresaId = 1,
+                EmpresaId = EmpresaActual.Id,
                 FechaCreacion = DateTime.Now
             };
 

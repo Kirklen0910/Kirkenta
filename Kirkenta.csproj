@@ -1,14 +1,32 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>59fe3117-ad0e-4c9f-b99c-fc5363b42af9</UserSecretsId>
+    <!-- Ícono de Kirkenta.exe (se ve en el escritorio, la barra de tareas y el administrador de tareas) -->
+    <ApplicationIcon>instalador\recursos\kirkenta.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- El proyecto de pruebas vive en tests\ y no debe compilarse dentro de la app -->
+    <Compile Remove="tests\**" />
+    <Content Remove="tests\**" />
+    <EmbeddedResource Remove="tests\**" />
+    <None Remove="tests\**" />
+    <!-- La herramienta del emisor de licencias vive en tools\Licenciador y NUNCA se compila ni se entrega con el sistema -->
+    <Compile Remove="tools\**" />
+    <Content Remove="tools\**" />
+    <EmbeddedResource Remove="tools\**" />
+    <None Remove="tools\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
     <PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="ExcelDataReader" Version="3.7.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
     <PackageReference Include="CsvHelper" Version="33.1.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
@@ -21,6 +39,8 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
+    <PackageReference Include="MySqlConnector" Version="2.*" />
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
   </ItemGroup>
 
 </Project>

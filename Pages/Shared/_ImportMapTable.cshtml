@@ -1,0 +1,214 @@
+@* Tabla de mapeo de columnas del wizard de importación (paso 2), compartida por todos los módulos. *@
+@* Uso: @await Html.PartialAsync("_ImportMapTable", ImportMapViewModel.Crear(...)) *@
+@* Los selects se llaman Mapeo[Key], igual que antes, así que los handlers OnPost no cambian. *@
+@model Kirkenta.Helpers.Import.ImportMapViewModel
+@{
+    var datosJs = System.Text.Json.JsonSerializer.Serialize(new
+    {
+        muestras = Model.Headers
+            .Distinct()
+            .ToDictionary(
+                h => h,
+                h => Model.Filas
+                    .Select(f => f.GetValueOrDefault(h) ?? "")
+                    .Where(v => !string.IsNullOrWhiteSpace(v))
+                    .Take(3)
+                    .ToList()),
+        sugerido = Model.Campos.ToDictionary(c => c.Key, c => Model.Sugerido.GetValueOrDefault(c.Key) ?? ""),
+        exacto = Model.Campos.ToDictionary(c => c.Key, c => c.SugeridoExacto),
+        requeridos = Model.Campos.Where(c => c.Requerido).Select(c => c.Key).ToList(),
+        etiquetas = Model.Campos.ToDictionary(c => c.Key, c => c.Label)
+    });
+    var detectados = Model.Campos.Count(c => !string.IsNullOrEmpty(Model.Sugerido.GetValueOrDefault(c.Key)));
+}
+
+<div class="module-card" style="padding: 28px; margin-bottom: 20px;" id="imap-root">
+    <h3 class="form-section-title">Mapeo de columnas</h3>
+    <p class="form-section-desc">
+        Tu archivo tiene <strong>@Model.Headers.Count columnas</strong> y <strong>@Model.TotalFilas filas</strong>.
+        Para cada <strong>campo del sistema</strong> (izquierda) elige la <strong>columna de tu archivo</strong> que trae ese dato.
+        Ya intentamos emparejarlas solas (@detectados de @Model.Campos.Count); revisa que estén bien antes de importar.
+    </p>
+
+    <div id="imap-resumen" class="imap-resumen" role="status"></div>
+
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin: 12px 0;">
+        <button type="button" class="btn-secondary" id="imap-restaurar">Restaurar sugerencias</button>
+        <button type="button" class="btn-secondary" id="imap-limpiar">Limpiar todo</button>
+    </div>
+
+    <div class="table-wrapper" style="margin-top: 8px;">
+        <table class="erp-table imap-table">
+            <thead>
+                <tr>
+                    <th style="width:26%;">Campo del sistema</th>
+                    <th style="width:28%;">Columna de tu archivo</th>
+                    <th style="width:16%;">Estado</th>
+                    <th>Así se ve en tu archivo</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var campo in Model.Campos)
+                {
+                    var sugerido = Model.Sugerido.GetValueOrDefault(campo.Key);
+                    <tr data-fila="@campo.Key">
+                        <td>
+                            <strong>@campo.Label</strong>
+                            @if (campo.Requerido)
+                            {
+                                <span style="color: var(--color-danger);" title="Obligatorio">*</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(campo.Ayuda))
+                            {
+                                <div style="font-size:11.5px; color:var(--color-muted); margin-top:2px;">@campo.Ayuda</div>
+                            }
+                        </td>
+                        <td>
+                            <select name="Mapeo[@campo.Key]" data-key="@campo.Key" class="form-input">
+                                <option value="">— Ignorar este campo —</option>
+                                @foreach (var header in Model.Headers)
+                                {
+                                    if (header == sugerido)
+                                    {
+                                        <option value="@header" selected>@header</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@header">@header</option>
+                                    }
+                                }
+                            </select>
+                        </td>
+                        <td><span class="imap-badge" data-estado></span></td>
+                        <td class="imap-muestra" data-muestra></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div id="imap-sin-usar" style="margin-top:14px; font-size:12.5px; color:var(--color-muted);"></div>
+</div>
+
+<style>
+    .imap-resumen { padding: 10px 14px; border-radius: 8px; font-size: 13px; border: 1px solid var(--color-border); background: var(--color-surface-2); }
+    .imap-resumen.imap-ok { background: var(--color-success-bg); border-color: var(--color-success-border); color: var(--color-success-text); }
+    .imap-resumen.imap-falta { background: var(--color-danger-bg); border-color: var(--color-danger-border); color: var(--color-danger-text); }
+    .imap-badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+    .imap-badge.b-ok { background: var(--color-success-bg); color: var(--color-success-text); }
+    .imap-badge.b-rev { background: var(--color-warning-bg); color: var(--color-warning-text); }
+    .imap-badge.b-man { background: var(--color-info-bg); color: var(--color-info-text); }
+    .imap-badge.b-falta { background: var(--color-danger-bg); color: var(--color-danger-text); }
+    .imap-badge.b-ign { background: var(--color-surface-3); color: var(--color-muted); }
+    .imap-badge.b-dup { background: var(--color-warning-bg); color: var(--color-warning-text); }
+    .imap-muestra { font-size: 12.5px; color: var(--color-muted); }
+    .imap-chip { display: inline-block; background: var(--color-surface-3); border-radius: 6px; padding: 1px 8px; margin: 2px 4px 2px 0; font-size: 12px; }
+    .imap-table tr.imap-fila-falta td { background: var(--color-danger-bg); }
+</style>
+
+<script type="application/json" id="imap-datos">@Html.Raw(datosJs)</script>
+<script>
+(function () {
+    var root = document.getElementById('imap-root');
+    if (!root) return;
+
+    var datos = JSON.parse(document.getElementById('imap-datos').textContent);
+    var selects = Array.prototype.slice.call(root.querySelectorAll('select[data-key]'));
+    var resumen = document.getElementById('imap-resumen');
+    var sinUsar = document.getElementById('imap-sin-usar');
+    var form = root.closest('form');
+
+    function recortar(t) { return t.length > 40 ? t.substring(0, 40) + '…' : t; }
+
+    function faltantes() {
+        return selects.filter(function (s) {
+            return datos.requeridos.indexOf(s.getAttribute('data-key')) >= 0 && !s.value;
+        }).map(function (s) { return datos.etiquetas[s.getAttribute('data-key')]; });
+    }
+
+    function actualizar() {
+        var usos = {};
+        selects.forEach(function (s) { if (s.value) usos[s.value] = (usos[s.value] || 0) + 1; });
+
+        selects.forEach(function (s) {
+            var key = s.getAttribute('data-key');
+            var fila = root.querySelector('tr[data-fila="' + key + '"]');
+            var badge = fila.querySelector('[data-estado]');
+            var muestra = fila.querySelector('[data-muestra]');
+            var requerido = datos.requeridos.indexOf(key) >= 0;
+            var v = s.value;
+            var clase, texto;
+
+            if (!v) {
+                clase = requerido ? 'b-falta' : 'b-ign';
+                texto = requerido ? 'Falta (obligatorio)' : 'Se ignorará';
+            } else if (usos[v] > 1) {
+                clase = 'b-dup'; texto = 'Columna repetida';
+            } else if (v === datos.sugerido[key]) {
+                clase = datos.exacto[key] ? 'b-ok' : 'b-rev';
+                texto = datos.exacto[key] ? '✓ Coincide' : '≈ Sugerida, revísala';
+            } else {
+                clase = 'b-man'; texto = 'Elegida por ti';
+            }
+
+            badge.className = 'imap-badge ' + clase;
+            badge.textContent = texto;
+            fila.classList.toggle('imap-fila-falta', !v && requerido);
+
+            var vals = v ? (datos.muestras[v] || []) : [];
+            muestra.textContent = v
+                ? (vals.length ? vals.map(recortar).join('  ·  ') : '(columna sin datos en las primeras filas)')
+                : '—';
+        });
+
+        var falta = faltantes();
+        var asignados = selects.filter(function (s) { return s.value; }).length;
+        var repetidas = Object.keys(usos).filter(function (k) { return usos[k] > 1; });
+
+        if (falta.length) {
+            resumen.className = 'imap-resumen imap-falta';
+            resumen.textContent = 'Falta mapear: ' + falta.join(', ') + '. Son campos obligatorios.';
+        } else {
+            resumen.className = 'imap-resumen imap-ok';
+            resumen.textContent = asignados + ' de ' + selects.length + ' campos con columna asignada. ' +
+                (repetidas.length ? 'Atención: usaste la misma columna en más de un campo (' + repetidas.join(', ') + ').' : 'Todo listo para importar.');
+        }
+
+        var libres = Object.keys(datos.muestras).filter(function (h) { return !usos[h]; });
+        sinUsar.innerHTML = '';
+        if (libres.length) {
+            sinUsar.appendChild(document.createTextNode('Columnas de tu archivo que no se van a importar: '));
+            libres.forEach(function (h) {
+                var chip = document.createElement('span');
+                chip.className = 'imap-chip';
+                chip.textContent = h;
+                sinUsar.appendChild(chip);
+            });
+        }
+    }
+
+    selects.forEach(function (s) { s.addEventListener('change', actualizar); });
+
+    document.getElementById('imap-restaurar').addEventListener('click', function () {
+        selects.forEach(function (s) { s.value = datos.sugerido[s.getAttribute('data-key')] || ''; });
+        actualizar();
+    });
+
+    document.getElementById('imap-limpiar').addEventListener('click', function () {
+        selects.forEach(function (s) { s.value = ''; });
+        actualizar();
+    });
+
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            if (faltantes().length) {
+                e.preventDefault();
+                actualizar();
+                root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    }
+
+    actualizar();
+})();
+</script>

@@ -1,0 +1,97 @@
+@page
+@model Kirkenta.Pages.EntregasBodega.CreateModel
+@{
+    ViewData["Title"] = "Nueva entrega en bodega";
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/EntregasBodega/Index" class="back-link">← Volver a entregas</a>
+        <h2>Entrega en bodega · Venta @Model.Venta.Numero</h2>
+        <p>@(Model.Cliente?.Nombre ?? "Consumidor final") · @Model.Venta.Fecha.ToString("dd/MM/yyyy")</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Ventas/Details" asp-route-id="@Model.Venta.Id" class="btn-secondary">Ver venta</a>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        <input type="hidden" asp-for="VentaId" />
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error"><div asp-validation-summary="All"></div></div>
+        }
+
+        <p class="form-help">Escribe cuánto se entrega hoy de cada producto. Puedes entregar por partes: el sistema lleva lo que falta hasta llegar a 0.</p>
+
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th style="text-align:right">Vendido</th>
+                        <th style="text-align:right">Ya entregado</th>
+                        <th style="text-align:right">Pendiente</th>
+                        <th style="width:150px">Entregar ahora</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Model.Lineas.Count; i++)
+                    {
+                        var l = Model.Lineas[i];
+                        <tr>
+                            <td>
+                                <a asp-page="/Productos/Historial" asp-route-id="@l.ProductoId">@l.Producto</a>
+                                <input type="hidden" name="Items[@i].DetalleVentaId" value="@l.DetalleVentaId" />
+                            </td>
+                            <td style="text-align:right">@l.Vendida.ToString("0.####")</td>
+                            <td style="text-align:right">@l.Entregada.ToString("0.####")</td>
+                            <td style="text-align:right"><strong>@l.Pendiente.ToString("0.####")</strong></td>
+                            <td>
+                                @if (l.Pendiente > 0)
+                                {
+                                    <input type="number" name="Items[@i].Cantidad" class="form-input ent-input" step="0.0001" min="0" max="@l.Pendiente.ToString(inv)" value="0" data-pend="@l.Pendiente.ToString(inv)" />
+                                    <button type="button" class="btn-secondary ent-todo" style="padding:2px 8px" title="Entregar todo lo pendiente">todo</button>
+                                }
+                                else
+                                {
+                                    <input type="hidden" name="Items[@i].Cantidad" value="0" />
+                                    <span class="badge badge-success">Completo</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="form-row" style="margin-top:16px">
+            <div class="form-field">
+                <label asp-for="RecibidoPor">Recibe (nombre)</label>
+                <input asp-for="RecibidoPor" class="form-input" maxlength="150" placeholder="Quién retira la mercadería" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Notas">Notas</label>
+                <input asp-for="Notas" class="form-input" maxlength="300" />
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/EntregasBodega/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">Emitir comprobante de entrega</button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.ent-todo').forEach(function (b) {
+            b.addEventListener('click', function () {
+                var inp = this.parentElement.querySelector('.ent-input');
+                inp.value = inp.dataset.pend;
+            });
+        });
+    </script>
+}

@@ -10,6 +10,8 @@
         <p>Datos que aparecerán en tus cotizaciones, facturas y documentos</p>
     </div>
     <div class="module-header-right">
+        @if (Model.PuedeEditar)
+        {
         <a asp-page="/Configuracion/Edit" class="btn-primary">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -17,6 +19,7 @@
             </svg>
             Editar
         </a>
+        }
     </div>
 </div>
 
@@ -100,6 +103,10 @@
         <h3 class="form-section-title">Datos fiscales (para facturas)</h3>
 
         <div class="empresa-info-grid">
+            <div class="empresa-info-item">
+                <span class="empresa-info-label">Facturación fiscal</span>
+                <span class="empresa-info-value">@(Model.Empresa.FacturacionFiscalActiva ? "Activa" : "Desactivada (numeración interna)")</span>
+            </div>
             <div class="empresa-info-item">
                 <span class="empresa-info-label">CAI</span>
                 <span class="empresa-info-value">@(Model.Empresa.CAI ?? "—")</span>

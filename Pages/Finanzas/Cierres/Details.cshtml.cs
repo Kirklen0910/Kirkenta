@@ -29,6 +29,8 @@ namespace Kirkenta.Pages.Finanzas.Cierres
         public List<MovimientoResumen> MovimientosDia { get; set; } = new();
         public List<DistribucionView> Distribuciones { get; set; } = new();
         public List<AdjuntoCierre> Adjuntos { get; set; } = new();
+        public List<CierreCajaConteo> Conteos { get; set; } = new();
+        public InformeMetodosPago Informe { get; set; } = new();
 
         public bool PuedeAprobar { get; set; }
         public bool PuedeSubirAdjunto { get; set; }
@@ -101,6 +103,16 @@ namespace Kirkenta.Pages.Finanzas.Cierres
                     Monto = m.Monto
                 })
                 .ToList();
+
+            var (infDesde, infHasta) = InformeMetodosPagoHelper.RangoDeCierre(_context, cierre);
+            Informe = InformeMetodosPagoHelper.Generar(_context, infDesde, infHasta, null);
+            Informe.Efectivo = new EfectivoCaja
+            {
+                SaldoInicial = cierre.SaldoInicialSistema, Ingresos = cierre.TotalIngresosEfectivo,
+                Egresos = cierre.TotalEgresosEfectivo, Esperado = cierre.EfectivoEsperado
+            };
+
+            Conteos = _context.ConteosCierreCaja.AsNoTracking().Where(c => c.CierreCajaId == cierre.Id).OrderBy(c => c.Id).ToList();
 
             Distribuciones = DistribucionHelper.ObtenerDistribuciones(_context, cierre.Id);
 

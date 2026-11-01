@@ -1,0 +1,114 @@
+@page
+@model Kirkenta.Pages.DevolucionesProveedor.CreateModel
+@{
+    ViewData["Title"] = "Nueva devolución a proveedor";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/DevolucionesProveedor/Index" class="back-link">← Volver</a>
+        <h2>Nueva devolución a proveedor</h2>
+        <p>Baja el inventario y reduce lo que se le debe al proveedor.</p>
+    </div>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">@TempData["Error"]</div>
+}
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="module-alert module-alert-error">
+        @foreach (var e in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+        {
+            <div>@e.ErrorMessage</div>
+        }
+    </div>
+}
+
+@if (Model.Orden == null)
+{
+    <div class="module-card" style="padding:24px;">
+        <h3>Selecciona la orden de compra</h3>
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Orden</th><th>Proveedor</th><th>Fecha</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                    @if (!Model.OrdenesDisponibles.Any())
+                    {
+                        <tr><td colspan="5" style="text-align:center;padding:20px;">No hay órdenes recibidas</td></tr>
+                    }
+                    @foreach (var o in Model.OrdenesDisponibles)
+                    {
+                        <tr>
+                            <td><strong>@o.Numero</strong></td>
+                            <td>@(Model.Proveedores.TryGetValue(o.ProveedorId, out var pn) ? pn : "—")</td>
+                            <td>@o.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@o.Estado</td>
+                            <td><a asp-page="/DevolucionesProveedor/Create" asp-route-ordenId="@o.Id" class="btn-primary">Devolver</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else
+{
+    <div class="module-card" style="padding:24px;">
+        <p>
+            <strong>Orden @Model.Orden.Numero</strong> — Proveedor: @(Model.Proveedor?.Nombre ?? "—") —
+            Saldo por pagar: <strong>L. @Model.Orden.Saldo.ToString("N2")</strong>
+        </p>
+
+        <form method="post">
+            <input type="hidden" asp-for="Input.OrdenCompraId" />
+
+            <div class="table-wrapper">
+                <table class="erp-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th style="text-align:right;">Recibida</th>
+                            <th style="text-align:right;">Ya devuelta</th>
+                            <th style="text-align:right;">Disponible</th>
+                            <th style="text-align:right;">Costo unit.</th>
+                            <th style="text-align:right;">Cantidad a devolver</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Model.Lineas.Count; i++)
+                        {
+                            var l = Model.Lineas[i];
+                            <tr>
+                                <td>
+                                    @l.Producto
+                                    <input type="hidden" name="Input.Items[@i].DetalleOrdenId" value="@l.DetalleOrdenId" />
+                                </td>
+                                <td style="text-align:right;">@l.Recibida.ToString("0.##")</td>
+                                <td style="text-align:right;">@l.Devuelta.ToString("0.##")</td>
+                                <td style="text-align:right;">@l.Disponible.ToString("0.##")</td>
+                                <td style="text-align:right;">L. @l.CostoUnitario.ToString("N2")</td>
+                                <td style="text-align:right;">
+                                    <input type="number" step="any" min="0" max="@l.Disponible.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                           name="Input.Items[@i].Cantidad" value="@(Model.Input.Items.Count > i ? Model.Input.Items[i].Cantidad.ToString(System.Globalization.CultureInfo.InvariantCulture) : "0")"
+                                           class="form-input" style="width:100px;text-align:right;" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="form-field" style="margin-top:16px;">
+                <label asp-for="Input.Motivo">Motivo</label>
+                <input asp-for="Input.Motivo" class="form-input" placeholder="Ej: mercadería dañada, error en el pedido" />
+            </div>
+
+            <div class="form-actions">
+                <a asp-page="/DevolucionesProveedor/Index" class="btn-secondary">Cancelar</a>
+                <button type="submit" class="btn-primary" onclick="return confirm('¿Registrar esta devolución? Baja el inventario.');">Registrar devolución</button>
+            </div>
+        </form>
+    </div>
+}

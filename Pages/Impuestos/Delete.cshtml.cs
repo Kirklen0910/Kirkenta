@@ -21,9 +21,9 @@ namespace Kirkenta.Pages.Impuestos
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Impuestos", "eliminar"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para eliminar aquí";
                 return RedirectToPage("/Impuestos/Index");
             }
 
@@ -42,9 +42,9 @@ namespace Kirkenta.Pages.Impuestos
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Impuestos", "eliminar"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para eliminar aquí";
                 return RedirectToPage("/Impuestos/Index");
             }
 
@@ -52,6 +52,20 @@ namespace Kirkenta.Pages.Impuestos
             if (impuesto == null)
             {
                 TempData["Error"] = "Impuesto no encontrado";
+                return RedirectToPage("/Impuestos/Index");
+            }
+
+            // El impuesto predeterminado es el que se aplica a las ventas nuevas: sin él, el ISV sale en 0.
+            if (impuesto.EsPredeterminado)
+            {
+                TempData["Error"] = "No se puede eliminar el impuesto predeterminado. Marca otro como predeterminado primero.";
+                return RedirectToPage("/Impuestos/Index");
+            }
+
+            // Si es el único impuesto activo, tampoco: quedaría el sistema sin ISV.
+            if (impuesto.Activo && !_context.Impuestos.Any(i => i.Id != id && i.Activo))
+            {
+                TempData["Error"] = "No se puede eliminar el único impuesto activo del sistema.";
                 return RedirectToPage("/Impuestos/Index");
             }
 

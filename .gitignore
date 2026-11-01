@@ -46,3 +46,16 @@ backups/
 logs/
 assets/
 uploads/
+
+# ===== SNAPSHOTS Y BACKUPS DE BD =====
+snapshots/
+PROYECTO*.md
+backup_*.sql
+# ===== DATOS LOCALES, SECRETOS Y COMPILADOS =====
+App_Data/
+tools/secretos/
+respaldos/
+publicar/
+instalador/recursos/
+instalador/salida/
+.claude/

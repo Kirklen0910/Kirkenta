@@ -1,0 +1,77 @@
+@page
+@model Kirkenta.Pages.Finanzas.Contabilidad.LibroMayorModel
+@{
+    ViewData["Title"] = "Libro mayor";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Libro mayor</h2>
+        <p>Movimientos y saldo corrido de una cuenta contable</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Finanzas/Contabilidad/LibroDiario" class="btn-secondary">Libro diario</a>
+        <a asp-page="/Finanzas/Contabilidad/Balanza" class="btn-secondary">Balanza</a>
+    </div>
+</div>
+
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="filter-group">
+            <select name="CuentaId" class="filter-select" style="min-width: 300px;">
+                <option value="">— Selecciona una cuenta —</option>
+                @foreach (var c in Model.Cuentas)
+                {
+                    <option value="@c.Id" selected="@(Model.CuentaId == c.Id)">@c.Codigo — @c.Nombre</option>
+                }
+            </select>
+            <input type="date" name="Desde" class="filter-select" value="@(Model.Desde?.ToString("yyyy-MM-dd"))" />
+            <input type="date" name="Hasta" class="filter-select" value="@(Model.Hasta?.ToString("yyyy-MM-dd"))" />
+            <button type="submit" class="btn-secondary">Consultar</button>
+        </div>
+    </form>
+
+    @if (Model.Cuenta == null)
+    {
+        <div class="empty-state"><h3>Selecciona una cuenta para ver su mayor</h3></div>
+    }
+    else
+    {
+        <div style="padding: 16px 20px;">
+            <strong>@Model.Cuenta.Codigo — @Model.Cuenta.Nombre</strong>
+            <span class="badge badge-info">@Model.Cuenta.Naturaleza</span>
+        </div>
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Fecha</th><th>Asiento</th><th>Concepto</th><th style="text-align:right;">Debe</th><th style="text-align:right;">Haber</th><th style="text-align:right;">Saldo</th></tr></thead>
+                <tbody>
+                    <tr style="background: var(--color-surface-2);">
+                        <td colspan="5"><em>Saldo inicial</em></td>
+                        <td style="text-align:right;"><strong>L. @Model.SaldoInicial.ToString("N2")</strong></td>
+                    </tr>
+                    @foreach (var l in Model.Lineas)
+                    {
+                        <tr>
+                            <td>@l.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td><a asp-page="/Finanzas/Asientos/Details" asp-route-id="@l.AsientoId">@l.Numero</a></td>
+                            <td>@l.Concepto@(string.IsNullOrEmpty(l.Detalle) ? "" : " · " + l.Detalle)</td>
+                            <td style="text-align:right;">@(l.Debe > 0 ? l.Debe.ToString("N2") : "")</td>
+                            <td style="text-align:right;">@(l.Haber > 0 ? l.Haber.ToString("N2") : "")</td>
+                            <td style="text-align:right;">L. @l.Saldo.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" style="text-align:right; font-weight:600;">Totales / saldo final</td>
+                        <td style="text-align:right; font-weight:600;">L. @Model.TotalDebe.ToString("N2")</td>
+                        <td style="text-align:right; font-weight:600;">L. @Model.TotalHaber.ToString("N2")</td>
+                        <td style="text-align:right; font-weight:600;">L. @Model.SaldoFinal.ToString("N2")</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    }
+</div>

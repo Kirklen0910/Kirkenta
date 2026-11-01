@@ -50,7 +50,7 @@
                 <label asp-for="Input.Color">Color</label>
                 <div class="color-picker-wrapper">
                     <input asp-for="Input.Color" type="color" class="color-picker" id="colorPicker" />
-                    <span id="colorPreview" style="background: @Model.Input.Color; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;">@Model.Input.Color</span>
+                    <span id="colorPreview" style="background: @Model.Input.Color; color: var(--color-on-primary); padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;">@Model.Input.Color</span>
                 </div>
             </div>
         </div>

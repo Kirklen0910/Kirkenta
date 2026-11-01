@@ -161,7 +161,7 @@
                             <td style="text-align: right;">
                                 @if (e.DiasVacacionesDisponibles > 0)
                                 {
-                                    <span class="badge badge-info">@e.DiasVacacionesDisponibles días</span>
+                                    <span class="badge badge-info">@e.DiasVacacionesDisponibles.ToString("0.##") días</span>
                                 }
                                 else
                                 {
@@ -191,7 +191,7 @@
                                 }
                                 else
                                 {
-                                    <span class="badge" style="background:#e5e7eb; color:#6b7280;">@e.Estado</span>
+                                    <span class="badge" style="background:var(--color-border); color:var(--color-muted);">@e.Estado</span>
                                 }
                             </td>
                             <td>

@@ -51,7 +51,7 @@
             </div>
             <div class="totales-row">
                 <span>Días hábiles solicitados:</span>
-                <strong>@Model.Vacacion.DiasSolicitados</strong>
+                <strong>@Model.Vacacion.DiasSolicitados.ToString("0.##")</strong>
             </div>
             @if (Model.Vacacion.DiasFeriados > 0)
             {
@@ -62,18 +62,18 @@
             }
             <div class="totales-row totales-row-final">
                 <span>DÍAS A DESCONTAR:</span>
-                <strong>@Model.Vacacion.DiasADescontar</strong>
+                <strong>@Model.Vacacion.DiasADescontar.ToString("0.##")</strong>
             </div>
         </div>
 
         <div class="kpi-grid" style="margin-bottom: 20px;">
             <div class="kpi-card">
                 <span class="kpi-label">Saldo actual del empleado</span>
-                <span class="kpi-value">@Model.Empleado.DiasVacacionesDisponibles días</span>
+                <span class="kpi-value">@Model.Empleado.DiasVacacionesDisponibles.ToString("0.##") días</span>
             </div>
             <div class="kpi-card">
                 <span class="kpi-label">Saldo después de aprobar</span>
-                <span class="kpi-value" style="color: var(--color-primary);">@(Model.Empleado.DiasVacacionesDisponibles - Model.Vacacion.DiasADescontar) días</span>
+                <span class="kpi-value" style="color: var(--color-primary);">@((Model.Empleado.DiasVacacionesDisponibles - Model.Vacacion.DiasADescontar).ToString("0.##")) días</span>
             </div>
         </div>
 
@@ -81,7 +81,7 @@
         {
             <div class="form-field">
                 <label>Motivo del empleado</label>
-                <p style="padding: 12px; background: #f9fafb; border-radius: 6px; font-size: 13px;">@Model.Vacacion.Motivo</p>
+                <p style="padding: 12px; background: var(--color-surface-2); border-radius: 6px; font-size: 13px;">@Model.Vacacion.Motivo</p>
             </div>
         }
 

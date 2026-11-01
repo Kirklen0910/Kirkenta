@@ -1,0 +1,26 @@
+@model Kirkenta.Helpers.Finanzas.InformeMetodosPago
+@using System.Text.Json
+@{
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    var datos = new
+    {
+        metodos = Model.Metodos.Select(m => new { clave = m.Clave, nombre = m.Nombre, tipo = m.Tipo, total = m.Total, cantidad = m.Cantidad }),
+        egresos = Model.Egresos.Select(e => new { nombre = e.Nombre, total = e.Total, cantidad = e.Cantidad }),
+        todas = Model.Todas.Select(x => new { fecha = x.Fecha.ToString("dd/MM HH:mm", inv), doc = x.Documento, cliente = x.Cliente, metodo = x.Metodo, clave = x.Clave, @ref = x.Referencia, monto = x.Monto, tipo = x.Tipo }),
+        totalCobrado = Model.TotalCobrado,
+        totalTransacciones = Model.TotalTransacciones,
+        ventasContado = Model.VentasContado,
+        ventasCredito = Model.VentasCredito,
+        cantidadCredito = Model.CantidadCredito,
+        saldoCredito = Model.SaldoCreditoPendiente,
+        totalEgresos = Model.TotalEgresos,
+        efectivo = Model.Efectivo == null ? null : new { saldoInicial = Model.Efectivo.SaldoInicial, ingresos = Model.Efectivo.Ingresos, egresos = Model.Efectivo.Egresos, esperado = Model.Efectivo.Esperado }
+    };
+    var json = JsonSerializer.Serialize(datos);
+}
+<link rel="stylesheet" href="~/css/informe-metodos.css" asp-append-version="true" />
+<div class="kk-inf" data-kk-informe>
+    <script type="application/json" class="kk-inf-data">@Html.Raw(json)</script>
+    <div class="kk-inf-root"><p class="kk-inf-sub">Cargando informe…</p></div>
+</div>
+<script src="~/js/informe-metodos.js" asp-append-version="true" defer></script>

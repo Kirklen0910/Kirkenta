@@ -33,13 +33,16 @@ namespace Kirkenta.Pages.Clientes
             public string? RazonSocial { get; set; }
 
             [StringLength(20)]
-            public string? RTN { get; set; }
+            [Rtn]
+            public string? RTN { get => _rtn; set => _rtn = DocumentoHonduras.FormatearRtn(value); }
+            private string? _rtn;
 
             [EmailAddress(ErrorMessage = "Email inválido")]
             [StringLength(150)]
             public string? Email { get; set; }
 
             [StringLength(30)]
+            [Telefono]
             public string? Telefono { get; set; }
 
             [StringLength(300)]
@@ -52,10 +55,44 @@ namespace Kirkenta.Pages.Clientes
             public string? Pais { get; set; } = "Honduras";
 
             public string TipoCliente { get; set; } = "Regular";
+            [Range(0, double.MaxValue, ErrorMessage = "El límite de crédito no puede ser negativo")]
             public decimal LimiteCredito { get; set; } = 0;
+            [Range(0, 365, ErrorMessage = "Días de crédito entre 0 y 365")]
             public int DiasCredito { get; set; } = 0;
             public string? Notas { get; set; }
             public bool Activo { get; set; } = true;
+
+            public bool EsExonerado { get; set; }
+
+            [StringLength(50)]
+            public string? ExoneradoConstancia { get; set; }
+
+            [StringLength(50)]
+            public string? ExoneradoOrdenCompraExenta { get; set; }
+
+            [StringLength(50)]
+            public string? ExoneradoRegistroSag { get; set; }
+        }
+
+        // Un cliente exonerado debe tener su constancia y su registro SAG (son los que se imprimen en la factura)
+        private void ValidarExoneracion()
+        {
+            Input.ExoneradoConstancia = Input.ExoneradoConstancia?.Trim();
+            Input.ExoneradoOrdenCompraExenta = Input.ExoneradoOrdenCompraExenta?.Trim();
+            Input.ExoneradoRegistroSag = Input.ExoneradoRegistroSag?.Trim();
+
+            if (!Input.EsExonerado)
+            {
+                Input.ExoneradoConstancia = null;
+                Input.ExoneradoOrdenCompraExenta = null;
+                Input.ExoneradoRegistroSag = null;
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(Input.ExoneradoConstancia))
+                ModelState.AddModelError("Input.ExoneradoConstancia", "Indica el número de constancia de exoneración");
+            if (string.IsNullOrWhiteSpace(Input.ExoneradoRegistroSag))
+                ModelState.AddModelError("Input.ExoneradoRegistroSag", "Indica el número de registro SAG");
         }
 
         public IActionResult OnGet()
@@ -83,14 +120,26 @@ namespace Kirkenta.Pages.Clientes
                 return RedirectToPage("/Clientes/Index");
             }
 
+            ValidarExoneracion();
             if (!ModelState.IsValid)
                 return Page();
 
-            // Auto-generar código si no viene
+            if (!string.IsNullOrWhiteSpace(Input.RTN) && _context.Clientes.Any(c => c.RTN == Input.RTN || c.RTN == DocumentoHonduras.SoloDigitos(Input.RTN)))
+            {
+                ModelState.AddModelError("Input.RTN", "Ya existe un cliente con este RTN");
+                return Page();
+            }
+
+            // Auto-generar código con la serie "Cliente" (Configuración → Series); si no hay serie, CLI-0001
             if (string.IsNullOrWhiteSpace(Input.Codigo))
             {
-                var count = _context.Clientes.Count();
-                Input.Codigo = $"CLI-{(count + 1):D4}";
+                Input.Codigo = NumeroDocumentoHelper.GenerarSiguiente(_context, "Cliente");
+                var n = _context.Clientes.Count() + 1;
+                while (_context.Clientes.Any(c => c.Codigo == Input.Codigo))
+                {
+                    Input.Codigo = $"CLI-{n:D4}";
+                    n++;
+                }
             }
 
             // Verificar duplicado
@@ -116,6 +165,10 @@ namespace Kirkenta.Pages.Clientes
                 DiasCredito = Input.DiasCredito,
                 Notas = Input.Notas,
                 Activo = Input.Activo,
+                EsExonerado = Input.EsExonerado,
+                ExoneradoConstancia = Input.ExoneradoConstancia,
+                ExoneradoOrdenCompraExenta = Input.ExoneradoOrdenCompraExenta,
+                ExoneradoRegistroSag = Input.ExoneradoRegistroSag,
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = currentUser?.Id
             };

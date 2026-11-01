@@ -1,0 +1,87 @@
+@page
+@model Kirkenta.Pages.Finanzas.Contabilidad.BalanzaModel
+@{
+    ViewData["Title"] = "Balanza de comprobación";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Balanza de comprobación</h2>
+        <p>Saldos iniciales, movimientos del período y saldos finales por cuenta (asientos contables)</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Finanzas/Asientos/Index" class="btn-secondary">Asientos</a>
+        <a asp-page="/Finanzas/Contabilidad/LibroMayor" class="btn-secondary">Libro mayor</a>
+    </div>
+</div>
+
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="filter-group">
+            <input type="date" name="Desde" class="filter-select" value="@(Model.Desde?.ToString("yyyy-MM-dd"))" />
+            <input type="date" name="Hasta" class="filter-select" value="@(Model.Hasta?.ToString("yyyy-MM-dd"))" />
+            <button type="submit" class="btn-secondary">Consultar</button>
+        </div>
+    </form>
+
+    @if (Model.Filas.Count == 0)
+    {
+        <div class="empty-state"><h3>No hay movimientos contables hasta la fecha seleccionada</h3></div>
+    }
+    else
+    {
+        if (Model.Cuadra)
+        {
+            <div class="module-alert module-alert-success">La balanza cuadra: Debe = Haber.</div>
+        }
+        else
+        {
+            <div class="module-alert module-alert-error">La balanza NO cuadra. Revisa los asientos del período.</div>
+        }
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2">Código</th><th rowspan="2">Cuenta</th>
+                        <th colspan="2" style="text-align:center;">Saldo inicial</th>
+                        <th colspan="2" style="text-align:center;">Movimientos</th>
+                        <th colspan="2" style="text-align:center;">Saldo final</th>
+                    </tr>
+                    <tr>
+                        <th style="text-align:right;">Deudor</th><th style="text-align:right;">Acreedor</th>
+                        <th style="text-align:right;">Debe</th><th style="text-align:right;">Haber</th>
+                        <th style="text-align:right;">Deudor</th><th style="text-align:right;">Acreedor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var f in Model.Filas)
+                    {
+                        <tr>
+                            <td>@f.Codigo</td>
+                            <td>@f.Nombre</td>
+                            <td style="text-align:right;">@(f.InicialDeudor > 0 ? f.InicialDeudor.ToString("N2") : "")</td>
+                            <td style="text-align:right;">@(f.InicialAcreedor > 0 ? f.InicialAcreedor.ToString("N2") : "")</td>
+                            <td style="text-align:right;">@(f.Debe > 0 ? f.Debe.ToString("N2") : "")</td>
+                            <td style="text-align:right;">@(f.Haber > 0 ? f.Haber.ToString("N2") : "")</td>
+                            <td style="text-align:right;">@(f.FinalDeudor > 0 ? f.FinalDeudor.ToString("N2") : "")</td>
+                            <td style="text-align:right;">@(f.FinalAcreedor > 0 ? f.FinalAcreedor.ToString("N2") : "")</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr style="font-weight:600;">
+                        <td colspan="2" style="text-align:right;">Totales</td>
+                        <td style="text-align:right;">@Model.Totales.InicialDeudor.ToString("N2")</td>
+                        <td style="text-align:right;">@Model.Totales.InicialAcreedor.ToString("N2")</td>
+                        <td style="text-align:right;">@Model.Totales.Debe.ToString("N2")</td>
+                        <td style="text-align:right;">@Model.Totales.Haber.ToString("N2")</td>
+                        <td style="text-align:right;">@Model.Totales.FinalDeudor.ToString("N2")</td>
+                        <td style="text-align:right;">@Model.Totales.FinalAcreedor.ToString("N2")</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    }
+</div>

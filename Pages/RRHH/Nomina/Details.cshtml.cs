@@ -101,7 +101,8 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 .Where(p => p.NominaId == id && p.Estado == "Pagado")
                 .ToList();
 
-            var pagosDict = Pagos.ToDictionary(p => p.DetalleNominaId, p => p);
+            // Si por algún motivo hubiera dos pagos del mismo detalle, no se rompe la pantalla: se muestra el primero
+            var pagosDict = Pagos.GroupBy(p => p.DetalleNominaId).ToDictionary(g => g.Key, g => g.OrderBy(x => x.Id).First());
 
             var empleadosDict = _context.Empleados
                 .AsNoTracking()

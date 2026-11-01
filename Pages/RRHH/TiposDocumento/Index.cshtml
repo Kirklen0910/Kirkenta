@@ -1,0 +1,150 @@
+@page
+@model Kirkenta.Pages.RRHH.TiposDocumento.IndexModel
+@{
+    ViewData["Title"] = "Tipos de documento de empleados";
+    var editando = Model.Input.Id != 0;
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Configuracion/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a configuración
+        </a>
+        <h2>Tipos de documento de empleados</h2>
+        <p>Categorías que se pueden adjuntar al expediente de cada empleado (contrato, identidad, carnet, etc.).</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">@TempData["Error"]</div>
+}
+
+@if ((Model.PuedeCrear && !editando) || (Model.PuedeEditar && editando))
+{
+    <div class="module-card form-card">
+        <h3>@(editando ? "Editar tipo de documento" : "Nuevo tipo de documento")</h3>
+        <form method="post" asp-page-handler="Guardar" class="erp-form">
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="module-alert module-alert-error">
+                    <div asp-validation-summary="All"></div>
+                </div>
+            }
+            <input type="hidden" asp-for="Input.Id" />
+
+            <div class="form-field">
+                <label asp-for="Input.Nombre">Nombre *</label>
+                <input asp-for="Input.Nombre" class="form-input" placeholder="Ej: Carnet de salud" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Descripcion">Descripción</label>
+                <input asp-for="Input.Descripcion" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Categoria">Categoría</label>
+                <select asp-for="Input.Categoria" class="form-input">
+                    @foreach (var c in Kirkenta.Pages.RRHH.TiposDocumento.IndexModel.Categorias)
+                    {
+                        <option value="@c">@c</option>
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-checkbox">
+                    <input asp-for="Input.EsObligatorio" type="checkbox" />
+                    <span>Obligatorio para todos los empleados</span>
+                </label>
+            </div>
+            <div class="form-field">
+                <label class="form-checkbox">
+                    <input asp-for="Input.RequiereVencimiento" type="checkbox" />
+                    <span>Tiene fecha de vencimiento</span>
+                </label>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.DiasAlertaVencimiento">Avisar con cuántos días de anticipación (si vence)</label>
+                <input asp-for="Input.DiasAlertaVencimiento" type="number" min="0" max="3650" class="form-input" placeholder="30" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Orden">Orden en la lista</label>
+                <input asp-for="Input.Orden" type="number" min="0" max="1000" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label class="form-checkbox">
+                    <input asp-for="Input.Activo" type="checkbox" />
+                    <span>Activo</span>
+                </label>
+            </div>
+            <div class="form-actions">
+                @if (editando)
+                {
+                    <a asp-page="/RRHH/TiposDocumento/Index" class="btn-secondary">Cancelar</a>
+                }
+                <button type="submit" class="btn-primary">@(editando ? "Guardar cambios" : "Crear tipo")</button>
+            </div>
+        </form>
+    </div>
+}
+
+<div class="module-card">
+    @if (Model.Tipos.Count == 0)
+    {
+        <div class="empty-state"><h3>No hay tipos de documento</h3><p>Crea el primero.</p></div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Categoría</th>
+                        <th>Obligatorio</th>
+                        <th>Vence</th>
+                        <th>En uso</th>
+                        <th>Estado</th>
+                        <th style="width: 260px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in Model.Tipos)
+                    {
+                        var usos = Model.Usos.GetValueOrDefault(t.Id);
+                        <tr>
+                            <td><strong>@t.Nombre</strong>@if (!string.IsNullOrWhiteSpace(t.Descripcion)) { <br /><span class="table-user-sub">@t.Descripcion</span> }</td>
+                            <td>@t.Categoria</td>
+                            <td>@(t.EsObligatorio ? "Sí" : "No")</td>
+                            <td>@(t.RequiereVencimiento ? $"Sí (aviso {t.DiasAlertaVencimiento ?? 30} d)" : "No")</td>
+                            <td>@usos</td>
+                            <td>@if (t.Activo) { <span class="badge badge-success">Activo</span> } else { <span class="badge badge-warning">Inactivo</span> }</td>
+                            <td style="text-align:right; white-space:nowrap;">
+                                @if (Model.PuedeEditar)
+                                {
+                                    <a asp-page="/RRHH/TiposDocumento/Index" asp-route-editar="@t.Id" class="btn-sm btn-secondary">Editar</a>
+                                    <form method="post" asp-page-handler="Estado" asp-route-id="@t.Id" style="display:inline">
+                                        <button type="submit" class="btn-sm btn-secondary">@(t.Activo ? "Desactivar" : "Activar")</button>
+                                    </form>
+                                }
+                                @if (Model.PuedeEliminar && !t.EsSistema && usos == 0)
+                                {
+                                    <form method="post" asp-page-handler="Eliminar" asp-route-id="@t.Id" style="display:inline" onsubmit="return confirm('¿Eliminar este tipo de documento?');">
+                                        <button type="submit" class="btn-sm btn-danger">Eliminar</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

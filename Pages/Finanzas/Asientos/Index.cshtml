@@ -1,0 +1,80 @@
+@page
+@model Kirkenta.Pages.Finanzas.Asientos.IndexModel
+@{
+    ViewData["Title"] = "Asientos contables";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Asientos contables</h2>
+        <p>Partidas de diario con partida doble: manuales (ajustes, depreciaciones) y automáticas de cada movimiento</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Finanzas/Contabilidad/LibroDiario" class="btn-secondary">Libro diario</a>
+        <a asp-page="/Finanzas/Contabilidad/LibroMayor" class="btn-secondary">Libro mayor</a>
+        <a asp-page="/Finanzas/Contabilidad/Balanza" class="btn-secondary">Balanza</a>
+        @if (Model.PuedeCrear)
+        {
+            <form method="post" asp-page-handler="Sincronizar" style="display:inline;">
+                <button type="submit" class="btn-secondary" title="Genera los asientos de partida doble de ventas, compras, gastos y demás movimientos">Generar asientos automáticos</button>
+            </form>
+            <a asp-page="/Finanzas/Asientos/Create" class="btn-primary">Nuevo asiento</a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card"><span class="kpi-label">Asientos del mes</span><span class="kpi-value">@Model.TotalMes</span></div>
+    <div class="kpi-card"><span class="kpi-label">Anulados</span><span class="kpi-value" style="color: var(--color-danger);">@Model.TotalAnulados</span></div>
+</div>
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="search-box"><input type="text" name="Q" value="@Model.Q" placeholder="Buscar por número, concepto o referencia..." /></div>
+        <div class="filter-group">
+            <input type="date" name="Desde" class="filter-select" value="@(Model.Desde?.ToString("yyyy-MM-dd"))" />
+            <input type="date" name="Hasta" class="filter-select" value="@(Model.Hasta?.ToString("yyyy-MM-dd"))" />
+            <select name="Estado" class="filter-select">
+                <option value="">Todos</option>
+                <option value="Activo" selected="@(Model.Estado == "Activo")">Activos</option>
+                <option value="Anulado" selected="@(Model.Estado == "Anulado")">Anulados</option>
+            </select>
+            <button type="submit" class="btn-secondary">Filtrar</button>
+            <a asp-page="/Finanzas/Asientos/Index" class="btn-secondary">Limpiar</a>
+        </div>
+    </form>
+
+    @if (Model.Asientos.Count == 0)
+    {
+        <div class="empty-state">
+            <h3>No hay asientos registrados</h3>
+            @if (Model.PuedeCrear) { <a asp-page="/Finanzas/Asientos/Create" class="btn-primary">Crear asiento</a> }
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Número</th><th>Fecha</th><th>Concepto</th><th>Referencia</th><th style="text-align:right;">Total</th><th>Estado</th><th style="text-align:right;">Acciones</th></tr></thead>
+                <tbody>
+                    @foreach (var a in Model.Asientos)
+                    {
+                        <tr>
+                            <td><strong>@a.Numero</strong></td>
+                            <td>@a.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@a.Concepto</td>
+                            <td>@a.Referencia</td>
+                            <td style="text-align:right;">L. @((Model.Totales.TryGetValue(a.Id, out var t) ? t : 0).ToString("N2"))</td>
+                            <td><span class="badge @(a.Estado == "Activo" ? "badge-success" : "badge-danger")">@a.Estado</span></td>
+                            <td style="text-align:right;"><a asp-page="/Finanzas/Asientos/Details" asp-route-id="@a.Id" class="btn-secondary">Ver</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+    }
+</div>

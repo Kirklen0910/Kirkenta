@@ -1,3 +1,4 @@
+using Kirkenta.Helpers;
 using Kirkenta.Data;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +18,8 @@ namespace Kirkenta.Pages.Bajas
         public BajaInventario Baja { get; set; } = new();
         public Producto Producto { get; set; } = new();
         public bool EsAdmin { get; set; }
+        public bool PuedeAprobar { get; set; }
+        public bool PuedeRevertir { get; set; }
         public string UsuarioSolicita { get; set; } = "";
         public string UsuarioAprueba { get; set; } = "";
         public string UsuarioRevierte { get; set; } = "";
@@ -26,6 +29,14 @@ namespace Kirkenta.Pages.Bajas
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
             EsAdmin = currentRol == "Admin";
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Inventario", "Bajas", "ver"))
+            {
+                TempData["Error"] = "No tienes permiso para ver las bajas";
+                return RedirectToPage("/Index");
+            }
+
+            PuedeAprobar = PermisoHelper.TienePermiso(_context, currentRol, "Inventario", "Bajas", "editar");
+            PuedeRevertir = PermisoHelper.TienePermiso(_context, currentRol, "Inventario", "Bajas", "eliminar");
 
             var baja = _context.BajasInventario.FirstOrDefault(b => b.Id == id);
             if (baja == null)

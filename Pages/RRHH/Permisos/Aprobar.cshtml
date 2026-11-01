@@ -43,7 +43,7 @@
             <div class="totales-row"><span>Número:</span><strong>@Model.Permiso.Numero</strong></div>
             <div class="totales-row"><span>Tipo:</span><strong>@Model.Permiso.Tipo</strong></div>
             <div class="totales-row"><span>Período:</span><strong>@Model.Permiso.FechaInicio.ToString("dd/MM/yyyy") al @Model.Permiso.FechaFin.ToString("dd/MM/yyyy")</strong></div>
-            <div class="totales-row"><span>Días:</span><strong>@Model.Permiso.DiasSolicitados</strong></div>
+            <div class="totales-row"><span>Días:</span><strong>@Model.Permiso.DiasSolicitados.ToString("0.##")</strong></div>
             <div class="totales-row"><span>Goce de sueldo:</span><strong>@(Model.Permiso.ConGoceSueldo ? "Sí" : "No")</strong></div>
             <div class="totales-row"><span>Motivo:</span><strong>@Model.Permiso.Motivo</strong></div>
         </div>

@@ -3,6 +3,7 @@ using Kirkenta.Helpers;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kirkenta.Pages.Bajas
 {
@@ -37,9 +38,9 @@ namespace Kirkenta.Pages.Bajas
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Inventario", "Bajas", "editar"))
             {
-                TempData["Error"] = "Solo administradores pueden aprobar bajas";
+                TempData["Error"] = "No tienes permiso para editar o aprobar aquí";
                 return RedirectToPage("/Bajas/Index");
             }
 
@@ -65,9 +66,9 @@ namespace Kirkenta.Pages.Bajas
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Inventario", "Bajas", "editar"))
             {
-                TempData["Error"] = "Solo administradores pueden aprobar bajas";
+                TempData["Error"] = "No tienes permiso para editar o aprobar aquí";
                 return RedirectToPage("/Bajas/Index");
             }
 
@@ -92,14 +93,42 @@ namespace Kirkenta.Pages.Bajas
                 return Page();
             }
 
+            // Reclamo atómico: si dos personas aprueban/rechazan a la vez, solo una pasa.
+            // Todo en una transacción: si algo falla, la baja vuelve a quedar pendiente.
+            using var tx = _context.Database.IsRelational() ? _context.Database.BeginTransaction() : null;
+            if (_context.Database.IsRelational())
+            {
+                var estadoNuevo = Input.Aprobar ? "Aprobada" : "Rechazada";
+                var reclamadas = _context.BajasInventario
+                    .Where(b => b.Id == baja.Id && b.Estado == "Pendiente")
+                    .ExecuteUpdate(u => u.SetProperty(b => b.Estado, estadoNuevo));
+                if (reclamadas == 0)
+                {
+                    TempData["Error"] = "Esta baja ya fue procesada por otra persona";
+                    return RedirectToPage("/Bajas/Details", new { id = baja.Id });
+                }
+                _context.Entry(baja).Reload();
+            }
+
             if (Input.Aprobar)
             {
                 // APROBAR: descontar stock
                 var producto = _context.Productos.FirstOrDefault(p => p.Id == baja.ProductoId);
-                if (producto != null)
+                if (producto == null || producto.Stock < baja.Cantidad)
                 {
-                    producto.Stock -= baja.Cantidad;
+                    tx?.Rollback();
+                    _context.Entry(baja).Reload();
+                    ModelState.AddModelError(string.Empty, producto == null
+                        ? "El producto de la baja ya no existe"
+                        : $"Stock insuficiente: hay {producto.Stock:N2} y la baja pide {baja.Cantidad:N2}");
+                    CargarDatos(baja);
+                    return Page();
                 }
+
+                // Kardex: la baja siempre deja rastro (stock + MovimientoInventario en el mismo SaveChanges)
+                var costoBaja = baja.Cantidad > 0 ? baja.ValorTotal / baja.Cantidad : (decimal?)null;
+                InventarioHelper.Registrar(_context, producto, -baja.Cantidad, "Baja",
+                    baja.Numero, baja.Id, currentUser!.Id, costoBaja, "Baja de inventario aprobada");
 
                 baja.Estado = "Aprobada";
                 baja.UsuarioApruebaId = currentUser!.Id;
@@ -132,7 +161,17 @@ namespace Kirkenta.Pages.Bajas
                 TempData["Success"] = $"Baja {baja.Numero} rechazada.";
             }
 
-            _context.SaveChanges();
+            try
+            {
+                _context.SaveChanges();
+                tx?.Commit();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                tx?.Rollback();
+                TempData["Error"] = "El stock del producto cambió mientras se aprobaba. Intenta de nuevo.";
+                return RedirectToPage("/Bajas/Details", new { id = baja.Id });
+            }
             return RedirectToPage("/Bajas/Details", new { id = baja.Id });
         }
 

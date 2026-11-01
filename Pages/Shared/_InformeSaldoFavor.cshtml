@@ -1,0 +1,31 @@
+@model Kirkenta.Helpers.Finanzas.SaldoFavorInforme
+@{
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    string L(decimal v) => "L. " + v.ToString("N2", inv);
+}
+@if (Model.Lineas.Count > 0)
+{
+    <h3 class="kk-inf-h" style="font-size:15px;font-weight:600;margin:22px 0 10px;">Saldo a favor de clientes (solo referencia)</h3>
+    <div class="module-card" style="overflow-x:auto;">
+        <p style="margin:0 0 10px;color:var(--color-muted);">
+            Acreditado por devoluciones: <strong>@L(Model.Acreditado)</strong> · Aplicado en ventas: <strong>@L(Model.Aplicado)</strong>.
+            Este dinero <strong>no entra ni sale de caja</strong> y no está sumado en los totales de arriba: el cliente ya había pagado, el saldo solo explica por qué una factura se cobró por menos.
+        </p>
+        <table class="kk-desc-table">
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Movimiento</th><th>Venta</th><th>Factura</th><th class="num">Monto</th></tr></thead>
+            <tbody>
+            @foreach (var l in Model.Lineas.Take(300))
+            {
+                <tr>
+                    <td>@l.Fecha.ToString("dd/MM HH:mm")</td>
+                    <td>@l.Cliente</td>
+                    <td>@l.Tipo</td>
+                    <td>@if (l.VentaId.HasValue) { <a asp-page="/Ventas/Details" asp-route-id="@l.VentaId">@l.Venta</a> } else { <span>—</span> }</td>
+                    <td>@if (l.FacturaId.HasValue) { <a asp-page="/Facturas/Details" asp-route-id="@l.FacturaId">@l.Factura</a> } else { <span>—</span> }</td>
+                    <td class="num">@(l.Monto < 0 ? "-" : "")@L(Math.Abs(l.Monto))</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

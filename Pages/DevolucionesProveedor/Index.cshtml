@@ -1,0 +1,66 @@
+@page
+@model Kirkenta.Pages.DevolucionesProveedor.IndexModel
+@{
+    ViewData["Title"] = "Devoluciones a proveedores";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Devoluciones a proveedores</h2>
+        <p>Mercadería regresada al proveedor (baja inventario y reduce la deuda)</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/DevolucionesProveedor/Create" class="btn-primary">Nueva devolución</a>
+        }
+    </div>
+</div>
+
+<div class="module-card">
+    @if (TempData["Success"] != null)
+    {
+        <div class="module-alert module-alert-success">@TempData["Success"]</div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="module-alert module-alert-error">@TempData["Error"]</div>
+    }
+
+    @if (Model.Pager.Total == 0)
+    {
+        <div class="empty-state"><h3>No hay devoluciones a proveedores</h3></div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Número</th><th>Proveedor</th><th>Orden</th><th>Fecha</th>
+                        <th style="text-align:right;">Total</th>
+                        <th style="text-align:right;">Reduce deuda</th>
+                        <th style="text-align:right;">Por recuperar</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in Model.Devoluciones)
+                    {
+                        <tr>
+                            <td><strong>@d.Numero</strong></td>
+                            <td>@(Model.Proveedores.TryGetValue(d.ProveedorId, out var pn) ? pn : "—")</td>
+                            <td>@(Model.Ordenes.TryGetValue(d.OrdenCompraId, out var ordNum) ? ordNum : "—")</td>
+                            <td>@d.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td style="text-align:right;">L. @d.Total.ToString("N2")</td>
+                            <td style="text-align:right;">@d.MontoAplicadoSaldo.ToString("N2")</td>
+                            <td style="text-align:right;">@d.MontoPorRecuperar.ToString("N2")</td>
+                            <td><a asp-page="/DevolucionesProveedor/Details" asp-route-id="@d.Id" class="btn-secondary">Ver</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+    }
+</div>

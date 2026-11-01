@@ -1,0 +1,173 @@
+@page
+@model Kirkenta.Pages.Finanzas.CajaChica.IndexModel
+@{
+    ViewData["Title"] = "Caja chica y gastos";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Caja chica y gastos</h2>
+        <p>Fondo para gastos menores con solicitud, aprobación y reposición</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+@if (Model.Fondo == null)
+{
+    <div class="module-alert module-alert-warning">
+        No se encontró una cuenta de caja chica activa. Crea una cuenta financiera con código <strong>CAJA-CHICA</strong> en Finanzas → Cuentas.
+    </div>
+}
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Fondo disponible</span>
+        <span class="kpi-value" style="color: var(--color-success);">L. @((Model.Fondo?.SaldoActual ?? 0).ToString("N2"))</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Pendientes de aprobar</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.CantPendientes</span>
+        <span class="kpi-trend">L. @Model.PendienteTotal.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Gastado este mes</span>
+        <span class="kpi-value">L. @Model.AprobadoMes.ToString("N2")</span>
+    </div>
+</div>
+
+<div class="form-row" style="align-items: flex-start; gap: 20px;">
+    @if (Model.PuedeCrear)
+    {
+        <div class="module-card" style="padding: 24px; flex: 1;">
+            <h3 class="form-section-title">Registrar gasto</h3>
+            <form method="post" asp-page-handler="Solicitar" class="erp-form">
+                <div asp-validation-summary="All" class="module-alert module-alert-error"></div>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>Fecha *</label>
+                        <input asp-for="Gasto.Fecha" type="date" class="form-input" />
+                    </div>
+                    <div class="form-field">
+                        <label>Monto (L.) *</label>
+                        <input asp-for="Gasto.Monto" type="number" step="0.01" min="0" class="form-input" />
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>Categoría *</label>
+                    <select asp-for="Gasto.CategoriaId" class="form-input">
+                        <option value="0">— Selecciona —</option>
+                        @foreach (var c in Model.Categorias)
+                        {
+                            <option value="@c.Id">@c.Nombre</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>Concepto *</label>
+                    <input asp-for="Gasto.Concepto" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>Beneficiario</label>
+                        <input asp-for="Gasto.Beneficiario" class="form-input" />
+                    </div>
+                    <div class="form-field">
+                        <label>No. de comprobante</label>
+                        <input asp-for="Gasto.Comprobante" class="form-input" />
+                    </div>
+                </div>
+                <div class="form-actions"><button type="submit" class="btn-primary">Registrar gasto</button></div>
+            </form>
+        </div>
+    }
+
+    @if (Model.PuedeAprobar)
+    {
+        <div class="module-card" style="padding: 24px; flex: 1;">
+            <h3 class="form-section-title">Reponer fondo</h3>
+            <p style="font-size: 13px; color: var(--color-muted);">Transfiere dinero de otra cuenta hacia la caja chica.</p>
+            <form method="post" asp-page-handler="Reponer" class="erp-form" onsubmit="return confirm('¿Reponer el fondo de caja chica?');">
+                <div class="form-field">
+                    <label>Cuenta de origen *</label>
+                    <select name="cuentaOrigenId" class="form-input" required>
+                        <option value="">— Selecciona —</option>
+                        @foreach (var c in Model.CuentasOrigen)
+                        {
+                            <option value="@c.Id">@c.Nombre (L. @c.SaldoActual.ToString("N2"))</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>Monto (L.) *</label>
+                    <input name="monto" type="number" step="0.01" min="0.01" class="form-input" required />
+                </div>
+                <div class="form-actions"><button type="submit" class="btn-primary">Reponer</button></div>
+            </form>
+        </div>
+    }
+</div>
+
+<div class="module-card" style="margin-top: 20px;">
+    <form method="get" class="module-toolbar">
+        <div class="search-box">
+            <input type="text" name="Q" value="@Model.Q" placeholder="Buscar por número, concepto, beneficiario o comprobante..." />
+        </div>
+        <div class="filter-group">
+            <select name="Estado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="Pendiente" selected="@(Model.Estado == "Pendiente")">Pendiente</option>
+                <option value="Aprobado" selected="@(Model.Estado == "Aprobado")">Aprobado</option>
+                <option value="Rechazado" selected="@(Model.Estado == "Rechazado")">Rechazado</option>
+                <option value="Anulado" selected="@(Model.Estado == "Anulado")">Anulado</option>
+            </select>
+            <button type="submit" class="btn-secondary">Filtrar</button>
+            <a asp-page="/Finanzas/CajaChica/Index" class="btn-secondary">Limpiar</a>
+        </div>
+    </form>
+
+    @if (Model.Gastos.Count == 0)
+    {
+        <div class="empty-state"><h3>No hay gastos registrados</h3></div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr><th>Número</th><th>Fecha</th><th>Categoría</th><th>Concepto</th><th style="text-align:right;">Monto</th><th>Estado</th><th style="text-align:right;">Acciones</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var g in Model.Gastos)
+                    {
+                        <tr>
+                            <td><strong>@g.Numero</strong></td>
+                            <td>@g.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@(Model.CategoriaNombres.TryGetValue(g.CategoriaId, out var cn) ? cn : "—")</td>
+                            <td>@g.Concepto<br /><small>@g.Beneficiario @(string.IsNullOrEmpty(g.Comprobante) ? "" : "· Comp. " + g.Comprobante)</small></td>
+                            <td style="text-align:right;">L. @g.Monto.ToString("N2")</td>
+                            <td>
+                                <span class="badge @(g.Estado == "Aprobado" ? "badge-success" : (g.Estado == "Rechazado" || g.Estado == "Anulado") ? "badge-danger" : "badge-warning")">@g.Estado</span>
+                                @if (g.Estado == "Rechazado" || g.Estado == "Anulado") { <br /><small>@g.MotivoRechazo</small> }
+                            </td>
+                            <td style="text-align:right;">
+                                @if (Model.PuedeAprobar && g.Estado == "Pendiente")
+                                {
+                                    <form method="post" asp-page-handler="Aprobar" asp-route-id="@g.Id" style="display:inline;">
+                                        <button type="submit" class="btn-secondary">Aprobar</button>
+                                    </form>
+                                    <form method="post" asp-page-handler="Rechazar" asp-route-id="@g.Id" style="display:inline-flex; gap:4px;">
+                                        <input name="motivo" class="form-input" placeholder="Motivo" style="width: 130px;" required />
+                                        <button type="submit" class="btn-secondary">Rechazar</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+    }
+</div>

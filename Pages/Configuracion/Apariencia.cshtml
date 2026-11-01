@@ -1,0 +1,81 @@
+﻿@page
+@model Kirkenta.Pages.Configuracion.AparienciaModel
+@{
+    ViewData["Title"] = "Apariencia";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Apariencia</h2>
+        <p>Elige cómo quieres ver el sistema. Este ajuste es solo tuyo y se recuerda en este navegador.</p>
+    </div>
+</div>
+
+<div class="module-card">
+    <h3 class="form-section-title">Tema</h3>
+    <p class="form-section-desc">El cambio se aplica al instante. También puedes alternarlo con el botón de luna o sol de la barra superior.</p>
+
+    <fieldset style="border:0;padding:0;margin:0;">
+        <legend class="visually-hidden">Tema del sistema</legend>
+        <div class="theme-options" id="themeOptions">
+            <label class="theme-option">
+                <input type="radio" name="tema" value="claro">
+                <span class="theme-option-card">
+                    <span class="theme-preview tp-light" aria-hidden="true">
+                        <span class="tp-side"><i></i><i></i><i></i></span>
+                        <span class="tp-main"><i></i><span class="tp-card"></span></span>
+                    </span>
+                    <span>
+                        <span class="theme-option-title">Claro</span><br />
+                        <span class="theme-option-sub">Fondo blanco, ideal con mucha luz</span>
+                    </span>
+                </span>
+            </label>
+
+            <label class="theme-option">
+                <input type="radio" name="tema" value="oscuro">
+                <span class="theme-option-card">
+                    <span class="theme-preview tp-dark" aria-hidden="true">
+                        <span class="tp-side"><i></i><i></i><i></i></span>
+                        <span class="tp-main"><i></i><span class="tp-card"></span></span>
+                    </span>
+                    <span>
+                        <span class="theme-option-title">Oscuro</span><br />
+                        <span class="theme-option-sub">Descansa la vista de noche o con poca luz</span>
+                    </span>
+                </span>
+            </label>
+
+            <label class="theme-option">
+                <input type="radio" name="tema" value="sistema">
+                <span class="theme-option-card">
+                    <span class="theme-preview tp-auto" aria-hidden="true">
+                        <span class="tp-side"><i></i><i></i><i></i></span>
+                        <span class="tp-main"><i></i><span class="tp-card"></span></span>
+                    </span>
+                    <span>
+                        <span class="theme-option-title">Igual que mi equipo</span><br />
+                        <span class="theme-option-sub">Cambia solo según la configuración de tu computadora o teléfono</span>
+                    </span>
+                </span>
+            </label>
+        </div>
+    </fieldset>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var radios = document.querySelectorAll('#themeOptions input[name="tema"]');
+            function marcar() {
+                var actual = window.kkTema ? window.kkTema.actual() : 'claro';
+                radios.forEach(function (r) { r.checked = (r.value === actual); });
+            }
+            radios.forEach(function (r) {
+                r.addEventListener('change', function () { if (r.checked && window.kkTema) window.kkTema.guardar(r.value); });
+            });
+            document.addEventListener('kk-tema', marcar);
+            marcar();
+        })();
+    </script>
+}

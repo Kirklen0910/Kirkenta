@@ -55,6 +55,6 @@ namespace Kirkenta.Models
         [StringLength(500)]
         public string? Notas { get; set; }
 
-        public int EmpresaId { get; set; } = 1;
+        public int EmpresaId { get; set; } = Kirkenta.Helpers.EmpresaActual.Id;
     }
 }

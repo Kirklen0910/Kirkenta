@@ -10,6 +10,9 @@
         <p>Registro de productos dados de baja por daño, pérdida, vencimiento u otros</p>
     </div>
     <div class="module-header-right">
+        <a asp-page="/Conversiones/Index" class="btn-secondary" title="Fraccionar un producto en otro sin registrar pérdida">Conversiones</a>
+        @if (Model.PuedeCrear)
+        {
         <a asp-page="/Bajas/Create" class="btn-primary">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                 <line x1="12" y1="5" x2="12" y2="19"/>
@@ -17,6 +20,7 @@
             </svg>
             Nueva baja
         </a>
+        }
     </div>
 </div>
 
@@ -45,34 +49,36 @@
 </div>
 
 <div class="module-card">
-    <div class="module-toolbar">
+    <form method="get" class="module-toolbar">
         <div class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input type="text" id="searchInput" placeholder="Buscar por número, producto o motivo..." />
+            <input type="text" name="Q" value="@Model.Q" placeholder="Buscar por número, producto o motivo..." />
         </div>
         <div class="filter-group">
-            <select id="filterEstado" class="filter-select">
+            <select name="Estado" class="filter-select">
                 <option value="">Todos los estados</option>
-                <option value="Pendiente">Pendiente</option>
-                <option value="Aprobada">Aprobada</option>
-                <option value="Rechazada">Rechazada</option>
+                <option value="Pendiente" selected="@(Model.Estado == "Pendiente")">Pendiente</option>
+                <option value="Aprobada" selected="@(Model.Estado == "Aprobada")">Aprobada</option>
+                <option value="Rechazada" selected="@(Model.Estado == "Rechazada")">Rechazada</option>
             </select>
-            <select id="filterTipo" class="filter-select">
+            <select name="Tipo" class="filter-select">
                 <option value="">Todos los tipos</option>
-                <option value="Dañado">Dañado</option>
-                <option value="Perdido">Perdido / Robado</option>
-                <option value="Vencido">Vencido</option>
-                <option value="Error de conteo">Error de conteo</option>
-                <option value="Muestra gratuita">Muestra gratuita</option>
-                <option value="Uso interno">Uso interno</option>
-                <option value="Devolución a proveedor">Devolución a proveedor</option>
-                <option value="Otro">Otro</option>
+                <option value="Dañado" selected="@(Model.Tipo == "Dañado")">Dañado</option>
+                <option value="Perdido" selected="@(Model.Tipo == "Perdido")">Perdido / Robado</option>
+                <option value="Vencido" selected="@(Model.Tipo == "Vencido")">Vencido</option>
+                <option value="Error de conteo" selected="@(Model.Tipo == "Error de conteo")">Error de conteo</option>
+                <option value="Muestra gratuita" selected="@(Model.Tipo == "Muestra gratuita")">Muestra gratuita</option>
+                <option value="Uso interno" selected="@(Model.Tipo == "Uso interno")">Uso interno</option>
+                <option value="Devolución a proveedor" selected="@(Model.Tipo == "Devolución a proveedor")">Devolución a proveedor</option>
+                <option value="Otro" selected="@(Model.Tipo == "Otro")">Otro</option>
             </select>
+            <button type="submit" class="btn-secondary">Filtrar</button>
+            <a asp-page="/Bajas/Index" class="btn-secondary">Limpiar</a>
         </div>
-    </div>
+    </form>
 
     @if (TempData["Success"] != null)
     {
@@ -106,7 +112,10 @@
             </svg>
             <h3>No hay bajas registradas</h3>
             <p>Registra la primera baja cuando un producto se dañe o pierda</p>
+            @if (Model.PuedeCrear)
+            {
             <a asp-page="/Bajas/Create" class="btn-primary">Registrar baja</a>
+            }
         </div>
     }
     else
@@ -158,7 +167,7 @@
                                             <circle cx="12" cy="12" r="3"/>
                                         </svg>
                                     </a>
-                                    @if (b.Estado == "Pendiente" && Model.EsAdmin)
+                                    @if (b.Estado == "Pendiente" && Model.PuedeAprobar)
                                     {
                                         <a asp-page="/Bajas/Aprobar" asp-route-id="@b.Id" class="btn-icon-action" title="Aprobar / Rechazar" style="color: var(--color-warning);">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -173,42 +182,6 @@
                 </tbody>
             </table>
         </div>
+        <partial name="_Pager" model="Model.Pager" />
     }
 </div>
-
-@section Scripts {
-    <script>
-        (function () {
-            var searchInput = document.getElementById('searchInput');
-            var filterEstado = document.getElementById('filterEstado');
-            var filterTipo = document.getElementById('filterTipo');
-            var table = document.getElementById('bajasTable');
-            if (!table) return;
-            var rows = table.querySelectorAll('tbody tr');
-
-            function filterRows() {
-                var search = (searchInput?.value || '').toLowerCase().trim();
-                var estado = filterEstado?.value || '';
-                var tipo = filterTipo?.value || '';
-
-                rows.forEach(function (row) {
-                    var numero = row.dataset.numero || '';
-                    var producto = row.dataset.producto || '';
-                    var motivo = row.dataset.motivo || '';
-                    var rowEstado = row.dataset.estado || '';
-                    var rowTipo = row.dataset.tipo || '';
-
-                    var matchSearch = !search || numero.includes(search) || producto.includes(search) || motivo.includes(search);
-                    var matchEstado = !estado || rowEstado === estado;
-                    var matchTipo = !tipo || rowTipo === tipo;
-
-                    row.style.display = (matchSearch && matchEstado && matchTipo) ? '' : 'none';
-                });
-            }
-
-            searchInput?.addEventListener('input', filterRows);
-            filterEstado?.addEventListener('change', filterRows);
-            filterTipo?.addEventListener('change', filterRows);
-        })();
-    </script>
-}

@@ -47,6 +47,8 @@ namespace Kirkenta.Pages.Productos
             public decimal StockMinimo { get; set; }
             public string UnidadMedida { get; set; } = "Unidad";
             public bool Activo { get; set; }
+
+            public bool PermiteDescuento { get; set; } = true;
         }
 
         public IActionResult OnGet(int id)
@@ -83,8 +85,10 @@ namespace Kirkenta.Pages.Productos
                 Stock = producto.Stock,
                 StockMinimo = producto.StockMinimo,
                 UnidadMedida = producto.UnidadMedida,
-                Activo = producto.Activo
+                Activo = producto.Activo,
+                PermiteDescuento = producto.PermiteDescuento
             };
+            IncluirImpuestoActual(producto.ImpuestoId);
 
             return Page();
         }
@@ -100,6 +104,7 @@ namespace Kirkenta.Pages.Productos
             }
 
             CargarDatos();
+            IncluirImpuestoActual(Input.ImpuestoId);
 
             if (!ModelState.IsValid) return Page();
 
@@ -117,6 +122,18 @@ namespace Kirkenta.Pages.Productos
                 return Page();
             }
 
+            if (Input.ImpuestoId.HasValue && !_context.Impuestos.Any(i => i.Id == Input.ImpuestoId.Value))
+            {
+                ModelState.AddModelError("Input.ImpuestoId", "El impuesto seleccionado no es válido");
+                return Page();
+            }
+
+            // Valores de antes, para dejar el cambio en la bitácora
+            var antes = (producto.Nombre, producto.SKU, producto.PrecioCompra, producto.PrecioVenta,
+                         producto.PrecioMayorista, producto.ImpuestoId, producto.CategoriaId,
+                         producto.StockMinimo, producto.Activo, producto.Stock);
+            var antesPermiteDescuento = producto.PermiteDescuento;
+
             producto.SKU = Input.SKU;
             producto.CodigoBarras = Input.CodigoBarras;
             producto.Nombre = Input.Nombre;
@@ -126,10 +143,23 @@ namespace Kirkenta.Pages.Productos
             producto.PrecioCompra = Input.PrecioCompra;
             producto.PrecioVenta = Input.PrecioVenta;
             producto.PrecioMayorista = Input.PrecioMayorista;
-            producto.Stock = Input.Stock;
+            // El stock jamás se pisa directo: todo cambio deja rastro en el kardex
+            if (Input.Stock < 0 && Input.Stock != producto.Stock)
+            {
+                ModelState.AddModelError("Input.Stock", "El stock no puede ser negativo");
+                return Page();
+            }
+            if (Input.PrecioCompra < 0 || Input.PrecioVenta < 0 || Input.PrecioMayorista < 0)
+            {
+                ModelState.AddModelError(string.Empty, "Los precios no pueden ser negativos");
+                return Page();
+            }
+            InventarioHelper.Ajustar(_context, producto, Input.Stock, "AjusteManual", currentUser?.Id,
+                "Ajuste desde la edición del producto");
             producto.StockMinimo = Input.StockMinimo;
             producto.UnidadMedida = Input.UnidadMedida;
             producto.Activo = Input.Activo;
+            producto.PermiteDescuento = Input.PermiteDescuento;
 
             _context.SaveChanges();
 
@@ -137,17 +167,38 @@ namespace Kirkenta.Pages.Productos
                 _context,
                 currentUser?.Id ?? 0,
                 "Editar producto",
-                $"Editó el producto '{producto.Nombre}'",
+                $"Editó el producto '{producto.Nombre}'. " + CambiosHelper.Describir(
+                    ("Nombre", antes.Nombre, producto.Nombre),
+                    ("SKU", antes.SKU, producto.SKU),
+                    ("Precio compra", antes.PrecioCompra, producto.PrecioCompra),
+                    ("Precio venta", antes.PrecioVenta, producto.PrecioVenta),
+                    ("Precio mayorista", antes.PrecioMayorista, producto.PrecioMayorista),
+                    ("Impuesto", antes.ImpuestoId, producto.ImpuestoId),
+                    ("Categoría", antes.CategoriaId, producto.CategoriaId),
+                    ("Stock mínimo", antes.StockMinimo, producto.StockMinimo),
+                    ("Activo", antes.Activo, producto.Activo),
+                    ("Admite descuento", antesPermiteDescuento, producto.PermiteDescuento),
+                    ("Stock", antes.Stock, producto.Stock)),
                 HttpContext.Connection.RemoteIpAddress?.ToString());
 
             TempData["Success"] = $"Producto '{producto.Nombre}' actualizado";
             return RedirectToPage("/Productos/Index");
         }
 
+        /// <summary>Si el producto tiene un impuesto ya inactivo, se mantiene visible para no perderlo al guardar.</summary>
+        private void IncluirImpuestoActual(int? impuestoId)
+        {
+            if (impuestoId.HasValue && !Impuestos.Any(i => i.Id == impuestoId.Value))
+            {
+                var actual = _context.Impuestos.FirstOrDefault(i => i.Id == impuestoId.Value);
+                if (actual != null) Impuestos.Add(actual);
+            }
+        }
+
         private void CargarDatos()
         {
             Categorias = _context.Categorias.Where(c => c.Activa).OrderBy(c => c.Nombre).ToList();
-            Impuestos = _context.Impuestos.Where(i => i.Activo).OrderBy(i => i.Nombre).ToList();
+            Impuestos = _context.Impuestos.Where(i => i.Activo).OrderBy(i => i.Porcentaje).ThenBy(i => i.Nombre).ToList();
             // 🔥 FIX: Cargar TODAS las unidades (activas o no) para que aparezcan
             Unidades = _context.UnidadesMedida.OrderBy(u => u.Nombre).ToList();
         }

@@ -1,6 +1,6 @@
 ﻿# KIRKENTA ERP - SNAPSHOT: PARTE 3: SOPORTE
 
-**Fecha de generacion:** 04/10/2026 21:40
+**Fecha de generacion:** 23/10/2026 22:17
 **Raiz del proyecto:** C:\Users\crobe\OneDrive\Kirkenta
 **Descripcion:** Logistica, RRHH, Reportes
 
@@ -2095,10 +2095,6 @@ namespace Kirkenta.Helpers.RRHH
         // CONFIGURACIÓN DE DEDUCCIONES POR AÑO
         // ============================================================
 
-        /// <summary>
-        /// Obtiene la configuración de deducciones vigente para un año.
-        /// Si no existe, la crea con valores por defecto de Honduras.
-        /// </summary>
         public static ConfiguracionDeduccion ObtenerConfiguracion(ApplicationDbContext context, int anio)
         {
             var config = context.ConfiguracionDeducciones
@@ -2133,7 +2129,11 @@ namespace Kirkenta.Helpers.RRHH
             context.ConfiguracionDeducciones.Add(config);
             context.SaveChanges();
 
-            // Tramos ISR por defecto (Honduras 2024)
+            // Tramos ISR MENSUALES (Honduras 2024) según SAR:
+            //   Hasta L. 15,692.25 → 0%
+            //   L. 15,692.26 a L. 23,246.20 → 15% sobre excedente
+            //   L. 23,246.21 a L. 55,170.68 → L. 1,133.09 + 20% sobre excedente
+            //   Más de L. 55,170.68 → L. 7,517.98 + 25% sobre excedente
             var tramos = new List<TramoISR>
             {
                 new() { ConfiguracionDeduccionId = config.Id, Orden = 1, Desde = 0, Hasta = 15692.25m, Porcentaje = 0, MontoFijo = 0, Descripcion = "Exento" },
@@ -2153,7 +2153,7 @@ namespace Kirkenta.Helpers.RRHH
         // ============================================================
 
         /// <summary>
-        /// Calcula el ISR mensual según la tabla de tramos.
+        /// Calcula el ISR MENSUAL sobre una base MENSUAL usando la tabla de tramos mensuales.
         /// </summary>
         public static decimal CalcularISRMensual(decimal salarioBrutoMensual, List<TramoISR> tramos)
         {
@@ -2174,10 +2174,15 @@ namespace Kirkenta.Helpers.RRHH
 
         /// <summary>
         /// Calcula el ISR a retener en el mes actual, usando el método ACUMULATIVO ANUAL.
-        /// Según el SAR de Honduras:
-        ///   - Se acumula el salario bruto del año
-        ///   - Si el acumulado supera el tope anual exento, se cobra sobre el excedente
-        ///   - Se resta lo ya retenido en meses anteriores
+        /// 🔒 FIX: La tabla ISR es MENSUAL. Para comparar contra el acumulado anual
+        /// se debe convertir el acumulado a un "promedio mensual" antes de aplicar la tabla,
+        /// o bien anualizar los tramos. Usamos el enfoque SAR: calcular el ISR anual
+        /// aplicando la tabla mensual sobre el promedio mensual del acumulado, y luego
+        /// restar lo ya retenido.
+        ///
+        /// Fórmula SAR:
+        ///   ISR_anual_proyectado = ISR_mensual(promedio_mensual) × meses_trabajados
+        ///   ISR_mes = ISR_anual_proyectado − ISR_retenido_antes
         /// </summary>
         public static decimal CalcularISRAcumulativo(
             ApplicationDbContext context,
@@ -2190,7 +2195,6 @@ namespace Kirkenta.Helpers.RRHH
             if (!config.AplicaISR)
                 return 0;
 
-            // 1. Calcular acumulado del año ANTES del mes actual
             var inicioAnio = new DateTime(anio, 1, 1);
             var inicioMesActual = new DateTime(anio, mesActual, 1);
 
@@ -2206,22 +2210,29 @@ namespace Kirkenta.Helpers.RRHH
             decimal acumuladoBrutoAntes = detallesAnteriores.Sum(d => d.TotalBruto);
             decimal isrRetenidoAntes = detallesAnteriores.Sum(d => d.DeduccionISR);
 
-            // 2. Acumulado incluyendo el mes actual
+            // Meses ya procesados (incluyendo el actual)
+            int mesesProcesados = mesActual;
+            if (mesesProcesados < 1) mesesProcesados = 1;
+
             decimal acumuladoBrutoConMes = acumuladoBrutoAntes + salarioBrutoMes;
 
-            // 3. Aplicar tabla ISR sobre el ACUMULADO (para calcular el impuesto total anual)
+            // Promedio mensual del acumulado (base para aplicar la tabla mensual)
+            decimal promedioMensual = acumuladoBrutoConMes / mesesProcesados;
+
             var tramos = context.TramosISR
                 .Where(t => t.ConfiguracionDeduccionId == config.Id)
                 .OrderBy(t => t.Orden)
                 .ToList();
 
-            // ISR anual que le corresponde por el acumulado
-            decimal isrAnualCalculado = CalcularISRMensual(acumuladoBrutoConMes, tramos);
+            // ISR mensual teórico según la tabla
+            decimal isrMensualTeorico = CalcularISRMensual(promedioMensual, tramos);
 
-            // 4. Retención del mes = ISR anual calculado - ISR ya retenido
-            decimal retencionMes = isrAnualCalculado - isrRetenidoAntes;
+            // ISR anual proyectado = mensual × meses procesados
+            decimal isrAnualProyectado = isrMensualTeorico * mesesProcesados;
 
-            // Si es negativa, no devolvemos, retenemos 0
+            // Retención del mes = ISR proyectado − ISR ya retenido
+            decimal retencionMes = isrAnualProyectado - isrRetenidoAntes;
+
             if (retencionMes < 0) retencionMes = 0;
 
             return Math.Round(retencionMes, 2);
@@ -2231,20 +2242,27 @@ namespace Kirkenta.Helpers.RRHH
         // IHSS Y RAP
         // ============================================================
 
-        public static decimal CalcularIHSS(decimal salarioBase, ConfiguracionDeduccion config)
+        /// <summary>
+        /// 🔒 FIX: El IHSS se calcula sobre el salario BRUTO (incluyendo bonos).
+        /// Si el bruto supera el tope, se topa. Antes solo usaba SalarioBase.
+        /// </summary>
+        public static decimal CalcularIHSS(decimal salarioBrutoMensual, ConfiguracionDeduccion config)
         {
             if (!config.AplicaIHSS) return 0;
-            var baseCalculo = Math.Min(salarioBase, config.TopeIHSS);
+            var baseCalculo = Math.Min(salarioBrutoMensual, config.TopeIHSS);
             return Math.Round(baseCalculo * (config.PorcentajeIHSS / 100m), 2);
         }
 
-        public static decimal CalcularRAP(decimal salarioBase, ConfiguracionDeduccion config)
+        /// <summary>
+        /// 🔒 FIX: El RAP se calcula sobre el salario BRUTO (incluyendo bonos).
+        /// </summary>
+        public static decimal CalcularRAP(decimal salarioBrutoMensual, ConfiguracionDeduccion config)
         {
             if (!config.AplicaRAP) return 0;
 
             var baseCalculo = config.TopeRAP.HasValue
-                ? Math.Min(salarioBase, config.TopeRAP.Value)
-                : salarioBase;
+                ? Math.Min(salarioBrutoMensual, config.TopeRAP.Value)
+                : salarioBrutoMensual;
 
             return Math.Round(baseCalculo * (config.PorcentajeRAP / 100m), 2);
         }
@@ -2347,6 +2365,7 @@ namespace Kirkenta.Helpers.RRHH
             var totalBruto = Math.Round(salarioBaseProporcional + bonoTransporte + bonoAlimentacion + otrosBonos, 2);
 
             // ===== IHSS =====
+            // 🔒 FIX: se calcula sobre el salario BRUTO del período, luego se topa.
             decimal deduccionIHSS = 0;
             if (empleado.CotizaIHSS)
             {
@@ -2378,7 +2397,6 @@ namespace Kirkenta.Helpers.RRHH
                 }
                 else
                 {
-                    // Método mensual simple
                     var tramos = context.TramosISR
                         .Where(t => t.ConfiguracionDeduccionId == config.Id)
                         .OrderBy(t => t.Orden)
@@ -11986,6 +12004,8 @@ namespace Kirkenta.Pages.Logistica.Zonas
 ===== FILE: Pages/Reportes/Compras.cshtml.cs =====
 
 ````csharp
+using Kirkenta.Helpers;
+using Microsoft.AspNetCore.Mvc;
 using Kirkenta.Data;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -12043,8 +12063,15 @@ namespace Kirkenta.Pages.Reportes
             public decimal TotalInvertido { get; set; }
         }
 
-        public void OnGet(DateTime? desde, DateTime? hasta, int? proveedorId, string? producto)
+        public IActionResult OnGet(DateTime? desde, DateTime? hasta, int? proveedorId, string? producto)
         {
+            if (!(PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Reportes", "Compras") ||
+                  PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Compras", "Reportes")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             if (desde.HasValue) Desde = desde.Value;
             if (hasta.HasValue) Hasta = hasta.Value;
             FiltroProveedorId = proveedorId;
@@ -12154,6 +12181,8 @@ namespace Kirkenta.Pages.Reportes
                 labels = topProd.Select(x => x.NombreProducto).ToArray(),
                 data = topProd.Select(x => x.CantidadComprada).ToArray()
             });
+
+            return Page();
         }
     }
 }
@@ -12197,14 +12226,33 @@ namespace Kirkenta.Pages.Reportes
 ===== FILE: Pages/Reportes/Index.cshtml.cs =====
 
 ````csharp
+using Kirkenta.Data;
+using Kirkenta.Helpers;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Kirkenta.Pages.Reportes
 {
     public class IndexModel : PageModel
     {
-        public void OnGet()
+        private readonly ApplicationDbContext _context;
+
+        public IndexModel(ApplicationDbContext context)
         {
+            _context = context;
+        }
+
+        public IActionResult OnGet()
+        {
+            if (!(PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Reportes", "Index") ||
+                  PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Reportes", "Ventas") ||
+                  PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Reportes", "Compras")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
+            return Page();
         }
     }
 }
@@ -12494,6 +12542,7 @@ namespace Kirkenta.Pages.Reportes
 ===== FILE: Pages/Reportes/Ventas.cshtml.cs =====
 
 ````csharp
+using Kirkenta.Helpers;
 using Kirkenta.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -12543,8 +12592,14 @@ namespace Kirkenta.Pages.Reportes
             public decimal Total { get; set; }
         }
 
-        public void OnGet(DateTime? desde, DateTime? hasta, string? cliente, string? producto)
+        public IActionResult OnGet(DateTime? desde, DateTime? hasta, string? cliente, string? producto)
         {
+            if (!(PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Reportes", "Ventas")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             if (desde.HasValue) Desde = desde.Value;
             if (hasta.HasValue) Hasta = hasta.Value;
             FiltroCliente = cliente ?? "";
@@ -12657,6 +12712,8 @@ namespace Kirkenta.Pages.Reportes
                 labels = TopClientes.Select(x => x.Nombre).ToArray(),
                 data = TopClientes.Select(x => x.Total).ToArray()
             });
+
+            return Page();
         }
     }
 }

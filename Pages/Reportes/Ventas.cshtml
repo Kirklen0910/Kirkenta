@@ -164,7 +164,7 @@
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="/lib/chartjs/chart.umd.min.js"></script>
     <script>
         (function () {
             var colorPrimario = '#4f46e5';
@@ -175,6 +175,7 @@
             var ventasPorDia = @Html.Raw(Model.VentasPorDiaJson);
             var ctxDia = document.getElementById('chartVentasPorDia');
             if (ctxDia && ventasPorDia.labels && ventasPorDia.labels.length > 0) {
+                if (window.Chart) { Chart.defaults.color = kkCss('--color-muted'); Chart.defaults.borderColor = kkCss('--color-border'); }
                 new Chart(ctxDia, {
                     type: 'line',
                     data: {
@@ -253,7 +254,7 @@
                                 '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#6366f1'
                             ],
                             borderWidth: 2,
-                            borderColor: '#ffffff'
+                            borderColor: kkCss('--color-surface')
                         }]
                     },
                     options: {

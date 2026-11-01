@@ -55,7 +55,7 @@ namespace Kirkenta.Pages.Proveedores
             return formato.ToLower() switch
             {
                 "csv" => CsvExporter.Export(items, columns),
-                "json" => JsonExporter.Export(items),
+                "json" => JsonExporter.Export(items, columns),
                 _ => ExcelExporter.Export(items, columns, "Proveedores", titulo)
             };
         }

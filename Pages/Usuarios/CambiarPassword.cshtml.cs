@@ -11,10 +11,12 @@ namespace Kirkenta.Pages.Usuarios
     public class CambiarPasswordModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly IWebHostEnvironment _env;
 
-        public CambiarPasswordModel(ApplicationDbContext context)
+        public CambiarPasswordModel(ApplicationDbContext context, IWebHostEnvironment env)
         {
             _context = context;
+            _env = env;
         }
 
         [BindProperty]
@@ -36,7 +38,7 @@ namespace Kirkenta.Pages.Usuarios
 
         public void OnGet() { }
 
-        public IActionResult OnPost()
+        public async Task<IActionResult> OnPostAsync()
         {
             if (!ModelState.IsValid) return Page();
 
@@ -53,8 +55,34 @@ namespace Kirkenta.Pages.Usuarios
                 return Page();
             }
 
+            var errorClave = PasswordPolicy.Validar(Input.NewPassword, user.Username);
+            if (errorClave != null)
+            {
+                ModelState.AddModelError("Input.NewPassword", errorClave);
+                return Page();
+            }
+            if (Input.NewPassword == Input.CurrentPassword)
+            {
+                ModelState.AddModelError("Input.NewPassword", "La nueva contraseña debe ser distinta de la actual");
+                return Page();
+            }
+
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(Input.NewPassword);
             _context.SaveChanges();
+
+            // Las demás sesiones abiertas con la clave anterior dejan de valer; esta se renueva con la clave nueva
+            await SesionHelper.IniciarSesionAsync(HttpContext, user);
+
+            // Si es el administrador, ya cambió la clave inicial: se borra el archivo con la clave de primer acceso
+            if (user.Rol == "Admin")
+            {
+                try
+                {
+                    var primerAcceso = Path.Combine(_env.ContentRootPath, "App_Data", "primer-acceso.txt");
+                    if (System.IO.File.Exists(primerAcceso)) System.IO.File.Delete(primerAcceso);
+                }
+                catch { /* si no se puede borrar, no impide el cambio de clave */ }
+            }
 
             ActividadHelper.Registrar(
                 _context,

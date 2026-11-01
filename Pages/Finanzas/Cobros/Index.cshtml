@@ -1,0 +1,220 @@
+@page
+@model Kirkenta.Pages.Finanzas.Cobros.IndexModel
+@{
+    ViewData["Title"] = "Cuentas por Cobrar";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a Finanzas
+        </a>
+        <h2>Cuentas por Cobrar</h2>
+        <p>Alertas de cobros pendientes de ventas al crédito</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Finanzas/Cobros/Recordatorios" class="btn-primary">Recordatorios por WhatsApp</a>
+    </div>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total pendiente de cobro</span>
+        <span class="kpi-value" style="color: var(--color-primary);">L. @Model.TotalPendiente.ToString("N2")</span>
+        <span class="kpi-trend">En @Model.Cobros.Count cobros</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Cobros vencidos</span>
+        <span class="kpi-value" style="color: var(--color-danger);">@Model.CobrosVencidos</span>
+        <span class="kpi-trend down">Requieren acción inmediata</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Cobros por vencer (≤7 días)</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.CobrosProximos</span>
+        <span class="kpi-trend">Próximos a vencer</span>
+    </div>
+</div>
+
+<div class="module-card">
+    @if (TempData["Success"] != null)
+    {
+        <div class="module-alert module-alert-success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="module-alert module-alert-error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            @TempData["Error"]
+        </div>
+    }
+
+    @if (Model.Cobros.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <h3>¡Todo al día!</h3>
+            <p>No tienes cuentas por cobrar pendientes.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Filtros -->
+        <div class="module-toolbar" style="margin-bottom: 16px;">
+            <div class="search-box" style="flex: 1; min-width: 250px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" id="searchInput" placeholder="Buscar por cliente, venta o factura..." />
+            </div>
+            <div class="filter-group" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <select id="filterAlerta" class="filter-select">
+                    <option value="">Todas las alertas</option>
+                    <option value="Vencido">🔴 Vencidos</option>
+                    <option value="PorVencer">🟡 Por vencer</option>
+                    <option value="Pendiente">🟢 Pendientes</option>
+                </select>
+                <input type="date" id="filterFechaDesde" class="filter-select" title="Fecha venta desde" />
+                <input type="date" id="filterFechaHasta" class="filter-select" title="Fecha venta hasta" />
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="erp-table" id="cobrosTable">
+                <thead>
+                    <tr>
+                        <th>Venta / Factura</th>
+                        <th>Fecha Venta</th>
+                        <th>Cliente</th>
+                        <th>Contacto</th>
+                        <th style="text-align: right;">Total</th>
+                        <th style="text-align: right;">Saldo Pendiente</th>
+                        <th>Vencimiento</th>
+                        <th>Alerta</th>
+                        <th style="width: 100px; text-align: right;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.Cobros)
+                    {
+                        <tr data-fecha="@c.FechaVenta.ToString("yyyy-MM-dd")"
+                            data-alerta="@c.EstadoAlerta"
+                            data-search="@(c.ClienteNombre.ToLower()) @(c.VentaNumero.ToLower()) @(c.FacturaNumero?.ToLower() ?? "")">
+                            <td>
+                                <strong>@c.VentaNumero</strong>
+                                @if (!string.IsNullOrEmpty(c.FacturaNumero))
+                                {
+                                    <br /><span class="table-user-sub">Factura: @c.FacturaNumero</span>
+                                }
+                            </td>
+                            <td>@c.FechaVenta.ToString("dd/MM/yyyy")</td>
+                            <td>@c.ClienteNombre</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(c.ClienteTelefono))
+                                {
+                                    <span class="table-user-sub">📞 @c.ClienteTelefono</span>
+                                }
+                                @if (!string.IsNullOrEmpty(c.ClienteRTN))
+                                {
+                                    <br /><span class="table-user-sub" style="font-size: 11px;">RTN: @c.ClienteRTN</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">L. @c.TotalVenta.ToString("N2")</td>
+                            <td style="text-align: right;">
+                                <strong style="color: @(c.EstadoAlerta == "Vencido" ? "var(--color-danger)" : c.EstadoAlerta == "PorVencer" ? "var(--color-warning)" : "var(--color-primary)");">
+                                    L. @c.SaldoPendiente.ToString("N2")
+                                </strong>
+                            </td>
+                            <td>
+                                @if (c.FechaVencimiento.HasValue)
+                                {
+                                    @c.FechaVencimiento.Value.ToString("dd/MM/yyyy")
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">—</span>
+                                }
+                            </td>
+                            <td>
+                                @if (c.EstadoAlerta == "Vencido")
+                                {
+                                    <span class="badge badge-danger">🔴 Vencido (@(Math.Abs(c.DiasParaVencer)) días)</span>
+                                }
+                                else if (c.EstadoAlerta == "PorVencer")
+                                {
+                                    <span class="badge badge-warning">🟡 Vence en @c.DiasParaVencer días</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-info">🟢 Pendiente</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    <a asp-page="/Finanzas/Cobros/Cobrar" asp-route-ventaId="@c.VentaId" class="btn-primary btn-sm">Cobrar</a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var filterAlerta = document.getElementById('filterAlerta');
+            var filterFechaDesde = document.getElementById('filterFechaDesde');
+            var filterFechaHasta = document.getElementById('filterFechaHasta');
+            var table = document.getElementById('cobrosTable');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+
+            function filterRows() {
+                var search = (searchInput?.value || '').toLowerCase().trim();
+                var alerta = filterAlerta?.value || '';
+                var fechaDesde = filterFechaDesde?.value || '';
+                var fechaHasta = filterFechaHasta?.value || '';
+
+                rows.forEach(function (row) {
+                    var rowSearch = row.dataset.search || '';
+                    var rowFecha = row.dataset.fecha || '';
+                    var rowAlerta = row.dataset.alerta || '';
+
+                    var matchSearch = !search || rowSearch.includes(search);
+                    var matchAlerta = !alerta || rowAlerta === alerta;
+                    var matchDesde = !fechaDesde || rowFecha >= fechaDesde;
+                    var matchHasta = !fechaHasta || rowFecha <= fechaHasta;
+
+                    row.style.display = (matchSearch && matchAlerta && matchDesde && matchHasta) ? '' : 'none';
+                });
+            }
+
+            searchInput?.addEventListener('input', filterRows);
+            filterAlerta?.addEventListener('change', filterRows);
+            filterFechaDesde?.addEventListener('change', filterRows);
+            filterFechaHasta?.addEventListener('change', filterRows);
+        })();
+    </script>
+}

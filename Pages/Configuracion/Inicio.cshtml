@@ -1,0 +1,181 @@
+@page
+@model Kirkenta.Pages.Configuracion.InicioModel
+@using Kirkenta.Helpers
+@{
+    ViewData["Title"] = "Configuración inicial";
+    var titulos = new[] { "Empresa", "Facturación SAR", "Caja y banco", "Catálogo", "¡Listo!" };
+    var hechos = new Dictionary<int, bool>
+    {
+        [1] = Model.Lista.First(p => p.Clave == "empresa").Completo,
+        [2] = Model.Lista.First(p => p.Clave == "fiscal").Completo,
+        [3] = Model.Lista.First(p => p.Clave == "caja").Completo,
+        [4] = Model.Lista.First(p => p.Clave == "catalogo").Completo,
+        [5] = false
+    };
+}
+
+<style>
+    .ci-pasos { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 18px; padding:0; list-style:none; }
+    .ci-paso { flex:1 1 120px; display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--color-border); border-radius:10px; background:var(--color-surface); color:var(--color-muted); text-decoration:none; font-size:13px; }
+    .ci-paso .n { width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:var(--color-surface-2, #eef2f7); font-weight:700; flex:none; }
+    .ci-paso.activo { border-color:var(--color-primary); color:var(--color-text); font-weight:600; }
+    .ci-paso.activo .n { background:var(--color-primary); color:#fff; }
+    .ci-paso.hecho .n { background:var(--color-success); color:#fff; }
+    .ci-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; }
+    .ci-acciones { display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; align-items:center; }
+    .ci-lista li { display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--color-border); align-items:flex-start; }
+    .ci-lista li:last-child { border-bottom:0; }
+    .ci-ayuda { color:var(--color-muted); font-size:13px; margin:2px 0 0; }
+</style>
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>🚀 Configuración inicial</h2>
+        <p>Te guío paso a paso para dejar el negocio listo para vender. Puedes salir y volver cuando quieras: lo que ya guardaste se queda.</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Warning"] != null) { <div class="module-alert module-alert-warning">@TempData["Warning"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+@if (Model.Errores.Count > 0)
+{
+    <div class="module-alert module-alert-error" role="alert">
+        <ul style="margin:0 0 0 18px;">
+            @foreach (var er in Model.Errores) { <li>@er</li> }
+        </ul>
+    </div>
+}
+
+<ol class="ci-pasos">
+    @for (int i = 1; i <= titulos.Length; i++)
+    {
+        <li style="display:contents;">
+            <a class="ci-paso @(Model.Paso == i ? "activo" : "") @(hechos[i] && Model.Paso != i ? "hecho" : "")" asp-page="/Configuracion/Inicio" asp-route-paso="@i">
+                <span class="n">@(hechos[i] && Model.Paso != i ? "✓" : i.ToString())</span> @titulos[i - 1]
+            </a>
+        </li>
+    }
+</ol>
+
+<div class="module-card">
+@if (Model.Paso == 1)
+{
+    <h3 style="margin-top:0;">1. Datos de tu empresa</h3>
+    <p class="ci-ayuda">Esto sale en las facturas, cotizaciones y reportes.</p>
+    <form method="post" asp-page-handler="Empresa">
+        <div class="ci-grid">
+            <div class="form-group"><label for="Nombre">Nombre del negocio *</label><input class="form-control" id="Nombre" name="Nombre" value="@Model.Empresa.Nombre" maxlength="150" required /></div>
+            <div class="form-group"><label for="RazonSocial">Razón social</label><input class="form-control" id="RazonSocial" name="RazonSocial" value="@Model.Empresa.RazonSocial" maxlength="200" /></div>
+            <div class="form-group"><label for="RTN">RTN</label><input class="form-control" id="RTN" name="RTN" value="@Model.Empresa.RTN" maxlength="20" placeholder="0000-0000-000000" inputmode="numeric" /></div>
+            <div class="form-group"><label for="Telefono">Teléfono</label><input class="form-control" id="Telefono" name="Telefono" value="@Model.Empresa.Telefono" maxlength="30" placeholder="+504 0000-0000" /></div>
+            <div class="form-group"><label for="Email">Correo</label><input class="form-control" type="email" id="Email" name="Email" value="@Model.Empresa.Email" maxlength="150" /></div>
+            <div class="form-group"><label for="Ciudad">Ciudad</label><input class="form-control" id="Ciudad" name="Ciudad" value="@Model.Empresa.Ciudad" maxlength="100" /></div>
+            <div class="form-group" style="grid-column:1/-1;"><label for="Direccion">Dirección</label><input class="form-control" id="Direccion" name="Direccion" value="@Model.Empresa.Direccion" maxlength="300" /></div>
+        </div>
+        <p class="ci-ayuda">El logo lo puedes subir después en Configuración → Datos de la empresa.</p>
+        <div class="ci-acciones"><button type="submit" class="btn-primary">Guardar y continuar →</button></div>
+    </form>
+}
+else if (Model.Paso == 2)
+{
+    <h3 style="margin-top:0;">2. Facturación fiscal (SAR)</h3>
+    <p class="ci-ayuda">Si ya tienes tu CAI y el rango autorizado por el SAR, ponlos aquí y el sistema numerará las facturas con ellos y te avisará antes de que venzan. Si todavía no los tienes, salta este paso: las facturas usarán numeración interna.</p>
+    <form method="post" asp-page-handler="Fiscal">
+        <label style="font-weight:600;"><input type="checkbox" name="Activar" value="true" @(Model.Fiscal.Activar ? "checked" : "") /> Activar facturación fiscal con CAI</label>
+        <div class="ci-grid" style="margin-top:12px;">
+            <div class="form-group"><label for="CAI">CAI</label><input class="form-control" id="CAI" name="CAI" value="@Model.Fiscal.CAI" maxlength="50" placeholder="XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX-XX" /></div>
+            <div class="form-group"><label for="RangoInicial">Rango inicial</label><input class="form-control" id="RangoInicial" name="RangoInicial" value="@Model.Fiscal.RangoInicial" maxlength="30" placeholder="000-001-01-00000001" /></div>
+            <div class="form-group"><label for="RangoFinal">Rango final</label><input class="form-control" id="RangoFinal" name="RangoFinal" value="@Model.Fiscal.RangoFinal" maxlength="30" placeholder="000-001-01-00001000" /></div>
+            <div class="form-group"><label for="FechaLimite">Fecha límite de emisión</label><input class="form-control" type="date" id="FechaLimite" name="FechaLimite" value="@(Model.Fiscal.FechaLimite?.ToString("yyyy-MM-dd"))" /></div>
+        </div>
+        <p class="ci-ayuda">Las notas de crédito fiscales se configuran aparte en Configuración → Datos de la empresa.</p>
+        <div class="ci-acciones">
+            <button type="submit" class="btn-primary">Guardar y continuar →</button>
+            <button type="submit" name="omitir" value="1" class="btn-secondary" formnovalidate>Lo hago después</button>
+            <a asp-page="/Configuracion/Inicio" asp-route-paso="1" class="btn-secondary">← Atrás</a>
+        </div>
+    </form>
+}
+else if (Model.Paso == 3)
+{
+    <h3 style="margin-top:0;">3. Caja y cuenta de banco</h3>
+    @if (Model.YaHayCaja)
+    {
+        <div class="module-alert module-alert-success">Ya tienes @Model.CajasExistentes caja(s) creada(s). Puedes agregar otra o continuar.</div>
+    }
+    <p class="ci-ayuda">La caja es donde entra el efectivo de las ventas del POS. El fondo inicial es el cambio con el que arrancas. La cuenta de banco es opcional.</p>
+    <form method="post" asp-page-handler="Caja">
+        <div class="ci-grid">
+            <div class="form-group"><label for="NombreCaja">Nombre de la caja</label><input class="form-control" id="NombreCaja" name="NombreCaja" value="@(Model.Caja.NombreCaja ?? (Model.YaHayCaja ? "" : "Caja principal"))" maxlength="100" /></div>
+            <div class="form-group"><label for="FondoInicial">Fondo inicial (L.)</label><input class="form-control" type="number" step="0.01" min="0" id="FondoInicial" name="FondoInicial" value="@Model.Caja.FondoInicial.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" /></div>
+        </div>
+        <h4 style="margin:18px 0 6px;">Cuenta de banco (opcional)</h4>
+        <div class="ci-grid">
+            <div class="form-group"><label for="Banco">Banco</label><input class="form-control" id="Banco" name="Banco" value="@Model.Caja.Banco" maxlength="100" placeholder="BAC, Ficohsa, Atlántida…" /></div>
+            <div class="form-group"><label for="NombreBanco">Nombre de la cuenta</label><input class="form-control" id="NombreBanco" name="NombreBanco" value="@Model.Caja.NombreBanco" maxlength="100" placeholder="Cuenta de cheques" /></div>
+            <div class="form-group"><label for="NumeroCuenta">Número de cuenta</label><input class="form-control" id="NumeroCuenta" name="NumeroCuenta" value="@Model.Caja.NumeroCuenta" maxlength="50" /></div>
+            <div class="form-group"><label for="SaldoBanco">Saldo actual (L.)</label><input class="form-control" type="number" step="0.01" min="0" id="SaldoBanco" name="SaldoBanco" value="@Model.Caja.SaldoBanco.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" /></div>
+        </div>
+        <div class="ci-acciones">
+            <button type="submit" class="btn-primary">Guardar y continuar →</button>
+            <button type="submit" name="omitir" value="1" class="btn-secondary" formnovalidate>@(Model.YaHayCaja ? "Continuar" : "Lo hago después")</button>
+            <a asp-page="/Configuracion/Inicio" asp-route-paso="2" class="btn-secondary">← Atrás</a>
+        </div>
+    </form>
+}
+else if (Model.Paso == 4)
+{
+    <h3 style="margin-top:0;">4. Categorías y unidades de medida</h3>
+    <p class="ci-ayuda">Las categorías ordenan tus productos (y salen como botones en el POS). Las unidades dicen cómo los vendes. Lo que ya existe no se repite.</p>
+    @if (Model.CategoriasExistentes.Count > 0)
+    {
+        <p class="ci-ayuda">Categorías que ya tienes: @string.Join(", ", Model.CategoriasExistentes)</p>
+    }
+    <form method="post" asp-page-handler="Catalogo">
+        <div class="form-group">
+            <label for="Categorias">Categorías (una por línea)</label>
+            <textarea class="form-control" id="Categorias" name="Categorias" rows="5" placeholder="Bebidas&#10;Abarrotes&#10;Limpieza">@Model.Catalogo.Categorias</textarea>
+        </div>
+        <label style="font-weight:600;">Unidades de medida</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px 18px;margin:6px 0 10px;">
+            @foreach (var (nombre, abrev) in ConfiguracionInicialHelper.UnidadesSugeridas)
+            {
+                var existe = Model.UnidadesExistentes.Contains(nombre);
+                <label style="font-weight:400;"><input type="checkbox" name="Unidades" value="@nombre" @(existe ? "checked disabled" : "") /> @nombre (@abrev)@(existe ? " · ya existe" : "")</label>
+            }
+        </div>
+        <div class="form-group"><label for="OtrasUnidades">Otras unidades (separadas por coma)</label><input class="form-control" id="OtrasUnidades" name="OtrasUnidades" value="@Model.Catalogo.OtrasUnidades" placeholder="Quintal, Bolsa" /></div>
+        <div class="ci-acciones">
+            <button type="submit" class="btn-primary">Guardar y continuar →</button>
+            <button type="submit" name="omitir" value="1" class="btn-secondary" formnovalidate>Lo hago después</button>
+            <a asp-page="/Configuracion/Inicio" asp-route-paso="3" class="btn-secondary">← Atrás</a>
+        </div>
+    </form>
+}
+else
+{
+    var pendientes = Model.Lista.Count(p => !p.Completo && !p.Opcional);
+    <h3 style="margin-top:0;">@(pendientes == 0 ? "🎉 ¡Tu negocio está listo para vender!" : "Casi listo: te faltan " + pendientes + " cosa(s)")</h3>
+    <p class="ci-ayuda">Este es el estado de tu configuración. Toca cualquier punto pendiente para resolverlo.</p>
+    <ul class="ci-lista" style="list-style:none;margin:0;padding:0;">
+        @foreach (var p in Model.Lista)
+        {
+            <li>
+                <span style="font-size:20px;" aria-hidden="true">@(p.Completo ? "✅" : p.Opcional ? "➖" : "⬜")</span>
+                <div style="flex:1;">
+                    <strong>@p.Titulo</strong>@if (p.Opcional && !p.Completo) { <span class="table-user-sub"> (opcional)</span> }
+                    <div class="ci-ayuda">@p.Detalle</div>
+                </div>
+                @if (!p.Completo) { <a class="btn-secondary" href="@p.Pagina">Hacerlo</a> }
+                else { <a class="btn-secondary" href="@p.Pagina">Revisar</a> }
+            </li>
+        }
+    </ul>
+    <div class="ci-acciones">
+        <a asp-page="/POS/Index" class="btn-primary">Abrir el punto de venta</a>
+        <a asp-page="/Index" class="btn-secondary">Ir al inicio</a>
+        <a asp-page="/Configuracion/Inicio" asp-route-paso="4" class="btn-secondary">← Atrás</a>
+    </div>
+}
+</div>

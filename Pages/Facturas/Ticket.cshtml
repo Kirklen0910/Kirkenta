@@ -1,0 +1,102 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Facturas.TicketModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>Ticket @Model.Factura.Numero</title>
+    <style>
+        @@page { size: 80mm auto; margin: 0; }
+        * { box-sizing: border-box; }
+        body { font-family: "Courier New", monospace; font-size: 12px; width: 76mm; margin: 0 auto; padding: 4mm 2mm; color: #000; }
+        h1 { font-size: 15px; text-align: center; margin: 0 0 2px; }
+        .c { text-align: center; }
+        .r { text-align: right; }
+        hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
+        table { width: 100%; border-collapse: collapse; }
+        td { vertical-align: top; padding: 1px 0; }
+        .tot td { font-weight: bold; }
+        .noprint { text-align: center; margin-bottom: 8px; }
+        @@media print { .noprint { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="noprint">
+        <button onclick="window.print()">Imprimir</button>
+        <a asp-page="/Facturas/Details" asp-route-id="@Model.Factura.Id">Volver</a>
+    </div>
+
+    <h1>@Model.Empresa.Nombre</h1>
+    <div class="c">
+        @if (!string.IsNullOrEmpty(Model.Empresa.RazonSocial)) { <div>@Model.Empresa.RazonSocial</div> }
+        @if (!string.IsNullOrEmpty(Model.Empresa.RTN)) { <div>RTN: @Model.Empresa.RTN</div> }
+        @if (!string.IsNullOrEmpty(Model.Empresa.Direccion)) { <div>@Model.Empresa.Direccion</div> }
+        @if (!string.IsNullOrEmpty(Model.Empresa.Telefono)) { <div>Tel: @Model.Empresa.Telefono</div> }
+    </div>
+    <hr />
+    <div>FACTURA: <strong>@Model.Factura.Numero</strong></div>
+    @if (!string.IsNullOrEmpty(Model.Factura.CAI))
+    {
+        <div>CAI: @Model.Factura.CAI</div>
+        <div>Rango: @Model.Factura.RangoInicial</div>
+        <div>al: @Model.Factura.RangoFinal</div>
+        @if (Model.Factura.FechaLimiteEmision.HasValue)
+        {
+            <div>Fecha límite emisión: @Model.Factura.FechaLimiteEmision.Value.ToString("dd/MM/yyyy")</div>
+        }
+    }
+    <div>Fecha: @Model.Factura.Fecha.ToString("dd/MM/yyyy HH:mm")</div>
+    <div>Cliente: @(Model.Cliente?.Nombre ?? "Consumidor final")</div>
+    @if (!string.IsNullOrEmpty(Model.Cliente?.RTN)) { <div>RTN: @Model.Cliente!.RTN</div> }
+    @if (Model.Factura.Estado == "Anulada") { <div class="c"><strong>*** ANULADA ***</strong></div> }
+    <hr />
+    <table>
+        @foreach (var (det, nombre) in Model.Items)
+        {
+            <tr><td colspan="2">@nombre</td></tr>
+            <tr>
+                <td>@det.Cantidad.ToString("0.##") x @det.PrecioUnitario.ToString("N2")</td>
+                <td class="r">@det.Total.ToString("N2")</td>
+            </tr>
+        }
+    </table>
+    <hr />
+    <table>
+        <tr><td>Subtotal</td><td class="r">@Model.Factura.Subtotal.ToString("N2")</td></tr>
+        @if (Model.Factura.Descuento > 0) { <tr><td>Descuento</td><td class="r">-@Model.Factura.Descuento.ToString("N2")</td></tr> }
+        @if (Model.Factura.MontoEnvio > 0) { <tr><td>Envío</td><td class="r">@Model.Factura.MontoEnvio.ToString("N2")</td></tr> }
+        <tr><td>Imp. exonerado</td><td class="r">@Model.Desglose.BaseExoneradaTotal.ToString("N2")</td></tr>
+        <tr><td>Imp. exento</td><td class="r">@Model.Desglose.BaseExentaTotal.ToString("N2")</td></tr>
+        @foreach (var tasa in Model.Desglose.TasasAplicadas)
+        {
+            <tr><td>Imp. gravado @tasa.ToString("0.##")%</td><td class="r">@Model.Desglose.BasePorTasa[tasa].ToString("N2")</td></tr>
+        }
+        @foreach (var tasa in Model.Desglose.TasasAplicadas)
+        {
+            <tr><td>ISV @tasa.ToString("0.##")%</td><td class="r">@Model.Desglose.ISVPorTasa[tasa].ToString("N2")</td></tr>
+        }
+        @if (!Model.Desglose.TasasAplicadas.Any())
+        {
+            <tr><td>ISV</td><td class="r">0.00</td></tr>
+        }
+        <tr class="tot"><td>TOTAL L.</td><td class="r">@Model.Factura.Total.ToString("N2")</td></tr>
+        @if (Model.Factura.Saldo > 0) { <tr><td>Saldo pendiente</td><td class="r">@Model.Factura.Saldo.ToString("N2")</td></tr> }
+    </table>
+    @if (Model.Factura.EsExonerada)
+    {
+        <hr />
+        <div><strong>VENTA EXONERADA DE ISV</strong></div>
+        <div>Constancia: @(Model.Factura.ExoneradoConstancia ?? "—")</div>
+        <div>O.C. exenta: @(Model.Factura.ExoneradoOrdenCompraExenta ?? "—")</div>
+        <div>Reg. SAG: @(Model.Factura.ExoneradoRegistroSag ?? "—")</div>
+    }
+    @if (!string.IsNullOrEmpty(Model.MetodoPago)) { <div>Pago: @Model.MetodoPago</div> }
+    <hr />
+    <div class="c">@(Model.Empresa.NotasFactura ?? "¡Gracias por su compra!")</div>
+
+    <script>window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 300); });</script>
+</body>
+</html>

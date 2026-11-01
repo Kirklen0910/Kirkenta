@@ -21,6 +21,7 @@ namespace Kirkenta.Pages.Productos
 
         public List<Categoria> Categorias { get; set; } = new();
         public List<UnidadMedida> Unidades { get; set; } = new();
+        public List<Impuesto> Impuestos { get; set; } = new();
         public string SKUPreview { get; set; } = "";
 
         public class InputModel
@@ -39,13 +40,20 @@ namespace Kirkenta.Pages.Productos
             public int? CategoriaId { get; set; }
             public int? ImpuestoId { get; set; }
 
+            [Range(0, double.MaxValue, ErrorMessage = "No puede ser negativo")]
             public decimal PrecioCompra { get; set; } = 0;
+            [Range(0, double.MaxValue, ErrorMessage = "No puede ser negativo")]
             public decimal PrecioVenta { get; set; } = 0;
+            [Range(0, double.MaxValue, ErrorMessage = "No puede ser negativo")]
             public decimal PrecioMayorista { get; set; } = 0;
+            [Range(0, double.MaxValue, ErrorMessage = "No puede ser negativo")]
             public decimal Stock { get; set; } = 0;
+            [Range(0, double.MaxValue, ErrorMessage = "No puede ser negativo")]
             public decimal StockMinimo { get; set; } = 0;
             public string UnidadMedida { get; set; } = "Unidad";
             public bool Activo { get; set; } = true;
+
+            public bool PermiteDescuento { get; set; } = true;
         }
 
         public IActionResult OnGet()
@@ -59,6 +67,8 @@ namespace Kirkenta.Pages.Productos
             }
 
             CargarDatos();
+            // El impuesto predeterminado del sistema viene preseleccionado
+            Input.ImpuestoId = Impuestos.FirstOrDefault(i => i.EsPredeterminado)?.Id;
             return Page();
         }
 
@@ -75,6 +85,19 @@ namespace Kirkenta.Pages.Productos
             CargarDatos();
 
             if (!ModelState.IsValid) return Page();
+
+            if (Input.ImpuestoId.HasValue && !Impuestos.Any(i => i.Id == Input.ImpuestoId.Value))
+            {
+                ModelState.AddModelError("Input.ImpuestoId", "El impuesto seleccionado no es válido");
+                return Page();
+            }
+
+            if (!string.IsNullOrWhiteSpace(Input.CodigoBarras) &&
+                _context.Productos.Any(p => p.CodigoBarras == Input.CodigoBarras))
+            {
+                ModelState.AddModelError("Input.CodigoBarras", "Este código de barras ya existe en otro producto");
+                return Page();
+            }
 
             if (string.IsNullOrWhiteSpace(Input.SKU))
             {
@@ -96,19 +119,28 @@ namespace Kirkenta.Pages.Productos
                 Nombre = Input.Nombre,
                 Descripcion = Input.Descripcion,
                 CategoriaId = Input.CategoriaId,
-                ImpuestoId = null,
+                ImpuestoId = Input.ImpuestoId,
                 PrecioCompra = Input.PrecioCompra,
                 PrecioVenta = Input.PrecioVenta,
                 PrecioMayorista = Input.PrecioMayorista,
-                Stock = Input.Stock,
+                Stock = 0,
                 StockMinimo = Input.StockMinimo,
                 UnidadMedida = Input.UnidadMedida,
                 Activo = Input.Activo,
+                PermiteDescuento = Input.PermiteDescuento,
                 FechaCreacion = DateTime.Now
             };
 
             _context.Productos.Add(producto);
             _context.SaveChanges();
+
+            // Stock inicial: entra por el kardex
+            if (Input.Stock != 0)
+            {
+                InventarioHelper.Registrar(_context, producto, Input.Stock, "StockInicial",
+                    producto.SKU, producto.Id, currentUser?.Id, producto.PrecioCompra, "Stock inicial al crear el producto");
+                _context.SaveChanges();
+            }
 
             ActividadHelper.Registrar(
                 _context,
@@ -125,6 +157,7 @@ namespace Kirkenta.Pages.Productos
         {
             Categorias = _context.Categorias.Where(c => c.Activa).OrderBy(c => c.Nombre).ToList();
             Unidades = _context.UnidadesMedida.OrderBy(u => u.Nombre).ToList();
+            Impuestos = _context.Impuestos.Where(i => i.Activo).OrderBy(i => i.Porcentaje).ThenBy(i => i.Nombre).ToList();
             SKUPreview = NumeroDocumentoHelper.PreviewSiguiente(_context, "Producto");
         }
     }

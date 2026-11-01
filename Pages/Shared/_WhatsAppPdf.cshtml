@@ -1,0 +1,20 @@
+@model Kirkenta.Helpers.WhatsAppPdf
+@{
+    var pais = Kirkenta.Helpers.TelefonoHelper.Paises.First(p => p.Iso == Kirkenta.Helpers.TelefonoHelper.PaisPorDefecto);
+    var tel = Kirkenta.Helpers.WhatsAppHelper.Normalizar(Model.Telefono) != null ? Model.Telefono : "";
+    var archivo = string.Concat(Model.Archivo.Split(System.IO.Path.GetInvalidFileNameChars()));
+}
+<span class="wa-pdf">
+    <span class="wa-pdf-grupo">
+        <input type="tel" class="wa-pdf-tel" value="@tel" placeholder="Celular" aria-label="Celular para WhatsApp" />
+        <button type="button" class="btn-secondary btn-whatsapp wa-pdf-btn"
+                data-doc-url="@Model.DocUrl" data-archivo="@archivo" data-mensaje="@Model.Mensaje"
+                data-pais-codigo="@pais.Codigo" data-pais-largo="@pais.Largos[0]"
+                title="Abre el chat con los datos del documento y descarga el PDF para adjuntarlo">
+            <svg viewBox="0 0 24 24" fill="currentColor" class="btn-icon" aria-hidden="true"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.4.1-.6l.4-.5c.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.2-.7.2-1.3.2-1.4-.1-.1-.3-.2-.6-.3zM12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-2.9-.4-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2z"/></svg>
+            <span>PDF por WhatsApp</span>
+        </button>
+    </span>
+    <small class="wa-pdf-aviso" role="status"></small>
+</span>
+<script src="~/js/whatsapp-pdf.js" asp-append-version="true" defer></script>

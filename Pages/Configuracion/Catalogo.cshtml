@@ -1,0 +1,79 @@
+@page
+@model Kirkenta.Pages.Configuracion.CatalogoModel
+@{
+    ViewData["Title"] = "Catálogo en línea";
+}
+
+<style>
+    .cw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+    .cw-link { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--color-primary-soft); border: 1px solid var(--color-primary-border); border-radius: 12px; padding: 12px 14px; }
+    .cw-link code { flex: 1; min-width: 200px; word-break: break-all; color: var(--color-primary); font-weight: 600; }
+    .cw-ayuda { color: var(--color-muted); font-size: 13px; margin: 4px 0 0; }
+    .cw-kpis { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+    .cw-kpi { flex: 1; min-width: 150px; background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: 12px; padding: 12px 14px; }
+    .cw-kpi b { display: block; font-size: 22px; }
+    .cw-kpi span { font-size: 12.5px; color: var(--color-muted); }
+</style>
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Catálogo en línea</h2>
+        <p>Una página pública donde tus clientes ven tus productos con stock, arman su pedido y te lo envían por <strong>WhatsApp</strong>. Sin comisiones ni tienda aparte.</p>
+    </div>
+    <a asp-page="/PedidosWeb/Index" class="btn btn-secondary">📥 Pedidos web @(Model.PedidosNuevos > 0 ? $"({Model.PedidosNuevos} nuevos)" : "")</a>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="module-alert module-alert-error" role="alert">@Html.ValidationSummary(true)</div>
+}
+
+<div class="cw-kpis">
+    <div class="cw-kpi"><b>@(Model.Form.Habilitado ? "🟢 Activo" : "⚪ Apagado")</b><span>Estado del catálogo</span></div>
+    <div class="cw-kpi"><b>@Model.ProductosPublicados</b><span>Productos que se mostrarían (activos, con stock y precio)</span></div>
+    <div class="cw-kpi"><b>@Model.PedidosNuevos</b><span>Pedidos web por atender</span></div>
+</div>
+
+<div class="module-card">
+    <h3 style="margin-top:0;">Enlace para compartir</h3>
+    <div class="cw-link">
+        <code id="cwUrl">@Model.Enlace</code>
+        <button type="button" class="btn btn-secondary" id="cwCopiar">Copiar</button>
+        <a class="btn btn-secondary" href="/Catalogo" target="_blank" rel="noopener">Ver catálogo ↗</a>
+    </div>
+    <p class="cw-ayuda">Ponlo en tu perfil de WhatsApp Business, Facebook, Instagram o imprímelo en un rótulo. Si el sistema solo está en tu red local, tus clientes no podrán abrirlo: necesita un dominio público con https.</p>
+</div>
+
+<form method="post" class="module-card">
+    <h3 style="margin-top:0;">Ajustes</h3>
+    <label style="font-weight:600;display:block;margin-bottom:14px;">
+        <input type="checkbox" name="Form.Habilitado" value="true" @(Model.Form.Habilitado ? "checked" : "") />
+        <input type="hidden" name="Form.Habilitado" value="false" />
+        Catálogo activo (visible para cualquier persona con el enlace)
+    </label>
+
+    <div class="cw-grid">
+        <div class="form-group"><label for="Titulo">Título</label><input class="form-control" id="Titulo" name="Form.Titulo" value="@Model.Form.Titulo" maxlength="120" placeholder="Nombre de tu negocio" /></div>
+        <div class="form-group"><label for="WhatsApp">WhatsApp que recibe los pedidos</label><input class="form-control" id="WhatsApp" name="Form.WhatsApp" value="@Model.Form.WhatsApp" maxlength="30" placeholder="@(string.IsNullOrWhiteSpace(Model.TelefonoEmpresa) ? "+504 9999-9999" : Model.TelefonoEmpresa)" /><p class="cw-ayuda">Vacío = se usa el teléfono de la empresa.</p></div>
+        <div class="form-group"><label for="PedidoMinimo">Pedido mínimo (L.)</label><input class="form-control" type="number" step="0.01" min="0" id="PedidoMinimo" name="Form.PedidoMinimo" value="@Model.Form.PedidoMinimo.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" /><p class="cw-ayuda">0 = sin mínimo.</p></div>
+    </div>
+    <div class="form-group" style="margin-top:6px;"><label for="Mensaje">Mensaje de bienvenida</label><input class="form-control" id="Mensaje" name="Form.Mensaje" value="@Model.Form.Mensaje" maxlength="300" placeholder="Ej: Entregas a domicilio en toda la ciudad. Atendemos de lunes a sábado." /></div>
+    <label style="display:block;margin-top:10px;">
+        <input type="checkbox" name="Form.MostrarStock" value="true" @(Model.Form.MostrarStock ? "checked" : "") />
+        <input type="hidden" name="Form.MostrarStock" value="false" />
+        Mostrar las existencias de cada producto
+    </label>
+
+    <p class="cw-ayuda" style="margin-top:14px;">Los precios que ve el cliente incluyen ISV y se calculan siempre en el servidor, nadie puede cambiarlos desde su celular. Solo aparecen los productos activos con existencias.</p>
+    <div style="margin-top:14px;"><button type="submit" class="btn btn-primary">Guardar</button></div>
+</form>
+
+<script>
+    document.getElementById('cwCopiar').addEventListener('click', function () {
+        var t = document.getElementById('cwUrl').textContent, b = this;
+        (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { b.textContent = '¡Copiado!'; }, function () { window.prompt('Copia el enlace:', t); });
+        setTimeout(function () { b.textContent = 'Copiar'; }, 2000);
+    });
+</script>

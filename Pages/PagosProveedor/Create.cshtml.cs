@@ -2,6 +2,7 @@ using Kirkenta.Data;
 using Kirkenta.Helpers;
 using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
+using Kirkenta.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.ComponentModel.DataAnnotations;
@@ -99,104 +100,26 @@ namespace Kirkenta.Pages.PagosProveedor
             if (!ModelState.IsValid)
                 return Page();
 
-            var orden = _context.OrdenesCompra.FirstOrDefault(o => o.Id == Input.OrdenCompraId);
-            if (orden == null)
+            // Toda la lógica (validación, saldo atómico, egreso en Finanzas, transacción) vive en el servicio
+            var resultado = PagoProveedorService.Registrar(_context, new PagoProveedorService.Solicitud
             {
-                ModelState.AddModelError("Input.OrdenCompraId", "Orden no encontrada");
-                return Page();
-            }
-
-            if (orden.Estado != "Recibida" && orden.Estado != "RecibidaParcial")
-            {
-                ModelState.AddModelError(string.Empty,
-                    $"Solo se pueden pagar órdenes en estado Recibida o Recibida Parcial (estado actual: {orden.Estado})");
-                return Page();
-            }
-
-            if (orden.Saldo <= 0)
-            {
-                ModelState.AddModelError(string.Empty, "Esta orden ya está completamente pagada");
-                return Page();
-            }
-
-            if (Input.Monto > orden.Saldo)
-            {
-                ModelState.AddModelError("Input.Monto",
-                    $"El monto no puede ser mayor al saldo pendiente (L. {orden.Saldo:N2})");
-                return Page();
-            }
-
-            // ===== VALIDACIÓN: período contable cerrado =====
-            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
-            if (!periodoOk)
-            {
-                ModelState.AddModelError(string.Empty, periodoError!);
-                return Page();
-            }
-
-            var numero = NumeroDocumentoHelper.GenerarSiguiente(_context, "PagoProveedor");
-
-            var pago = new Models.PagoProveedor
-            {
-                Numero = numero,
-                ProveedorId = orden.ProveedorId,
-                OrdenCompraId = orden.Id,
-                Fecha = DateTime.Now,
+                OrdenCompraId = Input.OrdenCompraId,
                 Monto = Input.Monto,
                 MetodoPagoId = Input.MetodoPagoId,
                 Referencia = Input.Referencia,
-                MonedaId = Input.MonedaId,
-                TipoCambio = 1,
                 Notas = Input.Notas,
-                UsuarioCreoId = currentUser?.Id,
-                EmpresaId = 1
-            };
+                RegistrarEnFinanzas = Input.RegistrarEnFinanzas
+            }, currentUser?.Id);
 
-            _context.PagosProveedor.Add(pago);
-
-            orden.Saldo -= Input.Monto;
-            if (orden.Saldo <= 0)
+            if (!resultado.Ok)
             {
-                orden.Saldo = 0;
-                if (orden.Estado == "Recibida")
-                {
-                    orden.Estado = "Pagada";
-                }
+                CargarDatos();
+                ModelState.AddModelError(resultado.Campo ?? string.Empty, resultado.Error!);
+                return Page();
             }
 
-            _context.SaveChanges();
-
-            // REGISTRO AUTOMÁTICO EN FINANZAS
-            string? movimientoError = null;
-
-            if (Input.RegistrarEnFinanzas)
-            {
-                try
-                {
-                    var proveedor = _context.Proveedores.FirstOrDefault(p => p.Id == orden.ProveedorId);
-                    var metodoPago = _context.MetodosPago.FirstOrDefault(m => m.Id == Input.MetodoPagoId);
-
-                    var mov = MovimientoAutomaticoHelper.RegistrarEgresoPagoProveedor(
-                        _context,
-                        pago.Id,
-                        pago.Numero ?? "—",
-                        pago.Monto,
-                        currentUser?.Id ?? 0,
-                        nombreProveedor: proveedor?.Nombre ?? "—",
-                        formaPago: metodoPago?.Nombre
-                    );
-
-                    if (mov == null)
-                    {
-                        movimientoError = "No se pudo registrar el movimiento financiero (revisa la configuración de cuentas y categorías)";
-                    }
-                }
-                catch (Exception ex)
-                {
-                    movimientoError = ex.Message;
-                    Console.WriteLine($"[PagosProveedor] Error al registrar movimiento: {ex.Message}");
-                }
-            }
+            var pago = resultado.Pago!;
+            var orden = resultado.Orden!;
 
             ActividadHelper.Registrar(
                 _context,
@@ -205,15 +128,7 @@ namespace Kirkenta.Pages.PagosProveedor
                 $"Registró pago {pago.Numero} por L. {pago.Monto:N2} a la orden {orden.Numero}. Saldo restante: L. {orden.Saldo:N2}",
                 HttpContext.Connection.RemoteIpAddress?.ToString());
 
-            if (movimientoError != null)
-            {
-                TempData["Warning"] = $"Pago registrado. {movimientoError}";
-            }
-            else
-            {
-                TempData["Success"] = $"Pago {pago.Numero} registrado correctamente. Saldo restante: L. {orden.Saldo:N2}";
-            }
-
+            TempData["Success"] = $"Pago {pago.Numero} registrado correctamente. Saldo restante: L. {orden.Saldo:N2}";
             return RedirectToPage("/PagosProveedor/Index");
         }
 

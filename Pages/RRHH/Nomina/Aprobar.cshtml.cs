@@ -75,6 +75,12 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 return Page();
             }
 
+            if (Accion == "rechazar" && string.IsNullOrWhiteSpace(Motivo))
+            {
+                ModelState.AddModelError("Motivo", "Debes indicar el motivo del rechazo");
+                return Page();
+            }
+
             if (Accion == "aprobar")
             {
                 nomina.Estado = "Aprobada";

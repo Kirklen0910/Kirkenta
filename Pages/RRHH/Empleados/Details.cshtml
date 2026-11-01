@@ -140,7 +140,7 @@
             </div>
             <div class="profile-stat">
                 <span class="profile-stat-label">Vacaciones</span>
-                <span class="profile-stat-value" style="color: var(--color-primary);">@Model.Empleado.DiasVacacionesDisponibles días</span>
+                <span class="profile-stat-value" style="color: var(--color-primary);">@Model.Empleado.DiasVacacionesDisponibles.ToString("0.##") días</span>
             </div>
         </div>
     </div>
@@ -571,7 +571,7 @@
                                 </div>
                             </div>
 
-                            <div style="padding: 16px 24px; background: #f9fafb; border-top: 1px solid var(--color-border); display: flex; gap: 12px; justify-content: flex-end;">
+                            <div style="padding: 16px 24px; background: var(--color-surface-2); border-top: 1px solid var(--color-border); display: flex; gap: 12px; justify-content: flex-end;">
                                 <button type="button" class="btn-secondary" onclick="document.getElementById('modalSubirDoc').style.display='none'">Cancelar</button>
                                 <button type="submit" class="btn-primary">Subir</button>
                             </div>
@@ -670,15 +670,15 @@
             <div class="kpi-grid" style="margin-bottom: 20px;">
                 <div class="kpi-card">
                     <span class="kpi-label">Días disponibles</span>
-                    <span class="kpi-value" style="color: var(--color-primary);">@Model.Empleado.DiasVacacionesDisponibles</span>
+                    <span class="kpi-value" style="color: var(--color-primary);">@Model.Empleado.DiasVacacionesDisponibles.ToString("0.##")</span>
                 </div>
                 <div class="kpi-card">
                     <span class="kpi-label">Días ganados</span>
-                    <span class="kpi-value">@Model.Empleado.DiasVacacionesGanados</span>
+                    <span class="kpi-value">@Model.Empleado.DiasVacacionesGanados.ToString("0.##")</span>
                 </div>
                 <div class="kpi-card">
                     <span class="kpi-label">Días tomados</span>
-                    <span class="kpi-value">@Model.Empleado.DiasVacacionesTomados</span>
+                    <span class="kpi-value">@Model.Empleado.DiasVacacionesTomados.ToString("0.##")</span>
                 </div>
             </div>
 
@@ -706,7 +706,7 @@
                                 <tr>
                                     <td><span style="font-family: monospace;">@v.Numero</span></td>
                                     <td>@v.FechaInicio.ToString("dd/MM/yyyy") al @v.FechaFin.ToString("dd/MM/yyyy")</td>
-                                    <td style="text-align: right;"><strong>@v.DiasADescontar</strong></td>
+                                    <td style="text-align: right;"><strong>@v.DiasADescontar.ToString("0.##")</strong></td>
                                     <td>
                                         @if (v.Estado == "Aprobado" || v.Estado == "Tomado")
                                         {
@@ -771,7 +771,7 @@
                                     <td><span style="font-family: monospace;">@p.Numero</span></td>
                                     <td>@p.Tipo</td>
                                     <td>@p.FechaInicio.ToString("dd/MM/yyyy") al @p.FechaFin.ToString("dd/MM/yyyy")</td>
-                                    <td style="text-align: right;"><strong>@p.DiasSolicitados</strong></td>
+                                    <td style="text-align: right;"><strong>@p.DiasSolicitados.ToString("0.##")</strong></td>
                                     <td>
                                         @if (p.ConGoceSueldo)
                                         {

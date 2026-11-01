@@ -86,10 +86,33 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
 
             CargarDatos();
 
+            // Validaciones generales (el formulario puede ser manipulado: se revisa todo en el servidor)
+            if (Input.Tipo != "Ingreso" && Input.Tipo != "Egreso" && Input.Tipo != "Transferencia")
+                ModelState.AddModelError("Input.Tipo", "Tipo de movimiento no válido");
+
+            Input.Monto = Math.Round(Input.Monto, 2);
+            if (Input.Monto <= 0)
+                ModelState.AddModelError("Input.Monto", "El monto debe ser mayor a 0");
+
+            if (Input.Fecha.Date > DateTime.Today)
+                ModelState.AddModelError("Input.Fecha", "No se pueden registrar movimientos con fecha futura");
+
+            var cuentaSel = _context.CuentasFinancieras.FirstOrDefault(c => c.Id == Input.CuentaId);
+            if (cuentaSel == null || !cuentaSel.Activa)
+                ModelState.AddModelError("Input.CuentaId", "Selecciona una cuenta activa");
+
             // Validaciones específicas por tipo
             if (Input.Tipo != "Transferencia" && !Input.CategoriaId.HasValue)
             {
                 ModelState.AddModelError("Input.CategoriaId", "Debes seleccionar una categoría");
+            }
+            else if (Input.Tipo != "Transferencia")
+            {
+                var catSel = _context.CategoriasFinancieras.FirstOrDefault(c => c.Id == Input.CategoriaId!.Value);
+                if (catSel == null || !catSel.Activa || catSel.Tipo != Input.Tipo)
+                    ModelState.AddModelError("Input.CategoriaId", $"La categoría debe ser de tipo {Input.Tipo}");
+                else if (SaldoHelper.EsSoloContable(_context, new MovimientoFinanciero { Tipo = Input.Tipo, CategoriaId = catSel.Id }))
+                    ModelState.AddModelError("Input.CategoriaId", "Esa categoría es solo contable (costo de ventas): se genera sola con cada venta y no se registra a mano");
             }
 
             if (Input.Tipo == "Transferencia")
@@ -101,6 +124,10 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 else if (Input.CuentaDestinoId == Input.CuentaId)
                 {
                     ModelState.AddModelError("Input.CuentaDestinoId", "La cuenta destino debe ser diferente a la origen");
+                }
+                else if (!_context.CuentasFinancieras.Any(c => c.Id == Input.CuentaDestinoId.Value && c.Activa))
+                {
+                    ModelState.AddModelError("Input.CuentaDestinoId", "Selecciona una cuenta destino activa");
                 }
             }
 
@@ -123,6 +150,8 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 }
             }
 
+            // Todo o nada: movimiento + saldo + documento origen en una sola transacción
+            using var tx = _context.Database.BeginTransaction();
             var numero = NumeroDocumentoHelper.GenerarSiguiente(_context, "MovimientoFinanciero");
             var monedaDefecto = _context.Monedas.FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1;
 
@@ -146,7 +175,7 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 Estado = "Activo",
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = currentUser?.Id,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             _context.MovimientosFinancieros.Add(mov);
@@ -154,6 +183,7 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
 
             SaldoHelper.Aplicar(_context, mov);
             _context.SaveChanges();
+            tx.Commit();
 
             ActividadHelper.Registrar(
                 _context,

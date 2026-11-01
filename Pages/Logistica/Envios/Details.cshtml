@@ -35,6 +35,7 @@
         </p>
     </div>
     <div class="module-header-right">
+        <partial name="_WhatsAppBtn" model="@(new Kirkenta.Helpers.WhatsAppBtn(Kirkenta.Helpers.WhatsAppHelper.Enlace(Model.Envio.ContactoTelefono, Kirkenta.Helpers.WhatsAppHelper.MensajeEnvio(Model.Empresa.Nombre, Model.Envio.ContactoNombre, Model.Envio.Numero, Model.Envio.Estado))))" />
         @if (Model.PuedeCrearRuta && Model.Envio.Estado == "Pendiente" && !Model.Envio.RutaId.HasValue)
         {
             <a asp-page="/Logistica/Rutas/Create" asp-route-envioId="@Model.Envio.Id" class="btn-primary">
@@ -196,7 +197,7 @@ else if (Model.Semaforo == "Amarillo" && Model.Envio.Estado != "Entregado")
 
     @if (!string.IsNullOrEmpty(Model.Envio.Notas))
     {
-        <div style="margin-top: 20px; padding: 12px 16px; background: #f9fafb; border-radius: 6px;">
+        <div style="margin-top: 20px; padding: 12px 16px; background: var(--color-surface-2); border-radius: 6px;">
             <label class="empresa-info-label">Notas</label>
             <p style="font-size: 13px;">@Model.Envio.Notas</p>
         </div>
@@ -206,8 +207,8 @@ else if (Model.Semaforo == "Amarillo" && Model.Envio.Estado != "Entregado")
 <!-- Info de entrega / fallo -->
 @if (Model.Envio.Estado == "Entregado")
 {
-    <div class="module-card" style="padding: 28px; margin-bottom: 20px; background: #ecfdf5; border-left: 4px solid #10b981;">
-        <h3 class="form-section-title" style="color: #065f46;">✅ Entrega completada</h3>
+    <div class="module-card" style="padding: 28px; margin-bottom: 20px; background: var(--color-success-bg); border-left: 4px solid var(--color-success);">
+        <h3 class="form-section-title" style="color: var(--color-success-text);">✅ Entrega completada</h3>
         <div class="form-row" style="margin-top: 12px;">
             <div>
                 <label class="empresa-info-label">Recibió</label>
@@ -229,8 +230,8 @@ else if (Model.Semaforo == "Amarillo" && Model.Envio.Estado != "Entregado")
 }
 else if (Model.Envio.Estado == "Fallido")
 {
-    <div class="module-card" style="padding: 28px; margin-bottom: 20px; background: #fef2f2; border-left: 4px solid #dc2626;">
-        <h3 class="form-section-title" style="color: #991b1b;">❌ Entrega fallida</h3>
+    <div class="module-card" style="padding: 28px; margin-bottom: 20px; background: var(--color-danger-bg); border-left: 4px solid var(--color-danger-strong);">
+        <h3 class="form-section-title" style="color: var(--color-danger-text);">❌ Entrega fallida</h3>
         <div style="margin-top: 12px;">
             <label class="empresa-info-label">Motivo del fallo</label>
             <p style="font-size: 13.5px;">@(Model.Envio.MotivoFallo ?? "—")</p>
@@ -250,7 +251,7 @@ else if (Model.Envio.Estado == "Fallido")
 <!-- ============================================ -->
 @if (!Model.PuedeProcesar && Model.Envio.Estado != "Entregado" && Model.Envio.Estado != "Cancelado" && Model.Envio.Estado != "Fallido")
 {
-    <div class="module-card" style="padding: 24px; margin-bottom: 20px; border-left: 4px solid #f59e0b; background: #fffbeb;">
+    <div class="module-card" style="padding: 24px; margin-bottom: 20px; border-left: 4px solid #f59e0b; background: var(--color-warning-bg);">
         <div style="display: flex; gap: 14px; align-items: flex-start;">
             <svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 28px; height: 28px; flex-shrink: 0;">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -258,17 +259,17 @@ else if (Model.Envio.Estado == "Fallido")
                 <line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
             <div style="flex: 1;">
-                <h3 style="font-size: 15px; font-weight: 700; color: #92400e; margin-bottom: 6px;">
+                <h3 style="font-size: 15px; font-weight: 700; color: var(--color-warning-text); margin-bottom: 6px;">
                     Este envío aún no está en una ruta
                 </h3>
-                <p style="font-size: 13.5px; color: #92400e; margin: 0; line-height: 1.6;">
+                <p style="font-size: 13.5px; color: var(--color-warning-text); margin: 0; line-height: 1.6;">
                     Para poder marcar este envío como <strong>Entregado</strong> o <strong>Fallido</strong>,
                     primero debes asignarlo a una ruta de despacho y despacharla.
                 </p>
                 @if (Model.PuedeCrearRuta)
                 {
                     <a asp-page="/Logistica/Rutas/Create" asp-route-envioId="@Model.Envio.Id"
-                       class="btn-primary" style="margin-top: 12px; display: inline-flex; background: #d97706;">
+                       class="btn-primary" style="margin-top: 12px; display: inline-flex; background: var(--color-warning);">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                             <line x1="12" y1="5" x2="12" y2="19"/>
                             <line x1="5" y1="12" x2="19" y2="12"/>
@@ -293,9 +294,9 @@ else if (Model.Envio.Estado == "Fallido")
         {
             <div class="panel-grid" style="margin-top: 16px;">
                 <!-- MARCAR ENTREGADO -->
-                <div style="padding: 20px; border: 2px solid #10b981; border-radius: 8px; background: #ecfdf5;">
-                    <h4 style="font-size: 14px; font-weight: 700; color: #065f46; margin-bottom: 6px;">✅ Marcar como entregado</h4>
-                    <p style="font-size: 12.5px; color: #065f46; margin-bottom: 14px;">Registrar la entrega exitosa al cliente.</p>
+                <div style="padding: 20px; border: 2px solid var(--color-success); border-radius: 8px; background: var(--color-success-bg);">
+                    <h4 style="font-size: 14px; font-weight: 700; color: var(--color-success-text); margin-bottom: 6px;">✅ Marcar como entregado</h4>
+                    <p style="font-size: 12.5px; color: var(--color-success-text); margin-bottom: 14px;">Registrar la entrega exitosa al cliente.</p>
 
                     <form method="post" asp-page-handler="MarcarEntregado" asp-route-id="@Model.Envio.Id">
                         <div class="form-field">
@@ -306,16 +307,16 @@ else if (Model.Envio.Estado == "Fallido")
                             <label style="font-size: 12.5px; font-weight: 600;">Notas (opcional)</label>
                             <input name="NotasAccion" class="form-input" placeholder="Observaciones de la entrega" />
                         </div>
-                        <button type="submit" class="btn-primary" style="width: 100%; background: #10b981;">
+                        <button type="submit" class="btn-primary" style="width: 100%; background: var(--color-success);">
                             Confirmar entrega
                         </button>
                     </form>
                 </div>
 
                 <!-- MARCAR FALLIDO -->
-                <div style="padding: 20px; border: 2px solid #dc2626; border-radius: 8px; background: #fef2f2;">
-                    <h4 style="font-size: 14px; font-weight: 700; color: #991b1b; margin-bottom: 6px;">❌ Marcar como fallido</h4>
-                    <p style="font-size: 12.5px; color: #991b1b; margin-bottom: 14px;">Registrar que la entrega no se pudo completar.</p>
+                <div style="padding: 20px; border: 2px solid var(--color-danger-strong); border-radius: 8px; background: var(--color-danger-bg);">
+                    <h4 style="font-size: 14px; font-weight: 700; color: var(--color-danger-text); margin-bottom: 6px;">❌ Marcar como fallido</h4>
+                    <p style="font-size: 12.5px; color: var(--color-danger-text); margin-bottom: 14px;">Registrar que la entrega no se pudo completar.</p>
 
                     <form method="post" asp-page-handler="MarcarFallido" asp-route-id="@Model.Envio.Id">
                         <div class="form-field">
@@ -332,9 +333,9 @@ else if (Model.Envio.Estado == "Fallido")
 
         @if (Model.Envio.Estado == "Fallido")
         {
-            <div style="margin-top: 16px; padding: 20px; border: 2px solid #4f46e5; border-radius: 8px; background: #eef2ff;">
-                <h4 style="font-size: 14px; font-weight: 700; color: #4f46e5; margin-bottom: 6px;">🔄 Reagendar envío</h4>
-                <p style="font-size: 12.5px; color: #4f46e5; margin-bottom: 14px;">Devuelve el envío a estado Pendiente para asignarlo a una nueva ruta.</p>
+            <div style="margin-top: 16px; padding: 20px; border: 2px solid var(--color-primary); border-radius: 8px; background: var(--color-primary-soft);">
+                <h4 style="font-size: 14px; font-weight: 700; color: var(--color-primary); margin-bottom: 6px;">🔄 Reagendar envío</h4>
+                <p style="font-size: 12.5px; color: var(--color-primary); margin-bottom: 14px;">Devuelve el envío a estado Pendiente para asignarlo a una nueva ruta.</p>
 
                 <form method="post" asp-page-handler="Reagendar" asp-route-id="@Model.Envio.Id">
                     <div class="form-field">
@@ -359,9 +360,9 @@ else if (Model.Envio.Estado == "Fallido")
 {
     <div class="module-card" style="padding: 28px; margin-bottom: 20px;">
         <h3 class="form-section-title">Acciones disponibles</h3>
-        <div style="margin-top: 16px; padding: 20px; border: 2px solid #4f46e5; border-radius: 8px; background: #eef2ff;">
-            <h4 style="font-size: 14px; font-weight: 700; color: #4f46e5; margin-bottom: 6px;">🔄 Reagendar envío</h4>
-            <p style="font-size: 12.5px; color: #4f46e5; margin-bottom: 14px;">Devuelve el envío a estado Pendiente para asignarlo a una nueva ruta.</p>
+        <div style="margin-top: 16px; padding: 20px; border: 2px solid var(--color-primary); border-radius: 8px; background: var(--color-primary-soft);">
+            <h4 style="font-size: 14px; font-weight: 700; color: var(--color-primary); margin-bottom: 6px;">🔄 Reagendar envío</h4>
+            <p style="font-size: 12.5px; color: var(--color-primary); margin-bottom: 14px;">Devuelve el envío a estado Pendiente para asignarlo a una nueva ruta.</p>
 
             <form method="post" asp-page-handler="Reagendar" asp-route-id="@Model.Envio.Id">
                 <div class="form-field">

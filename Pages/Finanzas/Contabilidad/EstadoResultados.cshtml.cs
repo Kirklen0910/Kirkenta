@@ -35,10 +35,12 @@ namespace Kirkenta.Pages.Finanzas.Contabilidad
                 return RedirectToPage("/Finanzas/Index");
             }
 
-            // Por defecto: mes actual
             var hoy = DateTime.Today;
             Desde = desde ?? new DateTime(hoy.Year, hoy.Month, 1);
             Hasta = hasta ?? hoy;
+
+            // Si el usuario puso las fechas al revés, las acomodamos en vez de mostrar un reporte vacío
+            if (Desde > Hasta) (Desde, Hasta) = (Hasta, Desde);
 
             Reporte = ContabilidadHelper.GenerarEstadoResultados(_context, Desde, Hasta);
             MovimientosSinCuenta = ContabilidadHelper.ContarSinPlanCuenta(_context, Desde, Hasta);

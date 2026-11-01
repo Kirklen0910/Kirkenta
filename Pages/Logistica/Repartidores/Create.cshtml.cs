@@ -108,7 +108,7 @@ namespace Kirkenta.Pages.Logistica.Repartidores
                 Activo = Input.Activo,
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = currentUser?.Id,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             _context.Repartidores.Add(repartidor);

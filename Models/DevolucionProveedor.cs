@@ -11,7 +11,13 @@ namespace Kirkenta.Models
         public decimal Total { get; set; } = 0;
         public string Estado { get; set; } = "Aplicada";
         public int? UsuarioCreoId { get; set; }
-        public int EmpresaId { get; set; } = 1;
+        public int EmpresaId { get; set; } = Kirkenta.Helpers.EmpresaActual.Id;
+
+        /// <summary>Parte del total que redujo la deuda con el proveedor (saldo de la orden).</summary>
+        public decimal MontoAplicadoSaldo { get; set; } = 0;
+
+        /// <summary>Parte que el proveedor debe reintegrar (la orden ya estaba pagada).</summary>
+        public decimal MontoPorRecuperar { get; set; } = 0;
     }
 
     public class DetalleDevolucionProveedor
@@ -22,5 +28,8 @@ namespace Kirkenta.Models
         public decimal Cantidad { get; set; }
         public decimal PrecioUnitario { get; set; }
         public decimal Total { get; set; }
+
+        /// <summary>Línea de la orden de compra que se devuelve.</summary>
+        public int? DetalleOrdenCompraId { get; set; }
     }
 }

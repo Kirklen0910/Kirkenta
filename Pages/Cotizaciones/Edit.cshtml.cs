@@ -127,6 +127,31 @@ namespace Kirkenta.Pages.Cotizaciones
                 return RedirectToPage("/Cotizaciones/Index");
             }
 
+            if (cotizacion.Estado == "Convertida")
+            {
+                TempData["Error"] = "No se puede editar una cotización convertida";
+                return RedirectToPage("/Cotizaciones/Details", new { id = cotizacion.Id });
+            }
+
+            // "Convertida" solo la pone el flujo de facturación, nunca el formulario
+            var estadosManuales = new List<string> { "Borrador", "Enviada", "Aceptada", "Rechazada", "Vencida" };
+            if (!estadosManuales.Contains(Input.Estado ?? ""))
+            {
+                TempData["Error"] = "Estado no válido";
+                return RedirectToPage("/Cotizaciones/Edit", new { id = cotizacion.Id });
+            }
+
+            var errLineas = LineasDocumentoHelper.Validar(_context, (Input.Items ?? new())
+                .Select(i => new LineasDocumentoHelper.Linea(i.ProductoId, i.Cantidad, i.PrecioUnitario, i.Descuento, i.ImpuestoPorcentaje))
+                .ToList());
+            if (errLineas == null && !_context.Clientes.Any(c => c.Id == Input.ClienteId))
+                errLineas = "El cliente no existe";
+            if (errLineas != null)
+            {
+                TempData["Error"] = errLineas;
+                return RedirectToPage("/Cotizaciones/Edit", new { id = cotizacion.Id });
+            }
+
             // Borrar items antiguos
             var itemsViejos = _context.DetalleCotizaciones.Where(d => d.CotizacionId == cotizacion.Id);
             _context.DetalleCotizaciones.RemoveRange(itemsViejos);
@@ -135,7 +160,7 @@ namespace Kirkenta.Pages.Cotizaciones
             decimal subtotal = 0, descuento = 0, impuestos = 0, total = 0;
             var nuevosDetalles = new List<DetalleCotizacion>();
 
-            foreach (var item in Input.Items)
+            foreach (var item in Input.Items ?? new())
             {
                 var st = item.Cantidad * item.PrecioUnitario;
                 var stConDesc = st - item.Descuento;
@@ -161,7 +186,7 @@ namespace Kirkenta.Pages.Cotizaciones
             }
 
             cotizacion.ClienteId = Input.ClienteId;
-            cotizacion.Estado = Input.Estado;
+            cotizacion.Estado = Input.Estado ?? "Borrador";
             cotizacion.Notas = Input.Notas;
             cotizacion.Subtotal = subtotal;
             cotizacion.Descuento = descuento;
@@ -190,7 +215,9 @@ namespace Kirkenta.Pages.Cotizaciones
                 .Where(p => p.Activo)
                 .Select(p => new { p.Id, p.Nombre, p.SKU, p.Stock, p.PrecioVenta, p.ImpuestoId })
                 .ToList();
-            var impuestosDict = _context.Impuestos.ToDictionary(i => i.Id, i => i.Porcentaje);
+            var impuestosDict = _context.Impuestos.Where(i => i.Activo).ToDictionary(i => i.Id, i => i.Porcentaje);
+            // Producto sin impuesto propio: se usa el predeterminado del sistema (igual que el POS y la factura)
+            var tasaPredeterminada = _context.Impuestos.Where(i => i.Activo && i.EsPredeterminado).Select(i => (decimal?)i.Porcentaje).FirstOrDefault() ?? 0m;
             var list = productos.Select(p => new
             {
                 id = p.Id,
@@ -198,7 +225,7 @@ namespace Kirkenta.Pages.Cotizaciones
                 sku = p.SKU,
                 stock = p.Stock,
                 precio = p.PrecioVenta,
-                impuesto = p.ImpuestoId.HasValue && impuestosDict.ContainsKey(p.ImpuestoId.Value) ? impuestosDict[p.ImpuestoId.Value] : 0m
+                impuesto = p.ImpuestoId.HasValue && impuestosDict.ContainsKey(p.ImpuestoId.Value) ? impuestosDict[p.ImpuestoId.Value] : tasaPredeterminada
             }).ToList();
             return JsonSerializer.Serialize(list);
         }

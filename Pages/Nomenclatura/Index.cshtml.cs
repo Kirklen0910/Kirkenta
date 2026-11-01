@@ -1,3 +1,4 @@
+using Kirkenta.Helpers;
 using Kirkenta.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -19,9 +20,9 @@ namespace Kirkenta.Pages.Nomenclatura
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Nomenclatura", "ver"))
             {
-                TempData["Error"] = "Solo administradores pueden acceder";
+                TempData["Error"] = "No tienes permiso para ver esta sección";
                 return RedirectToPage("/Index");
             }
 

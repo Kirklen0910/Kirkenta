@@ -1,0 +1,139 @@
+@page
+@model Kirkenta.Pages.Conversiones.CreateModel
+@{
+    ViewData["Title"] = "Nueva conversión";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Conversiones/Index" class="back-link">← Volver a conversiones</a>
+        <h2>Convertir / fraccionar producto</h2>
+        <p>Saca unidades de un producto y conviértelas en otro (por ejemplo, 1 lance de tubo en pies, 1 bolsa de cemento en libras). El costo pasa al producto nuevo: no se registra pérdida.</p>
+    </div>
+</div>
+
+<div class="module-card form-card">
+    <form method="post" class="erp-form">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error"><div asp-validation-summary="All"></div></div>
+        }
+
+        <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning); margin: 0 0 18px 0;">
+            <strong>Queda "Pendiente" hasta que un administrador la apruebe. Al aprobarse el inventario se mueve en ambos productos.</strong>
+        </div>
+
+        <h3 class="form-section-title">1. Producto que se fracciona</h3>
+        <div class="form-row">
+            <div class="form-field">
+                <label>Producto de origen *</label>
+                <select asp-for="Input.ProductoOrigenId" class="form-input" id="origen" required>
+                    <option value="">— Selecciona —</option>
+                    @foreach (var p in Model.Productos.Where(p => p.Stock > 0))
+                    {
+                        <option value="@p.Id" data-costo="@p.PrecioCompra.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-stock="@p.Stock.ToString(System.Globalization.CultureInfo.InvariantCulture)" selected="@(Model.Input.ProductoOrigenId == p.Id)">@p.Nombre (stock @p.Stock.ToString("0.##"), @p.UnidadMedida)</option>
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.CantidadOrigen">Cantidad que se saca *</label>
+                <input asp-for="Input.CantidadOrigen" asp-format="{0:0.####}" type="number" step="0.0001" min="0.0001" class="form-input" id="cantOrigen" required />
+                <small class="form-help" id="stockInfo"></small>
+            </div>
+        </div>
+
+        <h3 class="form-section-title">2. Producto que recibe</h3>
+        <div class="form-field">
+            <label><input type="radio" name="Input.Destino" value="Nuevo" id="rNuevo" @(Model.Input.Destino != "Existente" ? "checked" : "") /> Crear un producto nuevo</label>
+            &nbsp;&nbsp;
+            <label><input type="radio" name="Input.Destino" value="Existente" id="rExistente" @(Model.Input.Destino == "Existente" ? "checked" : "") /> Usar un producto que ya existe</label>
+        </div>
+
+        <div id="boxNuevo">
+            <div class="form-row">
+                <div class="form-field">
+                    <label asp-for="Input.NuevoNombre">Nombre del producto nuevo</label>
+                    <input asp-for="Input.NuevoNombre" class="form-input" placeholder="Ej: Tubo PVC 1/2 por pie" />
+                </div>
+                <div class="form-field">
+                    <label asp-for="Input.NuevaUnidad">Se vende por</label>
+                    <input asp-for="Input.NuevaUnidad" class="form-input" list="unidades" placeholder="Pie, Libra, Pulgada..." />
+                    <datalist id="unidades">
+                        @foreach (var u in Model.Unidades) { <option value="@u"></option> }
+                    </datalist>
+                </div>
+                <div class="form-field">
+                    <label asp-for="Input.NuevoPrecioVenta">Precio de venta por unidad (L.)</label>
+                    <input asp-for="Input.NuevoPrecioVenta" asp-format="{0:0.##}" type="number" step="0.01" min="0" class="form-input" />
+                </div>
+            </div>
+        </div>
+
+        <div id="boxExistente" style="display:none">
+            <div class="form-field">
+                <label>Producto de destino</label>
+                <select asp-for="Input.ProductoDestinoId" class="form-input">
+                    <option value="">— Selecciona —</option>
+                    @foreach (var p in Model.Productos)
+                    {
+                        <option value="@p.Id" selected="@(Model.Input.ProductoDestinoId == p.Id)">@p.Nombre (@p.UnidadMedida)</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.CantidadDestino">Cantidad resultante *</label>
+                <input asp-for="Input.CantidadDestino" asp-format="{0:0.####}" type="number" step="0.0001" min="0.0001" class="form-input" id="cantDestino" required />
+                <small class="form-help">Ej: 1 lance = 20 pies, 1 bolsa = 94 libras.</small>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Motivo">Motivo *</label>
+            <textarea asp-for="Input.Motivo" class="form-input" rows="2" placeholder="Ej: Cliente pidió comprar por pie, se fracciona 1 lance." required></textarea>
+        </div>
+
+        <div class="totales-panel">
+            <div class="totales-row"><span>Costo que sale del origen:</span><strong id="costoSale">L. 0.00</strong></div>
+            <div class="totales-row totales-row-final"><span>Costo por unidad del producto nuevo:</span><strong id="costoEntra">L. 0.00</strong></div>
+            <div class="totales-row"><span>Pérdida registrada:</span><strong>L. 0.00 (el costo se traslada)</strong></div>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Conversiones/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">Solicitar conversión</button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var origen = document.getElementById('origen');
+            var cantO = document.getElementById('cantOrigen');
+            var cantD = document.getElementById('cantDestino');
+            var rN = document.getElementById('rNuevo');
+            var rE = document.getElementById('rExistente');
+            function money(n) { return 'L. ' + (n || 0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,'); }
+            function calc() {
+                var op = origen.options[origen.selectedIndex];
+                var costo = op && op.dataset.costo ? parseFloat(op.dataset.costo) : 0;
+                var stock = op && op.dataset.stock ? parseFloat(op.dataset.stock) : 0;
+                var co = parseFloat(cantO.value) || 0;
+                var cd = parseFloat(cantD.value) || 0;
+                document.getElementById('stockInfo').textContent = op && op.value ? 'Stock disponible: ' + stock : '';
+                document.getElementById('costoSale').textContent = money(co * costo);
+                document.getElementById('costoEntra').textContent = cd > 0 ? 'L. ' + ((co * costo) / cd).toFixed(4) : 'L. 0.00';
+            }
+            function modo() {
+                document.getElementById('boxNuevo').style.display = rN.checked ? '' : 'none';
+                document.getElementById('boxExistente').style.display = rE.checked ? '' : 'none';
+            }
+            [origen, cantO, cantD].forEach(function (e) { e.addEventListener('input', calc); e.addEventListener('change', calc); });
+            rN.addEventListener('change', modo); rE.addEventListener('change', modo);
+            modo(); calc();
+        })();
+    </script>
+}

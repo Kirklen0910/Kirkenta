@@ -1,0 +1,64 @@
+﻿@page
+@model Kirkenta.Pages.Reportes.CuentasPorPagarModel
+@{
+    ViewData["Title"] = "Cuentas por pagar";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Reportes/Index" class="back-link">← Volver a reportes</a>
+        <h2>Cuentas por pagar (proveedores)</h2>
+        <p>Saldos de órdenes de compra según días de vencimiento (fecha de recepción + días de crédito del proveedor) al @DateTime.Today.ToString("dd/MM/yyyy")</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Reportes/CuentasPorPagar" asp-page-handler="Csv" class="btn-secondary">Exportar CSV</a>
+        <button type="button" class="btn-secondary" onclick="window.print()">Imprimir</button>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>Proveedor</th>
+                    <th style="text-align:right;">Corriente</th>
+                    <th style="text-align:right;">1-30</th>
+                    <th style="text-align:right;">31-60</th>
+                    <th style="text-align:right;">61-90</th>
+                    <th style="text-align:right;">Más de 90</th>
+                    <th style="text-align:right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Filas.Any())
+                {
+                    <tr><td colspan="7" style="text-align:center;padding:24px;">No hay saldos pendientes</td></tr>
+                }
+                @foreach (var f in Model.Filas)
+                {
+                    <tr>
+                        <td>@if (f.ProveedorId > 0) { <a asp-page="/Proveedores/Details" asp-route-id="@f.ProveedorId">@f.Proveedor</a> } else { @f.Proveedor }</td>
+                        <td style="text-align:right;">@f.Corriente.ToString("N2")</td>
+                        <td style="text-align:right;">@f.D1a30.ToString("N2")</td>
+                        <td style="text-align:right;">@f.D31a60.ToString("N2")</td>
+                        <td style="text-align:right;">@f.D61a90.ToString("N2")</td>
+                        <td style="text-align:right;color:var(--color-danger-text);">@f.Mas90.ToString("N2")</td>
+                        <td style="text-align:right;"><strong>@f.Total.ToString("N2")</strong></td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td><strong>TOTAL</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.Corriente.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.D1a30.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.D31a60.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.D61a90.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.Mas90.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.Total.ToString("N2")</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>

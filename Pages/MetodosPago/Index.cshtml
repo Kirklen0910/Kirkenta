@@ -17,6 +17,8 @@
         <p>Configura las formas de pago aceptadas</p>
     </div>
     <div class="module-header-right">
+        @if (Model.PuedeCrear)
+        {
         <a asp-page="/MetodosPago/Create" class="btn-primary">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                 <line x1="12" y1="5" x2="12" y2="19"/>
@@ -24,6 +26,7 @@
             </svg>
             Nuevo método
         </a>
+        }
     </div>
 </div>
 
@@ -93,8 +96,14 @@
                     }
 
                     <div class="role-actions">
+                        @if (Model.PuedeEditar)
+                        {
                         <a asp-page="/MetodosPago/Edit" asp-route-id="@m.Id" class="btn-sm btn-secondary">Editar</a>
+                        }
+                        @if (Model.PuedeEliminar)
+                        {
                         <a asp-page="/MetodosPago/Delete" asp-route-id="@m.Id" class="btn-sm btn-danger">Eliminar</a>
+                        }
                     </div>
                 </div>
             }

@@ -47,7 +47,7 @@ namespace Kirkenta.Models
         public string? Notas { get; set; }
 
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
-        public int EmpresaId { get; set; } = 1;
+        public int EmpresaId { get; set; } = Kirkenta.Helpers.EmpresaActual.Id;
 
         // ===== HELPERS =====
         public string MesNombre => System.Globalization.CultureInfo

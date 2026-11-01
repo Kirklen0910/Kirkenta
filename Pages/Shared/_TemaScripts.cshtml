@@ -1,0 +1,27 @@
+﻿<script>
+    // Tema claro / oscuro para páginas con diseño propio (POS)
+    (function () {
+        var html = document.documentElement;
+        function sistemaOscuro() { return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches; }
+        function aplicar(pref) {
+            var oscuro = pref === 'oscuro' || (pref === 'sistema' && sistemaOscuro());
+            html.setAttribute('data-pref', pref);
+            html.setAttribute('data-theme', oscuro ? 'dark' : 'light');
+            html.setAttribute('data-bs-theme', oscuro ? 'dark' : 'light');
+        }
+        window.kkTema = window.kkTema || {
+            guardar: function (pref) {
+                var uid = html.getAttribute('data-uid') || '0';
+                var ex = '; path=/; max-age=31536000; SameSite=Lax';
+                document.cookie = 'kk_tema_u' + uid + '=' + pref + ex;
+                document.cookie = 'kk_tema_last=' + pref + ex;
+                aplicar(pref);
+            },
+            actual: function () { return html.getAttribute('data-pref') || 'claro'; }
+        };
+        var btn = document.getElementById('themeToggle');
+        if (btn) btn.addEventListener('click', function () {
+            window.kkTema.guardar(html.getAttribute('data-theme') === 'dark' ? 'claro' : 'oscuro');
+        });
+    })();
+</script>

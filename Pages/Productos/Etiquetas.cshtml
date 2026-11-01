@@ -1,0 +1,174 @@
+@page
+@model Kirkenta.Pages.Productos.EtiquetasModel
+@using Kirkenta.Helpers
+@{
+    ViewData["Title"] = "Etiquetas de código de barras";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Etiquetas de código de barras</h2>
+        <p>Elige los productos y la cantidad de etiquetas. Funciona con cualquier pistola lectora o con la cámara del celular en el POS.</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Productos/Index" class="btn-secondary">← Productos</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+@if (Model.SinCodigo > 0)
+{
+    <div class="module-card" style="border-left:4px solid var(--color-warning);display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;">
+        <div>
+            <strong>@Model.SinCodigo producto(s) activo(s) no tienen código de barras.</strong>
+            <div style="color:var(--color-muted);font-size:13px;">Puedes asignarles un código interno único (13 dígitos, empieza con 2) y luego imprimirlo. Los que ya tienen código no se tocan.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a asp-page="/Productos/Etiquetas" asp-route-solo="sincodigo" class="btn-secondary">Ver solo esos</a>
+            @if (Model.PuedeEditar)
+            {
+                <form method="post" asp-page-handler="Asignar" onsubmit="return confirm('¿Asignar un código interno a los @Model.SinCodigo productos sin código?');">
+                    <button type="submit" class="btn-primary">Asignar códigos internos</button>
+                </form>
+            }
+        </div>
+    </div>
+}
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="search-box">
+            <input type="text" name="Q" value="@Model.Q" placeholder="Buscar por nombre, SKU o código..." data-escaner="enviar" />
+        </div>
+        <div class="filter-group">
+            <select name="CategoriaId" class="filter-select" onchange="this.form.submit()">
+                <option value="">Todas las categorías</option>
+                @foreach (var cat in Model.Categorias)
+                {
+                    <option value="@cat.Id" selected="@(Model.CategoriaId == cat.Id)">@cat.Nombre</option>
+                }
+            </select>
+            <select name="Solo" class="filter-select" onchange="this.form.submit()">
+                <option value="">Todos</option>
+                <option value="sincodigo" selected="@(Model.Solo == "sincodigo")">Sin código de barras</option>
+            </select>
+            <button type="submit" class="btn-secondary">Buscar</button>
+        </div>
+    </form>
+
+    <form method="get" action="/Productos/EtiquetasImprimir" target="_blank" id="formImprimir">
+        <input type="hidden" name="Items" id="itemsEtiquetas" />
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin:12px 0;">
+            <div class="form-group" style="margin:0;">
+                <label for="Tam">Tamaño de etiqueta</label>
+                <select name="Tam" id="Tam" class="form-control">
+                    @foreach (var fm in EtiquetasHelper.Formatos)
+                    {
+                        <option value="@fm.Clave">@fm.Nombre</option>
+                    }
+                </select>
+            </div>
+            <label style="font-weight:400;"><input type="checkbox" name="Nombre" value="true" checked /><input type="hidden" name="Nombre" value="false" /> Nombre</label>
+            <label style="font-weight:400;"><input type="checkbox" name="Precio" value="true" checked /><input type="hidden" name="Precio" value="false" /> Precio</label>
+            <label style="font-weight:400;"><input type="checkbox" name="Sku" value="true" /> SKU</label>
+            <label style="font-weight:400;"><input type="checkbox" name="Empresa" value="true" /> Nombre de la empresa</label>
+            <button type="submit" class="btn-primary" id="btnImprimir">🏷️ Imprimir etiquetas (<span id="totalEtiquetas">0</span>)</button>
+            <span id="msgEtiquetas" style="color:var(--color-danger);font-size:13px;"></span>
+        </div>
+
+        @if (Model.Productos.Count == 0)
+        {
+            <p style="color:var(--color-muted);">No hay productos con ese filtro.</p>
+        }
+        else
+        {
+            <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+                <button type="button" class="btn-secondary" id="btnTodos">Marcar todos</button>
+                <button type="button" class="btn-secondary" id="btnNinguno">Quitar todos</button>
+                <button type="button" class="btn-secondary" id="btnStock" title="Pone en cada producto tantas etiquetas como unidades hay en stock">Cantidad = stock</button>
+            </div>
+            <div class="table-wrapper">
+                <table class="erp-table" id="tablaEtiquetas">
+                    <thead><tr><th style="width:40px;"></th><th>Producto</th><th>Código</th><th>Precio</th><th>Stock</th><th style="width:110px;">Etiquetas</th></tr></thead>
+                    <tbody>
+                    @foreach (var p in Model.Productos)
+                    {
+                        var codigo = EtiquetasHelper.CodigoDe(p.CodigoBarras, p.SKU);
+                        var valido = codigo != null && CodigoBarrasHelper.EsCodificable(codigo);
+                        <tr data-id="@p.Id" data-stock="@((int)Math.Floor(p.Stock))">
+                            <td><input type="checkbox" class="chk" aria-label="Elegir @p.Nombre" @(valido ? "" : "disabled") /></td>
+                            <td>@p.Nombre</td>
+                            <td>
+                                @if (valido)
+                                {
+                                    <code>@codigo</code>
+                                    if (string.IsNullOrWhiteSpace(p.CodigoBarras))
+                                    {
+                                        <span class="table-user-sub">(usa el SKU)</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="badge badge-warning">Sin código</span>
+                                }
+                            </td>
+                            <td>L. @p.PrecioVenta.ToString("N2")</td>
+                            <td>@p.Stock.ToString("0.##")</td>
+                            <td><input type="number" class="form-control qty" min="1" max="500" value="1" style="width:90px;" @(valido ? "" : "disabled") aria-label="Cantidad de etiquetas de @p.Nombre" /></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.Recortado)
+            {
+                <p style="color:var(--color-muted);font-size:13px;">Se muestran los primeros 300 productos. Usa la búsqueda o la categoría para acotar.</p>
+            }
+        }
+    </form>
+</div>
+
+<script>
+(function () {
+    var tabla = document.getElementById('tablaEtiquetas');
+    if (!tabla) return;
+    var total = document.getElementById('totalEtiquetas');
+    var msg = document.getElementById('msgEtiquetas');
+
+    function filas() { return Array.prototype.slice.call(tabla.querySelectorAll('tbody tr')); }
+    function cantidad(tr) { var n = parseInt(tr.querySelector('.qty').value, 10); return (isNaN(n) || n < 1) ? 1 : Math.min(n, 500); }
+    function recalcular() {
+        var t = 0;
+        filas().forEach(function (tr) { var c = tr.querySelector('.chk'); if (c && c.checked && !c.disabled) t += cantidad(tr); });
+        total.textContent = t;
+    }
+    tabla.addEventListener('input', recalcular);
+    tabla.addEventListener('change', recalcular);
+    document.getElementById('btnTodos').addEventListener('click', function () {
+        filas().forEach(function (tr) { var c = tr.querySelector('.chk'); if (c && !c.disabled) c.checked = true; }); recalcular();
+    });
+    document.getElementById('btnNinguno').addEventListener('click', function () {
+        filas().forEach(function (tr) { var c = tr.querySelector('.chk'); if (c) c.checked = false; }); recalcular();
+    });
+    document.getElementById('btnStock').addEventListener('click', function () {
+        filas().forEach(function (tr) {
+            var c = tr.querySelector('.chk'); if (!c || c.disabled) return;
+            var s = parseInt(tr.getAttribute('data-stock'), 10) || 0;
+            if (s > 0) { c.checked = true; tr.querySelector('.qty').value = Math.min(s, 500); }
+        }); recalcular();
+    });
+    document.getElementById('formImprimir').addEventListener('submit', function (e) {
+        var items = [];
+        filas().forEach(function (tr) {
+            var c = tr.querySelector('.chk');
+            if (c && c.checked && !c.disabled) items.push(tr.getAttribute('data-id') + ':' + cantidad(tr));
+        });
+        if (items.length === 0) { e.preventDefault(); msg.textContent = 'Marca al menos un producto.'; return; }
+        msg.textContent = '';
+        document.getElementById('itemsEtiquetas').value = items.join(',');
+    });
+    recalcular();
+})();
+</script>

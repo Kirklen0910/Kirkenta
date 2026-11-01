@@ -27,6 +27,13 @@ namespace Kirkenta.Pages.Proveedores
         [BindProperty]
         public string ModoImportacion { get; set; } = "upsert";
 
+        public IActionResult OnGetPlantilla()
+        {
+            WizardConfig = BuildConfig();
+            return File(WizardConfig.PlantillaXlsx(), ImportReportHelper.TipoXlsx,
+                $"plantilla_{ColumnMapper.Normalizar(WizardConfig.NombrePlural)}.xlsx");
+        }
+
         public IActionResult OnGet()
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
@@ -97,8 +104,9 @@ namespace Kirkenta.Pages.Proveedores
 
             ImportWizardHelper.LimpiarSesion(HttpContext.Session, WizardConfig);
 
-            TempData["Success"] = $"Importación completada: {resultado.Resumen()}";
-            return Redirect(WizardConfig.UrlIndex);
+            // Éxito limpio => mensaje y listado. Con errores/advertencias => pantalla de resultado
+            // con el motivo de cada fila y CSV descargable para corregir y reintentar.
+            return ImportReportHelper.Finalizar(this, WizardConfig.UrlIndex, resultado, HeadersArchivo, FilasArchivo);
         }
 
         private bool CargarDesdeSesion()
@@ -169,6 +177,9 @@ namespace Kirkenta.Pages.Proveedores
             };
         }
 
+        private string EtiquetaDe(string campo) =>
+            ImportWizardConfig.EtiquetaLimpia(WizardConfig.Campos.FirstOrDefault(c => c.Key == campo)?.Label ?? campo);
+
         private ImportResult ImportarProveedores(
             List<Dictionary<string, string>> filas,
             Dictionary<string, string> mapa,
@@ -181,7 +192,7 @@ namespace Kirkenta.Pages.Proveedores
             var codigosExistentes = _context.Proveedores
                 .Where(p => p.Codigo != null)
                 .Select(p => p.Codigo!)
-                .ToHashSet();
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var rtnsExistentes = _context.Proveedores
                 .Where(p => p.RTN != null)
@@ -221,6 +232,9 @@ namespace Kirkenta.Pages.Proveedores
                         return fila.GetValueOrDefault(header)?.Trim();
                     }
 
+                    string? T(string campo, int max) =>
+                        ImportHelper.Texto(resultado, filaNum, EtiquetaDe(campo), Obtener(campo), max);
+
                     var nombre = Obtener("Nombre");
                     if (string.IsNullOrWhiteSpace(nombre))
                     {
@@ -250,6 +264,7 @@ namespace Kirkenta.Pages.Proveedores
                         resultado.AgregarAdvertencia(filaNum, $"El RTN excede 20 caracteres. Se ignora.");
                         rtn = null;
                     }
+                    rtn = DocumentoHonduras.FormatearRtn(rtn);
 
                     // Buscar existente
                     Proveedor? existente = null;
@@ -271,6 +286,14 @@ namespace Kirkenta.Pages.Proveedores
                         continue;
                     }
 
+                    // Código repetido dentro del mismo archivo: antes hacía fallar toda la importación
+                    if (existente == null && !string.IsNullOrEmpty(codigo) && !codigosExistentes.Add(codigo))
+                    {
+                        resultado.AgregarAdvertencia(filaNum, $"El código '{codigo}' está repetido en el archivo; se ignora esta fila.");
+                        resultado.Ignorados++;
+                        continue;
+                    }
+
                     // Autogenerar código
                     if (string.IsNullOrEmpty(codigo) && existente == null)
                     {
@@ -284,28 +307,28 @@ namespace Kirkenta.Pages.Proveedores
                         codigosExistentes.Add(codigo);
                     }
 
-                    var activo = ParserHelper.ParsearBool(Obtener("Activo"));
-                    var condicion = Obtener("CondicionPago") ?? "Contado";
-                    var diasCredito = ParserHelper.ParsearInt(Obtener("DiasCredito"));
-                    var limiteCredito = ParserHelper.ParsearDecimal(Obtener("LimiteCredito"));
+                    var activo = ImportHelper.Booleano(resultado, filaNum, EtiquetaDe("Activo"), Obtener("Activo"));
+                    var condicion = T("CondicionPago", 20);
+                    var diasCredito = ImportHelper.Entero(resultado, filaNum, EtiquetaDe("DiasCredito"), Obtener("DiasCredito"));
+                    var limiteCredito = ImportHelper.Decimal(resultado, filaNum, EtiquetaDe("LimiteCredito"), Obtener("LimiteCredito"));
 
                     if (existente != null)
                     {
                         existente.Nombre = nombre;
-                        existente.RazonSocial = Truncar(Obtener("RazonSocial"), 200) ?? existente.RazonSocial;
+                        existente.RazonSocial = T("RazonSocial", 200) ?? existente.RazonSocial;
                         existente.RTN = rtn ?? existente.RTN;
-                        existente.Contacto = Truncar(Obtener("Contacto"), 100) ?? existente.Contacto;
-                        existente.TelefonoContacto = Truncar(Obtener("TelefonoContacto"), 30) ?? existente.TelefonoContacto;
-                        existente.Telefono = Truncar(Obtener("Telefono"), 30) ?? existente.Telefono;
-                        existente.Email = Truncar(Obtener("Email"), 150) ?? existente.Email;
-                        existente.Direccion = Truncar(Obtener("Direccion"), 300) ?? existente.Direccion;
-                        existente.Ciudad = Truncar(Obtener("Ciudad"), 100) ?? existente.Ciudad;
-                        existente.Pais = Truncar(Obtener("Pais"), 80) ?? existente.Pais;
-                        existente.CondicionPago = Truncar(condicion, 20) ?? existente.CondicionPago;
+                        existente.Contacto = T("Contacto", 100) ?? existente.Contacto;
+                        existente.TelefonoContacto = T("TelefonoContacto", 30) ?? existente.TelefonoContacto;
+                        existente.Telefono = T("Telefono", 30) ?? existente.Telefono;
+                        existente.Email = T("Email", 150) ?? existente.Email;
+                        existente.Direccion = T("Direccion", 300) ?? existente.Direccion;
+                        existente.Ciudad = T("Ciudad", 100) ?? existente.Ciudad;
+                        existente.Pais = T("Pais", 80) ?? existente.Pais;
+                        existente.CondicionPago = condicion ?? existente.CondicionPago;
                         existente.DiasCredito = diasCredito ?? existente.DiasCredito;
                         existente.LimiteCredito = limiteCredito ?? existente.LimiteCredito;
-                        existente.Banco = Truncar(Obtener("Banco"), 100) ?? existente.Banco;
-                        existente.CuentaBancaria = Truncar(Obtener("CuentaBancaria"), 50) ?? existente.CuentaBancaria;
+                        existente.Banco = T("Banco", 100) ?? existente.Banco;
+                        existente.CuentaBancaria = T("CuentaBancaria", 50) ?? existente.CuentaBancaria;
                         existente.Notas = Obtener("Notas") ?? existente.Notas;
                         existente.Activo = activo ?? existente.Activo;
                         resultado.Actualizados++;
@@ -316,26 +339,26 @@ namespace Kirkenta.Pages.Proveedores
                         {
                             Codigo = codigo,
                             Nombre = nombre,
-                            RazonSocial = Truncar(Obtener("RazonSocial"), 200),
+                            RazonSocial = T("RazonSocial", 200),
                             RTN = rtn,
-                            Contacto = Truncar(Obtener("Contacto"), 100),
-                            TelefonoContacto = Truncar(Obtener("TelefonoContacto"), 30),
-                            Telefono = Truncar(Obtener("Telefono"), 30),
-                            Email = Truncar(Obtener("Email"), 150),
-                            Direccion = Truncar(Obtener("Direccion"), 300),
-                            Ciudad = Truncar(Obtener("Ciudad"), 100),
-                            Pais = Truncar(Obtener("Pais"), 80) ?? "Honduras",
-                            CondicionPago = Truncar(condicion, 20) ?? "Contado",
+                            Contacto = T("Contacto", 100),
+                            TelefonoContacto = T("TelefonoContacto", 30),
+                            Telefono = T("Telefono", 30),
+                            Email = T("Email", 150),
+                            Direccion = T("Direccion", 300),
+                            Ciudad = T("Ciudad", 100),
+                            Pais = T("Pais", 80) ?? "Honduras",
+                            CondicionPago = condicion ?? "Contado",
                             DiasCredito = diasCredito ?? 0,
                             LimiteCredito = limiteCredito ?? 0,
-                            Banco = Truncar(Obtener("Banco"), 100),
-                            CuentaBancaria = Truncar(Obtener("CuentaBancaria"), 50),
+                            Banco = T("Banco", 100),
+                            CuentaBancaria = T("CuentaBancaria", 50),
                             MonedaId = monedaDefecto,
                             Notas = Obtener("Notas"),
                             Activo = activo ?? true,
                             FechaCreacion = DateTime.Now,
                             UsuarioCreoId = usuarioId,
-                            EmpresaId = 1
+                            EmpresaId = EmpresaActual.Id
                         };
 
                         _context.Proveedores.Add(proveedor);
@@ -348,13 +371,17 @@ namespace Kirkenta.Pages.Proveedores
                 }
             }
 
-            _context.SaveChanges();
-
-            if (serieProveedor != null && resultado.Creados > 0)
+            // Todo o nada: si algo falla al guardar no queda una importación a medias
+            ImportHelper.GuardarSeguro(_context, resultado, () =>
             {
-                serieProveedor.SiguienteNumero = proximoNumeroLocal;
                 _context.SaveChanges();
-            }
+
+                if (serieProveedor != null && resultado.Creados > 0)
+                {
+                    serieProveedor.SiguienteNumero = proximoNumeroLocal;
+                    _context.SaveChanges();
+                }
+            });
 
             return resultado;
         }

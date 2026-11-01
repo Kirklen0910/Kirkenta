@@ -21,9 +21,9 @@ namespace Kirkenta.Pages.UnidadesMedida
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Inventario", "UnidadesMedida", "eliminar"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para eliminar aquí";
                 return RedirectToPage("/UnidadesMedida/Index");
             }
 
@@ -42,9 +42,9 @@ namespace Kirkenta.Pages.UnidadesMedida
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Inventario", "UnidadesMedida", "eliminar"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para eliminar aquí";
                 return RedirectToPage("/UnidadesMedida/Index");
             }
 
@@ -52,6 +52,12 @@ namespace Kirkenta.Pages.UnidadesMedida
             if (unidad == null)
             {
                 TempData["Error"] = "Unidad no encontrada";
+                return RedirectToPage("/UnidadesMedida/Index");
+            }
+
+            if (_context.Productos.Any(p => p.UnidadMedida == unidad.Nombre))
+            {
+                TempData["Error"] = $"No se puede eliminar '{unidad.Nombre}': hay productos que la usan";
                 return RedirectToPage("/UnidadesMedida/Index");
             }
 

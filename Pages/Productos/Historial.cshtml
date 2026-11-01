@@ -1,0 +1,219 @@
+﻿@page "{id:int}"
+@model Kirkenta.Pages.Productos.HistorialModel
+@{
+    ViewData["Title"] = $"Historial: {Model.Producto.Nombre}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Productos/Index" class="back-link">← Volver a productos</a>
+        <h2>Historial del producto</h2>
+        <p>
+            <strong>@Model.Producto.Nombre</strong>
+            @if (!string.IsNullOrEmpty(Model.Producto.SKU))
+            {
+                <span class="table-user-sub" style="font-family: monospace; margin-left: 8px;">@Model.Producto.SKU</span>
+            }
+            · Stock actual: <strong>@Model.Producto.Stock.ToString("0.##")</strong>
+            · Costo actual: <strong>L. @Model.Producto.PrecioCompra.ToString("N2")</strong>
+            · Precio de venta: <strong>L. @Model.Producto.PrecioVenta.ToString("N2")</strong>
+        </p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Productos/Kardex" asp-route-ProductoId="@Model.Producto.Id" class="btn-secondary">Ver kardex</a>
+        @if (Model.PuedeVerCompras)
+        {
+            <a asp-page="/Compras/HistorialProducto" asp-route-productoId="@Model.Producto.Id" class="btn-secondary">Gráfico de precios de compra</a>
+        }
+    </div>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">@TempData["Error"]</div>
+}
+
+<div class="module-card" style="margin-bottom:20px;">
+    <form method="get" class="module-toolbar" style="gap:12px;flex-wrap:wrap;">
+        <div class="form-field">
+            <label>Desde</label>
+            <input type="date" name="Desde" class="form-input" value="@Model.Desde?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="form-field">
+            <label>Hasta</label>
+            <input type="date" name="Hasta" class="form-input" value="@Model.Hasta?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="form-field" style="align-self:flex-end;display:flex;gap:8px;">
+            <button type="submit" class="btn-secondary">Filtrar</button>
+            <a asp-page="/Productos/Historial" asp-route-id="@Model.Producto.Id" class="btn-secondary">Limpiar</a>
+        </div>
+    </form>
+</div>
+
+@if (Model.PuedeVerVentas)
+{
+    <h3 class="panel-title" style="margin:8px 0 12px;">Ventas</h3>
+
+    <div class="kpi-grid" style="margin-bottom: 20px;">
+        <div class="kpi-card">
+            <span class="kpi-label">Unidades vendidas</span>
+            <span class="kpi-value">@Model.VentaUnidades.ToString("0.##")</span>
+            <span class="kpi-trend">netas de devoluciones</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Total vendido (sin ISV)</span>
+            <span class="kpi-value">L. @Model.VentaMonto.ToString("N2")</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Utilidad</span>
+            <span class="kpi-value" style="color:@(Model.VentaUtilidad >= 0 ? "#065f46" : "#b91c1c");">L. @Model.VentaUtilidad.ToString("N2")</span>
+            <span class="kpi-trend">margen @Model.VentaMargenPct.ToString("0.#")%</span>
+        </div>
+    </div>
+
+    @if (Model.VentaLineasSinCosto > 0)
+    {
+        <div class="module-alert module-alert-warning" style="margin-bottom:12px;">
+            @Model.VentaLineasSinCosto línea(s) no tienen costo registrado (ventas antiguas); no entran en la utilidad.
+        </div>
+    }
+
+    <div class="module-card" style="margin-bottom:24px;">
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Factura</th>
+                        <th>Venta</th>
+                        <th>Cliente</th>
+                        <th style="text-align:right;">Cantidad</th>
+                        <th style="text-align:right;">Costo unit.</th>
+                        <th style="text-align:right;">Precio unit.</th>
+                        <th style="text-align:right;">Descuento</th>
+                        <th style="text-align:right;">Subtotal</th>
+                        <th style="text-align:right;">Utilidad</th>
+                        <th>Vendió</th>
+                        <th>Pago</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Ventas.Any())
+                    {
+                        <tr><td colspan="13" style="text-align:center;padding:24px;">Este producto no tiene ventas en el período</td></tr>
+                    }
+                    @foreach (var v in Model.Ventas)
+                    {
+                        <tr style="@(v.Vigente ? "" : "opacity:.55;")">
+                            <td>@v.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                @if (v.FacturaId.HasValue)
+                                {
+                                    <a asp-page="/Facturas/Details" asp-route-id="@v.FacturaId.Value"><strong>@v.FacturaNumero</strong></a>
+                                }
+                                else
+                                {
+                                    <span>—</span>
+                                }
+                            </td>
+                            <td><a asp-page="/Ventas/Details" asp-route-id="@v.VentaId">@v.VentaNumero</a></td>
+                            <td>@if (v.ClienteId.HasValue) { <a asp-page="/Clientes/Details" asp-route-id="@v.ClienteId.Value">@v.ClienteNombre</a> } else { <span>@v.ClienteNombre</span> }</td>
+                            <td style="text-align:right;">
+                                @v.Cantidad.ToString("0.##")
+                                @if (v.Devuelta > 0)
+                                {
+                                    <br /><small style="color:#b91c1c;">devuelto @v.Devuelta.ToString("0.##")</small>
+                                }
+                            </td>
+                            <td style="text-align:right;">@(v.CostoUnitario.HasValue ? "L. " + v.CostoUnitario.Value.ToString("N2") : "—")</td>
+                            <td style="text-align:right;">L. @v.PrecioUnitario.ToString("N2")</td>
+                            <td style="text-align:right;">@(v.Descuento > 0 ? "L. " + v.Descuento.ToString("N2") : "—")</td>
+                            <td style="text-align:right;">L. @v.Subtotal.ToString("N2")</td>
+                            <td style="text-align:right;color:@(v.Utilidad.HasValue && v.Utilidad.Value < 0 ? "#b91c1c" : "#065f46");">
+                                @(v.Utilidad.HasValue ? "L. " + v.Utilidad.Value.ToString("N2") : "—")
+                            </td>
+                            <td>@v.Cajero</td>
+                            <td>@v.MetodoPago</td>
+                            <td>
+                                <span class="badge @(v.Vigente ? "badge-success" : "badge-danger")">@v.Estado</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (Model.PuedeVerCompras)
+{
+    <h3 class="panel-title" style="margin:8px 0 12px;">Compras</h3>
+
+    <div class="kpi-grid" style="margin-bottom: 20px;">
+        <div class="kpi-card">
+            <span class="kpi-label">Unidades compradas</span>
+            <span class="kpi-value">@Model.CompraUnidades.ToString("0.##")</span>
+            <span class="kpi-trend">sin borradores ni canceladas</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Total invertido</span>
+            <span class="kpi-value">L. @Model.CompraInvertido.ToString("N2")</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Costo promedio</span>
+            <span class="kpi-value">L. @Model.CompraCostoPromedio.ToString("N2")</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Última compra</span>
+            <span class="kpi-value">@(Model.CompraUltimoCosto.HasValue ? "L. " + Model.CompraUltimoCosto.Value.ToString("N2") : "—")</span>
+        </div>
+    </div>
+
+    <div class="module-card" style="margin-bottom:24px;">
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Orden</th>
+                        <th>Proveedor</th>
+                        <th style="text-align:right;">Cantidad</th>
+                        <th style="text-align:right;">Recibida</th>
+                        <th style="text-align:right;">Costo unit.</th>
+                        <th style="text-align:right;">Total</th>
+                        <th>Recepción</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Compras.Any())
+                    {
+                        <tr><td colspan="9" style="text-align:center;padding:24px;">Este producto no tiene compras en el período</td></tr>
+                    }
+                    @foreach (var c in Model.Compras)
+                    {
+                        <tr style="@(c.Vigente ? "" : "opacity:.55;")">
+                            <td>@c.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td><a asp-page="/OrdenesCompra/Details" asp-route-id="@c.OrdenId"><strong>@c.NumeroOrden</strong></a></td>
+                            <td><a asp-page="/Proveedores/Details" asp-route-id="@c.ProveedorId">@c.ProveedorNombre</a></td>
+                            <td style="text-align:right;">@c.Cantidad.ToString("0.##")</td>
+                            <td style="text-align:right;">@c.CantidadRecibida.ToString("0.##")</td>
+                            <td style="text-align:right;"><strong>L. @c.CostoUnitario.ToString("N2")</strong></td>
+                            <td style="text-align:right;">L. @c.Total.ToString("N2")</td>
+                            <td>@(c.FechaRecepcion.HasValue ? c.FechaRecepcion.Value.ToString("dd/MM/yyyy") : "—")</td>
+                            <td>
+                                <span class="badge @(c.Estado == "Recibida" ? "badge-success" : c.Estado == "Cancelada" ? "badge-danger" : "badge-warning")">@c.Estado</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (!Model.PuedeVerVentas && !Model.PuedeVerCompras)
+{
+    <div class="module-card"><p style="padding:24px;">No tienes permiso para ver compras ni ventas.</p></div>
+}

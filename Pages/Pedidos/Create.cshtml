@@ -137,7 +137,7 @@
                 if (filtrados.length === 0) { resultsBox.style.display = 'none'; return; }
                 resultsBox.innerHTML = filtrados.map(function (p) {
                     return '<div class="producto-result-item" data-id="' + p.id + '">' +
-                        '<div><strong>' + p.nombre + '</strong><br><small>SKU: ' + (p.sku || '—') + '</small></div>' +
+                        '<div><strong>' + escHtml(p.nombre) + '</strong><br><small>SKU: ' + escHtml(p.sku || '—') + '</small></div>' +
                         '<span class="badge badge-info">' + formatMoney(p.precio) + '</span></div>';
                 }).join('');
                 resultsBox.style.display = 'block';
@@ -169,7 +169,7 @@
                     var iva = subtotal * (item.impuesto / 100);
                     var total = subtotal + iva;
                     return '<tr>' +
-                        '<td><strong>' + item.nombre + '</strong></td>' +
+                        '<td><strong>' + escHtml(item.nombre) + '</strong></td>' +
                         '<td><input type="number" min="1" value="' + item.cantidad + '" data-idx="' + idx + '" data-field="cantidad" class="form-input" style="padding:6px 8px;text-align:center;" /></td>' +
                         '<td><input type="number" min="0" step="0.01" value="' + item.precio.toFixed(2) + '" data-idx="' + idx + '" data-field="precio" class="form-input" style="padding:6px 8px;" /></td>' +
                         '<td><input type="number" min="0" step="0.01" value="' + item.descuento.toFixed(2) + '" data-idx="' + idx + '" data-field="descuento" class="form-input" style="padding:6px 8px;" /></td>' +

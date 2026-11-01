@@ -19,6 +19,9 @@
                 </svg>
                 Nueva categoría
             </a>
+        }
+        @if (Model.PuedeImportar)
+        {
             <a asp-page="/Categorias/Import" class="btn-secondary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -27,6 +30,9 @@
                 </svg>
                 Importar
             </a>
+        }
+        @if (Model.PuedeExportar)
+        {
             <a asp-page="/Categorias/Export" asp-route-formato="excel" class="btn-secondary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -105,8 +111,14 @@
                     </div>
 
                     <div class="role-actions">
+                        @if (Model.PuedeEditar)
+                        {
                         <a asp-page="/Categorias/Edit" asp-route-id="@cat.Id" class="btn-sm btn-secondary">Editar</a>
+                        }
+                        @if (Model.PuedeEliminar)
+                        {
                         <a asp-page="/Categorias/Delete" asp-route-id="@cat.Id" class="btn-sm btn-danger">Eliminar</a>
+                        }
                     </div>
                 </div>
             }

@@ -1,0 +1,81 @@
+﻿@page
+@model Kirkenta.Pages.Reportes.InventarioModel
+@{
+    ViewData["Title"] = "Valorización de inventario";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Reportes/Index" class="back-link">← Volver a reportes</a>
+        <h2>Valorización de inventario</h2>
+        <p>Valor a costo: <strong>L. @Model.ValorCosto.ToString("N2")</strong> · Valor a precio de venta: <strong>L. @Model.ValorVenta.ToString("N2")</strong></p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Reportes/Inventario" asp-page-handler="Csv" asp-route-categoriaId="@Model.CategoriaId" asp-route-soloBajoMinimo="@Model.SoloBajoMinimo" asp-route-incluirInactivos="@Model.IncluirInactivos" class="btn-secondary">Exportar CSV</a>
+        <button type="button" class="btn-secondary" onclick="window.print()">Imprimir</button>
+    </div>
+</div>
+
+<div class="module-card">
+    <form method="get" class="module-toolbar" style="gap:12px;flex-wrap:wrap;">
+        <div class="form-field">
+            <label>Categoría</label>
+            <select name="CategoriaId" class="form-input">
+                <option value="">Todas</option>
+                @foreach (var c in Model.Categorias)
+                {
+                    <option value="@c.Id" selected="@(Model.CategoriaId == c.Id)">@c.Nombre</option>
+                }
+            </select>
+        </div>
+        <div class="form-field" style="align-self:flex-end;">
+            <label><input type="checkbox" name="SoloBajoMinimo" value="true" checked="@Model.SoloBajoMinimo" /> Solo bajo mínimo</label>
+        </div>
+        <div class="form-field" style="align-self:flex-end;">
+            <label><input type="checkbox" name="IncluirInactivos" value="true" checked="@Model.IncluirInactivos" /> Incluir inactivos</label>
+        </div>
+        <div class="form-field" style="align-self:flex-end;"><button type="submit" class="btn-primary">Filtrar</button></div>
+    </form>
+
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>SKU</th><th>Producto</th><th>Categoría</th>
+                    <th style="text-align:right;">Stock</th><th style="text-align:right;">Mínimo</th>
+                    <th style="text-align:right;">Costo</th><th style="text-align:right;">Valor a costo</th>
+                    <th style="text-align:right;">Precio</th><th style="text-align:right;">Valor a venta</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Productos.Any())
+                {
+                    <tr><td colspan="9" style="text-align:center;padding:24px;">Sin productos</td></tr>
+                }
+                @foreach (var p in Model.Productos)
+                {
+                    var bajo = p.Stock <= p.StockMinimo;
+                    <tr>
+                        <td>@p.SKU</td>
+                        <td><a asp-page="/Productos/Kardex" asp-route-productoId="@p.Id">@p.Nombre</a></td>
+                        <td>@(p.CategoriaId.HasValue && Model.NombresCategoria.ContainsKey(p.CategoriaId.Value) ? Model.NombresCategoria[p.CategoriaId.Value] : "—")</td>
+                        <td style="text-align:right;color:@(bajo ? "var(--color-danger-text)" : "inherit");">@p.Stock.ToString("0.##")</td>
+                        <td style="text-align:right;">@p.StockMinimo.ToString("0.##")</td>
+                        <td style="text-align:right;">@p.PrecioCompra.ToString("N2")</td>
+                        <td style="text-align:right;">@((Math.Max(p.Stock, 0) * p.PrecioCompra).ToString("N2"))</td>
+                        <td style="text-align:right;">@p.PrecioVenta.ToString("N2")</td>
+                        <td style="text-align:right;">@((Math.Max(p.Stock, 0) * p.PrecioVenta).ToString("N2"))</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="6"><strong>TOTAL</strong></td>
+                    <td style="text-align:right;"><strong>@Model.ValorCosto.ToString("N2")</strong></td>
+                    <td></td>
+                    <td style="text-align:right;"><strong>@Model.ValorVenta.ToString("N2")</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>

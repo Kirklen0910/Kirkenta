@@ -44,6 +44,6 @@ namespace Kirkenta.Models
         public bool Activa { get; set; } = true;
 
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
-        public int EmpresaId { get; set; } = 1;
+        public int EmpresaId { get; set; } = Kirkenta.Helpers.EmpresaActual.Id;
     }
 }

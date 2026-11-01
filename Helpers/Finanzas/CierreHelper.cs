@@ -25,26 +25,34 @@ namespace Kirkenta.Helpers.Finanzas
 
             var apertura = context.AperturasCaja
                 .AsNoTracking()
-                .Where(a => a.CuentaId == cuentaId)
+                .Where(a => a.CuentaId == cuentaId && a.Activa)
                 .OrderByDescending(a => a.FechaApertura)
-                .FirstOrDefault(a => a.Fecha == inicioDia || a.Activa);
+                .FirstOrDefault();
 
             if (apertura == null)
             {
+                // Solo se cierra una apertura ACTIVA: así una misma apertura no puede cerrarse dos veces.
                 return new CalculoCierre
                 {
-                    Error = "No hay apertura de caja para esta fecha. Debes abrir la caja antes de cerrarla.",
+                    Error = "No hay una apertura de caja activa para esta cuenta. Debes abrir la caja antes de cerrarla.",
                     RequiereApertura = true
                 };
             }
 
             decimal saldoInicial = apertura.SaldoInicial;
 
+            // 🔒 FIX: Solo se cuentan movimientos en EFECTIVO para el esperado del arqueo.
+            // Los movimientos de banco/tarjeta/transferencia NO afectan el efectivo físico.
+            // El período del arqueo va desde que se abrió la caja (no desde medianoche): si la caja
+            // se abrió ayer y se cierra hoy, o se abrió dos veces el mismo día, el esperado sigue cuadrando.
+            var desde = apertura.FechaApertura;
+            var hasta = DateTime.Now > finDia ? DateTime.Now : finDia;
             var movimientosDia = context.MovimientosFinancieros
                 .AsNoTracking()
                 .Where(m => m.Estado == "Activo"
-                         && m.Fecha >= inicioDia
-                         && m.Fecha < finDia)
+                         && m.Origen != "Apertura"
+                         && m.Fecha >= desde
+                         && m.Fecha <= hasta)
                 .Where(m => (m.CuentaId == cuentaId || m.CuentaDestinoId == cuentaId))
                 .Where(m => m.FormaPago != null && m.FormaPago.ToLower().Contains("efectivo"))
                 .ToList();
@@ -88,12 +96,39 @@ namespace Kirkenta.Helpers.Finanzas
         }
 
         /// <summary>
-        /// Registra el cierre. Genera ajuste por diferencia si aplica.
-        /// NO registra distribución todavía — eso lo hace el caller después.
-        /// Si el ajuste es un Egreso y la cuenta no tiene saldo suficiente, se registra
-        /// el cierre igual pero SIN ajuste, y se agrega advertencia a las notas.
+        /// Registra el cierre de caja. Cierre + cierre de la apertura + ajuste por sobrante/faltante
+        /// se guardan juntos en una transacción: si algo falla no queda un cierre a medias.
         /// </summary>
         public static (CierreCaja cierre, string? error) Registrar(
+            ApplicationDbContext context,
+            int cuentaId,
+            DateTime fecha,
+            decimal efectivoContado,
+            string? notas,
+            decimal tolerancia,
+            int usuarioId)
+        {
+            var abrimosTx = context.Database.CurrentTransaction == null;
+            var tx = abrimosTx ? context.Database.BeginTransaction() : null;
+            try
+            {
+                var resultado = RegistrarInterno(context, cuentaId, fecha, efectivoContado, notas, tolerancia, usuarioId);
+                if (resultado.error == null) tx?.Commit();
+                else tx?.Rollback();
+                return resultado;
+            }
+            catch
+            {
+                tx?.Rollback();
+                throw;
+            }
+            finally
+            {
+                tx?.Dispose();
+            }
+        }
+
+        private static (CierreCaja cierre, string? error) RegistrarInterno(
             ApplicationDbContext context,
             int cuentaId,
             DateTime fecha,
@@ -131,7 +166,7 @@ namespace Kirkenta.Helpers.Finanzas
                     Tolerancia = tolerancia,
                     Notas = notas,
                     EstadoActa = "Cerrado",
-                    EmpresaId = 1
+                    EmpresaId = EmpresaActual.Id
                 };
 
                 context.CierresCaja.Add(cierre);
@@ -147,13 +182,11 @@ namespace Kirkenta.Helpers.Finanzas
                     var tipoAjuste = resultado == "Sobrante" ? "Ingreso" : "Egreso";
                     var montoAjuste = Math.Abs(diferencia);
 
-                    // ===== VALIDACIÓN: si es Egreso, verificar saldo =====
                     if (tipoAjuste == "Egreso")
                     {
                         var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId);
                         if (cuenta == null)
                         {
-                            // Cuenta ya no existe (raro), no generar ajuste
                             cierre.Notas = (string.IsNullOrWhiteSpace(cierre.Notas) ? "" : cierre.Notas + "\n") +
                                 $"[Advertencia] No se pudo generar el ajuste por FALTANTE: cuenta no encontrada.";
                             context.SaveChanges();
@@ -162,7 +195,6 @@ namespace Kirkenta.Helpers.Finanzas
 
                         if (cuenta.SaldoActual < montoAjuste)
                         {
-                            // Saldo insuficiente: no generar ajuste, dejar constancia
                             cierre.Notas = (string.IsNullOrWhiteSpace(cierre.Notas) ? "" : cierre.Notas + "\n") +
                                 $"[Advertencia] No se pudo generar el ajuste por FALTANTE de L. {montoAjuste:N2}: " +
                                 $"la cuenta '{cuenta.Nombre}' solo tiene L. {cuenta.SaldoActual:N2} disponible.";
@@ -192,27 +224,18 @@ namespace Kirkenta.Helpers.Finanzas
             int cierreId,
             int usuarioId)
         {
-            var categoria = context.CategoriasFinancieras
-                .FirstOrDefault(c => c.Tipo == tipoAjuste && c.Nombre.Contains("Ajuste"));
-
-            if (categoria == null)
-            {
-                categoria = new CategoriaFinanciera
-                {
-                    Tipo = tipoAjuste,
-                    Nombre = "Ajuste de caja",
-                    Color = "#f59e0b",
-                    EsSistema = true,
-                    Activa = true,
-                    FechaCreacion = DateTime.Now,
-                    EmpresaId = 1
-                };
-                context.CategoriasFinancieras.Add(categoria);
-                context.SaveChanges();
-            }
+            // El sobrante es un ingreso no operativo (4.2.02) y el faltante un gasto diverso (6.3.02):
+            // así salen clasificados en el Estado de Resultados y no quedan "sin clasificar".
+            var categoria = tipoAjuste == "Ingreso"
+                ? MovimientoManualHelper.ObtenerOCrearCategoria(context, "Ingreso", "Sobrante de caja", "4.2.02", "#f59e0b")
+                : MovimientoManualHelper.ObtenerOCrearCategoria(context, "Egreso", "Faltante de caja", "6.3.02", "#f59e0b");
 
             var numeroAjuste = NumeroDocumentoHelper.GenerarSiguiente(context, "MovimientoFinanciero");
             var monedaDefecto = context.Monedas.FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1;
+
+            // 🔒 FIX: usar la forma de pago real de la cuenta (efectivo si es caja, transferencia si es banco)
+            var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId);
+            var formaPago = cuenta?.Tipo == "Banco" ? "Transferencia" : "Efectivo";
 
             var ajuste = new MovimientoFinanciero
             {
@@ -226,14 +249,14 @@ namespace Kirkenta.Helpers.Finanzas
                 TipoCambio = 1,
                 Concepto = $"Ajuste por {tipoAjuste.ToLower()} en cierre {numeroCierre}",
                 Referencia = numeroCierre,
-                FormaPago = "Efectivo",
+                FormaPago = formaPago,
                 Origen = "CierreCaja",
                 OrigenId = cierreId,
                 EsAutomatico = true,
                 Estado = "Activo",
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = usuarioId,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             context.MovimientosFinancieros.Add(ajuste);

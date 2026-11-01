@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#4f46e5">
+<title>Sin conexión · Kirkenta</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1f2937;--mut:#6b7280;--pri:#4f46e5;--bd:#e5e7eb}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#171a21;--tx:#e5e7eb;--mut:#9ca3af;--bd:#2a2f3a}}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:16px}
+.c{max-width:420px;width:100%;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:32px 24px;text-align:center}
+.i{font-size:44px;margin-bottom:8px}
+h1{font-size:20px;margin:0 0 8px}
+p{color:var(--mut);margin:0 0 20px;line-height:1.5;font-size:14.5px}
+a,button{display:inline-block;background:var(--pri);color:#fff;border:0;border-radius:10px;padding:11px 20px;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer}
+a.s{background:transparent;color:var(--pri);border:1px solid var(--bd);margin-left:6px}
+</style>
+</head>
+<body>
+<div class="c">
+  <div class="i">📡</div>
+  <h1>Sin conexión</h1>
+  <p>No hay internet en este momento. Si ya abriste el Punto de Venta antes en este equipo, puedes seguir vendiendo: las ventas se guardan y se envían solas cuando vuelva la señal.</p>
+  <button onclick="location.reload()">Reintentar</button>
+  <a class="s" href="/POS">Ir al POS</a>
+</div>
+</body>
+</html>

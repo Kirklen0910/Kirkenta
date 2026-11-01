@@ -16,6 +16,16 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             _context = context;
         }
 
+        [BindProperty(SupportsGet = true)] public string? Q { get; set; }
+        [BindProperty(SupportsGet = true)] public DateTime? Desde { get; set; }
+        [BindProperty(SupportsGet = true)] public DateTime? Hasta { get; set; }
+        [BindProperty(SupportsGet = true)] public string? Tipo { get; set; }
+        [BindProperty(SupportsGet = true)] public string? FormaPago { get; set; }
+        [BindProperty(SupportsGet = true)] public int? CuentaId { get; set; }
+        [BindProperty(SupportsGet = true)] public string? Estado { get; set; }
+        [BindProperty(SupportsGet = true, Name = "p")] public int Pagina { get; set; } = 1;
+
+        public PagerInfo Pager { get; set; } = new();
         public List<MovimientoItem> Movimientos { get; set; } = new();
         public List<CuentaFinanciera> Cuentas { get; set; } = new();
         public List<CategoriaFinanciera> Categorias { get; set; } = new();
@@ -38,12 +48,15 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             public string Concepto { get; set; } = "";
             public string? Referencia { get; set; }
             public decimal Monto { get; set; }
+            public int CuentaId { get; set; }
+            public int? CuentaDestinoId { get; set; }
             public string CuentaNombre { get; set; } = "";
             public string? CuentaDestinoNombre { get; set; }
             public string? CategoriaNombre { get; set; }
             public string? CategoriaColor { get; set; }
             public string Estado { get; set; } = "Activo";
             public string Origen { get; set; } = "Manual";
+            public string? FormaPago { get; set; }
         }
 
         public IActionResult OnGet()
@@ -71,10 +84,41 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             var cuentasDict = cuentas.ToDictionary(c => c.Id, c => c.Nombre);
             var categoriasDict = categorias.ToDictionary(c => c.Id, c => new { c.Nombre, c.Color });
 
-            var lista = _context.MovimientosFinancieros
-                .AsNoTracking()
+            var query = _context.MovimientosFinancieros.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(Q))
+            {
+                var s = Q.Trim();
+                query = query.Where(m => m.Numero.Contains(s) || m.Concepto.Contains(s)
+                                         || (m.Referencia != null && m.Referencia.Contains(s)));
+            }
+            if (Desde.HasValue) { var d = Desde.Value.Date; query = query.Where(m => m.Fecha >= d); }
+            if (Hasta.HasValue) { var h = Hasta.Value.Date.AddDays(1); query = query.Where(m => m.Fecha < h); }
+            if (!string.IsNullOrWhiteSpace(Tipo)) query = query.Where(m => m.Tipo == Tipo);
+            if (!string.IsNullOrWhiteSpace(FormaPago))
+            {
+                var fp = FormaPago.Trim().ToLower();
+                query = query.Where(m => m.FormaPago != null && m.FormaPago.ToLower() == fp);
+            }
+            if (CuentaId.HasValue)
+            {
+                var cid = CuentaId.Value;
+                query = query.Where(m => m.CuentaId == cid || m.CuentaDestinoId == cid);
+            }
+            if (!string.IsNullOrWhiteSpace(Estado)) query = query.Where(m => m.Estado == Estado);
+
+            // KPIs sobre el conjunto filtrado (solo movimientos activos), calculados en la BD
+            var activos = query.Where(m => m.Estado == "Activo");
+            TotalIngresos = activos.Where(m => m.Tipo == "Ingreso").Sum(m => (decimal?)m.Monto) ?? 0;
+            TotalEgresos = activos.Where(m => m.Tipo == "Egreso").Sum(m => (decimal?)m.Monto) ?? 0;
+            Balance = TotalIngresos - TotalEgresos;
+            CantidadMovimientos = activos.Count();
+
+            Pager = new PagerInfo(Pagina, 50, query.Count());
+            var lista = query
                 .OrderByDescending(m => m.Fecha)
                 .ThenByDescending(m => m.Id)
+                .Skip(Pager.Skip).Take(Pager.PageSize)
                 .ToList();
 
             Movimientos = lista.Select(m => new MovimientoItem
@@ -86,6 +130,8 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 Concepto = m.Concepto,
                 Referencia = m.Referencia,
                 Monto = m.Monto,
+                CuentaId = m.CuentaId,
+                CuentaDestinoId = m.CuentaDestinoId,
                 CuentaNombre = cuentasDict.GetValueOrDefault(m.CuentaId, "—"),
                 CuentaDestinoNombre = m.CuentaDestinoId.HasValue
                     ? cuentasDict.GetValueOrDefault(m.CuentaDestinoId.Value)
@@ -97,14 +143,9 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                     ? categoriasDict.GetValueOrDefault(m.CategoriaId.Value)?.Color
                     : null,
                 Estado = m.Estado,
-                Origen = m.Origen
+                Origen = m.Origen,
+                FormaPago = m.FormaPago
             }).ToList();
-
-            var activos = lista.Where(m => m.Estado == "Activo").ToList();
-            TotalIngresos = activos.Where(m => m.Tipo == "Ingreso").Sum(m => m.Monto);
-            TotalEgresos = activos.Where(m => m.Tipo == "Egreso").Sum(m => m.Monto);
-            Balance = TotalIngresos - TotalEgresos;
-            CantidadMovimientos = activos.Count;
 
             return Page();
         }

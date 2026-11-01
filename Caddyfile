@@ -1,0 +1,15 @@
+# HTTPS local con certificado propio de Caddy (perfil "https" del docker-compose).
+# KIRKENTA_HOST = la IP o el nombre con que los equipos entran al servidor (ej. 192.168.1.10). Se define en .env (HOST_HTTPS).
+# Los equipos clientes deben confiar en la CA de Caddy (ver tools\LEEME-DOCKER-Y-LICENCIAS.md).
+{
+	local_certs
+}
+
+{$KIRKENTA_HOST:localhost} {
+	tls internal
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy kirkenta:8080
+}

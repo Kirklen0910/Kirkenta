@@ -1,3 +1,4 @@
+using Kirkenta.Helpers;
 using Kirkenta.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -47,8 +48,14 @@ namespace Kirkenta.Pages.Reportes
             public decimal Total { get; set; }
         }
 
-        public void OnGet(DateTime? desde, DateTime? hasta, string? cliente, string? producto)
+        public IActionResult OnGet(DateTime? desde, DateTime? hasta, string? cliente, string? producto)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Reportes", "Ventas", "ver")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             if (desde.HasValue) Desde = desde.Value;
             if (hasta.HasValue) Hasta = hasta.Value;
             FiltroCliente = cliente ?? "";
@@ -58,8 +65,6 @@ namespace Kirkenta.Pages.Reportes
             var hastaFull = Hasta.Date.AddDays(1).AddSeconds(-1);
 
             // Cargar catálogos
-            var productos = _context.Productos.ToList();
-            var clientes = _context.Clientes.ToList();
 
             // === Filtrar ventas ===
             var ventasQuery = _context.Ventas
@@ -69,7 +74,7 @@ namespace Kirkenta.Pages.Reportes
             if (!string.IsNullOrWhiteSpace(FiltroCliente))
             {
                 var cli = FiltroCliente.ToLower();
-                var clienteIds = clientes
+                var clienteIds = _context.Clientes
                     .Where(c => (c.Nombre ?? "").ToLower().Contains(cli) || (c.RTN ?? "").ToLower().Contains(cli))
                     .Select(c => c.Id)
                     .ToList();
@@ -87,7 +92,7 @@ namespace Kirkenta.Pages.Reportes
             if (!string.IsNullOrWhiteSpace(FiltroProducto))
             {
                 var prodFiltro = FiltroProducto.ToLower();
-                var prodIds = productos
+                var prodIds = _context.Productos
                     .Where(p => (p.Nombre ?? "").ToLower().Contains(prodFiltro) || (p.SKU ?? "").ToLower().Contains(prodFiltro))
                     .Select(p => p.Id)
                     .ToList();
@@ -104,12 +109,21 @@ namespace Kirkenta.Pages.Reportes
             ProductosVendidos = (int)detalles.Sum(d => d.Cantidad);
             ClientesUnicos = ventas.Where(v => v.ClienteId.HasValue).Select(v => v.ClienteId!.Value).Distinct().Count();
 
+            var idsProductosUsados = detalles.Select(d => d.ProductoId).Distinct().ToList();
+            var idsClientesUsados = ventas.Where(v => v.ClienteId.HasValue).Select(v => v.ClienteId!.Value).Distinct().ToList();
+            var nombresProductos = _context.Productos
+                .Where(p => idsProductosUsados.Contains(p.Id))
+                .ToDictionary(p => p.Id, p => p.Nombre);
+            var nombresClientes = _context.Clientes
+                .Where(c => idsClientesUsados.Contains(c.Id))
+                .ToDictionary(c => c.Id, c => c.Nombre);
+
             // === Top productos ===
             var productosAgrupados = detalles
                 .GroupBy(d => d.ProductoId)
                 .Select(g => new TopProducto
                 {
-                    Nombre = productos.FirstOrDefault(p => p.Id == g.Key)?.Nombre ?? "—",
+                    Nombre = (nombresProductos.TryGetValue(g.Key, out var np) ? np : null) ?? "—",
                     Cantidad = g.Sum(d => d.Cantidad),
                     Total = g.Sum(d => d.Total)
                 })
@@ -125,7 +139,7 @@ namespace Kirkenta.Pages.Reportes
                 .GroupBy(v => v.ClienteId!.Value)
                 .Select(g => new TopCliente
                 {
-                    Nombre = clientes.FirstOrDefault(c => c.Id == g.Key)?.Nombre ?? "—",
+                    Nombre = (nombresClientes.TryGetValue(g.Key, out var nc) ? nc : null) ?? "—",
                     Ventas = g.Count(),
                     Total = g.Sum(v => v.Total)
                 })
@@ -161,6 +175,8 @@ namespace Kirkenta.Pages.Reportes
                 labels = TopClientes.Select(x => x.Nombre).ToArray(),
                 data = TopClientes.Select(x => x.Total).ToArray()
             });
+
+            return Page();
         }
     }
 }

@@ -1,5 +1,6 @@
 using Kirkenta.Data;
 using Kirkenta.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kirkenta.Helpers.RRHH
 {
@@ -62,6 +63,7 @@ namespace Kirkenta.Helpers.RRHH
             {
                 var empleado = context.Empleados.FirstOrDefault(e => e.Id == empleadoId);
                 if (empleado == null) return (null, "Empleado no encontrado");
+                if (empleado.Estado == "Baja") return (null, "El empleado está dado de baja");
 
                 if (fechaFin < fechaInicio) return (null, "La fecha fin no puede ser anterior a la fecha inicio");
 
@@ -73,9 +75,12 @@ namespace Kirkenta.Helpers.RRHH
                 if (dias <= 0) return (null, "El período no contiene días hábiles");
 
                 // Validar saldo
-                if (dias > empleado.DiasVacacionesDisponibles)
+                var pendientes = context.VacacionesEmpleado
+                    .Where(v => v.EmpleadoId == empleadoId && v.Estado == "Solicitado")
+                    .Sum(v => (decimal?)v.DiasADescontar) ?? 0m;
+                if (dias + pendientes > empleado.DiasVacacionesDisponibles)
                 {
-                    return (null, $"Saldo insuficiente. Disponible: {empleado.DiasVacacionesDisponibles} días, solicitado: {dias} días");
+                    return (null, $"Saldo insuficiente. Disponible: {empleado.DiasVacacionesDisponibles} días, ya solicitados pendientes: {pendientes}, nuevos: {dias} días");
                 }
 
                 // Validar solapamiento con otras vacaciones
@@ -139,6 +144,27 @@ namespace Kirkenta.Helpers.RRHH
                 if (vacacion.DiasADescontar > empleado.DiasVacacionesDisponibles)
                     return (false, "Saldo insuficiente");
 
+                // Reclamo atómico + descuento en una transacción: no se descuentan los días dos veces
+                var abrimosTx = context.Database.CurrentTransaction == null && context.Database.IsRelational();
+                var tx = abrimosTx ? context.Database.BeginTransaction() : null;
+                try
+                {
+                    if (context.Database.IsRelational())
+                    {
+                        var reclamadas = context.VacacionesEmpleado
+                            .Where(v => v.Id == vacacionId && v.Estado == "Solicitado")
+                            .ExecuteUpdate(u => u.SetProperty(v => v.Estado, "Aprobado"));
+                        if (reclamadas == 0) { tx?.Rollback(); return (false, "La solicitud ya fue procesada"); }
+                        context.Entry(vacacion).Reload();
+                        context.Entry(empleado).Reload();
+                        if (vacacion.DiasADescontar > empleado.DiasVacacionesDisponibles)
+                        {
+                            tx?.Rollback();
+                            context.Entry(vacacion).Reload();
+                            return (false, "Saldo insuficiente");
+                        }
+                    }
+
                 // Descontar
                 empleado.DiasVacacionesDisponibles -= vacacion.DiasADescontar;
                 empleado.DiasVacacionesTomados += vacacion.DiasADescontar;
@@ -148,7 +174,10 @@ namespace Kirkenta.Helpers.RRHH
                 vacacion.FechaAprobacion = DateTime.Now;
 
                 context.SaveChanges();
+                tx?.Commit();
                 return (true, null);
+                }
+                finally { tx?.Dispose(); }
             }
             catch (Exception ex)
             {
@@ -171,6 +200,15 @@ namespace Kirkenta.Helpers.RRHH
                 var vacacion = context.VacacionesEmpleado.FirstOrDefault(v => v.Id == vacacionId);
                 if (vacacion == null) return (false, "Vacación no encontrada");
                 if (vacacion.Estado != "Solicitado") return (false, "La solicitud ya fue procesada");
+
+                if (context.Database.IsRelational())
+                {
+                    var reclamadas = context.VacacionesEmpleado
+                        .Where(v => v.Id == vacacionId && v.Estado == "Solicitado")
+                        .ExecuteUpdate(u => u.SetProperty(v => v.Estado, "Rechazado"));
+                    if (reclamadas == 0) return (false, "La solicitud ya fue procesada");
+                    context.Entry(vacacion).Reload();
+                }
 
                 vacacion.Estado = "Rechazado";
                 vacacion.UsuarioApruebaId = usuarioApruebaId;

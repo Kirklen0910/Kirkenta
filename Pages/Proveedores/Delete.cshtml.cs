@@ -34,9 +34,9 @@ namespace Kirkenta.Pages.Proveedores
                 return RedirectToPage("/Proveedores/Index");
             }
 
-            if (_context.OrdenesCompra.Any(o => o.ProveedorId == id))
+            if (TieneDependencias(id))
             {
-                TempData["Error"] = "No se puede eliminar: tiene órdenes de compra asociadas. Desactívalo mejor.";
+                TempData["Error"] = "No se puede eliminar el proveedor: tiene órdenes de compra, pagos, devoluciones o adjuntos asociados. Desactívalo mejor.";
                 return RedirectToPage("/Proveedores/Index");
             }
 
@@ -61,9 +61,9 @@ namespace Kirkenta.Pages.Proveedores
                 return RedirectToPage("/Proveedores/Index");
             }
 
-            if (_context.OrdenesCompra.Any(o => o.ProveedorId == id))
+            if (TieneDependencias(id))
             {
-                TempData["Error"] = "No se puede eliminar: tiene órdenes de compra asociadas";
+                TempData["Error"] = "No se puede eliminar el proveedor: tiene dependencias asociadas.";
                 return RedirectToPage("/Proveedores/Index");
             }
 
@@ -80,6 +80,18 @@ namespace Kirkenta.Pages.Proveedores
 
             TempData["Success"] = $"Proveedor '{nombre}' eliminado";
             return RedirectToPage("/Proveedores/Index");
+        }
+
+        private bool TieneDependencias(int proveedorId)
+        {
+            if (_context.OrdenesCompra.Any(o => o.ProveedorId == proveedorId)) return true;
+            if (_context.PagosProveedor.Any(p => p.ProveedorId == proveedorId)) return true;
+            if (_context.DevolucionesProveedor.Any(d => d.ProveedorId == proveedorId)) return true;
+            if (_context.AdjuntosCompras.Any(a =>
+                a.OrdenCompraId != null &&
+                _context.OrdenesCompra.Any(o => o.Id == a.OrdenCompraId && o.ProveedorId == proveedorId)))
+                return true;
+            return false;
         }
     }
 }

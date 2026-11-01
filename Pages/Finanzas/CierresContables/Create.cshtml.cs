@@ -28,6 +28,7 @@ namespace Kirkenta.Pages.Finanzas.CierresContables
         public class InputModel
         {
             [Required]
+            [Range(2000, 2100, ErrorMessage = "Año no válido")]
             public int Anio { get; set; }
 
             [Required]
@@ -82,6 +83,18 @@ namespace Kirkenta.Pages.Finanzas.CierresContables
                 !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "CierresContablesCreate", "crear"))
             {
                 TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/Finanzas/CierresContables/Index");
+            }
+
+            if (Input.Anio < 2000 || Input.Anio > 2100 || Input.Mes < 1 || Input.Mes > 12)
+            {
+                TempData["Error"] = "Período no válido";
+                return RedirectToPage("/Finanzas/CierresContables/Index");
+            }
+
+            if (new DateTime(Input.Anio, Input.Mes, 1) > DateTime.Today)
+            {
+                TempData["Error"] = "No se puede cerrar un período futuro";
                 return RedirectToPage("/Finanzas/CierresContables/Index");
             }
 

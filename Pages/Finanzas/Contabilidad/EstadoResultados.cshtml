@@ -46,6 +46,21 @@
     </form>
 </div>
 
+<!-- Punto 12: advertencia de período cerrado -->
+@if (Model.Reporte.PeriodoCerrado)
+{
+    <div class="module-alert module-alert-success" style="background: var(--color-success-bg); border: 1px solid var(--color-success-border); color: var(--color-success-text);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <div>
+            <strong>@Model.Reporte.MensajeCierre</strong>
+        </div>
+    </div>
+}
+
+<!-- Punto 6: movimientos sin clasificar -->
 @if (Model.MovimientosSinCuenta > 0)
 {
     <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">
@@ -55,7 +70,7 @@
             <line x1="12" y1="17" x2="12.01" y2="17"/>
         </svg>
         <div>
-            <strong>Hay @Model.MovimientosSinCuenta movimiento(s) sin cuenta contable asignada en el período.</strong>
+            <strong>Hay @Model.MovimientosSinCuenta movimiento(s) sin cuenta contable asignada (L. @Model.Reporte.MontoSinClasificar.ToString("N2")).</strong>
             <p style="margin: 4px 0 0 0; font-size: 12.5px;">
                 Esos movimientos no aparecen en este reporte. Asocia sus categorías a una cuenta del
                 <a asp-page="/Finanzas/PlanCuentas/Index">Plan de Cuentas</a> para incluirlos.
@@ -64,19 +79,39 @@
     </div>
 }
 
-<!-- KPIs -->
+<!-- KPIs principales -->
 <div class="kpi-grid" style="margin-bottom: 20px;">
     <div class="kpi-card">
-        <span class="kpi-label">Ingresos totales</span>
-        <span class="kpi-value" style="color: var(--color-success);">L. @Model.Reporte.TotalIngresos.ToString("N2")</span>
+        <span class="kpi-label">Ingresos operativos</span>
+        <span class="kpi-value" style="color: var(--color-success);">L. @Model.Reporte.TotalIngresosOperativos.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Ingresos no operativos</span>
+        <span class="kpi-value" style="color: #6366f1; font-size: 20px;">L. @Model.Reporte.TotalIngresosNoOperativos.ToString("N2")</span>
     </div>
     <div class="kpi-card">
         <span class="kpi-label">Costos</span>
         <span class="kpi-value" style="color: var(--color-danger); font-size: 20px;">L. @Model.Reporte.TotalCostos.ToString("N2")</span>
     </div>
     <div class="kpi-card">
-        <span class="kpi-label">Gastos</span>
+        <span class="kpi-label">Gastos totales</span>
         <span class="kpi-value" style="color: var(--color-danger); font-size: 20px;">L. @Model.Reporte.TotalGastos.ToString("N2")</span>
+    </div>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Utilidad Bruta</span>
+        <span class="kpi-value" style="color: @(Model.Reporte.UtilidadBruta >= 0 ? "var(--color-success)" : "var(--color-danger)"); font-size: 20px;">
+            L. @Model.Reporte.UtilidadBruta.ToString("N2")
+        </span>
+        <span class="kpi-trend">Margen: @Model.Reporte.MargenBruto.ToString("N1")%</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Utilidad Operativa</span>
+        <span class="kpi-value" style="color: @(Model.Reporte.UtilidadOperativa >= 0 ? "var(--color-success)" : "var(--color-danger)"); font-size: 20px;">
+            L. @Model.Reporte.UtilidadOperativa.ToString("N2")
+        </span>
     </div>
     <div class="kpi-card">
         <span class="kpi-label">Utilidad Neta</span>
@@ -85,10 +120,15 @@
         </span>
         <span class="kpi-trend">Margen: @Model.Reporte.MargenNeto.ToString("N1")%</span>
     </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Ingresos cobrados (caja/banco)</span>
+        <span class="kpi-value" style="color: #06b6d4; font-size: 18px;">L. @Model.Reporte.IngresosCobrados.ToString("N2")</span>
+        <span class="kpi-trend">Solo movimientos con dinero real</span>
+    </div>
 </div>
 
-<!-- Encabezado empresa -->
 <div class="module-card" style="padding: 40px;">
+    <!-- Encabezado empresa -->
     <div style="text-align: center; margin-bottom: 32px;">
         @if (Model.Empresa != null && !string.IsNullOrEmpty(Model.Empresa.LogoPath))
         {
@@ -107,19 +147,19 @@
         </p>
     </div>
 
-    <!-- ========== INGRESOS ========== -->
+    <!-- ========== INGRESOS OPERATIVOS (4.1) ========== -->
     <div class="reporte-seccion">
-        <h4 class="reporte-seccion-titulo" style="color: var(--color-success);">INGRESOS</h4>
+        <h4 class="reporte-seccion-titulo" style="color: var(--color-success);">INGRESOS OPERATIVOS</h4>
 
-        @if (Model.Reporte.Ingresos.Count == 0)
+        @if (Model.Reporte.IngresosOperativos.Count == 0)
         {
-            <p class="reporte-vacio">Sin movimientos de ingreso en el período</p>
+            <p class="reporte-vacio">Sin movimientos de ingreso operativo en el período</p>
         }
         else
         {
             <table class="reporte-tabla">
                 <tbody>
-                    @foreach (var l in Model.Reporte.Ingresos)
+                    @foreach (var l in Model.Reporte.IngresosOperativos)
                     {
                         <tr>
                             <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
@@ -129,9 +169,9 @@
                     }
                     <tr class="reporte-total">
                         <td></td>
-                        <td><strong>Total Ingresos</strong></td>
+                        <td><strong>Total Ingresos Operativos</strong></td>
                         <td style="text-align: right; color: var(--color-success);">
-                            <strong>L. @Model.Reporte.TotalIngresos.ToString("N2")</strong>
+                            <strong>L. @Model.Reporte.TotalIngresosOperativos.ToString("N2")</strong>
                         </td>
                     </tr>
                 </tbody>
@@ -139,9 +179,9 @@
         }
     </div>
 
-    <!-- ========== COSTOS ========== -->
+    <!-- ========== COSTOS (5.1) ========== -->
     <div class="reporte-seccion">
-        <h4 class="reporte-seccion-titulo" style="color: #f97316;">COSTOS</h4>
+        <h4 class="reporte-seccion-titulo" style="color: #f97316;">COSTOS DE VENTA</h4>
 
         @if (Model.Reporte.Costos.Count == 0)
         {
@@ -179,19 +219,19 @@
         </strong>
     </div>
 
-    <!-- ========== GASTOS ========== -->
+    <!-- ========== GASTOS DE VENTA (6.1) ========== -->
     <div class="reporte-seccion">
-        <h4 class="reporte-seccion-titulo" style="color: var(--color-danger);">GASTOS OPERATIVOS</h4>
+        <h4 class="reporte-seccion-titulo" style="color: var(--color-danger);">GASTOS DE VENTA</h4>
 
-        @if (Model.Reporte.Gastos.Count == 0)
+        @if (Model.Reporte.GastosVenta.Count == 0)
         {
-            <p class="reporte-vacio">Sin gastos registrados en el período</p>
+            <p class="reporte-vacio">Sin gastos de venta registrados</p>
         }
         else
         {
             <table class="reporte-tabla">
                 <tbody>
-                    @foreach (var l in Model.Reporte.Gastos)
+                    @foreach (var l in Model.Reporte.GastosVenta)
                     {
                         <tr>
                             <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
@@ -201,15 +241,96 @@
                     }
                     <tr class="reporte-total">
                         <td></td>
-                        <td><strong>Total Gastos</strong></td>
-                        <td style="text-align: right;">
-                            <strong>L. @Model.Reporte.TotalGastos.ToString("N2")</strong>
-                        </td>
+                        <td><strong>Total Gastos de Venta</strong></td>
+                        <td style="text-align: right;"><strong>L. @Model.Reporte.TotalGastosVenta.ToString("N2")</strong></td>
                     </tr>
                 </tbody>
             </table>
         }
     </div>
+
+    <!-- ========== GASTOS DE ADMINISTRACIÓN (6.2) ========== -->
+    <div class="reporte-seccion">
+        <h4 class="reporte-seccion-titulo" style="color: var(--color-danger);">GASTOS DE ADMINISTRACIÓN</h4>
+
+        @if (Model.Reporte.GastosAdministracion.Count == 0)
+        {
+            <p class="reporte-vacio">Sin gastos de administración registrados</p>
+        }
+        else
+        {
+            <table class="reporte-tabla">
+                <tbody>
+                    @foreach (var l in Model.Reporte.GastosAdministracion)
+                    {
+                        <tr>
+                            <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
+                            <td>@l.Cuenta</td>
+                            <td style="text-align: right; width: 140px;">L. @l.Monto.ToString("N2")</td>
+                        </tr>
+                    }
+                    <tr class="reporte-total">
+                        <td></td>
+                        <td><strong>Total Gastos de Administración</strong></td>
+                        <td style="text-align: right;"><strong>L. @Model.Reporte.TotalGastosAdministracion.ToString("N2")</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <!-- ========== UTILIDAD OPERATIVA ========== -->
+    <div class="reporte-subtotal">
+        <span>UTILIDAD OPERATIVA</span>
+        <strong style="color: @(Model.Reporte.UtilidadOperativa >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+            L. @Model.Reporte.UtilidadOperativa.ToString("N2")
+        </strong>
+    </div>
+
+    <!-- ========== INGRESOS NO OPERATIVOS (4.2) ========== -->
+    @if (Model.Reporte.IngresosNoOperativos.Count > 0)
+    {
+        <div class="reporte-seccion">
+            <h4 class="reporte-seccion-titulo" style="color: #6366f1;">INGRESOS NO OPERATIVOS</h4>
+            <table class="reporte-tabla">
+                <tbody>
+                    @foreach (var l in Model.Reporte.IngresosNoOperativos)
+                    {
+                        <tr>
+                            <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
+                            <td>@l.Cuenta</td>
+                            <td style="text-align: right; width: 140px;">L. @l.Monto.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <!-- ========== OTROS GASTOS (6.3) ========== -->
+    @if (Model.Reporte.OtrosGastos.Count > 0)
+    {
+        <div class="reporte-seccion">
+            <h4 class="reporte-seccion-titulo" style="color: var(--color-danger);">OTROS GASTOS</h4>
+            <table class="reporte-tabla">
+                <tbody>
+                    @foreach (var l in Model.Reporte.OtrosGastos)
+                    {
+                        <tr>
+                            <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
+                            <td>@l.Cuenta</td>
+                            <td style="text-align: right; width: 140px;">L. @l.Monto.ToString("N2")</td>
+                        </tr>
+                    }
+                    <tr class="reporte-total">
+                        <td></td>
+                        <td><strong>Total Otros Gastos</strong></td>
+                        <td style="text-align: right;"><strong>L. @Model.Reporte.TotalOtrosGastos.ToString("N2")</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    }
 
     <!-- ========== UTILIDAD NETA ========== -->
     <div class="reporte-total-final">
@@ -226,61 +347,30 @@
 </div>
 
 <style>
-    .reporte-seccion {
-        margin-bottom: 24px;
-    }
+    .reporte-seccion { margin-bottom: 24px; }
     .reporte-seccion-titulo {
-        font-size: 13px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        padding-bottom: 8px;
-        border-bottom: 2px solid currentColor;
-        margin-bottom: 12px;
+        font-size: 13px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; padding-bottom: 8px;
+        border-bottom: 2px solid currentColor; margin-bottom: 12px;
     }
-    .reporte-tabla {
-        width: 100%;
-        font-size: 13.5px;
-        border-collapse: collapse;
-    }
-    .reporte-tabla td {
-        padding: 6px 8px;
-    }
-    .reporte-tabla tr:not(.reporte-total):hover {
-        background: #f9fafb;
-    }
+    .reporte-tabla { width: 100%; font-size: 13.5px; border-collapse: collapse; }
+    .reporte-tabla td { padding: 6px 8px; }
+    .reporte-tabla tr:not(.reporte-total):hover { background: var(--color-surface-2); }
     .reporte-total td {
         border-top: 1px solid var(--color-border);
-        padding-top: 10px;
-        font-size: 14px;
+        padding-top: 10px; font-size: 14px;
     }
-    .reporte-vacio {
-        font-size: 13px;
-        color: var(--color-muted);
-        font-style: italic;
-        padding: 8px 0;
-    }
+    .reporte-vacio { font-size: 13px; color: var(--color-muted); font-style: italic; padding: 8px 0; }
     .reporte-subtotal {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 14px 20px;
-        background: #f3f4f6;
-        border-radius: 6px;
-        margin: 20px 0;
-        font-size: 14px;
-        font-weight: 700;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 14px 20px; background: var(--color-surface-3); border-radius: 6px;
+        margin: 20px 0; font-size: 14px; font-weight: 700;
     }
     .reporte-total-final {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px 24px;
-        background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-        border: 2px solid var(--color-primary);
-        border-radius: 8px;
-        margin-top: 24px;
-        font-weight: 700;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 20px 24px; background: linear-gradient(135deg, var(--color-primary-soft) 0%, var(--color-primary-soft-2) 100%);
+        border: 2px solid var(--color-primary); border-radius: 8px;
+        margin-top: 24px; font-weight: 700;
     }
     @@media print {
         .module-header, .module-card form, .module-alert, .erp-sidebar, .erp-topbar, .erp-footer { display: none !important; }

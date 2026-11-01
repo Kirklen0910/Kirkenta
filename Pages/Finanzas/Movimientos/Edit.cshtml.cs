@@ -116,12 +116,28 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 ModelState.AddModelError(string.Empty, periodoError!);
             }
 
+            if (Input.Monto <= 0)
+                ModelState.AddModelError("Input.Monto", "El monto debe ser mayor a 0");
+            if (string.IsNullOrWhiteSpace(Input.Concepto))
+                ModelState.AddModelError("Input.Concepto", "El concepto es obligatorio");
+            if (!Input.CategoriaId.HasValue || !_context.CategoriasFinancieras.Any(c => c.Id == Input.CategoriaId.Value && c.Activa))
+                ModelState.AddModelError("Input.CategoriaId", "Selecciona una categoría activa");
+            if (!_context.CuentasFinancieras.Any(c => c.Id == Input.CuentaId && c.Activa))
+                ModelState.AddModelError("Input.CuentaId", "Selecciona una cuenta activa");
+
             if (!ModelState.IsValid) return Page();
 
             var mov = _context.MovimientosFinancieros.FirstOrDefault(m => m.Id == Input.Id);
             if (mov == null || mov.Estado != "Activo" || mov.Origen != "Manual")
             {
                 TempData["Error"] = "No se puede editar este movimiento";
+                return RedirectToPage("/Finanzas/Movimientos/Index");
+            }
+
+            var catEdit = _context.CategoriasFinancieras.FirstOrDefault(c => c.Id == Input.CategoriaId!.Value);
+            if (catEdit == null || catEdit.Tipo != mov.Tipo)
+            {
+                TempData["Error"] = $"La categoría debe ser de tipo {mov.Tipo}";
                 return RedirectToPage("/Finanzas/Movimientos/Index");
             }
 
@@ -133,8 +149,14 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 return RedirectToPage("/Finanzas/Movimientos/Index");
             }
 
-            // Revertir saldo anterior
+            // Todo o nada: movimiento + saldo + documento origen en una sola transacción
+            using var tx = _context.Database.BeginTransaction();
+
+            // Revertir() solo actúa sobre movimientos no activos: se marca temporalmente,
+            // se quita el efecto VIEJO (cuenta, monto y categoría de antes) y se reactiva.
+            mov.Estado = "Anulado";
             SaldoHelper.Revertir(_context, mov);
+            mov.Estado = "Activo";
 
             // Aplicar cambios
             mov.Fecha = Input.Fecha;
@@ -151,6 +173,7 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             // Aplicar nuevo saldo
             SaldoHelper.Aplicar(_context, mov);
             _context.SaveChanges();
+            tx.Commit();
 
             ActividadHelper.Registrar(
                 _context,

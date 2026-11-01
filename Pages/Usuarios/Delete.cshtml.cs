@@ -35,6 +35,13 @@ namespace Kirkenta.Pages.Usuarios
                 return RedirectToPage("/Usuarios/Index");
             }
 
+            // Seguridad: solo un Admin puede eliminar a otro Admin
+            if (user.Rol == "Admin" && currentRol != "Admin")
+            {
+                TempData["Error"] = "Solo un administrador puede eliminar a otro administrador";
+                return RedirectToPage("/Usuarios/Index");
+            }
+
             if (user.Username == User.Identity?.Name)
             {
                 TempData["Error"] = "No puedes eliminar tu propio usuario";
@@ -73,6 +80,13 @@ namespace Kirkenta.Pages.Usuarios
                 return RedirectToPage("/Usuarios/Index");
             }
 
+            // Seguridad: solo un Admin puede eliminar a otro Admin
+            if (user.Rol == "Admin" && currentRol != "Admin")
+            {
+                TempData["Error"] = "Solo un administrador puede eliminar a otro administrador";
+                return RedirectToPage("/Usuarios/Index");
+            }
+
             if (user.Username == User.Identity?.Name)
             {
                 TempData["Error"] = "No puedes eliminar tu propio usuario";
@@ -87,6 +101,21 @@ namespace Kirkenta.Pages.Usuarios
                     TempData["Error"] = "No puedes eliminar al último administrador del sistema";
                     return RedirectToPage("/Usuarios/Index");
                 }
+            }
+
+            // Un usuario que ya creó documentos se desactiva, no se borra (trazabilidad / auditoría)
+            var tieneHistorial = _context.Ventas.Any(v => v.UsuarioCreoId == user.Id)
+                || _context.Facturas.Any(f => f.UsuarioCreoId == user.Id)
+                || _context.Pedidos.Any(x => x.UsuarioCreoId == user.Id)
+                || _context.Cotizaciones.Any(c => c.UsuarioCreoId == user.Id)
+                || _context.MovimientosFinancieros.Any(m => m.UsuarioCreoId == user.Id)
+                || _context.PagosProveedor.Any(p => p.UsuarioCreoId == user.Id)
+                || _context.CierresCaja.Any(c => c.UsuarioCierraId == user.Id)
+                || _context.AperturasCaja.Any(a => a.UsuarioAbreId == user.Id);
+            if (tieneHistorial)
+            {
+                TempData["Error"] = $"'{user.Username}' ya tiene documentos creados: desactívalo (Editar → Activo) en lugar de eliminarlo.";
+                return RedirectToPage("/Usuarios/Index");
             }
 
             var username = user.Username;

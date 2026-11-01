@@ -1,0 +1,148 @@
+@page
+@model Kirkenta.Pages.Activos.MantenimientoModel
+@{
+    ViewData["Title"] = "Mantenimiento de activos";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Activos/Index" class="back-link">← Volver a activos</a>
+        <h2>Mantenimiento de activos</h2>
+        <p>Programa y registra mantenimientos preventivos y correctivos</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card"><span class="kpi-label">Programados</span><span class="kpi-value">@Model.Programados</span></div>
+    <div class="kpi-card"><span class="kpi-label">Vencidos</span><span class="kpi-value" style="color: var(--color-danger);">@Model.Vencidos</span></div>
+    <div class="kpi-card"><span class="kpi-label">Costo del año</span><span class="kpi-value">L. @Model.CostoAnio.ToString("N2")</span></div>
+</div>
+
+@if (Model.PuedeCrear)
+{
+    <div class="module-card" style="padding: 24px; margin-bottom: 20px;">
+        <h3 class="form-section-title">Programar mantenimiento</h3>
+        <form method="post" asp-page-handler="Crear" class="erp-form">
+            <div asp-validation-summary="All" class="module-alert module-alert-error"></div>
+            <div class="form-row">
+                <div class="form-field">
+                    <label>Activo *</label>
+                    <select asp-for="Nuevo.ActivoFijoId" class="form-input">
+                        <option value="0">— Selecciona —</option>
+                        @foreach (var a in Model.ActivosLista)
+                        {
+                            <option value="@a.Id">@a.Codigo — @a.Nombre</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>Tipo *</label>
+                    <select asp-for="Nuevo.Tipo" class="form-input">
+                        <option value="Preventivo">Preventivo</option>
+                        <option value="Correctivo">Correctivo</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-field">
+                    <label>Fecha programada *</label>
+                    <input asp-for="Nuevo.Fecha" type="date" class="form-input" />
+                </div>
+                <div class="form-field">
+                    <label>Próximo mantenimiento (opcional)</label>
+                    <input asp-for="Nuevo.ProximaFecha" type="date" class="form-input" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-field">
+                    <label>Descripción *</label>
+                    <input asp-for="Nuevo.Descripcion" class="form-input" />
+                </div>
+                <div class="form-field">
+                    <label>Proveedor / técnico</label>
+                    <input asp-for="Nuevo.Proveedor" class="form-input" />
+                </div>
+            </div>
+            <div class="form-actions"><button type="submit" class="btn-primary">Programar</button></div>
+        </form>
+    </div>
+}
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="filter-group">
+            <select name="ActivoId" class="filter-select">
+                <option value="">Todos los activos</option>
+                @foreach (var a in Model.ActivosLista)
+                {
+                    <option value="@a.Id" selected="@(Model.ActivoId == a.Id)">@a.Codigo — @a.Nombre</option>
+                }
+            </select>
+            <select name="Estado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="Programado" selected="@(Model.Estado == "Programado")">Programado</option>
+                <option value="Realizado" selected="@(Model.Estado == "Realizado")">Realizado</option>
+                <option value="Cancelado" selected="@(Model.Estado == "Cancelado")">Cancelado</option>
+            </select>
+            <button type="submit" class="btn-secondary">Filtrar</button>
+            <a asp-page="/Activos/Mantenimiento" class="btn-secondary">Limpiar</a>
+        </div>
+    </form>
+
+    @if (Model.Registros.Count == 0)
+    {
+        <div class="empty-state"><h3>No hay mantenimientos registrados</h3></div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr><th>Fecha</th><th>Activo</th><th>Tipo</th><th>Descripción</th><th style="text-align:right;">Costo</th><th>Estado</th><th style="text-align:right;">Acciones</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var m in Model.Registros)
+                    {
+                        var vencido = m.Estado == "Programado" && m.Fecha < DateTime.Today;
+                        Model.ActivosPorId.TryGetValue(m.ActivoFijoId, out var act);
+                        <tr>
+                            <td>@m.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@(act != null ? act.Codigo + " — " + act.Nombre : "—")</td>
+                            <td>@m.Tipo</td>
+                            <td>@m.Descripcion<br /><small>@m.Proveedor</small></td>
+                            <td style="text-align:right;">L. @m.Costo.ToString("N2")</td>
+                            <td>
+                                <span class="badge @(m.Estado == "Realizado" ? "badge-success" : m.Estado == "Cancelado" ? "badge" : vencido ? "badge-danger" : "badge-warning")">
+                                    @(vencido ? "Vencido" : m.Estado)
+                                </span>
+                            </td>
+                            <td style="text-align:right;">
+                                @if (Model.PuedeEditar && m.Estado == "Programado")
+                                {
+                                    <form method="post" asp-page-handler="Completar" asp-route-id="@m.Id" style="display:inline-flex; gap:6px; align-items:center;">
+                                        <input type="number" name="costo" step="0.01" min="0" value="0" class="form-input" style="width: 90px;" title="Costo (L.)" />
+                                        <select name="cuentaId" class="form-input" style="width: 140px;" title="Cuenta de pago (si hay costo)">
+                                            <option value="">Cuenta...</option>
+                                            @foreach (var c in Model.Cuentas)
+                                            {
+                                                <option value="@c.Id">@c.Nombre</option>
+                                            }
+                                        </select>
+                                        <button type="submit" class="btn-secondary">Realizado</button>
+                                    </form>
+                                    <form method="post" asp-page-handler="Cancelar" asp-route-id="@m.Id" style="display:inline;" onsubmit="return confirm('¿Cancelar este mantenimiento?');">
+                                        <button type="submit" class="btn-secondary">Cancelar</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+    }
+</div>

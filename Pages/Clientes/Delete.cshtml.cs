@@ -35,10 +35,9 @@ namespace Kirkenta.Pages.Clientes
                 return RedirectToPage("/Clientes/Index");
             }
 
-            // Verificar que no tenga ventas
-            if (_context.Ventas.Any(v => v.ClienteId == id))
+            if (TieneDependencias(id))
             {
-                TempData["Error"] = "No se puede eliminar un cliente que tiene ventas asociadas";
+                TempData["Error"] = "No se puede eliminar el cliente: tiene ventas, facturas, cotizaciones o pedidos asociados. Desactívalo mejor.";
                 return RedirectToPage("/Clientes/Index");
             }
 
@@ -64,9 +63,9 @@ namespace Kirkenta.Pages.Clientes
                 return RedirectToPage("/Clientes/Index");
             }
 
-            if (_context.Ventas.Any(v => v.ClienteId == id))
+            if (TieneDependencias(id))
             {
-                TempData["Error"] = "No se puede eliminar un cliente que tiene ventas asociadas";
+                TempData["Error"] = "No se puede eliminar el cliente: tiene ventas, facturas, cotizaciones o pedidos asociados.";
                 return RedirectToPage("/Clientes/Index");
             }
 
@@ -83,6 +82,17 @@ namespace Kirkenta.Pages.Clientes
 
             TempData["Success"] = $"Cliente '{nombre}' eliminado correctamente";
             return RedirectToPage("/Clientes/Index");
+        }
+
+        private bool TieneDependencias(int clienteId)
+        {
+            if (_context.Ventas.Any(v => v.ClienteId == clienteId)) return true;
+            if (_context.Facturas.Any(f => f.ClienteId == clienteId)) return true;
+            if (_context.Cotizaciones.Any(c => c.ClienteId == clienteId)) return true;
+            if (_context.Pedidos.Any(p => p.ClienteId == clienteId)) return true;
+            if (_context.Devoluciones.Any(d => d.ClienteId == clienteId)) return true;
+            if (_context.Envios.Any(e => e.ClienteId == clienteId)) return true;
+            return false;
         }
     }
 }

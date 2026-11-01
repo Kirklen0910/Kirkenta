@@ -93,7 +93,7 @@ namespace Kirkenta.Helpers.Logistica
                     Notas = notas,
                     FechaCreacion = DateTime.Now,
                     UsuarioCreoId = usuarioId,
-                    EmpresaId = 1
+                    EmpresaId = EmpresaActual.Id
                 };
 
                 context.Rutas.Add(ruta);
@@ -217,10 +217,25 @@ namespace Kirkenta.Helpers.Logistica
 
                 if (ruta.Estado == "Completada")
                     return (false, "Esta ruta ya está cerrada");
+                if (ruta.Estado == "Cancelada")
+                    return (false, "Una ruta cancelada no se puede cerrar");
 
                 var estadoAnterior = ruta.Estado;
 
                 var envios = context.Envios.Where(e => e.RutaId == rutaId).ToList();
+
+                // Las paradas que quedaron sin resolver vuelven a Pendiente para poder asignarlas a otra ruta
+                var sinResolver = envios.Where(e => e.Estado == "EnRuta" || e.Estado == "Pendiente").ToList();
+                foreach (var e in sinResolver)
+                {
+                    e.RutaId = null;
+                    e.OrdenParada = null;
+                    e.Estado = "Pendiente";
+                }
+                envios = envios.Where(e => e.RutaId == rutaId).ToList();
+
+                // Las paradas devueltas a pendiente ya no son de esta ruta
+                ruta.TotalParadas = envios.Count;
                 ruta.ParadasEntregadas = envios.Count(e => e.Estado == "Entregado");
                 ruta.ParadasFallidas = envios.Count(e => e.Estado == "Fallido");
                 ruta.Estado = "Completada";
@@ -240,7 +255,8 @@ namespace Kirkenta.Helpers.Logistica
                 {
                     RutaId = ruta.Id,
                     Evento = "Completada",
-                    Detalle = $"Ruta cerrada. Entregadas: {ruta.ParadasEntregadas}, Fallidas: {ruta.ParadasFallidas}",
+                    Detalle = $"Ruta cerrada. Entregadas: {ruta.ParadasEntregadas}, Fallidas: {ruta.ParadasFallidas}" +
+                              (sinResolver.Count > 0 ? $", devueltas a pendiente: {sinResolver.Count}" : ""),
                     EstadoAnterior = estadoAnterior,
                     EstadoNuevo = "Completada",
                     Fecha = DateTime.Now,
@@ -347,6 +363,7 @@ namespace Kirkenta.Helpers.Logistica
 
                 envio.RutaId = rutaId;
                 envio.OrdenParada = maxOrden + 1;
+                context.SaveChanges();
 
                 var todos = context.Envios.Where(e => e.RutaId == rutaId).ToList();
                 ruta.TotalParadas = todos.Count;
@@ -382,6 +399,7 @@ namespace Kirkenta.Helpers.Logistica
 
                 envio.RutaId = null;
                 envio.OrdenParada = null;
+                context.SaveChanges();
 
                 var todos = context.Envios.Where(e => e.RutaId == rutaId).ToList();
                 ruta.TotalParadas = todos.Count;

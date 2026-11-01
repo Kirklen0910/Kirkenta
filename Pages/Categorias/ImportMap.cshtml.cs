@@ -27,6 +27,13 @@ namespace Kirkenta.Pages.Categorias
         [BindProperty]
         public string ModoImportacion { get; set; } = "upsert";
 
+        public IActionResult OnGetPlantilla()
+        {
+            WizardConfig = BuildConfig();
+            return File(WizardConfig.PlantillaXlsx(), ImportReportHelper.TipoXlsx,
+                $"plantilla_{ColumnMapper.Normalizar(WizardConfig.NombrePlural)}.xlsx");
+        }
+
         public IActionResult OnGet()
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
@@ -34,9 +41,9 @@ namespace Kirkenta.Pages.Categorias
 
             WizardConfig = BuildConfig();
 
-            if (currentRol != "Admin")
+            if (!Kirkenta.Helpers.PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "Categorias", "crear"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
                 return Redirect(WizardConfig.UrlIndex);
             }
 
@@ -57,9 +64,9 @@ namespace Kirkenta.Pages.Categorias
 
             WizardConfig = BuildConfig();
 
-            if (currentRol != "Admin")
+            if (!Kirkenta.Helpers.PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "Categorias", "crear"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
                 return Redirect(WizardConfig.UrlIndex);
             }
 
@@ -94,8 +101,9 @@ namespace Kirkenta.Pages.Categorias
 
             ImportWizardHelper.LimpiarSesion(HttpContext.Session, WizardConfig);
 
-            TempData["Success"] = $"Importación completada: {resultado.Resumen()}";
-            return Redirect(WizardConfig.UrlIndex);
+            // Éxito limpio => mensaje y listado. Con errores/advertencias => pantalla de resultado
+            // con el motivo de cada fila y CSV descargable para corregir y reintentar.
+            return ImportReportHelper.Finalizar(this, WizardConfig.UrlIndex, resultado, HeadersArchivo, FilasArchivo);
         }
 
         private bool CargarDesdeSesion()
@@ -138,6 +146,9 @@ namespace Kirkenta.Pages.Categorias
             };
         }
 
+        private string EtiquetaDe(string campo) =>
+            ImportWizardConfig.EtiquetaLimpia(WizardConfig.Campos.FirstOrDefault(c => c.Key == campo)?.Label ?? campo);
+
         private ImportResult ImportarCategorias(
             List<Dictionary<string, string>> filas,
             Dictionary<string, string> mapa,
@@ -146,9 +157,8 @@ namespace Kirkenta.Pages.Categorias
         {
             var resultado = new ImportResult { TotalFilas = filas.Count };
 
-            var nombresExistentes = _context.Categorias
-                .Select(c => c.Nombre)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            // Categorías creadas en este mismo archivo (aún sin guardar), para detectar nombres repetidos
+            var creadasEnArchivo = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             int filaNum = 1;
             foreach (var fila in filas)
@@ -163,6 +173,9 @@ namespace Kirkenta.Pages.Categorias
                         return fila.GetValueOrDefault(header)?.Trim();
                     }
 
+                    string? T(string campo, int max) =>
+                        ImportHelper.Texto(resultado, filaNum, EtiquetaDe(campo), Obtener(campo), max);
+
                     var nombre = Obtener("Nombre");
                     if (string.IsNullOrWhiteSpace(nombre))
                     {
@@ -173,6 +186,13 @@ namespace Kirkenta.Pages.Categorias
                     if (nombre.Length > 100)
                     {
                         resultado.AgregarError(filaNum, "El nombre excede 100 caracteres");
+                        continue;
+                    }
+
+                    if (creadasEnArchivo.Contains(nombre))
+                    {
+                        resultado.AgregarAdvertencia(filaNum, $"La categoría '{nombre}' está repetida en el archivo; se ignora esta fila.");
+                        resultado.Ignorados++;
                         continue;
                     }
 
@@ -192,23 +212,28 @@ namespace Kirkenta.Pages.Categorias
                         continue;
                     }
 
-                    var color = Obtener("Color");
-                    if (!string.IsNullOrEmpty(color) && !color.StartsWith("#"))
+                    // Color: solo si viene y es un hexadecimal válido. Si no viene, una categoría
+                    // existente conserva su color (antes se le pisaba con gris en cada importación).
+                    string? color = null;
+                    var colorTexto = Obtener("Color");
+                    if (!string.IsNullOrWhiteSpace(colorTexto))
                     {
-                        color = "#" + color;
-                    }
-                    if (string.IsNullOrEmpty(color) || color.Length > 20)
-                    {
-                        color = "#6b7280";
+                        var hex = colorTexto.Trim().TrimStart('#');
+                        if (System.Text.RegularExpressions.Regex.IsMatch(hex, "^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"))
+                            color = "#" + hex.ToLowerInvariant();
+                        else
+                            resultado.AgregarAdvertencia(filaNum, $"'Color': '{colorTexto}' no es un hexadecimal válido (ej: #4f46e5); se ignoró.");
                     }
 
-                    var activa = ParserHelper.ParsearBool(Obtener("Activa"));
+                    var descripcion = T("Descripcion", 300);
+
+                    var activa = ImportHelper.Booleano(resultado, filaNum, EtiquetaDe("Activa"), Obtener("Activa"));
 
                     if (existente != null)
                     {
                         existente.Nombre = nombre;
-                        existente.Descripcion = Obtener("Descripcion") ?? existente.Descripcion;
-                        existente.Color = color;
+                        existente.Descripcion = descripcion ?? existente.Descripcion;
+                        existente.Color = color ?? existente.Color;
                         existente.Activa = activa ?? existente.Activa;
                         resultado.Actualizados++;
                     }
@@ -217,13 +242,13 @@ namespace Kirkenta.Pages.Categorias
                         var cat = new Categoria
                         {
                             Nombre = nombre,
-                            Descripcion = Obtener("Descripcion"),
-                            Color = color,
+                            Descripcion = descripcion,
+                            Color = color ?? "#6b7280",
                             Activa = activa ?? true,
                             FechaCreacion = DateTime.Now
                         };
                         _context.Categorias.Add(cat);
-                        nombresExistentes.Add(nombre);
+                        creadasEnArchivo.Add(nombre);
                         resultado.Creados++;
                     }
                 }
@@ -233,7 +258,7 @@ namespace Kirkenta.Pages.Categorias
                 }
             }
 
-            _context.SaveChanges();
+            ImportHelper.GuardarSeguro(_context, resultado, () => _context.SaveChanges());
             return resultado;
         }
     }

@@ -58,7 +58,7 @@
 
         @if (Model.FechaCierre.HasValue)
         {
-            <div style="padding: 12px 16px; background: #f9fafb; border-radius: 6px; font-size: 13px; margin-bottom: 20px;">
+            <div style="padding: 12px 16px; background: var(--color-surface-2); border-radius: 6px; font-size: 13px; margin-bottom: 20px;">
                 <strong>Cerrado el:</strong> @Model.FechaCierre.Value.ToString("dd/MM/yyyy HH:mm")
                 @if (!string.IsNullOrEmpty(Model.UsuarioCierre))
                 {

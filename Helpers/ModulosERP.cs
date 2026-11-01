@@ -21,7 +21,8 @@ namespace Kirkenta.Helpers
                 "Productos", "ProductosCreate", "ProductosEdit", "ProductosDelete",
                 "ProductosExport", "ProductosImport",
                 "Categorias", "UnidadesMedida",
-                "Entradas", "Salidas", "Bajas"
+                "Entradas", "Salidas", "Bajas",
+                "TomaFisica", "Kardex", "Valoracion"
             } },
             { "Compras", new List<string> {
                 "Index",
@@ -30,6 +31,7 @@ namespace Kirkenta.Helpers
                 "Ordenes", "OrdenesCreate", "OrdenesEdit", "OrdenesDelete", "OrdenesRecibir",
                 "Pagos", "PagosCreate",
                 "CuentasPorPagar",
+                "DevolucionesProveedor", "DevolucionesProveedorCreate",
                 "Reportes"
             } },
             { "Finanzas", new List<string> {
@@ -44,8 +46,11 @@ namespace Kirkenta.Helpers
                 "PlanCuentas", "PlanCuentasCreate", "PlanCuentasEdit", "PlanCuentasDelete",
                 "ContabilidadEstadoResultados",
                 "ContabilidadBalanceGeneral",
+                "Asientos", "LibroDiario", "LibroMayor", "Balanza",
+                "CajaChica",
                 "Reportes", "FlujoCaja", "EstadoResultados", "BalanceGeneral",
-                "ISV"
+                "ISV",
+                "Cobros"
             } },
             { "Produccion", new List<string> { "Index", "Calidad" } },
             { "RRHH", new List<string> {
@@ -70,11 +75,18 @@ namespace Kirkenta.Helpers
                 "Tracking",
                 "Reportes"
             } },
-            { "Reportes", new List<string> { "Index", "Ventas", "Compras" } },
-            { "Activos", new List<string> { "Index", "Mantenimiento" } },
+            { "Reportes", new List<string> {
+                "Index", "Ventas", "Compras",
+                "Inventario", "Rentabilidad",
+                "CuentasPorCobrar", "CuentasPorPagar",
+                "ISV", "PanelDueno"
+            } },
+            { "Activos", new List<string> { "Index", "Mantenimiento", "Depreciacion" } },
             { "Seguridad", new List<string> { "Index", "Auditoria" } },
             { "Configuracion", new List<string> {
-                "Index", "Empresa", "Nomenclatura", "Series", "MetodosPago"
+                "Index", "Empresa", "Nomenclatura", "Series", "MetodosPago", "Impuestos",
+                "Licencia", "AsistenteIA", "Impresora", "Respaldos", "Catalogo", "Inicio",
+                "Monedas", "TiposDocumento", "Deducciones", "Actualizaciones"
             } }
         };
 
@@ -149,6 +161,8 @@ namespace Kirkenta.Helpers
                 "Pagos" => "Pagos a proveedores",
                 "PagosCreate" => "Registrar pago",
                 "CuentasPorPagar" => "Cuentas por pagar",
+                "DevolucionesProveedor" => "Devoluciones a proveedores",
+                "DevolucionesProveedorCreate" => "Nueva devolución a proveedor",
                 // FINANZAS
                 "Cuentas" => "Cuentas financieras",
                 "CuentasCreate" => "Nueva cuenta",
@@ -184,6 +198,7 @@ namespace Kirkenta.Helpers
                 "EstadoResultados" => "Estado de resultados",
                 "BalanceGeneral" => "Balance general",
                 "ISV" => "ISV / IVA",
+                "Cobros" => "Cuentas por Cobrar",
                 // RRHH
                 "Empleados" => "Empleados",
                 "EmpleadosCreate" => "Nuevo empleado",
@@ -237,12 +252,34 @@ namespace Kirkenta.Helpers
                 "Egresos" => "Egresos",
                 "Impuestos" => "Impuestos",
                 "Calidad" => "Calidad",
+                "TomaFisica" => "Toma física de inventario",
+                "Kardex" => "Kardex",
+                "Valoracion" => "Valoración de inventario",
+                "Asientos" => "Asientos contables",
+                "LibroDiario" => "Libro diario",
+                "LibroMayor" => "Libro mayor",
+                "Balanza" => "Balanza de comprobación",
+                "CajaChica" => "Caja chica y gastos",
+                "Depreciacion" => "Depreciación",
                 "Mantenimiento" => "Mantenimiento",
                 "Auditoria" => "Auditoría",
                 "Empresa" => "Datos de la empresa",
                 "Nomenclatura" => "Nomenclatura",
                 "Series" => "Series de documentos",
                 "MetodosPago" => "Métodos de pago",
+                "Licencia" => "Licencia del sistema",
+                "AsistenteIA" => "Asistente con IA",
+                "Impresora" => "Impresora de tickets",
+                "Respaldos" => "Respaldos del sistema",
+                "Actualizaciones" => "Actualizaciones del sistema",
+                "Catalogo" => "Catálogo en línea",
+                "Inicio" => "Configuración inicial",
+                "Monedas" => "Monedas",
+                "TiposDocumento" => "Tipos de documento de empleados",
+                "Deducciones" => "Deducciones de nómina (IHSS, RAP, ISR)",
+                "Rentabilidad" => "Rentabilidad de productos",
+                "CuentasPorCobrar" => "Antigüedad de saldos (por cobrar)",
+                "PanelDueno" => "Panel del dueño",
                 _ => submodulo
             };
         }

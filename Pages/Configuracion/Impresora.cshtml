@@ -1,0 +1,124 @@
+@page
+@model Kirkenta.Pages.Configuracion.ImpresoraModel
+@{
+    ViewData["Title"] = "Impresora de tickets";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Impresora de tickets y gaveta</h2>
+        <p>Imprime tickets y facturas <strong>directo en la impresora térmica</strong> (58 u 80 mm), sin abrir el cuadro de impresión del navegador, y abre la gaveta de dinero conectada a ella. Funciona sin internet.</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+@if (Model.Resultado != null)
+{
+    <div class="module-card" role="status" style="border-left:4px solid @(Model.ResultadoOk ? "var(--color-success)" : "var(--color-danger)");">
+        <strong>@(Model.ResultadoOk ? "✅ Listo" : "❌ No se pudo")</strong>
+        <div style="color:var(--color-muted);font-size:13px;">@Model.Resultado</div>
+    </div>
+}
+
+<div class="module-card">
+    <h3 class="form-section-title">Conexión</h3>
+    <form method="post" asp-page-handler="Guardar" autocomplete="off">
+        <div style="display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
+            <div class="form-group">
+                <label class="form-label" for="Modo">¿Cómo está conectada?</label>
+                <select id="Modo" name="Modo" class="form-input">
+                    <option value="ninguna" selected="@(Model.Modo == "ninguna")">Sin impresora directa (usar el navegador)</option>
+                    <option value="windows" selected="@(Model.Modo == "windows")">USB / instalada en Windows (por nombre)</option>
+                    <option value="red" selected="@(Model.Modo == "red")">Por red (IP, puerto 9100)</option>
+                </select>
+            </div>
+
+            <div class="form-group" data-modo="red">
+                <label class="form-label" for="Host">Dirección IP de la impresora</label>
+                <input id="Host" name="Host" class="form-input" value="@Model.Host" placeholder="192.168.1.50" />
+            </div>
+            <div class="form-group" data-modo="red">
+                <label class="form-label" for="Puerto">Puerto</label>
+                <input id="Puerto" name="Puerto" type="number" class="form-input" value="@Model.Puerto" min="1" max="65535" />
+            </div>
+
+            <div class="form-group" data-modo="windows">
+                <label class="form-label" for="Impresora">Nombre de la impresora en Windows</label>
+                <input id="Impresora" name="Impresora" class="form-input" value="@Model.Impresora" list="listaImpresoras" placeholder="POS-80" />
+                <datalist id="listaImpresoras">
+                    @foreach (var n in Model.ImpresorasWindows) { <option value="@n"></option> }
+                </datalist>
+                <small style="color:var(--color-muted);">@(Model.ImpresorasWindows.Count > 0 ? "Elige una de las instaladas en este equipo." : "Escríbelo igual que aparece en Windows → Impresoras y escáneres.")</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="Columnas">Ancho del papel</label>
+                <select id="Columnas" name="Columnas" class="form-input">
+                    <option value="32" selected="@(Model.Columnas == 32)">58 mm (32 caracteres)</option>
+                    <option value="42" selected="@(Model.Columnas == 42)">80 mm (42 caracteres)</option>
+                    <option value="48" selected="@(Model.Columnas == 48)">80 mm letra pequeña (48 caracteres)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="Auto">Imprimir automáticamente</label>
+                <select id="Auto" name="Auto" class="form-input">
+                    <option value="ninguno" selected="@(Model.Auto == "ninguno")">No: solo cuando yo presione el botón</option>
+                    <option value="venta" selected="@(Model.Auto == "venta")">Al cobrar en el POS (ticket simple)</option>
+                    <option value="factura" selected="@(Model.Auto == "factura")">Al emitir la factura (con CAI)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="Copias">Copias</label>
+                <input id="Copias" name="Copias" type="number" class="form-input" value="@Model.Copias" min="1" max="3" />
+            </div>
+
+            <div class="form-group" style="grid-column:1/-1;">
+                <label class="form-label" for="Pie">Mensaje al pie del ticket</label>
+                <input id="Pie" name="Pie" class="form-input" maxlength="120" value="@Model.Pie" />
+            </div>
+        </div>
+
+        <label style="display:flex;gap:8px;align-items:center;margin:16px 0;">
+            <input type="checkbox" name="AbrirGaveta" value="true" @(Model.AbrirGaveta ? "checked" : "") />
+            <input type="hidden" name="AbrirGaveta" value="false" />
+            <span><strong>Abrir la gaveta de dinero</strong> cada vez que se imprima un ticket <span style="color:var(--color-muted);">(la gaveta se conecta al puerto RJ11 de la impresora)</span></span>
+        </label>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button type="submit" asp-page-handler="Guardar" class="btn-primary">Guardar</button>
+            <button type="submit" asp-page-handler="Prueba" class="btn-secondary">🖨️ Imprimir prueba</button>
+            <button type="submit" asp-page-handler="Gaveta" class="btn-secondary">🗄️ Abrir gaveta</button>
+        </div>
+        <p style="color:var(--color-muted);font-size:13px;margin-top:10px;">Las pruebas usan lo que ves en pantalla, aunque todavía no hayas pulsado Guardar.</p>
+    </form>
+</div>
+
+<div class="module-card">
+    <h3 class="form-section-title">Cómo conectarla</h3>
+    <ul style="line-height:1.8;margin:0;padding-left:20px;">
+        <li><strong>USB (lo más común):</strong> instala la impresora en Windows con su controlador, elige <em>USB / instalada en Windows</em> y escribe su nombre. El sistema le envía el ticket directo.</li>
+        <li><strong>Red:</strong> imprime desde la impresora su hoja de configuración para ver la IP, elige <em>Por red</em> y escríbela. Conviene dejarle una IP fija en el router.</li>
+        <li><strong>Importante:</strong> la impresora debe estar conectada al <em>servidor</em> donde corre Kirkenta (o ser de red). Si usas el sistema desde otra PC, el ticket sale en la impresora del servidor.</li>
+        <li><strong>Impresoras compatibles:</strong> las térmicas ESC/POS (Epson TM, Xprinter, Bixolon, Star en modo ESC/POS, genéricas de 58/80 mm).</li>
+        <li><strong>Botón en las facturas:</strong> en cada factura aparece “🖨️ Imprimir directo”, y en la factura emitida puedes reimprimir cuando quieras.</li>
+    </ul>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    var sel = document.getElementById('Modo');
+    function pintar() {
+        document.querySelectorAll('[data-modo]').forEach(function (el) {
+            el.style.display = el.getAttribute('data-modo') === sel.value ? '' : 'none';
+        });
+    }
+    sel.addEventListener('change', pintar);
+    pintar();
+})();
+</script>
+}

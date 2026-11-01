@@ -19,6 +19,12 @@ namespace Kirkenta.Pages.OrdenesCompra
 
         public IActionResult OnGet(int id)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Compras", "OrdenesDelete", "eliminar")))
+            {
+                TempData["Error"] = "No tienes permiso para realizar esta acción";
+                return RedirectToPage("/Index");
+            }
+
             var orden = _context.OrdenesCompra.FirstOrDefault(o => o.Id == id);
             if (orden == null)
             {
@@ -39,6 +45,12 @@ namespace Kirkenta.Pages.OrdenesCompra
 
         public IActionResult OnPost(int id)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Compras", "OrdenesDelete", "eliminar")))
+            {
+                TempData["Error"] = "No tienes permiso para realizar esta acción";
+                return RedirectToPage("/Index");
+            }
+
             var orden = _context.OrdenesCompra.FirstOrDefault(o => o.Id == id);
             if (orden == null)
             {

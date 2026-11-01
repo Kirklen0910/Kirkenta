@@ -24,6 +24,8 @@
             </svg>
             Editar
         </a>
+        <a asp-page="/OrdenesCompra/Index" asp-route-ProveedorId="@Model.Proveedor.Id" class="btn-secondary">Ver todas sus órdenes</a>
+        <a asp-page="/OrdenesCompra/Create" asp-route-proveedorId="@Model.Proveedor.Id" class="btn-primary">Nueva orden de compra</a>
     </div>
 </div>
 
@@ -190,7 +192,7 @@
                         @foreach (var oc in Model.UltimasOrdenes)
                         {
                             <tr>
-                                <td><strong>@oc.Numero</strong></td>
+                                <td><a asp-page="/OrdenesCompra/Details" asp-route-id="@oc.Id"><strong>@oc.Numero</strong></a></td>
                                 <td>@oc.Fecha.ToString("dd/MM/yyyy")</td>
                                 <td>L. @oc.Total.ToString("N2")</td>
                                 <td>
@@ -207,6 +209,36 @@
                                         <span class="badge badge-warning">@oc.Estado</span>
                                     }
                                 </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <div class="module-card" style="padding: 24px;">
+        <h3 class="form-section-title">Productos que le compramos</h3>
+        <p class="form-section-desc">Último costo pagado (clic para ver el historial del producto)</p>
+        @if (Model.ProductosComprados.Count == 0)
+        {
+            <p style="font-size: 13px; color: var(--color-muted);">Sin productos comprados</p>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="erp-table">
+                    <thead>
+                        <tr><th>Producto</th><th style="text-align:right;">Cantidad</th><th style="text-align:right;">Último costo</th><th>Última compra</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var pc in Model.ProductosComprados)
+                        {
+                            <tr>
+                                <td><a asp-page="/Productos/Historial" asp-route-id="@pc.ProductoId"><strong>@pc.Nombre</strong></a></td>
+                                <td style="text-align:right;">@pc.Cantidad.ToString("0.##")</td>
+                                <td style="text-align:right;">L. @pc.UltimoCosto.ToString("N2")</td>
+                                <td>@pc.UltimaCompra.ToString("dd/MM/yyyy")</td>
                             </tr>
                         }
                     </tbody>

@@ -101,7 +101,7 @@ namespace Kirkenta.Helpers.Finanzas
                         Anio = anio,
                         Mes = mes,
                         FechaCreacion = DateTime.Now,
-                        EmpresaId = 1
+                        EmpresaId = EmpresaActual.Id
                     };
                     context.CierresContables.Add(cierre);
                 }
@@ -198,7 +198,7 @@ namespace Kirkenta.Helpers.Finanzas
                         Anio = anio,
                         Mes = mes,
                         Estado = "Abierto",
-                        EmpresaId = 1
+                        EmpresaId = EmpresaActual.Id
                     });
                 }
             }

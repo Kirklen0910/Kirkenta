@@ -46,28 +46,28 @@
 </div>
 
 <div class="module-card">
-    <div class="module-toolbar">
+    <form method="get" class="module-toolbar">
         <div class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input type="text" id="searchInput" placeholder="Buscar por nombre, RTN, email o código..." />
+            <input type="text" id="searchInput" name="Q" value="@Model.Q" placeholder="Buscar por nombre, RTN, email o código..." />
         </div>
         <div class="filter-group">
-            <select id="filterTipo" class="filter-select">
+            <select id="filterTipo" name="Tipo" class="filter-select" onchange="this.form.submit()">
                 <option value="">Todos los tipos</option>
-                <option value="Regular">Regular</option>
-                <option value="Mayorista">Mayorista</option>
-                <option value="VIP">VIP</option>
+                <option value="Regular" selected="@(Model.Tipo == "Regular")">Regular</option>
+                <option value="Mayorista" selected="@(Model.Tipo == "Mayorista")">Mayorista</option>
+                <option value="VIP" selected="@(Model.Tipo == "VIP")">VIP</option>
             </select>
-            <select id="filterEstado" class="filter-select">
+            <select id="filterEstado" name="Estado" class="filter-select" onchange="this.form.submit()">
                 <option value="">Todos los estados</option>
-                <option value="activo">Activos</option>
-                <option value="inactivo">Inactivos</option>
+                <option value="activo" selected="@(Model.Estado == "activo")">Activos</option>
+                <option value="inactivo" selected="@(Model.Estado == "inactivo")">Inactivos</option>
             </select>
         </div>
-    </div>
+    </form>
 
     @if (TempData["Success"] != null)
     {
@@ -92,7 +92,7 @@
         </div>
     }
 
-    @if (Model.Clientes.Count == 0)
+    @if (Model.Pager.Total == 0)
     {
         <div class="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -135,7 +135,7 @@
                             </td>
                             <td>
                                 <div class="table-user-cell">
-                                    <span class="table-user-name">@c.Nombre</span>
+                                    <a asp-page="/Clientes/Details" asp-route-id="@c.Id" class="table-user-name">@c.Nombre</a>
                                     @if (!string.IsNullOrEmpty(c.RTN))
                                     {
                                         <span class="table-user-sub">RTN: @c.RTN</span>
@@ -180,6 +180,14 @@
                             </td>
                             <td>
                                 <div class="table-actions">
+                                    <a asp-page="/Clientes/EstadoCuenta" asp-route-id="@c.Id" class="btn-icon-action" title="Estado de cuenta">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                            <polyline points="14 2 14 8 20 8"/>
+                                            <line x1="16" y1="13" x2="8" y2="13"/>
+                                            <line x1="16" y1="17" x2="8" y2="17"/>
+                                        </svg>
+                                    </a>
                                     @if (Model.PuedeEditar)
                                     {
                                         <a asp-page="/Clientes/Edit" asp-route-id="@c.Id" class="btn-icon-action" title="Editar">
@@ -205,6 +213,7 @@
                 </tbody>
             </table>
         </div>
+        <partial name="_Pager" model="Model.Pager" />
     }
 </div>
 
@@ -247,40 +256,6 @@
 
 @section Scripts {
     <script>
-        (function () {
-            var searchInput = document.getElementById('searchInput');
-            var filterTipo = document.getElementById('filterTipo');
-            var filterEstado = document.getElementById('filterEstado');
-            var table = document.getElementById('clientesTable');
-            if (table) {
-                var rows = table.querySelectorAll('tbody tr');
-
-                function filterRows() {
-                    var search = (searchInput?.value || '').toLowerCase().trim();
-                    var tipo = filterTipo?.value || '';
-                    var estado = filterEstado?.value || '';
-
-                    rows.forEach(function (row) {
-                        var nombre = row.dataset.nombre || '';
-                        var rtn = row.dataset.rtn || '';
-                        var email = row.dataset.email || '';
-                        var codigo = row.dataset.codigo || '';
-                        var rowTipo = row.dataset.tipo || '';
-                        var rowEstado = row.dataset.estado || '';
-
-                        var matchSearch = !search || nombre.includes(search) || rtn.includes(search) || email.includes(search) || codigo.includes(search);
-                        var matchTipo = !tipo || rowTipo === tipo;
-                        var matchEstado = !estado || rowEstado === estado;
-
-                        row.style.display = (matchSearch && matchTipo && matchEstado) ? '' : 'none';
-                    });
-                }
-
-                searchInput?.addEventListener('input', filterRows);
-                filterTipo?.addEventListener('change', filterRows);
-                filterEstado?.addEventListener('change', filterRows);
-            }
-        })();
 
         function mostrarOpcionesExport() {
             document.getElementById('modalExport').style.display = 'flex';

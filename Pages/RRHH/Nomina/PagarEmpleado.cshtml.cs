@@ -119,9 +119,21 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 return Page();
             }
 
+            var yaPagadosIds = _context.PagosNominaEmpleado
+                .Where(p => p.NominaId == nomina.Id && p.Estado == "Pagado")
+                .Select(p => p.DetalleNominaId)
+                .ToHashSet();
             var detallesAPagar = _context.DetalleNominas
                 .Where(d => d.NominaId == nomina.Id && DetalleIdsSeleccionados.Contains(d.Id))
+                .ToList()
+                .Where(d => !yaPagadosIds.Contains(d.Id))
                 .ToList();
+
+            if (detallesAPagar.Count == 0)
+            {
+                ModelState.AddModelError(string.Empty, "Los empleados seleccionados ya fueron pagados.");
+                return Page();
+            }
 
             var totalPagar = detallesAPagar.Sum(d => d.SalarioNeto);
 
@@ -130,6 +142,26 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 ModelState.AddModelError("CuentaId",
                     $"Saldo insuficiente. Disponible: L. {cuenta.SaldoActual:N2}, requerido: L. {totalPagar:N2}");
                 return Page();
+            }
+
+            // Todo o nada: movimiento + saldo + documento origen en una sola transacción
+            using var tx = _context.Database.BeginTransaction();
+
+            // Bloqueo de la nómina y revalidación: dos personas pagando la misma nómina (o un pago total y uno
+            // individual a la vez) ya no pueden pagar dos veces a los mismos empleados.
+            if (_context.Database.IsRelational())
+            {
+                _context.Nominas.Where(n => n.Id == nomina.Id)
+                    .ExecuteUpdate(u => u.SetProperty(n => n.Estado, n => n.Estado));
+                var estadoActual = _context.Nominas.AsNoTracking().Where(n => n.Id == nomina.Id).Select(n => n.Estado).First();
+                var pagadosAhora = _context.PagosNominaEmpleado.Count(p => p.NominaId == nomina.Id && p.Estado == "Pagado");
+                if (estadoActual != "Aprobada" || pagadosAhora != yaPagadosIds.Count)
+                {
+                    tx.Rollback();
+                    _context.ChangeTracker.Clear();
+                    TempData["Error"] = "La nómina cambió mientras la pagabas (otra persona registró pagos). Revísala e inténtalo de nuevo.";
+                    return RedirectToPage("/RRHH/Nomina/Details", new { id });
+                }
             }
 
             var categoria = ObtenerCategoriaNomina(_context);
@@ -166,7 +198,7 @@ namespace Kirkenta.Pages.RRHH.Nomina
                     Estado = "Activo",
                     FechaCreacion = DateTime.Now,
                     UsuarioCreoId = currentUser?.Id,
-                    EmpresaId = 1
+                    EmpresaId = EmpresaActual.Id
                 };
 
                 _context.MovimientosFinancieros.Add(movimiento);
@@ -191,7 +223,7 @@ namespace Kirkenta.Pages.RRHH.Nomina
                     UsuarioPagoId = currentUser?.Id,
                     Estado = "Pagado",
                     Notas = Notas,
-                    EmpresaId = 1
+                    EmpresaId = EmpresaActual.Id
                 };
 
                 _context.PagosNominaEmpleado.Add(pago);
@@ -218,6 +250,8 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 nomina.CuentaId = CuentaId;
                 _context.SaveChanges();
             }
+
+            tx.Commit();
 
             ActividadHelper.Registrar(
                 _context,
@@ -285,7 +319,7 @@ namespace Kirkenta.Pages.RRHH.Nomina
                     EsSistema = true,
                     Activa = true,
                     FechaCreacion = DateTime.Now,
-                    EmpresaId = 1
+                    EmpresaId = EmpresaActual.Id
                 };
                 context.CategoriasFinancieras.Add(categoria);
                 context.SaveChanges();

@@ -1,0 +1,58 @@
+@page
+@model Kirkenta.Pages.Asistente.IndexModel
+@{
+    ViewData["Title"] = "Asistente";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Asistente del sistema</h2>
+        <p>Pídele reportes, consultas y acciones en español. Respeta tus permisos y pide contraseña en lo sensible.</p>
+    </div>
+    <div class="module-header-right">
+        <button type="button" class="btn-primary" onclick="window.kkAsistente && window.kkAsistente.abrir()">Abrir el chat</button>
+    </div>
+</div>
+
+<div class="module-card" style="padding:20px;">
+    <p style="margin:0 0 6px;"><strong>Cómo usarlo</strong></p>
+    <ul style="margin:0;padding-left:20px;line-height:1.7;">
+        <li>Escribe como se lo pedirías a un compañero: <em>“ventas de ayer”</em>, <em>“saldo de Alfredo”</em>, <em>“cierra la caja de hoy”</em>.</li>
+        <li>Puedes indicar fechas: <em>hoy, ayer, esta semana, mes pasado, 01/10/2026 al 15/10/2026</em>.</li>
+        <li>Los reportes salen en pantalla con botones para <strong>imprimir / guardar como PDF</strong> y <strong>descargar CSV</strong>.</li>
+        <li>Lo que cambia datos (cerrar caja, anular factura) te muestra un resumen y pide <strong>contraseña</strong>: la tuya, o la de un usuario con permiso (por ejemplo el administrador).</li>
+        <li>Para ir a cualquier pantalla: <em>“abre clientes”</em>, <em>“llévame a nómina”</em>.</li>
+    </ul>
+    <p style="margin:12px 0 0;color:var(--color-text-muted);font-size:13px;">
+        @if (Model.IaActiva)
+        {
+            <span>🤖 Interpretación con IA: <strong>activada</strong> (solo recibe lo que escribes, nunca tus datos).</span>
+        }
+        else
+        {
+            <span>⚙️ Funciona 100% con reglas, gratis y sin internet. La IA es opcional y se activa por configuración.</span>
+        }
+    </p>
+</div>
+
+@foreach (var g in Model.Grupos)
+{
+    <div class="module-card" style="margin-top:16px;">
+        <h3 style="padding:16px 16px 0;margin:0;">@g.Key</h3>
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Qué hace</th><th>Descripción</th><th>Pruébalo</th></tr></thead>
+                <tbody>
+                @foreach (var a in g)
+                {
+                    <tr>
+                        <td><strong>@a.Titulo</strong>@if (a.RequierePassword) { <span class="badge badge-warning" style="margin-left:6px;">🔒 contraseña</span> }</td>
+                        <td>@a.Descripcion</td>
+                        <td><button type="button" class="btn-secondary" data-ej="@a.Ejemplo" onclick="window.kkAsistente && window.kkAsistente.preguntar(this.dataset.ej)">“@a.Ejemplo”</button></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

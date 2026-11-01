@@ -60,11 +60,11 @@
     <div class="kpi-card">
         <span class="kpi-label">Tomadas</span>
         <span class="kpi-value" style="color: var(--color-success);">@Model.TotalTomadas</span>
-        <span class="kpi-trend">@Model.DiasTomadosAnio días en el año</span>
+        <span class="kpi-trend">@Model.DiasTomadosAnio.ToString("0.##") días en el año</span>
     </div>
     <div class="kpi-card">
         <span class="kpi-label">Días pendientes</span>
-        <span class="kpi-value" style="color: var(--color-primary);">@Model.DiasPendientes</span>
+        <span class="kpi-value" style="color: var(--color-primary);">@Model.DiasPendientes.ToString("0.##")</span>
     </div>
 </div>
 
@@ -147,7 +147,7 @@
                                     <br /><span class="table-user-sub">@v.DiasFeriados feriado(s) incluido(s)</span>
                                 }
                             </td>
-                            <td style="text-align: right;"><strong>@v.DiasADescontar</strong></td>
+                            <td style="text-align: right;"><strong>@v.DiasADescontar.ToString("0.##")</strong></td>
                             <td>
                                 @if (v.Estado == "Solicitado")
                                 {

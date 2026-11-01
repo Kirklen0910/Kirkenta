@@ -1,0 +1,5 @@
+@* Chat flotante del asistente. El JS arma la interfaz; aquí solo va el token anti-falsificación y la URL. *@
+<div id="kkAsistRoot" data-url="@Url.Page("/Asistente/Index")" hidden>
+    @Html.AntiForgeryToken()
+</div>
+<script src="~/js/asistente.js" asp-append-version="true" defer></script>

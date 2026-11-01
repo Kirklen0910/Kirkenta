@@ -67,8 +67,8 @@ namespace Kirkenta.Helpers.RRHH
             foreach (var par in tablaStr.Split(','))
             {
                 var partes = par.Split(':');
-                if (partes.Length == 2 && int.TryParse(partes[0], out var anio) &&
-                    decimal.TryParse(partes[1], out var dias))
+                if (partes.Length == 2 && int.TryParse(partes[0].Trim(), out var anio) &&
+                    decimal.TryParse(partes[1].Trim(), System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var dias))
                 {
                     tabla[anio] = dias;
                 }

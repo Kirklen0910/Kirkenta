@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Kirkenta.Data;
 using Kirkenta.Helpers;
 using Kirkenta.Models;
@@ -22,10 +23,17 @@ namespace Kirkenta.Pages.Usuarios
         public bool PuedeEliminar { get; set; }
         public bool PuedeGestionarRoles { get; set; }
 
-        public void OnGet()
+        public IActionResult OnGet()
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Usuarios", "Index", "ver"))
+            {
+                TempData["Error"] = "No tienes permiso para ver usuarios";
+                return RedirectToPage("/Index");
+            }
+
 
             // Verificar permisos
             PuedeCrear = PermisoHelper.TienePermiso(_context, currentRol, "Usuarios", "Create", "crear");
@@ -35,6 +43,8 @@ namespace Kirkenta.Pages.Usuarios
 
             Usuarios = _context.Usuarios.OrderBy(u => u.Username).ToList();
             Roles = _context.Roles.OrderBy(r => r.Nombre).ToList();
+
+            return Page();
         }
     }
 }

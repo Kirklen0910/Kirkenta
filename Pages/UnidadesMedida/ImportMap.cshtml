@@ -20,57 +20,17 @@
 
 @await Html.PartialAsync("_ImportStepIndicator", new { Paso = 2 })
 
+@{
+    var vm = Kirkenta.Helpers.Import.ImportMapViewModel.Crear(
+        Model.WizardConfig.Campos,
+        Model.HeadersArchivo,
+        Model.FilasArchivo,
+        Model.MapaSugerido,
+        Model.WizardConfig.AliasCampos);
+}
+
 <form method="post">
-    <div class="module-card" style="padding: 28px; margin-bottom: 20px;">
-        <h3 class="form-section-title">Mapeo de columnas</h3>
-        <p class="form-section-desc">
-            Detectadas <strong>@Model.HeadersArchivo.Count columnas</strong> y
-            <strong>@Model.FilasArchivo.Count filas</strong>.
-        </p>
-
-        <div class="table-wrapper" style="margin-top: 16px;">
-            <table class="erp-table">
-                <thead>
-                    <tr>
-                        <th>Campo del sistema</th>
-                        <th>Columna de tu archivo</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var campo in Model.WizardConfig.Campos)
-                    {
-                        var sugerido = Model.MapaSugerido.GetValueOrDefault(campo.Key);
-                        <tr>
-                            <td>
-                                <strong>@campo.Label</strong>
-                                @if (campo.Requerido)
-                                {
-                                    <span style="color: var(--color-danger);">*</span>
-                                }
-                            </td>
-                            <td>
-                                <select name="Mapeo[@campo.Key]" class="form-input">
-                                    <option value="">— Ignorar este campo —</option>
-                                    @foreach (var header in Model.HeadersArchivo)
-                                    {
-                                        if (header == sugerido)
-                                        {
-                                            <option value="@header" selected>@header</option>
-                                        }
-                                        else
-                                        {
-                                            <option value="@header">@header</option>
-                                        }
-                                    }
-                                </select>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </div>
-
+    @await Html.PartialAsync("_ImportMapTable", vm)
     <div class="module-card" style="padding: 28px; margin-bottom: 20px;">
         <h3 class="form-section-title">Vista previa (primeras 5 filas)</h3>
         <div class="table-wrapper" style="margin-top: 16px;">

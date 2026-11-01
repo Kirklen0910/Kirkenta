@@ -24,12 +24,19 @@ namespace Kirkenta.Pages.Impuestos
         [BindProperty]
         public Dictionary<string, string> Mapeo { get; set; } = new();
 
+        public IActionResult OnGetPlantilla()
+        {
+            WizardConfig = BuildConfig();
+            return File(WizardConfig.PlantillaXlsx(), ImportReportHelper.TipoXlsx,
+                $"plantilla_{ColumnMapper.Normalizar(WizardConfig.NombrePlural)}.xlsx");
+        }
+
         public IActionResult OnGet()
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
             WizardConfig = BuildConfig();
-            if (currentRol != "Admin") return Redirect(WizardConfig.UrlIndex);
+            if (!Kirkenta.Helpers.PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Configuracion", "Impuestos", "crear")) return Redirect(WizardConfig.UrlIndex);
 
             if (!CargarDesdeSesion())
             {
@@ -46,7 +53,7 @@ namespace Kirkenta.Pages.Impuestos
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
             WizardConfig = BuildConfig();
-            if (currentRol != "Admin") return Redirect(WizardConfig.UrlIndex);
+            if (!Kirkenta.Helpers.PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Configuracion", "Impuestos", "crear")) return Redirect(WizardConfig.UrlIndex);
 
             if (!CargarDesdeSesion())
             {
@@ -76,8 +83,9 @@ namespace Kirkenta.Pages.Impuestos
 
             ImportWizardHelper.LimpiarSesion(HttpContext.Session, WizardConfig);
 
-            TempData["Success"] = $"Importación completada: {resultado.Resumen()}";
-            return Redirect(WizardConfig.UrlIndex);
+            // Éxito limpio => mensaje y listado. Con errores/advertencias => pantalla de resultado
+            // con el motivo de cada fila y CSV descargable para corregir y reintentar.
+            return ImportReportHelper.Finalizar(this, WizardConfig.UrlIndex, resultado, HeadersArchivo, FilasArchivo);
         }
 
         private bool CargarDesdeSesion()
@@ -121,12 +129,18 @@ namespace Kirkenta.Pages.Impuestos
             };
         }
 
+        private string EtiquetaDe(string campo) =>
+            ImportWizardConfig.EtiquetaLimpia(WizardConfig.Campos.FirstOrDefault(c => c.Key == campo)?.Label ?? campo);
+
         private ImportResult ImportarImpuestos(
             List<Dictionary<string, string>> filas,
             Dictionary<string, string> mapa,
             int? usuarioId)
         {
             var resultado = new ImportResult { TotalFilas = filas.Count };
+
+            var creadosEnArchivo = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            Impuesto? predeterminadoEnArchivo = null;
 
             int filaNum = 1;
             foreach (var fila in filas)
@@ -141,6 +155,9 @@ namespace Kirkenta.Pages.Impuestos
                         return fila.GetValueOrDefault(header)?.Trim();
                     }
 
+                    string? T(string campo, int max) =>
+                        ImportHelper.Texto(resultado, filaNum, EtiquetaDe(campo), Obtener(campo), max);
+
                     var nombre = Obtener("Nombre");
                     if (string.IsNullOrWhiteSpace(nombre))
                     {
@@ -153,7 +170,8 @@ namespace Kirkenta.Pages.Impuestos
                         continue;
                     }
 
-                    var porcentaje = ParserHelper.ParsearDecimal(Obtener("Porcentaje"));
+                    var porcentajeTexto = Obtener("Porcentaje");
+                    var porcentaje = ParserHelper.ParsearDecimal(porcentajeTexto);
                     if (porcentaje == null)
                     {
                         resultado.AgregarError(filaNum, "El porcentaje es obligatorio y debe ser numérico");
@@ -165,30 +183,47 @@ namespace Kirkenta.Pages.Impuestos
                         continue;
                     }
 
+                    if (creadosEnArchivo.Contains(nombre))
+                    {
+                        resultado.AgregarAdvertencia(filaNum, $"El impuesto '{nombre}' está repetido en el archivo; se ignora esta fila.");
+                        resultado.Ignorados++;
+                        continue;
+                    }
+
+                    var descripcion = T("Descripcion", 200);
+                    var activo = ImportHelper.Booleano(resultado, filaNum, "Activo", Obtener("Activo"));
+                    var predeterminado = ImportHelper.Booleano(resultado, filaNum, "Predeterminado", Obtener("EsPredeterminado"));
+
                     var existente = _context.Impuestos
                         .FirstOrDefault(i => i.Nombre.ToLower() == nombre.ToLower());
 
+                    Impuesto destino;
                     if (existente != null)
                     {
                         existente.Nombre = nombre;
                         existente.Porcentaje = porcentaje.Value;
-                        existente.Descripcion = Obtener("Descripcion") ?? existente.Descripcion;
-                        existente.Activo = ParserHelper.ParsearBool(Obtener("Activo")) ?? existente.Activo;
+                        existente.Descripcion = descripcion ?? existente.Descripcion;
+                        existente.Activo = activo ?? existente.Activo;
+                        if (predeterminado.HasValue) existente.EsPredeterminado = predeterminado.Value;
+                        destino = existente;
                         resultado.Actualizados++;
                     }
                     else
                     {
-                        var imp = new Impuesto
+                        destino = new Impuesto
                         {
                             Nombre = nombre,
                             Porcentaje = porcentaje.Value,
-                            Descripcion = Obtener("Descripcion"),
-                            EsPredeterminado = ParserHelper.ParsearBool(Obtener("EsPredeterminado")) ?? false,
-                            Activo = ParserHelper.ParsearBool(Obtener("Activo")) ?? true
+                            Descripcion = descripcion,
+                            EsPredeterminado = predeterminado ?? false,
+                            Activo = activo ?? true
                         };
-                        _context.Impuestos.Add(imp);
+                        _context.Impuestos.Add(destino);
                         resultado.Creados++;
                     }
+
+                    creadosEnArchivo.Add(nombre);
+                    if (predeterminado == true) predeterminadoEnArchivo = destino;
                 }
                 catch (Exception ex)
                 {
@@ -196,7 +231,17 @@ namespace Kirkenta.Pages.Impuestos
                 }
             }
 
-            _context.SaveChanges();
+            ImportHelper.GuardarSeguro(_context, resultado, () =>
+            {
+                // Solo puede haber un impuesto predeterminado: el último marcado en el archivo
+                if (predeterminadoEnArchivo != null)
+                {
+                    foreach (var otro in _context.Impuestos.Where(i => i.EsPredeterminado).ToList())
+                        if (!ReferenceEquals(otro, predeterminadoEnArchivo)) otro.EsPredeterminado = false;
+                    predeterminadoEnArchivo.EsPredeterminado = true;
+                }
+                _context.SaveChanges();
+            });
             return resultado;
         }
     }

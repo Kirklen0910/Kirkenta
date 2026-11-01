@@ -21,9 +21,9 @@ namespace Kirkenta.Pages.Categorias
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
 
-            if (currentRol != "Admin")
+            if (!Kirkenta.Helpers.PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "Categorias", "ver"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
                 return RedirectToPage("/Categorias/Index");
             }
 
@@ -53,7 +53,7 @@ namespace Kirkenta.Pages.Categorias
             return formato.ToLower() switch
             {
                 "csv" => CsvExporter.Export(items, columns),
-                "json" => JsonExporter.Export(items),
+                "json" => JsonExporter.Export(items, columns),
                 _ => ExcelExporter.Export(items, columns, "Categorías", titulo)
             };
         }

@@ -1,194 +1,275 @@
 # ============================================================
-# GENERADOR DE PROYECTO.md — Snapshot completo de código
+# GENERADOR DE SNAPSHOTS - KIRKENTA ERP
+# Ruta: tools\generar-proyecto.ps1
 # ============================================================
-# Uso: powershell -ExecutionPolicy Bypass -File tools\generar-proyecto.ps1
+# Uso (desde cualquier carpeta):
+#   powershell -ExecutionPolicy Bypass -File tools\generar-proyecto.ps1
+#
+# Resultado: carpeta "snapshots" en la raiz del proyecto con los
+# archivos PROYECTO_PARTE_*.md. ESOS son los UNICOS archivos que
+# hay que subir al chat (nada mas).
+#
+# Que NO incluye (a proposito):
+#   - Migrations (son codigo generado, ~800 KB de ruido)
+#   - *.sql y *.txt (backups, scripts de reset, notas)
+#   - bin, obj, .git, uploads, backups, wwwroot/lib, imagenes
+#   - Contrasenas: en appsettings*.json se reemplazan por ***
+#
+# NOTA: este archivo usa solo caracteres ASCII a proposito, para
+# que Windows PowerShell 5.1 lo lea bien sin importar la codificacion.
 # ============================================================
 
 $ErrorActionPreference = "Stop"
 
-# Función para detectar lenguaje por extensión
-function Get-Lang {
+$raiz = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path.TrimEnd('\')
+$carpetaSalida = Join-Path $raiz "snapshots"
+$maxCaracteresPorArchivo = 1500000
+
+# ------------------------------------------------------------
+# Filtros
+# ------------------------------------------------------------
+$carpetasExcluidas = @(
+    "bin", "obj", ".git", ".vs", ".vscode", ".idea", "node_modules",
+    "lib", "images", "Migrations", "uploads", "backups", "snapshots",
+    "TestResults", "packages"
+)
+
+$extensionesIncluidas = @(".cs", ".cshtml", ".json", ".csproj", ".sln", ".css", ".js", ".md")
+$nombresIncluidos = @(".gitignore")
+
+$patronesExcluidos = @(
+    "*.Designer.cs", "*.AssemblyInfo.cs", "*.g.cs",
+    "*.min.js", "*.min.css", "package-lock.json",
+    "PROYECTO*.md", "*.log", "*.bak", "*.tmp"
+)
+
+# ------------------------------------------------------------
+# Partes del snapshot
+# ------------------------------------------------------------
+$partes = @(
+    @{ Numero = 1; Nombre = "Nucleo";      Descripcion = "Data, Models, Helpers base, Usuarios, Auth, Configuracion, Series, Services, wwwroot, Program.cs" },
+    @{ Numero = 2; Nombre = "Operaciones"; Descripcion = "POS, Ventas, Compras, Inventario, Clientes, Proveedores, Finanzas (paginas y helpers)" },
+    @{ Numero = 3; Nombre = "Soporte";     Descripcion = "RRHH, Logistica, Reportes (paginas y helpers)" },
+    @{ Numero = 4; Nombre = "Extras";      Descripcion = "Modulos nuevos auto-descubiertos que no encajan en las partes anteriores" }
+)
+
+function Get-NumeroParte {
+    param([string]$rel)
+
+    if ($rel -match '^Pages/(RRHH|Logistica|Reportes)/') { return 3 }
+    if ($rel -match '^Helpers/(RRHH|Logistica)/') { return 3 }
+
+    if ($rel -match '^Pages/(Bajas|Categorias|Clientes|Compras|Cotizaciones|Devoluciones|Facturas|Finanzas|OrdenesCompra|Pedidos|PagosProveedor|POS|Productos|Proveedores|Ventas)/') { return 2 }
+    if ($rel -match '^Helpers/Finanzas/') { return 2 }
+
+    if ($rel -notmatch '/') { return 1 }
+    if ($rel -match '^(Data|Models|Services|Properties|wwwroot)/') { return 1 }
+    if ($rel -match '^Helpers/[^/]+$') { return 1 }
+    if ($rel -match '^Helpers/(Export|Import)/') { return 1 }
+    if ($rel -match '^Pages/(Auth|Usuarios|Configuracion|Impuestos|MetodosPago|Nomenclatura|Series|UnidadesMedida|Shared)/') { return 1 }
+    if ($rel -match '^Pages/[^/]+$') { return 1 }
+
+    return 4
+}
+
+function Get-Lenguaje {
     param([string]$ext)
-    switch ($ext.ToLower()) {
-        ".cs"      { return "csharp" }
-        ".cshtml"  { return "html" }
-        ".json"    { return "json" }
-        ".xml"     { return "xml" }
-        ".csproj"  { return "xml" }
-        ".sln"     { return "" }
-        ".css"     { return "css" }
-        ".js"      { return "javascript" }
-        ".sql"     { return "sql" }
-        ".md"      { return "markdown" }
-        default    { return "" }
+    switch ($ext) {
+        ".cs"     { return "csharp" }
+        ".cshtml" { return "html" }
+        ".json"   { return "json" }
+        ".csproj" { return "xml" }
+        ".css"    { return "css" }
+        ".js"     { return "javascript" }
+        ".md"     { return "markdown" }
+        default   { return "" }
     }
 }
 
-$raiz = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$salida = Join-Path $raiz "PROYECTO.md"
+function Ocultar-Secretos {
+    param([string]$texto)
 
-Write-Host ""
-Write-Host "====================================================" -ForegroundColor Cyan
-Write-Host " GENERADOR DE PROYECTO.md - KIRKENTA ERP" -ForegroundColor Cyan
-Write-Host "====================================================" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Raiz: $raiz" -ForegroundColor Yellow
-Write-Host "Salida: $salida" -ForegroundColor Yellow
-Write-Host ""
+    # Password=...; / Pwd=...; (cadenas de conexion)
+    $texto = [regex]::Replace($texto, '(?i)((?:password|pwd)\s*=\s*)(''[^'']*''|[^;"\r\n]*)', '${1}***')
 
-# Carpetas a excluir
-$excluirCarpetas = @(
-    "bin", "obj", ".git", ".vs", ".vscode", "node_modules",
-    "lib", "images", "Migrations", "uploads"
-)
+    # "ClaveSecreta": "valor" (claves JSON con nombres sensibles)
+    $texto = [regex]::Replace($texto, '(?i)("[^"]*(?:secret|token|apikey|password|clave)[^"]*"\s*:\s*")[^"]*(")', '${1}***${2}')
 
-# Patrones de archivos a excluir
-$excluirArchivos = @(
-    "*.dll", "*.pdb", "*.exe", "*.user", "*.suo", "*.cache",
-    "*.png", "*.jpg", "*.jpeg", "*.gif", "*.ico", "*.svg", "*.webp",
-    "*.zip", "*.rar", "*.7z", "*.pdf", "*.xlsx", "*.docx",
-    "PROYECTO.md", "CONTEXTO.md", "*.tmp", "*.log", "*.bak",
-    "*.min.js", "*.min.css"
-)
+    return $texto
+}
 
-# Archivos específicos que SÍ queremos incluir
-$incluirEspecificos = @(".gitignore")
+function Get-Bloque {
+    param($archivo)
 
-# Extensiones a incluir
-$incluirExtensiones = @(
-    "*.cs", "*.cshtml", "*.json", "*.csproj", "*.sln",
-    "*.css", "*.js", "*.sql", "*.md"
-)
+    $texto = ""
+    try {
+        $texto = [System.IO.File]::ReadAllText($archivo.Ruta, [System.Text.Encoding]::UTF8)
+    }
+    catch {
+        $texto = "// ERROR al leer el archivo: " + $_.Exception.Message
+    }
 
-# ============================================================
+    $texto = $texto.Replace("`r`n", "`n")
+
+    if ($archivo.Nombre -like "appsettings*.json") {
+        $texto = Ocultar-Secretos $texto
+    }
+
+    $lang = Get-Lenguaje $archivo.Ext
+
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.AppendLine("===== FILE: " + $archivo.Rel + " =====")
+    [void]$sb.AppendLine()
+    [void]$sb.AppendLine('````' + $lang)
+    [void]$sb.AppendLine($texto.TrimEnd())
+    [void]$sb.AppendLine('````')
+    [void]$sb.AppendLine()
+    return $sb.ToString()
+}
+
+# ------------------------------------------------------------
 # Recolectar archivos
-# ============================================================
+# ------------------------------------------------------------
+Write-Host ""
+Write-Host "====================================================" -ForegroundColor Cyan
+Write-Host " GENERADOR DE SNAPSHOTS - KIRKENTA ERP" -ForegroundColor Cyan
+Write-Host "====================================================" -ForegroundColor Cyan
+Write-Host "Raiz:   $raiz" -ForegroundColor Yellow
+Write-Host "Salida: $carpetaSalida" -ForegroundColor Yellow
+Write-Host ""
 Write-Host "Buscando archivos..." -ForegroundColor Yellow
 
-$archivos = Get-ChildItem -Path $raiz -Recurse -File | Where-Object {
-    $archivo = $_
-    $ruta = $archivo.FullName
+$archivos = New-Object System.Collections.Generic.List[object]
+
+foreach ($f in (Get-ChildItem -Path $raiz -Recurse -File)) {
+    $rel = $f.FullName.Substring($raiz.Length + 1).Replace('\', '/')
+    $segmentos = $rel.Split('/')
 
     $enCarpetaExcluida = $false
-    foreach ($carpeta in $excluirCarpetas) {
-        if ($ruta -match "\\$carpeta\\") { $enCarpetaExcluida = $true; break }
+    for ($i = 0; $i -lt ($segmentos.Length - 1); $i++) {
+        if ($carpetasExcluidas -contains $segmentos[$i]) { $enCarpetaExcluida = $true; break }
     }
-    if ($enCarpetaExcluida) { return $false }
+    if ($enCarpetaExcluida) { continue }
 
-    foreach ($patron in $excluirArchivos) {
-        if ($archivo.Name -like $patron) { return $false }
+    $nombreExcluido = $false
+    foreach ($patron in $patronesExcluidos) {
+        if ($f.Name -like $patron) { $nombreExcluido = $true; break }
     }
+    if ($nombreExcluido) { continue }
 
-    if ($incluirEspecificos -contains $archivo.Name) { return $true }
+    $ext = $f.Extension.ToLower()
+    if (($extensionesIncluidas -notcontains $ext) -and ($nombresIncluidos -notcontains $f.Name)) { continue }
 
-    foreach ($ext in $incluirExtensiones) {
-        if ($archivo.Name -like $ext) { return $true }
-    }
-
-    return $false
+    $archivos.Add([pscustomobject]@{
+        Rel    = $rel
+        Ruta   = $f.FullName
+        Nombre = $f.Name
+        Ext    = $ext
+        Parte  = (Get-NumeroParte $rel)
+    })
 }
 
-Write-Host "Encontrados $($archivos.Count) archivos" -ForegroundColor Green
+Write-Host "Archivos encontrados: $($archivos.Count)" -ForegroundColor Green
 Write-Host ""
 
-# ============================================================
-# Agrupar por categoría
-# ============================================================
-$raizNorm = $raiz.TrimEnd('\')
-
-$categorias = @(
-    @{ Nombre = "RAIZ - Program, csproj, appsettings, gitignore"; Filtro = { $_.DirectoryName.TrimEnd('\') -eq $raizNorm } },
-    @{ Nombre = "DATA"; Filtro = { $_.FullName -match "\\Data\\" } },
-    @{ Nombre = "MODELS"; Filtro = { $_.FullName -match "\\Models\\" } },
-    @{ Nombre = "HELPERS - RAIZ"; Filtro = { $_.DirectoryName.TrimEnd('\') -eq (Join-Path $raizNorm "Helpers") } },
-    @{ Nombre = "HELPERS - EXPORT"; Filtro = { $_.FullName -match "\\Helpers\\Export\\" } },
-    @{ Nombre = "HELPERS - IMPORT"; Filtro = { $_.FullName -match "\\Helpers\\Import\\" } },
-    @{ Nombre = "HELPERS - FINANZAS"; Filtro = { $_.FullName -match "\\Helpers\\Finanzas\\" } },
-    @{ Nombre = "HELPERS - RRHH"; Filtro = { $_.FullName -match "\\Helpers\\RRHH\\" } },
-    @{ Nombre = "PAGES - AUTH"; Filtro = { $_.FullName -match "\\Pages\\Auth\\" } },
-    @{ Nombre = "PAGES - USUARIOS"; Filtro = { $_.FullName -match "\\Pages\\Usuarios\\" } },
-    @{ Nombre = "PAGES - CLIENTES"; Filtro = { $_.FullName -match "\\Pages\\Clientes\\" } },
-    @{ Nombre = "PAGES - PRODUCTOS / CATEGORIAS / UNIDADES"; Filtro = { $_.FullName -match "\\Pages\\(Productos|Categorias|UnidadesMedida)\\" } },
-    @{ Nombre = "PAGES - POS / VENTAS / COTIZ / PEDIDOS / FACTURAS / DEVOL"; Filtro = { $_.FullName -match "\\Pages\\(POS|Ventas|Cotizaciones|Pedidos|Facturas|Devoluciones)\\" } },
-    @{ Nombre = "PAGES - BAJAS"; Filtro = { $_.FullName -match "\\Pages\\Bajas\\" } },
-    @{ Nombre = "PAGES - COMPRAS / PROVEEDORES / ORDENES / PAGOS"; Filtro = { $_.FullName -match "\\Pages\\(Compras|Proveedores|OrdenesCompra|PagosProveedor)\\" } },
-    @{ Nombre = "PAGES - FINANZAS base"; Filtro = { $_.FullName -match "\\Pages\\Finanzas\\" -and $_.FullName -notmatch "\\Pages\\Finanzas\\(PlanCuentas|Contabilidad|CierresContables|Conciliacion)\\" } },
-    @{ Nombre = "PAGES - FINANZAS - PLAN DE CUENTAS"; Filtro = { $_.FullName -match "\\Pages\\Finanzas\\PlanCuentas\\" } },
-    @{ Nombre = "PAGES - FINANZAS - CONTABILIDAD"; Filtro = { $_.FullName -match "\\Pages\\Finanzas\\Contabilidad\\" } },
-    @{ Nombre = "PAGES - FINANZAS - CIERRES CONTABLES"; Filtro = { $_.FullName -match "\\Pages\\Finanzas\\CierresContables\\" } },
-    @{ Nombre = "PAGES - FINANZAS - CONCILIACION"; Filtro = { $_.FullName -match "\\Pages\\Finanzas\\Conciliacion\\" } },
-    @{ Nombre = "PAGES - RRHH"; Filtro = { $_.FullName -match "\\Pages\\RRHH\\" } },
-    @{ Nombre = "PAGES - REPORTES"; Filtro = { $_.FullName -match "\\Pages\\Reportes\\" } },
-    @{ Nombre = "PAGES - CONFIG / IMPUESTOS / METODOS / NOMENC / SERIES"; Filtro = { $_.FullName -match "\\Pages\\(Configuracion|Impuestos|MetodosPago|Nomenclatura|Series)\\" } },
-    @{ Nombre = "PAGES - SHARED"; Filtro = { $_.FullName -match "\\Pages\\Shared\\" } },
-    @{ Nombre = "PAGES - RAIZ"; Filtro = { $_.DirectoryName.TrimEnd('\') -eq (Join-Path $raizNorm "Pages") } },
-    @{ Nombre = "WWWROOT - CSS / JS"; Filtro = { $_.FullName -match "\\wwwroot\\(css|js)\\" } },
-    @{ Nombre = "PROPERTIES"; Filtro = { $_.FullName -match "\\Properties\\" } }
-)
-
-# ============================================================
-# Construir el archivo
-# ============================================================
-Write-Host "Construyendo PROYECTO.md..." -ForegroundColor Yellow
-
-$sb = New-Object System.Text.StringBuilder
-
-[void]$sb.AppendLine("# KIRKENTA ERP - SNAPSHOT COMPLETO DEL PROYECTO")
-[void]$sb.AppendLine()
-[void]$sb.AppendLine("**Fecha de generacion:** $(Get-Date -Format 'dd/MM/yyyy HH:mm')")
-[void]$sb.AppendLine("**Raiz del proyecto:** $raiz")
-[void]$sb.AppendLine("**Total archivos:** $($archivos.Count)")
-[void]$sb.AppendLine("**Uso:** Pegar completo al inicio de un chat para dar contexto total del codigo fuente.")
-[void]$sb.AppendLine()
-[void]$sb.AppendLine("---")
-[void]$sb.AppendLine()
-
-$yaIncluidos = @{}
-
-foreach ($cat in $categorias) {
-    $archivosCat = $archivos | Where-Object -FilterScript $cat.Filtro | Sort-Object FullName
-    if ($archivosCat.Count -eq 0) { continue }
-
-    [void]$sb.AppendLine("")
-    [void]$sb.AppendLine("====================================================")
-    [void]$sb.AppendLine(" $($cat.Nombre) - $($archivosCat.Count) archivo(s)")
-    [void]$sb.AppendLine("====================================================")
-    [void]$sb.AppendLine("")
-
-    foreach ($archivo in $archivosCat) {
-        if ($yaIncluidos.ContainsKey($archivo.FullName)) { continue }
-        $yaIncluidos[$archivo.FullName] = $true
-
-        $rutaRel = $archivo.FullName.Substring($raiz.Length + 1).Replace("\", "/")
-        $lang = Get-Lang $archivo.Extension
-
-        [void]$sb.AppendLine("===== FILE: $rutaRel =====")
-        [void]$sb.AppendLine()
-        [void]$sb.AppendLine('```' + $lang)
-        try {
-            $texto = Get-Content -Path $archivo.FullName -Raw -Encoding UTF8
-            [void]$sb.AppendLine($texto)
-        } catch {
-            [void]$sb.AppendLine("// ERROR al leer el archivo: $_")
-        }
-        [void]$sb.AppendLine('```')
-        [void]$sb.AppendLine()
-    }
+# ------------------------------------------------------------
+# Preparar carpeta de salida (borra partes viejas)
+# ------------------------------------------------------------
+if (-not (Test-Path $carpetaSalida)) {
+    New-Item -ItemType Directory -Path $carpetaSalida | Out-Null
 }
+Get-ChildItem -Path $carpetaSalida -Filter "PROYECTO_PARTE_*.md" -File | Remove-Item -Force
 
-# Guardar con UTF-8 sin BOM
 $utf8SinBom = New-Object System.Text.UTF8Encoding($false)
-[System.IO.File]::WriteAllText($salida, $sb.ToString(), $utf8SinBom)
+$fecha = Get-Date -Format "dd/MM/yyyy HH:mm"
+$nombreProyecto = Split-Path $raiz -Leaf
+$totalBytes = 0
+$totalArchivosEscritos = 0
 
-$info = Get-Item $salida
-$tamKB = [math]::Round($info.Length / 1KB, 0)
-$tamMB = [math]::Round($info.Length / 1MB, 2)
+# ------------------------------------------------------------
+# Generar cada parte
+# ------------------------------------------------------------
+foreach ($p in $partes) {
+    $lista = @($archivos | Where-Object { $_.Parte -eq $p.Numero } | Sort-Object Rel)
+    if ($lista.Count -eq 0) { continue }
+
+    # Dividir en tandas si la parte supera el maximo de caracteres
+    $tandas = New-Object System.Collections.Generic.List[object]
+    $actual = @{
+        Bloques = (New-Object System.Collections.Generic.List[string])
+        Rels    = (New-Object System.Collections.Generic.List[string])
+        Largo   = 0
+    }
+
+    foreach ($a in $lista) {
+        $bloque = Get-Bloque $a
+
+        if (($actual.Largo -gt 0) -and (($actual.Largo + $bloque.Length) -gt $maxCaracteresPorArchivo)) {
+            $tandas.Add($actual)
+            $actual = @{
+                Bloques = (New-Object System.Collections.Generic.List[string])
+                Rels    = (New-Object System.Collections.Generic.List[string])
+                Largo   = 0
+            }
+        }
+
+        $actual.Bloques.Add($bloque)
+        $actual.Rels.Add($a.Rel)
+        $actual.Largo += $bloque.Length
+    }
+    if ($actual.Bloques.Count -gt 0) { $tandas.Add($actual) }
+
+    for ($k = 0; $k -lt $tandas.Count; $k++) {
+        $tanda = $tandas[$k]
+
+        $sufijo = ""
+        if ($tandas.Count -gt 1) { $sufijo = "_" + ($k + 1) }
+        $nombreArchivo = "PROYECTO_PARTE_{0}_{1}{2}.md" -f $p.Numero, $p.Nombre, $sufijo
+
+        $sb = New-Object System.Text.StringBuilder
+        [void]$sb.AppendLine("# KIRKENTA ERP - SNAPSHOT: PARTE $($p.Numero): $($p.Nombre.ToUpper())")
+        [void]$sb.AppendLine()
+        [void]$sb.AppendLine("**Fecha de generacion:** $fecha")
+        [void]$sb.AppendLine("**Proyecto:** $nombreProyecto")
+        [void]$sb.AppendLine("**Descripcion:** $($p.Descripcion)")
+        if ($tandas.Count -gt 1) {
+            [void]$sb.AppendLine("**Archivo:** $($k + 1) de $($tandas.Count) de esta parte")
+        }
+        [void]$sb.AppendLine("**Archivos de codigo en este archivo:** $($tanda.Rels.Count)")
+        [void]$sb.AppendLine()
+        [void]$sb.AppendLine("---")
+        [void]$sb.AppendLine()
+        [void]$sb.AppendLine("## INDICE")
+        [void]$sb.AppendLine()
+        foreach ($r in $tanda.Rels) {
+            [void]$sb.AppendLine("- $r")
+        }
+        [void]$sb.AppendLine()
+        [void]$sb.AppendLine("---")
+        [void]$sb.AppendLine()
+
+        foreach ($b in $tanda.Bloques) {
+            [void]$sb.Append($b)
+        }
+
+        $rutaSalida = Join-Path $carpetaSalida $nombreArchivo
+        [System.IO.File]::WriteAllText($rutaSalida, $sb.ToString(), $utf8SinBom)
+
+        $info = Get-Item $rutaSalida
+        $totalBytes += $info.Length
+        $totalArchivosEscritos += $tanda.Rels.Count
+
+        Write-Host ("  {0,-42} {1,7} KB  {2,4} archivos" -f $nombreArchivo, [math]::Round($info.Length / 1KB, 0), $tanda.Rels.Count)
+    }
+}
 
 Write-Host ""
 Write-Host "====================================================" -ForegroundColor Green
-Write-Host " SNAPSHOT GENERADO" -ForegroundColor Green
+Write-Host " SNAPSHOTS GENERADOS" -ForegroundColor Green
 Write-Host "====================================================" -ForegroundColor Green
-Write-Host "Archivo: $salida"
-Write-Host "Archivos incluidos: $($yaIncluidos.Count) de $($archivos.Count)"
-Write-Host ("Tamano: " + $tamKB + " KB " + $tamMB + " MB")
+Write-Host "Carpeta: $carpetaSalida"
+Write-Host ("Archivos de codigo incluidos: {0}" -f $totalArchivosEscritos)
+Write-Host ("Tamano total: {0} KB ({1} MB)" -f [math]::Round($totalBytes / 1KB, 0), [math]::Round($totalBytes / 1MB, 2))
+Write-Host ""
+Write-Host "Sube SOLO los archivos PROYECTO_PARTE_*.md de esa carpeta." -ForegroundColor Yellow
 Write-Host ""

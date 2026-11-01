@@ -24,7 +24,7 @@ namespace Kirkenta.Pages.UnidadesMedida
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
             WizardConfig = BuildConfig();
-            if (currentRol != "Admin") return Redirect(WizardConfig.UrlIndex);
+            if (!Kirkenta.Helpers.PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "UnidadesMedida", "crear")) return Redirect(WizardConfig.UrlIndex);
 
             ImportWizardHelper.LimpiarSesion(HttpContext.Session, WizardConfig);
             return Page();
@@ -35,7 +35,7 @@ namespace Kirkenta.Pages.UnidadesMedida
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
             WizardConfig = BuildConfig();
-            if (currentRol != "Admin") return Redirect(WizardConfig.UrlIndex);
+            if (!Kirkenta.Helpers.PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "UnidadesMedida", "crear")) return Redirect(WizardConfig.UrlIndex);
 
             var resultado = ImportWizardHelper.ProcesarArchivo(Archivo);
             if (!resultado.Ok)

@@ -1,0 +1,139 @@
+@page
+@model Kirkenta.Pages.Devoluciones.CreateModel
+@{
+    ViewData["Title"] = "Nueva devolución";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Devoluciones/Index" class="back-link">← Volver a devoluciones</a>
+        <h2>Nueva devolución</h2>
+        <p>Devuelve productos de una venta: regresan al inventario y se reembolsa o se descuenta del saldo.</p>
+    </div>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">@TempData["Error"]</div>
+}
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="module-alert module-alert-error">
+        @foreach (var e in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+        {
+            <div>@e.ErrorMessage</div>
+        }
+    </div>
+}
+
+@if (Model.Venta == null)
+{
+    <div class="module-card" style="padding:24px;max-width:560px;">
+        <form method="post" asp-page-handler="Buscar">
+            <div class="form-field">
+                <label>Número de venta</label>
+                <input asp-for="NumeroBuscar" class="form-input" placeholder="Ej: VEN-0001" />
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">Buscar venta</button>
+            </div>
+        </form>
+    </div>
+}
+else
+{
+    <div class="module-card" style="padding:24px;">
+        <p>
+            <strong>Venta @Model.Venta.Numero</strong> — @Model.Venta.Fecha.ToString("dd/MM/yyyy") —
+            Cliente: @(Model.Cliente?.Nombre ?? "Consumidor final") —
+            Total: L. @Model.Venta.Total.ToString("N2")
+            @if (Model.Venta.EsCredito)
+            {
+                <span> — Saldo pendiente: <strong>L. @Model.Venta.SaldoPendiente.ToString("N2")</strong></span>
+            }
+        </p>
+
+        @if (Model.Venta.Estado == "Anulada")
+        {
+            <div class="module-alert module-alert-error">Esta venta está anulada; no admite devoluciones.</div>
+        }
+        else
+        {
+            <form method="post">
+                <input type="hidden" asp-for="Input.VentaId" />
+
+                <div class="table-wrapper">
+                    <table class="erp-table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th style="text-align:right;">Vendida</th>
+                                <th style="text-align:right;">Ya devuelta</th>
+                                <th style="text-align:right;">Disponible</th>
+                                <th style="text-align:right;">Valor unit. a devolver</th>
+                                <th style="text-align:right;">Cantidad a devolver</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int i = 0; i < Model.Lineas.Count; i++)
+                            {
+                                var l = Model.Lineas[i];
+                                <tr>
+                                    <td>
+                                        @l.Producto
+                                        <input type="hidden" name="Input.Items[@i].DetalleVentaId" value="@l.DetalleVentaId" />
+                                    </td>
+                                    <td style="text-align:right;">@l.Vendida.ToString("0.##")</td>
+                                    <td style="text-align:right;">@l.Devuelta.ToString("0.##")</td>
+                                    <td style="text-align:right;">@l.Disponible.ToString("0.##")</td>
+                                    <td style="text-align:right;">L. @l.PrecioDevolucion.ToString("N2")</td>
+                                    <td style="text-align:right;">
+                                        <input type="number" step="any" min="0" max="@l.Disponible.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                               name="Input.Items[@i].Cantidad" value="@(Model.Input.Items.Count > i ? Model.Input.Items[i].Cantidad.ToString(System.Globalization.CultureInfo.InvariantCulture) : "0")"
+                                               class="form-input" style="width:100px;text-align:right;" @(l.Disponible <= 0 ? "disabled" : "") />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="form-field" style="margin-top:16px;">
+                    <label asp-for="Input.Motivo">Motivo de la devolución</label>
+                    <input asp-for="Input.Motivo" class="form-input" placeholder="Ej: producto defectuoso, error de pedido" />
+                </div>
+
+                <div class="form-field">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input asp-for="Input.ReingresaInventario" type="checkbox" />
+                        Regresa al inventario (desmarca si está dañado/no se puede revender)
+                    </label>
+                </div>
+
+                <div class="form-field">
+                    <label asp-for="Input.FormaReembolso">Forma de reembolso (si aplica)</label>
+                    <select asp-for="Input.FormaReembolso" class="form-input">
+                        <option value="Efectivo">Efectivo</option>
+                        @if (Model.Venta?.ClienteId != null)
+                        {
+                            <option value="Saldo a favor">Saldo a favor del cliente (cambio / compras futuras)</option>
+                        }
+                        @foreach (var m in Model.MetodosPago.Where(m => (m.Nombre ?? "").ToLower() != "efectivo"))
+                        {
+                            <option value="@m.Nombre">@m.Nombre</option>
+                        }
+                    </select>
+                    <small style="color:var(--color-text-muted);">
+                        En ventas a crédito con saldo, primero se descuenta del saldo pendiente y solo el excedente se reembolsa.
+                        Con "Saldo a favor" no sale dinero: el cliente queda con crédito para usarlo en su próxima compra (por ejemplo, para cambiar el producto equivocado).
+                    </small>
+                </div>
+
+                <div class="form-actions">
+                    <a asp-page="/Devoluciones/Index" class="btn-secondary">Cancelar</a>
+                    <button type="submit" class="btn-primary" onclick="return confirm('¿Registrar esta devolución? Afecta inventario y finanzas.');">Registrar devolución</button>
+                </div>
+            </form>
+        }
+    </div>
+}

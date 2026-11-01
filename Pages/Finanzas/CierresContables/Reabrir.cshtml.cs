@@ -30,6 +30,7 @@ namespace Kirkenta.Pages.Finanzas.CierresContables
         public class InputModel
         {
             [Required]
+            [Range(2000, 2100, ErrorMessage = "Año no válido")]
             public int Anio { get; set; }
 
             [Required]

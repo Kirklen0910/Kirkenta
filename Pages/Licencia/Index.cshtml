@@ -1,0 +1,88 @@
+@page
+@model Kirkenta.Pages.LicenciaPagina.IndexModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Licencia";
+    var v = Model.Vista;
+}
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Kirkenta ERP</title>
+    <link rel="icon" type="image/png" href="~/favicon.png" asp-append-version="true" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
+</head>
+<body class="auth-body">
+    <div class="auth-wrapper">
+        <div class="auth-card" style="max-width:560px;">
+            <div class="auth-brand">
+                <img src="~/images/logo.png" alt="Kirkenta ERP" class="auth-logo" />
+                <h1 class="auth-title">Licencia de uso</h1>
+                <p class="auth-subtitle">
+                    @if (!v.Aplica) { <text>Las licencias están desactivadas en esta copia.</text> }
+                    else if (v.Permitido) { <text>@v.Mensaje</text> }
+                    else { <text>El sistema está bloqueado</text> }
+                </p>
+            </div>
+
+            @if (v.Aplica && !v.Permitido)
+            {
+                <div class="auth-alert auth-alert-error" role="alert"><span>@v.Mensaje</span></div>
+            }
+
+            @if (!string.IsNullOrEmpty(Model.Mensaje))
+            {
+                <div class="auth-alert auth-alert-error" role="alert"><span>@Model.Mensaje</span></div>
+            }
+
+            @if (v.Aplica)
+            {
+                <div class="form-field">
+                    <label>Código de esta computadora</label>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input class="form-input" id="codigoMaquina" value="@v.CodigoMaquina" readonly style="font-family:monospace;font-size:18px;letter-spacing:1px;" />
+                        <button type="button" class="btn btn-outline-secondary" id="copiarCodigo">Copiar</button>
+                    </div>
+                    <small style="color:var(--color-muted);">Envía este código a tu proveedor para recibir tu licencia.</small>
+                </div>
+
+                @if (v.Permitido)
+                {
+                    <div class="form-field">
+                        <table class="table table-sm" style="margin:0;">
+                            @if (!string.IsNullOrEmpty(v.Cliente)) { <tr><th>Cliente</th><td>@v.Cliente</td></tr> }
+                            <tr><th>Tipo</th><td>@(v.Tipo == "demo" ? "Demostración" : "Licencia")</td></tr>
+                            <tr><th>Activada</th><td>@(v.ActivadaUtc?.ToLocalTime().ToString("dd/MM/yyyy") ?? "-")</td></tr>
+                            <tr><th>Vence</th><td>@(v.VenceUtc == null ? "Sin vencimiento" : v.VenceUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm") + " (" + v.DiasRestantes + " día(s))")</td></tr>
+                        </table>
+                    </div>
+                }
+
+                @if (Model.PuedeActivar)
+                {
+                    <form method="post" class="auth-form">
+                        <div class="form-field">
+                            <label for="Texto">@(v.Permitido ? "Activar una licencia nueva (renovar)" : "Pega aquí tu licencia")</label>
+                            <textarea asp-for="Texto" class="form-input" rows="5" style="font-family:monospace;font-size:12px;" placeholder="KRK1-..." autofocus></textarea>
+                        </div>
+                        <button type="submit" class="btn-auth">Activar licencia</button>
+                    </form>
+                }
+                else if (v.Permitido)
+                {
+                    <p style="color:var(--color-muted);">Solo un administrador puede cambiar la licencia.</p>
+                }
+
+                @if (v.Permitido)
+                {
+                    <p style="margin-top:14px;"><a href="/">← Volver al sistema</a></p>
+                }
+            }
+        </div>
+    </div>
+    <script src="~/js/licencia.js" asp-append-version="true"></script>
+</body>
+</html>

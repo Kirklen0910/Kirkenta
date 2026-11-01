@@ -61,7 +61,7 @@ namespace Kirkenta.Pages.Cotizaciones
                 return RedirectToPage("/Cotizaciones/Index");
             }
 
-            if (cotizacion.Estado == "Convertida")
+            if (cotizacion.Estado == "Convertida" || cotizacion.FacturaId != null)
             {
                 TempData["Error"] = "No se puede eliminar una cotización convertida";
                 return RedirectToPage("/Cotizaciones/Index");

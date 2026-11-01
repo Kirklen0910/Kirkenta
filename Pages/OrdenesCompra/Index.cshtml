@@ -10,6 +10,7 @@
         <p>Administra tus órdenes de compra a proveedores</p>
     </div>
     <div class="module-header-right">
+        <a asp-page="/OrdenesCompra/DesdeFactura" class="btn btn-secondary" style="margin-right: 8px;" title="Toma una foto de la factura del proveedor y la IA llena la orden">📷 Desde foto de factura</a>
         <a asp-page="/OrdenesCompra/Create" class="btn-primary">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                 <line x1="12" y1="5" x2="12" y2="19"/>
@@ -45,32 +46,35 @@
 </div>
 
 <div class="module-card">
-    <div class="module-toolbar">
+    <form method="get" class="module-toolbar">
         <div class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input type="text" id="searchInput" placeholder="Buscar por número o proveedor..." />
+            <input type="text" name="Q" value="@Model.Q" placeholder="Buscar por número o proveedor..." />
         </div>
         <div class="filter-group">
-            <select id="filterEstado" class="filter-select">
+            <select name="Estado" class="filter-select">
                 <option value="">Todos los estados</option>
-                <option value="Borrador">Borrador</option>
-                <option value="Enviada">Enviada</option>
-                <option value="RecibidaParcial">Recibida parcial</option>
-                <option value="Recibida">Recibida</option>
-                <option value="Cancelada">Cancelada</option>
+                <option value="Borrador" selected="@(Model.Estado == "Borrador")">Borrador</option>
+                <option value="Enviada" selected="@(Model.Estado == "Enviada")">Enviada</option>
+                <option value="RecibidaParcial" selected="@(Model.Estado == "RecibidaParcial")">Recibida parcial</option>
+                <option value="Recibida" selected="@(Model.Estado == "Recibida")">Recibida</option>
+                <option value="Pagada" selected="@(Model.Estado == "Pagada")">Pagada</option>
+                <option value="Cancelada" selected="@(Model.Estado == "Cancelada")">Cancelada</option>
             </select>
-            <select id="filterProveedor" class="filter-select">
+            <select name="ProveedorId" class="filter-select">
                 <option value="">Todos los proveedores</option>
                 @foreach (var p in Model.Proveedores)
                 {
-                    <option value="@p.Id">@p.Nombre</option>
+                    <option value="@p.Id" selected="@(Model.ProveedorId == p.Id)">@p.Nombre</option>
                 }
             </select>
+            <button type="submit" class="btn-secondary">Filtrar</button>
+            <a asp-page="/OrdenesCompra/Index" class="btn-secondary">Limpiar</a>
         </div>
-    </div>
+    </form>
 
     @if (TempData["Success"] != null)
     {
@@ -208,41 +212,6 @@
                 </tbody>
             </table>
         </div>
+        <partial name="_Pager" model="Model.Pager" />
     }
 </div>
-
-@section Scripts {
-    <script>
-        (function () {
-            var searchInput = document.getElementById('searchInput');
-            var filterEstado = document.getElementById('filterEstado');
-            var filterProveedor = document.getElementById('filterProveedor');
-            var table = document.getElementById('ordenesTable');
-            if (!table) return;
-            var rows = table.querySelectorAll('tbody tr');
-
-            function filterRows() {
-                var search = (searchInput?.value || '').toLowerCase().trim();
-                var estado = filterEstado?.value || '';
-                var proveedorId = filterProveedor?.value || '';
-
-                rows.forEach(function (row) {
-                    var numero = row.dataset.numero || '';
-                    var proveedor = row.dataset.proveedor || '';
-                    var rowProveedorId = row.dataset.proveedorid || '';
-                    var rowEstado = row.dataset.estado || '';
-
-                    var matchSearch = !search || numero.includes(search) || proveedor.includes(search);
-                    var matchEstado = !estado || rowEstado === estado;
-                    var matchProveedor = !proveedorId || rowProveedorId === proveedorId;
-
-                    row.style.display = (matchSearch && matchEstado && matchProveedor) ? '' : 'none';
-                });
-            }
-
-            searchInput?.addEventListener('input', filterRows);
-            filterEstado?.addEventListener('change', filterRows);
-            filterProveedor?.addEventListener('change', filterRows);
-        })();
-    </script>
-}

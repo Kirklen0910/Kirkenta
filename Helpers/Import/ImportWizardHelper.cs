@@ -12,6 +12,15 @@ namespace Kirkenta.Helpers.Import
         public const long TamanoMaximoBytes = 20 * 1024 * 1024; // 20 MB
         public const int MaxFilas = 5000;
 
+        /// <summary>Formatos aceptados al subir el archivo.</summary>
+        public static readonly string[] ExtensionesPermitidas = { ".xlsx", ".csv", ".tsv", ".txt", ".json" };
+
+        /// <summary>Valor para el atributo accept del input file.</summary>
+        public static string ExtensionesAceptadas => string.Join(",", ExtensionesPermitidas);
+
+        /// <summary>Texto para mostrar al usuario.</summary>
+        public const string FormatosTexto = "Excel (.xlsx), CSV, TSV/TXT (texto separado) o JSON";
+
         /// <summary>
         /// Resultado de procesar un archivo subido.
         /// </summary>
@@ -25,7 +34,7 @@ namespace Kirkenta.Helpers.Import
         }
 
         /// <summary>
-        /// Valida y lee un archivo subido (Excel o CSV).
+        /// Valida y lee un archivo subido (Excel, CSV, TSV, TXT o JSON).
         /// </summary>
         public static ResultadoLectura ProcesarArchivo(IFormFile? archivo)
         {
@@ -40,22 +49,43 @@ namespace Kirkenta.Helpers.Import
             }
 
             var extension = Path.GetExtension(archivo.FileName).ToLowerInvariant();
-            if (extension != ".xlsx" && extension != ".csv")
+
+            if (extension == ".xls")
             {
-                return new ResultadoLectura { Ok = false, Error = "Solo se permiten archivos Excel (.xlsx) o CSV (.csv)" };
+                return new ResultadoLectura
+                {
+                    Ok = false,
+                    Error = "El formato antiguo de Excel (.xls) no es compatible. Ábrelo en Excel y usa Guardar como → Libro de Excel (.xlsx) o CSV."
+                };
+            }
+
+            if (!ExtensionesPermitidas.Contains(extension))
+            {
+                return new ResultadoLectura
+                {
+                    Ok = false,
+                    Error = $"Formato no permitido. Usa: {FormatosTexto}."
+                };
             }
 
             ImportFile archivoLeido;
             try
             {
                 using var stream = archivo.OpenReadStream();
-                archivoLeido = extension == ".xlsx"
-                    ? ExcelImporter.Read(stream)
-                    : CsvImporter.Read(stream);
+                archivoLeido = extension switch
+                {
+                    ".xlsx" => ExcelImporter.Read(stream),
+                    ".json" => JsonImporter.Read(stream),
+                    _ => CsvImporter.Read(stream) // .csv, .tsv, .txt
+                };
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return new ResultadoLectura { Ok = false, Error = $"No se pudo leer el archivo: {ex.Message}" };
+                return new ResultadoLectura
+                {
+                    Ok = false,
+                    Error = "No se pudo leer el archivo. Verifica que no esté dañado ni protegido con contraseña y que el formato coincida con su extensión."
+                };
             }
 
             if (!archivoLeido.Ok)

@@ -1,6 +1,6 @@
 ﻿# KIRKENTA ERP - SNAPSHOT: PARTE 4: EXTRAS / MODULOS NUEVOS
 
-**Fecha de generacion:** 04/10/2026 21:40
+**Fecha de generacion:** 23/10/2026 22:17
 **Raiz del proyecto:** C:\Users\crobe\OneDrive\Kirkenta
 **Descripcion:** Modulos nuevos auto-descubiertos (Produccion, Activos, Presupuestos, etc.)
 

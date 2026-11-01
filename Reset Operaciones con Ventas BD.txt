@@ -1,0 +1,90 @@
+
+
+
+-- ============================================================
+-- LIMPIEZA DE DATOS DE VENTAS, LOGÍSTICA Y FINANZAS
+-- Conserva catálogos, configuración, RRHH base, plan de cuentas
+-- ============================================================
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ===== VENTAS / DOCUMENTOS COMERCIALES =====
+TRUNCATE TABLE detalleventas;
+TRUNCATE TABLE ventas;
+TRUNCATE TABLE detallefacturas;
+TRUNCATE TABLE facturas;
+TRUNCATE TABLE detallecotizaciones;
+TRUNCATE TABLE cotizaciones;
+TRUNCATE TABLE detallepedidos;
+TRUNCATE TABLE pedidos;
+TRUNCATE TABLE detalledevoluciones;
+TRUNCATE TABLE devoluciones;
+TRUNCATE TABLE pagos;
+
+-- ===== LOGÍSTICA =====
+TRUNCATE TABLE rutashistorial;
+TRUNCATE TABLE envios;
+TRUNCATE TABLE rutas;
+
+-- ===== FINANZAS =====
+TRUNCATE TABLE distribucionescierre;
+TRUNCATE TABLE adjuntoscierre;
+TRUNCATE TABLE cierrescaja;
+TRUNCATE TABLE aperturascaja;
+TRUNCATE TABLE movimientosfinancieros;
+
+-- ===== RRHH QUE GENERA MOVIMIENTOS =====
+-- Si NO quieres tocar RRHH, comenta estas 6 líneas
+TRUNCATE TABLE pagosnominaempleado;
+TRUNCATE TABLE detallenominas;
+TRUNCATE TABLE nominas;
+TRUNCATE TABLE valesdescuentos;
+TRUNCATE TABLE valesempleado;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+
+
+-- Deja cada cuenta con su saldo inicial (el que se usó al crearla)
+UPDATE cuentasfinancieras
+SET saldoactual = saldoinicial;
+
+
+
+UPDATE cuentasfinancieras
+SET saldoinicial = 0,
+    saldoactual  = 0;
+
+
+
+
+
+-- Deben dar 0
+SELECT 'detalleventas' AS tabla, COUNT(*) FROM detalleventas
+UNION ALL SELECT 'ventas', COUNT(*) FROM ventas
+UNION ALL SELECT 'detallefacturas', COUNT(*) FROM detallefacturas
+UNION ALL SELECT 'facturas', COUNT(*) FROM facturas
+UNION ALL SELECT 'cotizaciones', COUNT(*) FROM cotizaciones
+UNION ALL SELECT 'pedidos', COUNT(*) FROM pedidos
+UNION ALL SELECT 'devoluciones', COUNT(*) FROM devoluciones
+UNION ALL SELECT 'pagos', COUNT(*) FROM pagos
+UNION ALL SELECT 'envios', COUNT(*) FROM envios
+UNION ALL SELECT 'rutas', COUNT(*) FROM rutas
+UNION ALL SELECT 'rutashistorial', COUNT(*) FROM rutashistorial
+UNION ALL SELECT 'movimientosfinancieros', COUNT(*) FROM movimientosfinancieros
+UNION ALL SELECT 'aperturascaja', COUNT(*) FROM aperturascaja
+UNION ALL SELECT 'cierrescaja', COUNT(*) FROM cierrescaja
+UNION ALL SELECT 'distribucionescierre', COUNT(*) FROM distribucionescierre
+UNION ALL SELECT 'nominas', COUNT(*) FROM nominas
+UNION ALL SELECT 'detallenominas', COUNT(*) FROM detallenominas
+UNION ALL SELECT 'valesempleado', COUNT(*) FROM valesempleado;
+
+-- Deben conservar datos
+SELECT 'clientes' AS tabla, COUNT(*) FROM clientes
+UNION ALL SELECT 'productos', COUNT(*) FROM productos
+UNION ALL SELECT 'cuentasfinancieras', COUNT(*) FROM cuentasfinancieras
+UNION ALL SELECT 'plancuentas', COUNT(*) FROM plancuentas
+UNION ALL SELECT 'categoriasfinancieras', COUNT(*) FROM categoriasfinancieras
+UNION ALL SELECT 'usuarios', COUNT(*) FROM usuarios
+UNION ALL SELECT 'seriesdocumentos', COUNT(*) FROM seriesdocumentos
+UNION ALL SELECT 'feriados', COUNT(*) FROM feriados;

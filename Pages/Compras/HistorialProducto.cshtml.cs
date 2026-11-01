@@ -1,3 +1,4 @@
+using Kirkenta.Helpers;
 using Kirkenta.Data;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -39,6 +40,12 @@ namespace Kirkenta.Pages.Compras
 
         public IActionResult OnGet(int productoId)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Compras", "Index", "ver")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             var producto = _context.Productos.FirstOrDefault(p => p.Id == productoId);
             if (producto == null)
             {

@@ -19,7 +19,7 @@ namespace Kirkenta.Pages.UnidadesMedida
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin") return RedirectToPage("/UnidadesMedida/Index");
+            if (!Kirkenta.Helpers.PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "UnidadesMedida", "ver")) return RedirectToPage("/UnidadesMedida/Index");
 
             var columns = ExportColumns.UnidadesMedida();
 
@@ -40,7 +40,7 @@ namespace Kirkenta.Pages.UnidadesMedida
             return formato.ToLower() switch
             {
                 "csv" => CsvExporter.Export(items, columns),
-                "json" => JsonExporter.Export(items),
+                "json" => JsonExporter.Export(items, columns),
                 _ => ExcelExporter.Export(items, columns, "Unidades", titulo)
             };
         }

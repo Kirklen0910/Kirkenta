@@ -1,0 +1,85 @@
+@page
+@model Kirkenta.Pages.Produccion.IndexModel
+@{
+    ViewData["Title"] = "Órdenes de producción";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Órdenes de producción</h2>
+        <p>Transforma insumos en producto terminado con control de costos y kardex</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Produccion/Calidad" class="btn-secondary">Control de calidad</a>
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/Produccion/Edit" class="btn-primary">Nueva orden</a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card"><span class="kpi-label">Planificadas</span><span class="kpi-value">@Model.Planificadas</span></div>
+    <div class="kpi-card"><span class="kpi-label">En proceso</span><span class="kpi-value" style="color: var(--color-warning);">@Model.EnProceso</span></div>
+    <div class="kpi-card"><span class="kpi-label">Terminadas este mes</span><span class="kpi-value" style="color: var(--color-success);">@Model.TerminadasMes</span></div>
+    <div class="kpi-card"><span class="kpi-label">Unidades producidas (mes)</span><span class="kpi-value">@Model.UnidadesMes.ToString("N2")</span></div>
+</div>
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="search-box">
+            <input type="text" name="Q" value="@Model.Q" placeholder="Buscar por número o producto..." />
+        </div>
+        <div class="filter-group">
+            <select name="Estado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="Planificada" selected="@(Model.Estado == "Planificada")">Planificada</option>
+                <option value="EnProceso" selected="@(Model.Estado == "EnProceso")">En proceso</option>
+                <option value="Terminada" selected="@(Model.Estado == "Terminada")">Terminada</option>
+                <option value="Cancelada" selected="@(Model.Estado == "Cancelada")">Cancelada</option>
+            </select>
+            <button type="submit" class="btn-secondary">Filtrar</button>
+            <a asp-page="/Produccion/Index" class="btn-secondary">Limpiar</a>
+        </div>
+    </form>
+
+    @if (Model.Ordenes.Count == 0)
+    {
+        <div class="empty-state">
+            <h3>No hay órdenes de producción</h3>
+            @if (Model.PuedeCrear) { <a asp-page="/Produccion/Edit" class="btn-primary">Crear primera orden</a> }
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr><th>Número</th><th>Fecha</th><th>Producto</th><th style="text-align:right;">Cantidad</th><th style="text-align:right;">Costo total</th><th>Estado</th><th style="text-align:right;">Acciones</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var o in Model.Ordenes)
+                    {
+                        <tr>
+                            <td><strong>@o.Numero</strong></td>
+                            <td>@o.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@(Model.Productos.TryGetValue(o.ProductoId, out var pn) ? pn : "—")</td>
+                            <td style="text-align:right;">@(o.Estado == "Terminada" ? o.CantidadProducida : o.Cantidad)</td>
+                            <td style="text-align:right;">L. @o.CostoTotal.ToString("N2")</td>
+                            <td>
+                                <span class="badge @(o.Estado == "Terminada" ? "badge-success" : o.Estado == "EnProceso" ? "badge-warning" : o.Estado == "Cancelada" ? "badge-danger" : "badge-info")">
+                                    @(o.Estado == "EnProceso" ? "En proceso" : o.Estado)
+                                </span>
+                            </td>
+                            <td style="text-align:right;"><a asp-page="/Produccion/Details" asp-route-id="@o.Id" class="btn-secondary">Ver</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+    }
+</div>

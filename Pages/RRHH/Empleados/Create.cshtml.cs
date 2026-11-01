@@ -40,10 +40,14 @@ namespace Kirkenta.Pages.RRHH.Empleados
 
             [Required(ErrorMessage = "La cédula es obligatoria")]
             [StringLength(20)]
-            public string Cedula { get; set; } = string.Empty;
+            [Identidad]
+            public string Cedula { get => _cedula; set => _cedula = DocumentoHonduras.FormatearIdentidad(value) ?? string.Empty; }
+            private string _cedula = string.Empty;
 
             [StringLength(20)]
-            public string? RTN { get; set; }
+            [Rtn]
+            public string? RTN { get => _rtn; set => _rtn = DocumentoHonduras.FormatearRtn(value); }
+            private string? _rtn;
 
             public DateTime? FechaNacimiento { get; set; }
 
@@ -58,9 +62,11 @@ namespace Kirkenta.Pages.RRHH.Empleados
 
             // ===== CONTACTO =====
             [StringLength(30)]
+            [Telefono]
             public string? Telefono { get; set; }
 
             [StringLength(30)]
+            [Telefono]
             public string? TelefonoSecundario { get; set; }
 
             [EmailAddress(ErrorMessage = "Email inválido")]
@@ -81,6 +87,7 @@ namespace Kirkenta.Pages.RRHH.Empleados
             public string? ContactoEmergenciaNombre { get; set; }
 
             [StringLength(30)]
+            [Telefono]
             public string? ContactoEmergenciaTelefono { get; set; }
 
             [StringLength(50)]
@@ -182,16 +189,35 @@ namespace Kirkenta.Pages.RRHH.Empleados
             CodigoPreview = EmpleadoHelper.PreviewCodigo(_context);
 
             // Validar cédula única
-            if (_context.Empleados.Any(e => e.Cedula == Input.Cedula))
+            if (_context.Empleados.Any(e => e.Cedula == Input.Cedula || e.Cedula == DocumentoHonduras.SoloDigitos(Input.Cedula)))
             {
                 ModelState.AddModelError("Input.Cedula", "Ya existe un empleado con esta cédula");
             }
 
             // Validar RTN si viene
             if (!string.IsNullOrEmpty(Input.RTN) &&
-                _context.Empleados.Any(e => e.RTN == Input.RTN))
+                _context.Empleados.Any(e => e.RTN == Input.RTN || e.RTN == DocumentoHonduras.SoloDigitos(Input.RTN)))
             {
                 ModelState.AddModelError("Input.RTN", "Ya existe un empleado con este RTN");
+            }
+
+            // Validaciones de negocio
+            if ((Input.BonoTransporte ?? 0) < 0 || (Input.BonoAlimentacion ?? 0) < 0 || (Input.OtrosBonos ?? 0) < 0)
+                ModelState.AddModelError(string.Empty, "Los bonos no pueden ser negativos");
+
+            if (Input.FechaIngreso.Date > DateTime.Today.AddYears(1))
+                ModelState.AddModelError("Input.FechaIngreso", "La fecha de ingreso no es válida");
+
+            var estadosValidos = new[] { "Activo", "Inactivo", "Suspendido", "Vacaciones", "Licencia", "Baja" };
+            if (!estadosValidos.Contains(Input.Estado))
+                ModelState.AddModelError("Input.Estado", "Estado no válido");
+
+            if (Input.UsuarioId.HasValue)
+            {
+                if (!_context.Usuarios.Any(u => u.Id == Input.UsuarioId.Value))
+                    ModelState.AddModelError("Input.UsuarioId", "El usuario seleccionado no existe");
+                else if (_context.Empleados.Any(e => e.UsuarioId == Input.UsuarioId.Value))
+                    ModelState.AddModelError("Input.UsuarioId", "Ese usuario ya está vinculado a otro empleado");
             }
 
             if (!ModelState.IsValid) return Page();
@@ -242,7 +268,7 @@ namespace Kirkenta.Pages.RRHH.Empleados
                 Notas = Input.Notas,
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = currentUser?.Id,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             // Procesar acumulación de vacaciones retroactiva (si ya tenía antigüedad)

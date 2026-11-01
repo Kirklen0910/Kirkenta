@@ -1,0 +1,21 @@
+{
+  "name": "Kirkenta ERP",
+  "short_name": "Kirkenta",
+  "description": "Ventas, inventario y finanzas de tu negocio",
+  "id": "/",
+  "start_url": "/Movil",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "lang": "es",
+  "icons": [
+    { "src": "/images/pwa/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/images/pwa/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Punto de venta", "url": "/POS" },
+    { "name": "Panel del dueño", "url": "/Movil" }
+  ]
+}

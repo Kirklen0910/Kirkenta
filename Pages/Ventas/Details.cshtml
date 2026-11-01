@@ -17,7 +17,43 @@
         <p>@Model.Venta.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
     </div>
     <div class="module-header-right">
-        @if (Model.Venta.Estado != "Anulada")
+        @* ===== NUEVO: si tiene factura, mostramos el badge y el botón "Ver factura" en vez del de registrar en finanzas *@
+        @if (Model.VentaTieneFactura && Model.FacturaAsociada != null)
+        {
+            <span class="badge badge-success" style="padding: 10px 16px; font-size: 13px;">
+                ✓ Facturada como @Model.FacturaAsociada.Numero
+            </span>
+            <a asp-page="/Facturas/Details" asp-route-id="@Model.FacturaAsociada.Id" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                Ver factura
+            </a>
+        }
+        else if (Model.Venta.MovimientoRegistrado)
+        {
+            <span class="badge badge-success" style="padding: 10px 16px; font-size: 13px;">
+                ✓ Registrado en Finanzas
+                @if (Model.Venta.FechaMovimiento.HasValue)
+                {
+                    <text> · @Model.Venta.FechaMovimiento.Value.ToString("dd/MM/yyyy HH:mm")</text>
+                }
+            </span>
+        }
+        else if (Model.Venta.Estado != "Anulada")
+        {
+            <form method="post" asp-page-handler="RegistrarEnFinanzas" asp-route-id="@Model.Venta.Id" style="display:inline;" onsubmit="return confirm('¿Registrar esta venta en Finanzas?\n\nSe generará:\n- Un INGRESO por el efectivo que entró a caja\n- Un EGRESO por el cambio entregado (si aplica)\n\n¿Deseas continuar?');">
+                <button type="submit" class="btn-primary" style="background: var(--color-success);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                        <line x1="12" y1="1" x2="12" y2="23"/>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                    Registrar en Finanzas
+                </button>
+            </form>
+        }
+        @if (Model.Venta.Estado != "Anulada" && !Model.VentaTieneFactura)
         {
             <a asp-page="/Facturas/CreateFromVenta" asp-route-ventaId="@Model.Venta.Id" class="btn-primary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
@@ -27,8 +63,124 @@
                 Generar factura
             </a>
         }
+        @if (Model.Venta.Estado == "Anulada")
+        {
+            <span class="badge" style="padding: 10px 16px; font-size: 13px; background:#fee2e2; color:#b91c1c;">Venta anulada</span>
+        }
+        else
+        {
+            @if (Model.PuedeDevolver)
+            {
+                <a asp-page="/Devoluciones/Create" asp-route-ventaId="@Model.Venta.Id" class="btn-secondary">Devolución</a>
+            }
+            @if (Model.PuedeAnular)
+            {
+                <form method="post" asp-page-handler="Anular" asp-route-id="@Model.Venta.Id" style="display:inline-flex;gap:6px;align-items:center;"
+                      onsubmit="return confirm('¿Anular esta venta?\n\nSe devolverá el inventario y se revertirán los movimientos financieros (ingreso, cambio, costo y cobros). Esta acción no se puede deshacer.');">
+                    <input type="text" name="motivo" required maxlength="200" class="form-input" placeholder="Motivo de anulación" style="width:200px;" />
+                    <button type="submit" class="btn-secondary" style="color:#b91c1c;">Anular venta</button>
+                </form>
+            }
+        }
     </div>
 </div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+@if (TempData["Warning"] != null)
+{
+    <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        @TempData["Warning"]
+    </div>
+}
+
+@* ===== NUEVO: aviso especial si la venta ya tiene factura ===== *@
+@if (Model.VentaTieneFactura && Model.FacturaAsociada != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <div>
+            <strong>Esta venta ya fue facturada como @Model.FacturaAsociada.Numero</strong>
+            <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                Los movimientos financieros ya fueron registrados al generar la factura.
+                @if (!string.IsNullOrEmpty(Model.FacturaAsociada.Estado))
+                {
+                    <text> Estado de la factura: <strong>@Model.FacturaAsociada.Estado</strong>.</text>
+                }
+                <a asp-page="/Facturas/Details" asp-route-id="@Model.FacturaAsociada.Id" style="font-weight: 600;">Ver factura</a>
+            </p>
+        </div>
+    </div>
+}
+else if (!Model.Venta.MovimientoRegistrado && Model.Venta.Estado != "Anulada")
+{
+    <div class="module-alert" style="background: #fffbeb; border: 1px solid #fde68a; color: #92400e;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <div>
+            <strong>Esta venta aún no se ha registrado en Finanzas</strong>
+            <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                El cobro físico ya ocurrió, pero el movimiento financiero no. Presiona <strong>"Registrar en Finanzas"</strong>
+                para generar el ingreso y, si aplica, el egreso por cambio. O genera la factura para que se registren automáticamente.
+            </p>
+        </div>
+    </div>
+}
+
+@if (Model.Venta.MovimientoRegistrado && !Model.VentaTieneFactura)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <div>
+            <strong>Venta registrada en Finanzas el @(Model.Venta.FechaMovimiento?.ToString("dd/MM/yyyy HH:mm") ?? "—")</strong>
+            @if (Model.MovimientoIngreso != null)
+            {
+                <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                    Ingreso: <strong style="font-family: monospace;">@Model.MovimientoIngreso.Numero</strong> por L. @Model.MovimientoIngreso.Monto.ToString("N2")
+                    @if (Model.MovimientoCambio != null)
+                    {
+                        <text> · Cambio: <strong style="font-family: monospace;">@Model.MovimientoCambio.Numero</strong> por L. @Model.MovimientoCambio.Monto.ToString("N2")</text>
+                    }
+                </p>
+            }
+        </div>
+    </div>
+}
 
 <div class="module-card" style="padding: 28px;">
     <div class="cotizacion-header">
@@ -36,7 +188,7 @@
             <h3>Cliente</h3>
             @if (Model.Cliente != null)
             {
-                <p><strong>@Model.Cliente.Nombre</strong></p>
+                <p><strong><a asp-page="/Clientes/Details" asp-route-id="@Model.Cliente.Id">@Model.Cliente.Nombre</a></strong></p>
                 @if (!string.IsNullOrEmpty(Model.Cliente.RTN))
                 {
                     <p>RTN: @Model.Cliente.RTN</p>
@@ -69,7 +221,7 @@
                 {
                     var prod = Model.Productos.FirstOrDefault(p => p.Id == item.ProductoId);
                     <tr>
-                        <td>@(prod?.Nombre ?? "—")</td>
+                        <td>@if (prod != null) { <a asp-page="/Productos/Historial" asp-route-id="@prod.Id">@prod.Nombre</a> } else { <text>—</text> }</td>
                         <td style="text-align: right;">@item.Cantidad</td>
                         <td style="text-align: right;">L. @item.PrecioUnitario.ToString("N2")</td>
                         <td style="text-align: right;"><strong>L. @item.Total.ToString("N2")</strong></td>
@@ -86,7 +238,7 @@
         </div>
         <div class="totales-row">
             <span>Descuento:</span>
-            <strong>L. @Model.Venta.Descuento.ToString("N2")</strong>
+            <strong>L. @((Model.Venta.Descuento + Model.Items.Sum(i => i.Descuento)).ToString("N2"))</strong>
         </div>
         <div class="totales-row">
             <span>Impuestos:</span>
@@ -97,6 +249,60 @@
             <strong>L. @Model.Venta.Total.ToString("N2")</strong>
         </div>
     </div>
+
+    @if (Model.Venta.Estado != "Anulada")
+    {
+        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-border);">
+            <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 12px;">Entrega en bodega</h4>
+            @if (!Model.Venta.ControlEntrega && Model.Entregas.Count == 0)
+            {
+                <p class="form-help">Esta venta no controla entregas parciales.</p>
+                @if (Model.PuedeEntregar)
+                {
+                    <form method="post" asp-page-handler="ControlEntrega" asp-route-id="@Model.Venta.Id" style="display:inline">
+                        <button type="submit" class="btn-secondary">Controlar entregas por partes</button>
+                    </form>
+                }
+            }
+            else
+            {
+                <div class="table-wrapper">
+                    <table class="erp-table">
+                        <thead><tr><th>Producto</th><th style="text-align:right">Vendido</th><th style="text-align:right">Entregado</th><th style="text-align:right">Pendiente</th></tr></thead>
+                        <tbody>
+                            @foreach (var l in Model.LineasEntrega)
+                            {
+                                <tr>
+                                    <td>@l.Producto</td>
+                                    <td style="text-align:right">@l.Vendida.ToString("0.####")</td>
+                                    <td style="text-align:right">@l.Entregada.ToString("0.####")</td>
+                                    <td style="text-align:right">@if (l.Pendiente > 0) { <span class="badge badge-warning">@l.Pendiente.ToString("0.####")</span> } else { <span class="badge badge-success">0</span> }</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (Model.Entregas.Count > 0)
+                {
+                    <p style="margin-top:10px; font-size:13px;">
+                        Comprobantes:
+                        @foreach (var e in Model.Entregas)
+                        {
+                            <a asp-page="/EntregasBodega/Details" asp-route-id="@e.Id" style="margin-right:10px; @(e.Anulada ? "text-decoration:line-through" : "")">@e.Numero</a>
+                        }
+                    </p>
+                }
+                @if (Model.PendienteEntrega > 0 && Model.PuedeEntregar)
+                {
+                    <a asp-page="/EntregasBodega/Create" asp-route-ventaId="@Model.Venta.Id" class="btn-primary">Registrar entrega</a>
+                }
+                else if (Model.PendienteEntrega <= 0)
+                {
+                    <span class="badge badge-success">Entregada por completo</span>
+                }
+            }
+        </div>
+    }
 
     @if (Model.Pagos.Count > 0)
     {
@@ -110,6 +316,8 @@
                             <th>Método</th>
                             <th>Referencia</th>
                             <th style="text-align: right;">Monto</th>
+                            <th style="text-align: right;">Recibido</th>
+                            <th style="text-align: right;">Cambio</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -121,6 +329,26 @@
                                 <td>@(metodo?.Nombre ?? "—")</td>
                                 <td>@(p.Referencia ?? "—")</td>
                                 <td style="text-align: right;"><strong>L. @p.Monto.ToString("N2")</strong></td>
+                                <td style="text-align: right;">
+                                    @if (p.MontoRecibido.HasValue)
+                                    {
+                                        <span>L. @p.MontoRecibido.Value.ToString("N2")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="table-user-sub">—</span>
+                                    }
+                                </td>
+                                <td style="text-align: right;">
+                                    @if (p.Cambio.HasValue && p.Cambio.Value > 0)
+                                    {
+                                        <span style="color: var(--color-success); font-weight: 600;">L. @p.Cambio.Value.ToString("N2")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="table-user-sub">—</span>
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>

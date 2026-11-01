@@ -12,25 +12,26 @@
 </div>
 
 <div class="module-card">
-    <div class="module-toolbar">
+    <form method="get" class="module-toolbar">
         <div class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input type="text" id="searchInput" placeholder="Buscar por número o cliente..." />
+            <input type="text" id="searchInput" name="Q" value="@Model.Q" placeholder="Buscar por número o cliente..." />
         </div>
         <div class="filter-group">
-            <select id="filterEstado" class="filter-select">
+            <select id="filterEstado" name="Estado" class="filter-select">
                 <option value="">Todos los estados</option>
-                <option value="Pendiente">Pendiente</option>
-                <option value="En preparacion">En preparación</option>
-                <option value="Enviado">Enviado</option>
-                <option value="Entregado">Entregado</option>
-                <option value="Cancelado">Cancelado</option>
+                <option value="Pendiente" selected="@(Model.Estado == "Pendiente")">Pendiente</option>
+                <option value="En preparacion" selected="@(Model.Estado == "En preparacion")">En preparación</option>
+                <option value="Enviado" selected="@(Model.Estado == "Enviado")">Enviado</option>
+                <option value="Entregado" selected="@(Model.Estado == "Entregado")">Entregado</option>
+                <option value="Cancelado" selected="@(Model.Estado == "Cancelado")">Cancelado</option>
             </select>
+            <button type="submit" class="btn-secondary">Filtrar</button>
         </div>
-    </div>
+    </form>
 
     @if (TempData["Success"] != null)
     {
@@ -43,7 +44,7 @@
         </div>
     }
 
-    @if (Model.Pedidos.Count == 0)
+    @if (Model.Pager.Total == 0)
     {
         <div class="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -110,32 +111,6 @@
                 </tbody>
             </table>
         </div>
+        <partial name="_Pager" model="Model.Pager" />
     }
 </div>
-
-@section Scripts {
-    <script>
-        (function () {
-            var searchInput = document.getElementById('searchInput');
-            var filterEstado = document.getElementById('filterEstado');
-            var table = document.getElementById('pedidosTable');
-            if (!table) return;
-            var rows = table.querySelectorAll('tbody tr');
-
-            function filterRows() {
-                var search = (searchInput?.value || '').toLowerCase().trim();
-                var estado = filterEstado?.value || '';
-                rows.forEach(function (row) {
-                    var numero = row.dataset.numero || '';
-                    var cliente = row.dataset.cliente || '';
-                    var rowEstado = row.dataset.estado || '';
-                    var matchSearch = !search || numero.includes(search) || cliente.includes(search);
-                    var matchEstado = !estado || rowEstado === estado;
-                    row.style.display = (matchSearch && matchEstado) ? '' : 'none';
-                });
-            }
-            searchInput?.addEventListener('input', filterRows);
-            filterEstado?.addEventListener('change', filterRows);
-        })();
-    </script>
-}

@@ -1,3 +1,4 @@
+using Kirkenta.Helpers;
 using Kirkenta.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,12 +34,38 @@ namespace Kirkenta.Data
         public DbSet<Pago> Pagos { get; set; }
         public DbSet<Devolucion> Devoluciones { get; set; }
         public DbSet<DetalleDevolucion> DetalleDevoluciones { get; set; }
+        public DbSet<MovimientoInventario> MovimientosInventario { get; set; }
 
         // ===== CONFIGURACIÓN =====
         public DbSet<ConfiguracionEmpresa> ConfiguracionEmpresa { get; set; }
 
         // ===== BAJAS =====
         public DbSet<BajaInventario> BajasInventario { get; set; }
+        public DbSet<ConversionInventario> ConversionesInventario { get; set; }
+        public DbSet<SaldoFavorMovimiento> SaldoFavorMovimientos { get; set; }
+        public DbSet<EntregaBodega> EntregasBodega { get; set; }
+        public DbSet<DetalleEntregaBodega> DetallesEntregaBodega { get; set; }
+
+        // ===== ACTIVOS FIJOS =====
+        public DbSet<ActivoFijo> ActivosFijos { get; set; }
+        public DbSet<DepreciacionActivo> DepreciacionesActivo { get; set; }
+        public DbSet<MantenimientoActivo> MantenimientosActivo { get; set; }
+
+        // ===== PRODUCCIÓN =====
+        public DbSet<OrdenProduccion> OrdenesProduccion { get; set; }
+        public DbSet<DetalleOrdenProduccion> DetallesOrdenProduccion { get; set; }
+        public DbSet<InspeccionCalidad> InspeccionesCalidad { get; set; }
+
+        // ===== CAJA CHICA =====
+        public DbSet<GastoCajaChica> GastosCajaChica { get; set; }
+
+        // ===== TOMA FÍSICA DE INVENTARIO =====
+        public DbSet<TomaFisica> TomasFisicas { get; set; }
+        public DbSet<DetalleTomaFisica> DetallesTomaFisica { get; set; }
+
+        // ===== ASIENTOS CONTABLES =====
+        public DbSet<AsientoContable> AsientosContables { get; set; }
+        public DbSet<DetalleAsiento> DetallesAsiento { get; set; }
 
         // ===== COMPRAS =====
         public DbSet<Moneda> Monedas { get; set; }
@@ -58,6 +85,10 @@ namespace Kirkenta.Data
         public DbSet<AperturaCaja> AperturasCaja { get; set; }
         public DbSet<DistribucionCierre> DistribucionesCierre { get; set; }
         public DbSet<AdjuntoCierre> AdjuntosCierre { get; set; }
+        public DbSet<CierreCajaConteo> ConteosCierreCaja { get; set; }
+        public DbSet<VentaOffline> VentasOffline { get; set; }
+        public DbSet<CatalogoWebConfig> CatalogoWebConfig { get; set; }
+        public DbSet<PedidoWeb> PedidosWeb { get; set; }
         public DbSet<CierreContable> CierresContables { get; set; }
         public DbSet<ConciliacionBancaria> ConciliacionesBancarias { get; set; }
         public DbSet<ConciliacionDetalle> ConciliacionesDetalle { get; set; }
@@ -87,9 +118,88 @@ namespace Kirkenta.Data
         public DbSet<Ruta> Rutas { get; set; }
         public DbSet<RutaHistorial> RutasHistorial { get; set; }
 
+        // ===== CACHE DE PERMISOS =====
+        // Cuando se guardan cambios que afectan a usuarios (rol / activo / username),
+        // roles o permisos, se invalida el cache de PermisoHelper para que el cambio
+        // se aplique de inmediato en todas las páginas. Cambios que no afectan la
+        // seguridad (UltimoAcceso, IntentosFallidos, etc.) NO vacían el cache.
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            var invalidarCache = HayCambiosDeSeguridad();
+            var resultado = base.SaveChanges(acceptAllChangesOnSuccess);
+
+            if (invalidarCache)
+                PermisoHelper.InvalidarCache();
+
+            return resultado;
+        }
+
+        public override async Task<int> SaveChangesAsync(
+            bool acceptAllChangesOnSuccess,
+            CancellationToken cancellationToken = default)
+        {
+            var invalidarCache = HayCambiosDeSeguridad();
+            var resultado = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+
+            if (invalidarCache)
+                PermisoHelper.InvalidarCache();
+
+            return resultado;
+        }
+
+        private bool HayCambiosDeSeguridad()
+        {
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                if (entry.State != EntityState.Added
+                    && entry.State != EntityState.Modified
+                    && entry.State != EntityState.Deleted)
+                {
+                    continue;
+                }
+
+                if (entry.Entity is Rol || entry.Entity is Permiso)
+                    return true;
+
+                if (entry.Entity is Usuario)
+                {
+                    // Usuario nuevo o eliminado: siempre afecta
+                    if (entry.State != EntityState.Modified)
+                        return true;
+
+                    if (entry.Property(nameof(Usuario.Rol)).IsModified
+                        || entry.Property(nameof(Usuario.Activo)).IsModified
+                        || entry.Property(nameof(Usuario.Username)).IsModified
+                        || entry.Property(nameof(Usuario.PasswordHash)).IsModified)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // ===== CONCURRENCIA OPTIMISTA =====
+            // DateTime mapeado a TIMESTAMP(6). MySQL lo actualiza en cada UPDATE.
+            // Se usa IsConcurrencyToken + ValueGeneratedOnAddOrUpdate para evitar
+            // el bug de EF Core 9 + Pomelo con IsRowVersion() en byte[].
+            modelBuilder.Entity<Producto>()
+                .Property(p => p.RowVersion)
+                .IsConcurrencyToken()
+                .ValueGeneratedOnAddOrUpdate()
+                .HasColumnType("timestamp(6)");
+
+            // Saldo de cuentas: dos ventas/pagos simultaneos ya no pueden perder un movimiento.
+            modelBuilder.Entity<CuentaFinanciera>()
+                .Property(c => c.RowVersion)
+                .IsConcurrencyToken()
+                .ValueGeneratedOnAddOrUpdate()
+                .HasColumnType("timestamp(6)");
 
             // ===== ÍNDICES ÚNICOS =====
             modelBuilder.Entity<Permiso>()
@@ -101,34 +211,73 @@ namespace Kirkenta.Data
             modelBuilder.Entity<Venta>().HasIndex(v => v.Numero).IsUnique();
             modelBuilder.Entity<Factura>().HasIndex(f => f.Numero).IsUnique();
             modelBuilder.Entity<Devolucion>().HasIndex(d => d.Numero).IsUnique();
+            modelBuilder.Entity<MovimientoInventario>().HasIndex(m => new { m.ProductoId, m.Fecha });
+            modelBuilder.Entity<MovimientoInventario>().Property(m => m.Cantidad).HasPrecision(18, 4);
+            modelBuilder.Entity<MovimientoInventario>().Property(m => m.StockAnterior).HasPrecision(18, 4);
+            modelBuilder.Entity<MovimientoInventario>().Property(m => m.StockPosterior).HasPrecision(18, 4);
+            modelBuilder.Entity<MovimientoInventario>().Property(m => m.CostoUnitario).HasPrecision(18, 4);
             modelBuilder.Entity<Cliente>().HasIndex(c => c.Codigo).IsUnique();
             modelBuilder.Entity<Producto>().HasIndex(p => p.SKU).IsUnique();
             modelBuilder.Entity<UnidadMedida>().HasIndex(u => u.Nombre).IsUnique();
 
             modelBuilder.Entity<BajaInventario>().HasIndex(b => b.Numero).IsUnique();
+            modelBuilder.Entity<ConversionInventario>().HasIndex(c => c.Numero);
+            modelBuilder.Entity<SaldoFavorMovimiento>().HasIndex(m => m.ClienteId);
+            modelBuilder.Entity<EntregaBodega>().HasIndex(e => e.VentaId);
+            modelBuilder.Entity<DetalleEntregaBodega>().HasIndex(d => d.EntregaBodegaId);
+            modelBuilder.Entity<DetalleEntregaBodega>().Property(d => d.Cantidad).HasPrecision(18, 4);
+            modelBuilder.Entity<SaldoFavorMovimiento>().Property(m => m.Monto).HasPrecision(18, 2);
+            modelBuilder.Entity<Devolucion>().Property(d => d.MontoSaldoFavor).HasPrecision(18, 2);
+            modelBuilder.Entity<Venta>().Property(v => v.SaldoFavorAplicado).HasPrecision(18, 2);
+            modelBuilder.Entity<ConversionInventario>().Property(c => c.CantidadOrigen).HasPrecision(18, 4);
+            modelBuilder.Entity<ConversionInventario>().Property(c => c.CantidadDestino).HasPrecision(18, 4);
+            modelBuilder.Entity<ConversionInventario>().Property(c => c.CostoUnitarioOrigen).HasPrecision(18, 4);
+            modelBuilder.Entity<ConversionInventario>().Property(c => c.CostoUnitarioDestino).HasPrecision(18, 4);
+            modelBuilder.Entity<ConversionInventario>().Property(c => c.CostoTotal).HasPrecision(18, 4);
+            modelBuilder.Entity<ConversionInventario>().Property(c => c.NuevoProductoPrecioVenta).HasPrecision(18, 2);
+
+            // ===== MÓDULOS NUEVOS (tablas creadas por EsquemaModulosNuevos al arrancar) =====
+            modelBuilder.Entity<ActivoFijo>().HasIndex(a => a.Codigo).IsUnique();
+            modelBuilder.Entity<DepreciacionActivo>().HasIndex(d => new { d.ActivoFijoId, d.Anio, d.Mes }).IsUnique();
+            modelBuilder.Entity<MantenimientoActivo>().HasIndex(m => m.ActivoFijoId);
+            modelBuilder.Entity<OrdenProduccion>().HasIndex(o => o.Numero).IsUnique();
+            modelBuilder.Entity<DetalleOrdenProduccion>().HasIndex(d => d.OrdenProduccionId);
+            modelBuilder.Entity<OrdenProduccion>().Property(o => o.Cantidad).HasPrecision(18, 4);
+            modelBuilder.Entity<OrdenProduccion>().Property(o => o.CantidadProducida).HasPrecision(18, 4);
+            modelBuilder.Entity<DetalleOrdenProduccion>().Property(d => d.Cantidad).HasPrecision(18, 4);
+            modelBuilder.Entity<DetalleOrdenProduccion>().Property(d => d.CostoUnitario).HasPrecision(18, 4);
+            modelBuilder.Entity<InspeccionCalidad>().Property(i => i.CantidadInspeccionada).HasPrecision(18, 4);
+            modelBuilder.Entity<InspeccionCalidad>().Property(i => i.CantidadDefectuosa).HasPrecision(18, 4);
+            modelBuilder.Entity<GastoCajaChica>().HasIndex(g => g.Numero).IsUnique();
+            modelBuilder.Entity<TomaFisica>().HasIndex(t => t.Numero).IsUnique();
+            modelBuilder.Entity<DetalleTomaFisica>().HasIndex(d => d.TomaFisicaId);
+            modelBuilder.Entity<DetalleTomaFisica>().Property(d => d.StockSistema).HasPrecision(18, 4);
+            modelBuilder.Entity<DetalleTomaFisica>().Property(d => d.StockContado).HasPrecision(18, 4);
+            modelBuilder.Entity<DetalleTomaFisica>().Property(d => d.CostoUnitario).HasPrecision(18, 4);
+            modelBuilder.Entity<AsientoContable>().HasIndex(a => a.Numero).IsUnique();
+            modelBuilder.Entity<DetalleAsiento>().HasIndex(d => d.AsientoContableId);
+            modelBuilder.Entity<DetalleAsiento>().HasIndex(d => d.PlanCuentaId);
             modelBuilder.Entity<Moneda>().HasIndex(m => m.Codigo).IsUnique();
             modelBuilder.Entity<Proveedor>().HasIndex(p => p.Codigo).IsUnique();
             modelBuilder.Entity<OrdenCompra>().HasIndex(o => o.Numero).IsUnique();
             modelBuilder.Entity<DevolucionProveedor>().HasIndex(d => d.Numero).IsUnique();
 
-            // Finanzas
             modelBuilder.Entity<CuentaFinanciera>().HasIndex(c => c.Codigo).IsUnique();
             modelBuilder.Entity<MovimientoFinanciero>().HasIndex(m => m.Numero).IsUnique();
             modelBuilder.Entity<CierreCaja>().HasIndex(c => c.Numero).IsUnique();
+            modelBuilder.Entity<CierreCajaConteo>().HasIndex(c => c.CierreCajaId);
+            modelBuilder.Entity<VentaOffline>().HasIndex(v => v.OfflineId).IsUnique();
+            modelBuilder.Entity<PedidoWeb>().HasIndex(p => p.Numero);
+            modelBuilder.Entity<PedidoWeb>().HasIndex(p => new { p.Ip, p.Fecha });
             modelBuilder.Entity<AperturaCaja>().HasIndex(a => a.Numero).IsUnique();
 
-            // Un solo cierre contable por mes
             modelBuilder.Entity<CierreContable>()
                 .HasIndex(c => new { c.Anio, c.Mes })
                 .IsUnique();
 
-            // Número de conciliación único
             modelBuilder.Entity<ConciliacionBancaria>().HasIndex(c => c.Numero).IsUnique();
-
-            // Código de cuenta contable único
             modelBuilder.Entity<PlanCuenta>().HasIndex(c => c.Codigo).IsUnique();
 
-            // RRHH
             modelBuilder.Entity<Empleado>().HasIndex(e => e.Codigo).IsUnique();
             modelBuilder.Entity<VacacionEmpleado>().HasIndex(v => v.Numero).IsUnique();
             modelBuilder.Entity<PermisoEmpleado>().HasIndex(p => p.Numero).IsUnique();
@@ -136,10 +285,8 @@ namespace Kirkenta.Data
             modelBuilder.Entity<Nomina>().HasIndex(n => n.Numero).IsUnique();
             modelBuilder.Entity<PagoNominaEmpleado>().HasIndex(p => p.Numero).IsUnique();
 
-            // Config deducciones - único por año
             modelBuilder.Entity<ConfiguracionDeduccion>().HasIndex(c => c.Anio).IsUnique();
 
-            // ===== LOGÍSTICA =====
             modelBuilder.Entity<Envio>().HasIndex(e => e.Numero).IsUnique();
             modelBuilder.Entity<Ruta>().HasIndex(r => r.Numero).IsUnique();
             modelBuilder.Entity<Ruta>().HasIndex(r => r.TrackingCode).IsUnique();

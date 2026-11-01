@@ -1,0 +1,183 @@
+﻿@page "{id:int}"
+@model Kirkenta.Pages.Facturas.CartaModel
+@{
+    Layout = null;
+    var f = Model.Factura;
+    var anulada = f.Estado == "Anulada";
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>Factura @f.Numero</title>
+    <style>
+        @@page { size: letter; margin: 14mm 14mm 16mm 14mm; }
+        * { box-sizing: border-box; }
+        body { font-family: "Segoe UI", Arial, sans-serif; font-size: 12px; color: #111; margin: 0; padding: 0; }
+        .hoja { max-width: 190mm; margin: 0 auto; padding: 10mm 0; position: relative; }
+        .top { display: flex; justify-content: space-between; gap: 20px; border-bottom: 2px solid #111; padding-bottom: 10px; }
+        .emp h1 { font-size: 20px; margin: 0 0 4px; }
+        .emp div { color: #333; line-height: 1.45; }
+        .emp img { max-height: 60px; margin-bottom: 6px; }
+        .doc { text-align: right; }
+        .doc .tit { font-size: 18px; font-weight: 700; letter-spacing: .5px; }
+        .doc .num { font-size: 15px; margin: 4px 0; }
+        .fiscal { margin-top: 8px; font-size: 11px; color: #333; line-height: 1.45; border: 1px solid #bbb; padding: 6px 8px; border-radius: 4px; }
+        .cliente { display: flex; justify-content: space-between; margin: 14px 0; gap: 20px; }
+        .cliente .bloque { flex: 1; border: 1px solid #ccc; border-radius: 4px; padding: 8px 10px; line-height: 1.5; }
+        .cliente .bloque b { display: inline-block; min-width: 70px; }
+        table { width: 100%; border-collapse: collapse; }
+        thead th { background: #111; color: #fff; padding: 6px 8px; text-align: left; font-size: 11px; }
+        tbody td { padding: 6px 8px; border-bottom: 1px solid #ddd; vertical-align: top; }
+        .r { text-align: right; }
+        .totales { width: 85mm; margin-left: auto; margin-top: 12px; }
+        .totales td { padding: 4px 8px; border: 0; }
+        .totales tr.total td { font-size: 14px; font-weight: 700; border-top: 2px solid #111; }
+        .pie { margin-top: 28px; text-align: center; color: #444; font-size: 11px; }
+        .marca { position: absolute; top: 90mm; left: 0; right: 0; text-align: center; font-size: 90px; color: rgba(200,0,0,.18); transform: rotate(-25deg); font-weight: 800; pointer-events: none; }
+        .noprint { text-align: center; padding: 10px; background: #f3f4f6; }
+        .noprint button, .noprint a { margin: 0 6px; padding: 6px 14px; }
+        @@media print { .noprint { display: none; } .hoja { padding: 0; } }
+        tr { page-break-inside: avoid; }
+    </style>
+</head>
+<body>
+    <div class="noprint">
+        <button onclick="window.print()">Imprimir / Guardar como PDF</button>
+        <button type="button" onclick="kkDescargarPdf()">Descargar PDF</button>
+        <a asp-page="/Facturas/Details" asp-route-id="@f.Id">Volver</a>
+    </div>
+
+    <div class="hoja">
+        @if (anulada) { <div class="marca">ANULADA</div> }
+
+        <div class="top">
+            <div class="emp">
+                @if (!string.IsNullOrWhiteSpace(Model.Empresa.LogoPath)) { <img src="@Model.Empresa.LogoPath" alt="Logo" /> }
+                <h1>@Model.Empresa.Nombre</h1>
+                @if (!string.IsNullOrEmpty(Model.Empresa.RazonSocial)) { <div>@Model.Empresa.RazonSocial</div> }
+                @if (!string.IsNullOrEmpty(Model.Empresa.RTN)) { <div>RTN: @Model.Empresa.RTN</div> }
+                @if (!string.IsNullOrEmpty(Model.Empresa.Direccion)) { <div>@Model.Empresa.Direccion@(string.IsNullOrEmpty(Model.Empresa.Ciudad) ? "" : ", " + Model.Empresa.Ciudad)</div> }
+                @if (!string.IsNullOrEmpty(Model.Empresa.Telefono)) { <div>Tel: @Model.Empresa.Telefono</div> }
+                @if (!string.IsNullOrEmpty(Model.Empresa.Email)) { <div>@Model.Empresa.Email</div> }
+            </div>
+            <div class="doc">
+                <div class="tit">FACTURA</div>
+                <div class="num">No. <strong>@f.Numero</strong></div>
+                <div>Fecha: @f.Fecha.ToString("dd/MM/yyyy HH:mm")</div>
+                @if (f.FechaVencimiento.HasValue && f.Saldo > 0) { <div>Vence: @f.FechaVencimiento.Value.ToString("dd/MM/yyyy")</div> }
+                @if (!string.IsNullOrEmpty(f.CAI))
+                {
+                    <div class="fiscal">
+                        <div><strong>CAI:</strong> @f.CAI</div>
+                        <div><strong>Rango autorizado:</strong> @f.RangoInicial al @f.RangoFinal</div>
+                        @if (f.FechaLimiteEmision.HasValue) { <div><strong>Fecha límite de emisión:</strong> @f.FechaLimiteEmision.Value.ToString("dd/MM/yyyy")</div> }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="cliente">
+            <div class="bloque">
+                <div><b>Cliente:</b> @(Model.Cliente?.Nombre ?? "Consumidor final")</div>
+                @if (!string.IsNullOrEmpty(Model.Cliente?.RTN)) { <div><b>RTN:</b> @Model.Cliente!.RTN</div> }
+                @if (!string.IsNullOrEmpty(Model.Cliente?.Direccion)) { <div><b>Dirección:</b> @Model.Cliente!.Direccion</div> }
+                @if (!string.IsNullOrEmpty(Model.Cliente?.Telefono)) { <div><b>Teléfono:</b> @Model.Cliente!.Telefono</div> }
+            </div>
+            <div class="bloque" style="max-width:70mm;">
+                <div><b>Estado:</b> @f.Estado</div>
+                @if (!string.IsNullOrEmpty(Model.MetodoPago)) { <div><b>Pago:</b> @Model.MetodoPago</div> }
+                @if (f.Saldo > 0) { <div><b>Saldo:</b> L. @f.Saldo.ToString("N2")</div> }
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Descripción</th>
+                    <th class="r">Cant.</th>
+                    <th class="r">Precio</th>
+                    <th class="r">Desc.</th>
+                    <th class="r">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var (det, nombre) in Model.Items)
+                {
+                    <tr>
+                        <td>@nombre</td>
+                        <td class="r">@det.Cantidad.ToString("0.##")</td>
+                        <td class="r">@det.PrecioUnitario.ToString("N2")</td>
+                        <td class="r">@(det.Descuento > 0 ? det.Descuento.ToString("N2") : "—")</td>
+                        <td class="r">@det.Total.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <table class="totales">
+            <tr><td>Subtotal</td><td class="r">@f.Subtotal.ToString("N2")</td></tr>
+            @if (f.Descuento > 0) { <tr><td>Descuento</td><td class="r">-@f.Descuento.ToString("N2")</td></tr> }
+            @if (f.MontoEnvio > 0) { <tr><td>Envío</td><td class="r">@f.MontoEnvio.ToString("N2")</td></tr> }
+            <tr><td>Importe exonerado</td><td class="r">@Model.Desglose.BaseExoneradaTotal.ToString("N2")</td></tr>
+            <tr><td>Importe exento</td><td class="r">@Model.Desglose.BaseExentaTotal.ToString("N2")</td></tr>
+            @foreach (var tasa in Model.Desglose.TasasAplicadas)
+            {
+                <tr><td>Importe gravado @tasa.ToString("0.##")%</td><td class="r">@Model.Desglose.BasePorTasa[tasa].ToString("N2")</td></tr>
+            }
+            @foreach (var tasa in Model.Desglose.TasasAplicadas)
+            {
+                <tr><td>ISV @tasa.ToString("0.##")%</td><td class="r">@Model.Desglose.ISVPorTasa[tasa].ToString("N2")</td></tr>
+            }
+            @if (!Model.Desglose.TasasAplicadas.Any())
+            {
+                <tr><td>ISV</td><td class="r">0.00</td></tr>
+            }
+            <tr class="total"><td>TOTAL L.</td><td class="r">@f.Total.ToString("N2")</td></tr>
+        </table>
+
+        @if (f.EsExonerada)
+        {
+            <div style="margin-top:12px;border:1px solid #888;padding:8px 10px;font-size:12px;">
+                <strong>VENTA EXONERADA DE ISV</strong><br />
+                No. constancia de exoneración: @(f.ExoneradoConstancia ?? "—")<br />
+                No. orden de compra exenta: @(f.ExoneradoOrdenCompraExenta ?? "—")<br />
+                No. registro SAG: @(f.ExoneradoRegistroSag ?? "—")
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(f.Notas))
+        {
+            <p style="margin-top:14px;color:#444;"><strong>Notas:</strong> @f.Notas</p>
+        }
+
+        <div class="pie">@(Model.Empresa.NotasFactura ?? "¡Gracias por su compra!")</div>
+    </div>
+
+    <script src="~/lib/html2pdf/html2pdf.bundle.min.js" asp-append-version="true"></script>
+    <script>
+        // PDF real de la factura (no la impresión del navegador). Lo usa también el botón
+        // "PDF por WhatsApp" de Detalles, que carga esta página en un iframe oculto.
+        window.kkNombrePdf = @Html.Raw(System.Text.Json.JsonSerializer.Serialize("Factura-" + f.Numero + ".pdf"));
+        window.kkGenerarPdf = function () {
+            return html2pdf().set({
+                margin: [8, 8, 10, 8],
+                filename: window.kkNombrePdf,
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+                jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' }
+            }).from(document.querySelector('.hoja')).outputPdf('blob');
+        };
+        window.kkDescargarPdf = function () {
+            window.kkGenerarPdf().then(function (blob) {
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = window.kkNombrePdf;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(function () { URL.revokeObjectURL(a.href); }, 10000);
+            });
+        };
+    </script>
+</body>
+</html>

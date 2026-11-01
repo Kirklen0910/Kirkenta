@@ -1,0 +1,108 @@
+@page
+@model Kirkenta.Pages.Productos.KardexModel
+@{
+    ViewData["Title"] = "Kardex de inventario";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Productos/Index" class="back-link">← Volver a productos</a>
+        <h2>Kardex de inventario</h2>
+        <p>Historial de entradas y salidas por producto. Valor del inventario (a costo): <strong>L. @Model.ValorInventario.ToString("N2")</strong></p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeAjustar && Model.Producto != null)
+        {
+            <a asp-page="/Productos/Ajuste" asp-route-id="@Model.Producto.Id" class="btn-primary">Ajustar stock</a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">@TempData["Error"]</div>
+}
+
+<div class="module-card">
+    <form method="get" class="module-toolbar" style="gap:12px;flex-wrap:wrap;">
+        <div class="form-field" style="min-width:260px;">
+            <label>Producto</label>
+            <select name="ProductoId" class="form-input" onchange="this.form.submit()">
+                <option value="">— Selecciona un producto —</option>
+                @foreach (var p in Model.Productos)
+                {
+                    <option value="@p.Id" selected="@(Model.ProductoId == p.Id)">@p.Nombre (@p.SKU) — stock @p.Stock.ToString("0.##")</option>
+                }
+            </select>
+        </div>
+        <div class="form-field">
+            <label>Desde</label>
+            <input type="date" name="Desde" class="form-input" value="@Model.Desde?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="form-field">
+            <label>Hasta</label>
+            <input type="date" name="Hasta" class="form-input" value="@Model.Hasta?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="form-field" style="align-self:flex-end;">
+            <button type="submit" class="btn-secondary">Filtrar</button>
+        </div>
+    </form>
+
+    @if (Model.Producto == null)
+    {
+        <p style="padding:24px;color:var(--color-text-muted);">Selecciona un producto para ver su historial.</p>
+    }
+    else
+    {
+        <div style="display:flex;gap:24px;flex-wrap:wrap;padding:8px 16px;">
+            <div><small>Stock actual</small><br /><strong>@Model.Producto.Stock.ToString("0.##")</strong></div>
+            <div><small>Costo promedio</small><br /><strong>L. @Model.Producto.PrecioCompra.ToString("N2")</strong></div>
+            <div><small>Entradas (período)</small><br /><strong>@Model.TotalEntradas.ToString("0.##")</strong></div>
+            <div><small>Salidas (período)</small><br /><strong>@Model.TotalSalidas.ToString("0.##")</strong></div>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Origen</th>
+                        <th>Documento</th>
+                        <th style="text-align:right;">Cantidad</th>
+                        <th style="text-align:right;">Stock ant.</th>
+                        <th style="text-align:right;">Stock post.</th>
+                        <th style="text-align:right;">Costo</th>
+                        <th>Usuario</th>
+                        <th>Notas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Movimientos.Any())
+                    {
+                        <tr><td colspan="10" style="text-align:center;padding:24px;">Sin movimientos en este período</td></tr>
+                    }
+                    @foreach (var m in Model.Movimientos)
+                    {
+                        <tr>
+                            <td>@m.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>@m.Tipo</td>
+                            <td>@m.Origen</td>
+                            <td>@(m.DocumentoNumero ?? "—")</td>
+                            <td style="text-align:right;color:@(m.Cantidad >= 0 ? "var(--color-success-text)" : "var(--color-danger-text)");font-weight:600;">@(m.Cantidad > 0 ? "+" : "")@m.Cantidad.ToString("0.##")</td>
+                            <td style="text-align:right;">@m.StockAnterior.ToString("0.##")</td>
+                            <td style="text-align:right;">@m.StockPosterior.ToString("0.##")</td>
+                            <td style="text-align:right;">@(m.CostoUnitario.HasValue ? m.CostoUnitario.Value.ToString("N2") : "—")</td>
+                            <td>@(m.UsuarioId.HasValue && Model.Usuarios.ContainsKey(m.UsuarioId.Value) ? Model.Usuarios[m.UsuarioId.Value] : "—")</td>
+                            <td>@m.Notas</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

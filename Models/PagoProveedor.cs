@@ -14,6 +14,6 @@ namespace Kirkenta.Models
         public decimal TipoCambio { get; set; } = 1;
         public string? Notas { get; set; }
         public int? UsuarioCreoId { get; set; }
-        public int EmpresaId { get; set; } = 1;
+        public int EmpresaId { get; set; } = Kirkenta.Helpers.EmpresaActual.Id;
     }
 }

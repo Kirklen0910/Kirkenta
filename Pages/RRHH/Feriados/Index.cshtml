@@ -111,7 +111,7 @@
                             <td>
                                 @if (f.Tipo == "Nacional") { <span class="badge badge-info">Nacional</span> }
                                 else if (f.Tipo == "Religioso") { <span class="badge badge-warning">Religioso</span> }
-                                else if (f.Tipo == "Civico") { <span class="badge" style="background:#e0e7ff;color:#3730a3;">Cívico</span> }
+                                else if (f.Tipo == "Civico") { <span class="badge" style="background:var(--color-primary-soft-2);color:var(--color-primary);">Cívico</span> }
                                 else { <span class="badge">@f.Tipo</span> }
                             </td>
                             <td><span style="font-family: monospace;">@f.PaisCodigo</span></td>

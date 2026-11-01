@@ -43,27 +43,29 @@
 </div>
 
 <div class="module-card">
-    <div class="module-toolbar">
+    <form method="get" class="module-toolbar">
         <div class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input type="text" id="searchInput" placeholder="Buscar por nombre, RTN, email o código..." />
+            <input type="text" name="Q" value="@Model.Q" placeholder="Buscar por nombre, RTN, email o código..." />
         </div>
         <div class="filter-group">
-            <select id="filterEstado" class="filter-select">
+            <select name="Estado" class="filter-select">
                 <option value="">Todos</option>
-                <option value="activo">Activos</option>
-                <option value="inactivo">Inactivos</option>
+                <option value="activo" selected="@(Model.Estado == "activo")">Activos</option>
+                <option value="inactivo" selected="@(Model.Estado == "inactivo")">Inactivos</option>
             </select>
-            <select id="filterCondicion" class="filter-select">
+            <select name="Condicion" class="filter-select">
                 <option value="">Todas las condiciones</option>
-                <option value="Contado">Contado</option>
-                <option value="Credito">Crédito</option>
+                <option value="Contado" selected="@(Model.Condicion == "Contado")">Contado</option>
+                <option value="Credito" selected="@(Model.Condicion == "Credito")">Crédito</option>
             </select>
+            <button type="submit" class="btn-secondary">Filtrar</button>
+            <a asp-page="/Proveedores/Index" class="btn-secondary">Limpiar</a>
         </div>
-    </div>
+    </form>
 
     @if (TempData["Success"] != null)
     {
@@ -134,7 +136,7 @@
                             </td>
                             <td>
                                 <div class="table-user-cell">
-                                    <span class="table-user-name">@p.Nombre</span>
+                                    <a asp-page="/Proveedores/Details" asp-route-id="@p.Id" class="table-user-name">@p.Nombre</a>
                                     @if (!string.IsNullOrEmpty(p.RTN))
                                     {
                                         <span class="table-user-sub">RTN: @p.RTN</span>
@@ -211,6 +213,7 @@
                 </tbody>
             </table>
         </div>
+        <partial name="_Pager" model="Model.Pager" />
     }
 </div>
 
@@ -253,41 +256,6 @@
 
 @section Scripts {
     <script>
-        (function () {
-            var searchInput = document.getElementById('searchInput');
-            var filterEstado = document.getElementById('filterEstado');
-            var filterCondicion = document.getElementById('filterCondicion');
-            var table = document.getElementById('proveedoresTable');
-            if (table) {
-                var rows = table.querySelectorAll('tbody tr');
-
-                function filterRows() {
-                    var search = (searchInput?.value || '').toLowerCase().trim();
-                    var estado = filterEstado?.value || '';
-                    var condicion = filterCondicion?.value || '';
-
-                    rows.forEach(function (row) {
-                        var nombre = row.dataset.nombre || '';
-                        var rtn = row.dataset.rtn || '';
-                        var email = row.dataset.email || '';
-                        var codigo = row.dataset.codigo || '';
-                        var rowEstado = row.dataset.estado || '';
-                        var rowCondicion = row.dataset.condicion || '';
-
-                        var matchSearch = !search || nombre.includes(search) || rtn.includes(search) || email.includes(search) || codigo.includes(search);
-                        var matchEstado = !estado || rowEstado === estado;
-                        var matchCondicion = !condicion || rowCondicion === condicion;
-
-                        row.style.display = (matchSearch && matchEstado && matchCondicion) ? '' : 'none';
-                    });
-                }
-
-                searchInput?.addEventListener('input', filterRows);
-                filterEstado?.addEventListener('change', filterRows);
-                filterCondicion?.addEventListener('change', filterRows);
-            }
-        })();
-
         function mostrarOpcionesExport() {
             document.getElementById('modalExport').style.display = 'flex';
             actualizarLinkExport();

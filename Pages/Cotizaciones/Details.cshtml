@@ -17,9 +17,35 @@
         <p>Creada el @Model.Cotizacion.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
     </div>
     <div class="module-header-right">
-        @if (Model.Cotizacion.Estado == "Aceptada")
+        <partial name="_WhatsAppPdf" model="@(new Kirkenta.Helpers.WhatsAppPdf(Model.Cliente.Telefono, Kirkenta.Helpers.WhatsAppHelper.MensajeCotizacion(Model.Empresa.Nombre, (string.IsNullOrWhiteSpace(Model.Cliente.Nombre) || Model.Cliente.Nombre!.Contains("consumidor final", StringComparison.OrdinalIgnoreCase) ? null : Model.Cliente.Nombre), Model.Cotizacion.Numero, Model.Cotizacion.Total, Model.Cotizacion.FechaVencimiento), "Cotizacion-" + Model.Cotizacion.Numero + ".pdf"))" />
+        @{
+            var estadoReal = string.IsNullOrEmpty(Model.Cotizacion.Estado) ? "Borrador" : Model.Cotizacion.Estado;
+        }
+
+        @if (estadoReal == "Borrador" || estadoReal == "Enviada")
         {
-            <a asp-page="/POS/Index" asp-route-cotizacionId="@Model.Cotizacion.Id" class="btn-primary" style="background: #10b981;">
+            <form method="post" asp-page-handler="Aceptar" asp-route-id="@Model.Cotizacion.Id" style="display:inline;">
+                <button type="submit" class="btn-primary" style="background:var(--color-success);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    Marcar Aceptada
+                </button>
+            </form>
+            <form method="post" asp-page-handler="Rechazar" asp-route-id="@Model.Cotizacion.Id" style="display:inline;">
+                <button type="submit" class="btn-danger">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                    Rechazar
+                </button>
+            </form>
+        }
+
+        @if (estadoReal != "Convertida" && estadoReal != "Rechazada" && estadoReal != "Vencida" && estadoReal != "Cancelada")
+        {
+            <a asp-page="/POS/Index" asp-route-cotizacionId="@Model.Cotizacion.Id" class="btn-primary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                     <circle cx="9" cy="21" r="1"/>
                     <circle cx="20" cy="21" r="1"/>
@@ -27,16 +53,22 @@
                 </svg>
                 Cobrar en POS
             </a>
+        }
+
+        @if (estadoReal == "Aceptada")
+        {
             <form method="post" asp-page-handler="Convertir" asp-route-id="@Model.Cotizacion.Id" style="display:inline;" onsubmit="return confirm('¿Convertir a factura directamente (sin cobrar)?');">
-                <button type="submit" class="btn-primary">
+                <button type="submit" class="btn-secondary">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
-                        <polyline points="20 6 9 17 4 12"/>
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
                     </svg>
                     Facturar (sin cobrar)
                 </button>
             </form>
         }
-        @if (Model.Cotizacion.Estado == "Convertida" && Model.Cotizacion.FacturaId.HasValue)
+
+        @if (estadoReal == "Convertida" && Model.Cotizacion.FacturaId.HasValue)
         {
             <a asp-page="/Facturas/Details" asp-route-id="@Model.Cotizacion.FacturaId" class="btn-primary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
@@ -46,6 +78,13 @@
                 Ver factura
             </a>
         }
+        @if (estadoReal == "Convertida" && Model.Cotizacion.VentaId.HasValue)
+        {
+            <a asp-page="/Ventas/Details" asp-route-id="@Model.Cotizacion.VentaId" class="btn-secondary">
+                Ver venta generada
+            </a>
+        }
+
         <button type="button" class="btn-secondary" onclick="window.print()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                 <polyline points="6 9 6 2 18 2 18 9"/>
@@ -67,8 +106,19 @@
         @TempData["Success"]
     </div>
 }
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
 
-<div class="module-card" style="padding: 40px;">
+<div class="module-card" style="padding: 40px;" data-pdf-doc>
     <div class="factura-header">
         <div class="factura-empresa">
             @if (!string.IsNullOrEmpty(Model.Empresa.LogoPath))
@@ -102,14 +152,17 @@
         <div class="factura-numero">
             <span class="factura-numero-label">COTIZACIÓN</span>
             <strong class="factura-numero-value">@Model.Cotizacion.Numero</strong>
-            <span class="badge @(Model.Cotizacion.Estado switch {
+            <span class="badge @(estadoReal switch {
+                "Borrador" => "badge-info",
+                "Enviada" => "badge-info",
                 "Aceptada" => "badge-success",
                 "Rechazada" => "badge-danger",
-                "Convertida" => "badge-success",
                 "Vencida" => "badge-warning",
-                _ => "badge-info"
+                "Convertida" => "badge-success",
+                "Cancelada" => "badge-danger",
+                _ => "badge"
             })" style="margin-top: 6px;">
-                @Model.Cotizacion.Estado
+                @estadoReal
             </span>
         </div>
     </div>

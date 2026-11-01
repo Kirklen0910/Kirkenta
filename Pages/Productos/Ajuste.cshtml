@@ -1,0 +1,36 @@
+@page "{id:int?}"
+@model Kirkenta.Pages.Productos.AjusteModel
+@{
+    ViewData["Title"] = "Ajustar stock";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Productos/Kardex" asp-route-productoId="@Model.Producto.Id" class="back-link">← Volver al kardex</a>
+        <h2>Ajustar stock</h2>
+        <p>@Model.Producto.Nombre (@Model.Producto.SKU) — stock actual: <strong>@Model.Producto.Stock.ToString("0.##")</strong></p>
+    </div>
+</div>
+
+<div class="module-card" style="padding:24px;max-width:560px;">
+    <form method="post">
+        <input type="hidden" asp-for="Input.ProductoId" />
+
+        <div class="form-field">
+            <label asp-for="Input.StockReal">Stock real contado</label>
+            <input asp-for="Input.StockReal" class="form-input" asp-format="{0:0.##}" type="number" step="any" />
+            <span asp-validation-for="Input.StockReal" style="color:var(--color-danger);"></span>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Motivo">Motivo del ajuste</label>
+            <input asp-for="Input.Motivo" class="form-input" placeholder="Ej: inventario físico, conteo cíclico" />
+            <span asp-validation-for="Input.Motivo" style="color:var(--color-danger);"></span>
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Productos/Kardex" asp-route-productoId="@Model.Producto.Id" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">Aplicar ajuste</button>
+        </div>
+    </form>
+</div>

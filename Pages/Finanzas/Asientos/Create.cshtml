@@ -1,0 +1,126 @@
+@page
+@model Kirkenta.Pages.Finanzas.Asientos.CreateModel
+@{
+    ViewData["Title"] = "Nuevo asiento contable";
+    var ci = System.Globalization.CultureInfo.InvariantCulture;
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/Asientos/Index" class="back-link">← Volver a asientos</a>
+        <h2>Nuevo asiento contable</h2>
+        <p>Número: <strong>@Model.NumeroPreview</strong></p>
+    </div>
+</div>
+
+<div class="module-card" style="padding: 28px;">
+    <form method="post" class="erp-form" id="formAsiento">
+        <div asp-validation-summary="All" class="module-alert module-alert-error"></div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label>Fecha *</label>
+                <input asp-for="Input.Fecha" type="date" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label>Referencia</label>
+                <input asp-for="Input.Referencia" class="form-input" />
+            </div>
+        </div>
+        <div class="form-field">
+            <label>Concepto *</label>
+            <input asp-for="Input.Concepto" class="form-input" />
+        </div>
+
+        <h3 class="form-section-title">Líneas del asiento</h3>
+        <div class="table-wrapper">
+            <table class="erp-table" id="tablaLineas">
+                <thead><tr><th>Cuenta</th><th>Detalle</th><th style="width:140px;">Debe</th><th style="width:140px;">Haber</th><th style="width:80px;"></th></tr></thead>
+                <tbody id="lineas">
+                    @for (var i = 0; i < Model.Input.Lineas.Count; i++)
+                    {
+                        <tr class="linea-asiento">
+                            <td>
+                                <select name="Input.Lineas[@i].PlanCuentaId" class="form-input">
+                                    <option value="0">— Cuenta —</option>
+                                    @foreach (var c in Model.Cuentas)
+                                    {
+                                        <option value="@c.Id" selected="@(Model.Input.Lineas[i].PlanCuentaId == c.Id)">@c.Codigo — @c.Nombre</option>
+                                    }
+                                </select>
+                            </td>
+                            <td><input name="Input.Lineas[@i].Detalle" class="form-input" value="@Model.Input.Lineas[i].Detalle" /></td>
+                            <td><input name="Input.Lineas[@i].Debe" type="number" step="0.01" min="0" class="form-input monto-debe" value="@(Model.Input.Lineas[i].Debe?.ToString(ci))" /></td>
+                            <td><input name="Input.Lineas[@i].Haber" type="number" step="0.01" min="0" class="form-input monto-haber" value="@(Model.Input.Lineas[i].Haber?.ToString(ci))" /></td>
+                            <td><button type="button" class="btn-secondary btn-quitar">Quitar</button></td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="2" style="text-align:right; font-weight:600;">Totales</td>
+                        <td id="totDebe" style="font-weight:600;">0.00</td>
+                        <td id="totHaber" style="font-weight:600;">0.00</td>
+                        <td id="estadoCuadre" style="font-weight:600;"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <button type="button" class="btn-secondary" id="btnAgregar" style="margin-top: 10px;">+ Agregar línea</button>
+
+        <div class="form-actions">
+            <a asp-page="/Finanzas/Asientos/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">Guardar asiento</button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var cuerpo = document.getElementById('lineas');
+
+            function reindexar() {
+                cuerpo.querySelectorAll('.linea-asiento').forEach(function (fila, i) {
+                    fila.querySelectorAll('select, input').forEach(function (el) {
+                        el.name = el.name.replace(/Input\.Lineas\[\d+\]/, 'Input.Lineas[' + i + ']');
+                    });
+                });
+            }
+
+            function totales() {
+                var d = 0, h = 0;
+                cuerpo.querySelectorAll('.monto-debe').forEach(function (e) { d += parseFloat(e.value) || 0; });
+                cuerpo.querySelectorAll('.monto-haber').forEach(function (e) { h += parseFloat(e.value) || 0; });
+                document.getElementById('totDebe').textContent = d.toFixed(2);
+                document.getElementById('totHaber').textContent = h.toFixed(2);
+                var el = document.getElementById('estadoCuadre');
+                var cuadra = Math.abs(d - h) < 0.005 && d > 0;
+                el.textContent = cuadra ? 'Cuadra ✔' : 'Dif. ' + Math.abs(d - h).toFixed(2);
+                el.style.color = cuadra ? 'var(--color-success)' : 'var(--color-danger)';
+            }
+
+            document.getElementById('btnAgregar').addEventListener('click', function () {
+                var filas = cuerpo.querySelectorAll('.linea-asiento');
+                var nueva = filas[filas.length - 1].cloneNode(true);
+                nueva.querySelectorAll('input').forEach(function (e) { e.value = ''; });
+                nueva.querySelector('select').value = '0';
+                cuerpo.appendChild(nueva);
+                reindexar();
+                totales();
+            });
+
+            cuerpo.addEventListener('click', function (e) {
+                if (!e.target.classList.contains('btn-quitar')) return;
+                var filas = cuerpo.querySelectorAll('.linea-asiento');
+                if (filas.length > 2) e.target.closest('.linea-asiento').remove();
+                reindexar();
+                totales();
+            });
+
+            cuerpo.addEventListener('input', totales);
+            document.getElementById('formAsiento').addEventListener('submit', reindexar);
+            totales();
+        })();
+    </script>
+}

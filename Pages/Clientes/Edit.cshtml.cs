@@ -34,12 +34,15 @@ namespace Kirkenta.Pages.Clientes
             public string? RazonSocial { get; set; }
 
             [StringLength(20)]
-            public string? RTN { get; set; }
+            [Rtn]
+            public string? RTN { get => _rtn; set => _rtn = DocumentoHonduras.FormatearRtn(value); }
+            private string? _rtn;
 
             [EmailAddress(ErrorMessage = "Email inválido")]
             public string? Email { get; set; }
 
             [StringLength(30)]
+            [Telefono]
             public string? Telefono { get; set; }
 
             [StringLength(300)]
@@ -52,10 +55,44 @@ namespace Kirkenta.Pages.Clientes
             public string? Pais { get; set; }
 
             public string TipoCliente { get; set; } = "Regular";
+            [Range(0, double.MaxValue, ErrorMessage = "El límite de crédito no puede ser negativo")]
             public decimal LimiteCredito { get; set; }
+            [Range(0, 365, ErrorMessage = "Días de crédito entre 0 y 365")]
             public int DiasCredito { get; set; }
             public string? Notas { get; set; }
             public bool Activo { get; set; }
+
+            public bool EsExonerado { get; set; }
+
+            [StringLength(50)]
+            public string? ExoneradoConstancia { get; set; }
+
+            [StringLength(50)]
+            public string? ExoneradoOrdenCompraExenta { get; set; }
+
+            [StringLength(50)]
+            public string? ExoneradoRegistroSag { get; set; }
+        }
+
+        // Un cliente exonerado debe tener su constancia y su registro SAG (son los que se imprimen en la factura)
+        private void ValidarExoneracion()
+        {
+            Input.ExoneradoConstancia = Input.ExoneradoConstancia?.Trim();
+            Input.ExoneradoOrdenCompraExenta = Input.ExoneradoOrdenCompraExenta?.Trim();
+            Input.ExoneradoRegistroSag = Input.ExoneradoRegistroSag?.Trim();
+
+            if (!Input.EsExonerado)
+            {
+                Input.ExoneradoConstancia = null;
+                Input.ExoneradoOrdenCompraExenta = null;
+                Input.ExoneradoRegistroSag = null;
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(Input.ExoneradoConstancia))
+                ModelState.AddModelError("Input.ExoneradoConstancia", "Indica el número de constancia de exoneración");
+            if (string.IsNullOrWhiteSpace(Input.ExoneradoRegistroSag))
+                ModelState.AddModelError("Input.ExoneradoRegistroSag", "Indica el número de registro SAG");
         }
 
         public IActionResult OnGet(int id)
@@ -92,7 +129,11 @@ namespace Kirkenta.Pages.Clientes
                 LimiteCredito = cliente.LimiteCredito,
                 DiasCredito = cliente.DiasCredito,
                 Notas = cliente.Notas,
-                Activo = cliente.Activo
+                Activo = cliente.Activo,
+                EsExonerado = cliente.EsExonerado,
+                ExoneradoConstancia = cliente.ExoneradoConstancia,
+                ExoneradoOrdenCompraExenta = cliente.ExoneradoOrdenCompraExenta,
+                ExoneradoRegistroSag = cliente.ExoneradoRegistroSag
             };
 
             return Page();
@@ -109,6 +150,7 @@ namespace Kirkenta.Pages.Clientes
                 return RedirectToPage("/Clientes/Index");
             }
 
+            ValidarExoneracion();
             if (!ModelState.IsValid)
                 return Page();
 
@@ -119,7 +161,23 @@ namespace Kirkenta.Pages.Clientes
                 return RedirectToPage("/Clientes/Index");
             }
 
-            cliente.Codigo = Input.Codigo;
+            if (!string.IsNullOrWhiteSpace(Input.Codigo) && Input.Codigo != cliente.Codigo)
+            {
+                if (_context.Clientes.Any(c => c.Codigo == Input.Codigo && c.Id != cliente.Id))
+                {
+                    ModelState.AddModelError("Input.Codigo", "Este código ya lo usa otro cliente");
+                    return Page();
+                }
+                cliente.Codigo = Input.Codigo;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Input.RTN) && Input.RTN != cliente.RTN &&
+                _context.Clientes.Any(c => (c.RTN == Input.RTN || c.RTN == DocumentoHonduras.SoloDigitos(Input.RTN)) && c.Id != cliente.Id))
+            {
+                ModelState.AddModelError("Input.RTN", "Ya existe otro cliente con este RTN");
+                return Page();
+            }
+
             cliente.Nombre = Input.Nombre;
             cliente.RazonSocial = Input.RazonSocial;
             cliente.RTN = Input.RTN;
@@ -133,6 +191,10 @@ namespace Kirkenta.Pages.Clientes
             cliente.DiasCredito = Input.DiasCredito;
             cliente.Notas = Input.Notas;
             cliente.Activo = Input.Activo;
+            cliente.EsExonerado = Input.EsExonerado;
+            cliente.ExoneradoConstancia = Input.ExoneradoConstancia;
+            cliente.ExoneradoOrdenCompraExenta = Input.ExoneradoOrdenCompraExenta;
+            cliente.ExoneradoRegistroSag = Input.ExoneradoRegistroSag;
 
             _context.SaveChanges();
 

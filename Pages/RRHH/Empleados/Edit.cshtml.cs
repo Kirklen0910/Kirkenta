@@ -43,10 +43,14 @@ namespace Kirkenta.Pages.RRHH.Empleados
 
             [Required]
             [StringLength(20)]
-            public string Cedula { get; set; } = string.Empty;
+            [Identidad]
+            public string Cedula { get => _cedula; set => _cedula = DocumentoHonduras.FormatearIdentidad(value) ?? string.Empty; }
+            private string _cedula = string.Empty;
 
             [StringLength(20)]
-            public string? RTN { get; set; }
+            [Rtn]
+            public string? RTN { get => _rtn; set => _rtn = DocumentoHonduras.FormatearRtn(value); }
+            private string? _rtn;
 
             public DateTime? FechaNacimiento { get; set; }
 
@@ -61,9 +65,11 @@ namespace Kirkenta.Pages.RRHH.Empleados
 
             // ===== CONTACTO =====
             [StringLength(30)]
+            [Telefono]
             public string? Telefono { get; set; }
 
             [StringLength(30)]
+            [Telefono]
             public string? TelefonoSecundario { get; set; }
 
             [EmailAddress]
@@ -84,6 +90,7 @@ namespace Kirkenta.Pages.RRHH.Empleados
             public string? ContactoEmergenciaNombre { get; set; }
 
             [StringLength(30)]
+            [Telefono]
             public string? ContactoEmergenciaTelefono { get; set; }
 
             [StringLength(50)]
@@ -237,15 +244,34 @@ namespace Kirkenta.Pages.RRHH.Empleados
             FotoActual = empleado.FotoPath;
 
             // Validar cédula única (excluyendo el propio)
-            if (_context.Empleados.Any(e => e.Cedula == Input.Cedula && e.Id != Input.Id))
+            if (_context.Empleados.Any(e => (e.Cedula == Input.Cedula || e.Cedula == DocumentoHonduras.SoloDigitos(Input.Cedula)) && e.Id != Input.Id))
             {
                 ModelState.AddModelError("Input.Cedula", "Ya existe otro empleado con esta cédula");
             }
 
             if (!string.IsNullOrEmpty(Input.RTN) &&
-                _context.Empleados.Any(e => e.RTN == Input.RTN && e.Id != Input.Id))
+                _context.Empleados.Any(e => (e.RTN == Input.RTN || e.RTN == DocumentoHonduras.SoloDigitos(Input.RTN)) && e.Id != Input.Id))
             {
                 ModelState.AddModelError("Input.RTN", "Ya existe otro empleado con este RTN");
+            }
+
+            // Validaciones de negocio
+            if ((Input.BonoTransporte ?? 0) < 0 || (Input.BonoAlimentacion ?? 0) < 0 || (Input.OtrosBonos ?? 0) < 0)
+                ModelState.AddModelError(string.Empty, "Los bonos no pueden ser negativos");
+
+            if (Input.FechaIngreso.Date > DateTime.Today.AddYears(1))
+                ModelState.AddModelError("Input.FechaIngreso", "La fecha de ingreso no es válida");
+
+            var estadosValidos = new[] { "Activo", "Inactivo", "Suspendido", "Vacaciones", "Licencia", "Baja" };
+            if (!estadosValidos.Contains(Input.Estado))
+                ModelState.AddModelError("Input.Estado", "Estado no válido");
+
+            if (Input.UsuarioId.HasValue)
+            {
+                if (!_context.Usuarios.Any(u => u.Id == Input.UsuarioId.Value))
+                    ModelState.AddModelError("Input.UsuarioId", "El usuario seleccionado no existe");
+                else if (_context.Empleados.Any(e => e.UsuarioId == Input.UsuarioId.Value && e.Id != Input.Id))
+                    ModelState.AddModelError("Input.UsuarioId", "Ese usuario ya está vinculado a otro empleado");
             }
 
             if (!ModelState.IsValid) return Page();

@@ -131,7 +131,11 @@ namespace Kirkenta.Pages.Finanzas.Reportes
                 query = query.Where(m => m.CategoriaId == FiltroCategoriaId.Value);
             }
 
-            var movimientos = query.OrderBy(m => m.Fecha).ThenBy(m => m.Id).ToList();
+            // Flujo de caja = efectivo real: se excluyen los movimientos solo contables (costo de ventas y su reversa)
+            var catsSoloContables = Kirkenta.Helpers.Finanzas.FlujoCajaHelper.CategoriasSoloContables(_context);
+            var movimientos = query.OrderBy(m => m.Fecha).ThenBy(m => m.Id).ToList()
+                .Where(m => !Kirkenta.Helpers.Finanzas.FlujoCajaHelper.EsSoloContable(m, catsSoloContables))
+                .ToList();
 
             // Diccionarios
             var cuentasDict = Cuentas.ToDictionary(c => c.Id, c => c.Nombre);

@@ -19,7 +19,11 @@ namespace Kirkenta.Models
         public string? Notas { get; set; }
         public int? UsuarioCreoId { get; set; }
         public int? UsuarioRecibioId { get; set; }
-        public int EmpresaId { get; set; } = 1;
+        public int EmpresaId { get; set; } = Kirkenta.Helpers.EmpresaActual.Id;
+
+        /// <summary>Lote de la herramienta de Migración si esta orden es un saldo inicial por pagar.</summary>
+        [System.ComponentModel.DataAnnotations.StringLength(40)]
+        public string? LoteMigracion { get; set; }
     }
 
     public class DetalleOrdenCompra

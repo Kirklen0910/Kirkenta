@@ -16,6 +16,13 @@ namespace Kirkenta.Pages.Finanzas.Cierres
             _context = context;
         }
 
+        private const int TamanoPagina = 50;
+
+        [BindProperty(SupportsGet = true, Name = "p")]
+        public int Pagina { get; set; } = 1;
+
+        public PagerInfo Pager { get; set; } = new();
+
         public List<CierreItem> Cierres { get; set; } = new();
         public List<CuentaFinanciera> Cuentas { get; set; } = new();
 
@@ -75,10 +82,12 @@ namespace Kirkenta.Pages.Finanzas.Cierres
                 .AsNoTracking()
                 .ToDictionary(u => u.Id, u => u.Username);
 
-            var lista = _context.CierresCaja
-                .AsNoTracking()
+            var baseQuery = _context.CierresCaja.AsNoTracking();
+            Pager = new PagerInfo(Pagina, TamanoPagina, baseQuery.Count());
+            var lista = baseQuery
                 .OrderByDescending(c => c.Fecha)
                 .ThenByDescending(c => c.Id)
+                .Skip(Pager.Skip).Take(TamanoPagina)
                 .ToList();
 
             Cierres = lista.Select(c => new CierreItem
@@ -97,11 +106,12 @@ namespace Kirkenta.Pages.Finanzas.Cierres
                 TotalDistribuido = c.TotalDistribuido
             }).ToList();
 
-            TotalDiferencia = lista.Sum(c => c.Diferencia);
-            CantidadSobrantes = lista.Count(c => c.Resultado == "Sobrante");
-            CantidadFaltantes = lista.Count(c => c.Resultado == "Faltante");
-            CantidadCuadrados = lista.Count(c => c.Resultado == "Cuadrado");
-            CantidadPendientesAprobar = lista.Count(c => c.EstadoActa == "Cerrado");
+            // Totales sobre TODOS los cierres (no solo la página mostrada), calculados en la base de datos
+            TotalDiferencia = baseQuery.Sum(c => (decimal?)c.Diferencia) ?? 0m;
+            CantidadSobrantes = baseQuery.Count(c => c.Resultado == "Sobrante");
+            CantidadFaltantes = baseQuery.Count(c => c.Resultado == "Faltante");
+            CantidadCuadrados = baseQuery.Count(c => c.Resultado == "Cuadrado");
+            CantidadPendientesAprobar = baseQuery.Count(c => c.EstadoActa == "Cerrado");
 
             return Page();
         }

@@ -3,6 +3,7 @@ using Kirkenta.Helpers;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 
 namespace Kirkenta.Pages.Bajas
@@ -90,11 +91,29 @@ namespace Kirkenta.Pages.Bajas
                 return Page();
             }
 
+            // Reclamo atómico: evita revertir dos veces (doble clic / dos admins).
+            // En transacción: si falla el ajuste de stock, la baja no queda marcada como revertida.
+            using var tx = _context.Database.IsRelational() ? _context.Database.BeginTransaction() : null;
+            if (_context.Database.IsRelational())
+            {
+                var reclamadas = _context.BajasInventario
+                    .Where(b => b.Id == baja.Id && b.Estado == "Aprobada" && !b.Revertida)
+                    .ExecuteUpdate(u => u.SetProperty(b => b.Revertida, true));
+                if (reclamadas == 0)
+                {
+                    TempData["Error"] = "Esta baja ya fue revertida";
+                    return RedirectToPage("/Bajas/Details", new { id = baja.Id });
+                }
+                _context.Entry(baja).Reload();
+            }
+
             // Restaurar stock
             var producto = _context.Productos.FirstOrDefault(p => p.Id == baja.ProductoId);
             if (producto != null)
             {
-                producto.Stock += baja.Cantidad;
+                var costoBaja = baja.Cantidad > 0 ? baja.ValorTotal / baja.Cantidad : (decimal?)null;
+                InventarioHelper.Registrar(_context, producto, baja.Cantidad, "ReversionBaja",
+                    baja.Numero, baja.Id, currentUser!.Id, costoBaja, $"Reversión de baja: {Input.MotivoReversion}");
             }
 
             baja.Revertida = true;
@@ -102,7 +121,17 @@ namespace Kirkenta.Pages.Bajas
             baja.UsuarioRevierteId = currentUser!.Id;
             baja.MotivoReversion = Input.MotivoReversion;
 
-            _context.SaveChanges();
+            try
+            {
+                _context.SaveChanges();
+                tx?.Commit();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                tx?.Rollback();
+                TempData["Error"] = "El stock del producto cambió mientras se revertía. Intenta de nuevo.";
+                return RedirectToPage("/Bajas/Details", new { id = baja.Id });
+            }
 
             ActividadHelper.Registrar(
                 _context,

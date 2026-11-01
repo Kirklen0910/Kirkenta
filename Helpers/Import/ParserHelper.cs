@@ -1,90 +1,134 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace Kirkenta.Helpers.Import
 {
     /// <summary>
     /// Utilidades de parseo robustas para valores de importación.
-    /// Acepta múltiples formatos (con/sin comas de miles, con/sin símbolos).
+    /// Entiende los formatos que aparecen en archivos reales: "1,234.50", "1.234,50",
+    /// "12,5", "L. 1,250.00", "15%", "(100)", "30 días", etc.
     /// </summary>
     public static class ParserHelper
     {
+        private static readonly HashSet<string> Verdaderos = new()
+        {
+            "1", "true", "t", "si", "s", "yes", "y", "activo", "activa", "on", "verdadero", "x", "habilitado", "vigente"
+        };
+
+        private static readonly HashSet<string> Falsos = new()
+        {
+            "0", "false", "f", "no", "n", "inactivo", "inactiva", "off", "falso", "deshabilitado", "baja"
+        };
+
         /// <summary>
-        /// Parsea un bool. Acepta: 1/0, true/false, sí/si/no, yes/no, activo/inactivo.
-        /// Devuelve null si el valor está vacío o no es reconocible.
+        /// Parsea un bool. Devuelve null si el valor está vacío o no es reconocible.
         /// </summary>
         public static bool? ParsearBool(string? valor)
         {
             if (string.IsNullOrWhiteSpace(valor)) return null;
 
-            var normalizado = valor.Trim().ToLowerInvariant();
+            var n = ColumnMapper.Normalizar(valor); // sin acentos: "Sí" => "si"
+            if (n.Length == 0) return null;
 
-            if (normalizado == "1" || normalizado == "true" || normalizado == "sí" ||
-                normalizado == "si" || normalizado == "yes" || normalizado == "y" ||
-                normalizado == "activo" || normalizado == "activa" || normalizado == "on")
-                return true;
+            if (Verdaderos.Contains(n)) return true;
+            if (Falsos.Contains(n)) return false;
 
-            if (normalizado == "0" || normalizado == "false" || normalizado == "no" ||
-                normalizado == "n" || normalizado == "inactivo" || normalizado == "inactiva" ||
-                normalizado == "off")
-                return false;
+            // "1.0" / "0.0" (Excel) => normalizado "10" / "00"
+            var d = ParsearDecimal(valor);
+            if (d == 1m) return true;
+            if (d == 0m) return false;
 
             return null;
         }
 
         /// <summary>
-        /// Parsea un int. Devuelve null si el valor está vacío o no es numérico.
+        /// Parsea un entero. Acepta "30", "30.0", "30 días". Devuelve null si está vacío,
+        /// no es numérico, tiene decimales reales o se sale del rango.
         /// </summary>
         public static int? ParsearInt(string? valor)
         {
-            if (string.IsNullOrWhiteSpace(valor)) return null;
-            return int.TryParse(valor.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var result)
-                ? result
-                : null;
+            var d = ParsearDecimal(valor);
+            if (d == null) return null;
+            if (d.Value != decimal.Truncate(d.Value)) return null;
+            if (d.Value > int.MaxValue || d.Value < int.MinValue) return null;
+            return (int)d.Value;
         }
 
         /// <summary>
-        /// Parsea un decimal. Limpia símbolos comunes: L., $, %, comas de miles.
-        /// Intenta primero con InvariantCulture, luego con cultura local.
+        /// Parsea un decimal. Limpia monedas (L., Lps, HNL, USD, $), %, espacios y NBSP.
+        /// El último separador (coma o punto) es el decimal, salvo que sea una coma/punto
+        /// único seguido de exactamente 3 dígitos (miles).
         /// </summary>
         public static decimal? ParsearDecimal(string? valor)
         {
             if (string.IsNullOrWhiteSpace(valor)) return null;
 
-            var limpio = valor.Trim()
-                .Replace("L.", "")
-                .Replace("l.", "")
-                .Replace("$", "")
-                .Replace("%", "")
-                .Trim();
+            var s = valor.Trim();
 
-            // Si tiene coma Y punto, asumimos coma = miles, punto = decimal
-            if (limpio.Contains(',') && limpio.Contains('.'))
+            bool negativo = false;
+            if (s.StartsWith("(") && s.EndsWith(")"))
             {
-                limpio = limpio.Replace(",", "");
+                negativo = true;
+                s = s.Substring(1, s.Length - 2);
             }
-            // Si solo tiene coma, podría ser decimal (formato europeo) o miles
-            // Convención: si hay 2 dígitos después de la coma, es decimal. Si hay 3, es miles.
-            else if (limpio.Contains(','))
+
+            s = Regex.Replace(s, @"(?i)lps\.?|hnl|usd|l\.", "");
+            // Solo dejamos dígitos, separadores y signo
+            s = Regex.Replace(s, @"[^\d,.\-+]", "");
+            if (s.Length == 0) return null;
+
+            if (s.StartsWith("-")) { negativo = !negativo; s = s.Substring(1); }
+            else if (s.StartsWith("+")) s = s.Substring(1);
+
+            if (s.Contains('-') || s.Contains('+')) return null;
+            s = s.Trim('.', ',');
+            if (s.Length == 0 || !s.Any(char.IsDigit)) return null;
+
+            int ultimaComa = s.LastIndexOf(',');
+            int ultimoPunto = s.LastIndexOf('.');
+            string normal;
+
+            if (ultimaComa >= 0 && ultimoPunto >= 0)
             {
-                var partes = limpio.Split(',');
-                if (partes.Length == 2 && partes[1].Length == 2)
-                {
-                    limpio = limpio.Replace(",", ".");
-                }
+                // El que aparece al final es el decimal
+                if (ultimaComa > ultimoPunto)
+                    normal = s.Replace(".", "").Replace(',', '.');
                 else
-                {
-                    limpio = limpio.Replace(",", "");
-                }
+                    normal = s.Replace(",", "");
+            }
+            else if (ultimaComa >= 0)
+            {
+                normal = SoloUnSeparador(s, ',');
+            }
+            else if (ultimoPunto >= 0)
+            {
+                // Varios puntos => miles ("1.234.567"); un punto => decimal
+                normal = s.Count(c => c == '.') > 1 ? s.Replace(".", "") : s;
+            }
+            else
+            {
+                normal = s;
             }
 
-            if (decimal.TryParse(limpio, NumberStyles.Any, CultureInfo.InvariantCulture, out var result))
-                return result;
+            if (!decimal.TryParse(normal, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var r))
+                return null;
 
-            // Fallback: cultura local
-            if (decimal.TryParse(limpio, NumberStyles.Any, CultureInfo.CurrentCulture, out result))
-                return result;
+            return negativo ? -r : r;
+        }
 
-            return null;
+        private static string SoloUnSeparador(string s, char sep)
+        {
+            var partes = s.Split(sep);
+            if (partes.Length > 2) return s.Replace(sep.ToString(), ""); // 1,234,567
+
+            var entero = partes[0];
+            var frac = partes[1];
+
+            // "1,234" => miles; "12,5" / "12,50" => decimal. "0,500" => decimal (empieza en 0)
+            if (frac.Length == 3 && entero != "0" && entero.Length is >= 1 and <= 3)
+                return entero + frac;
+
+            return entero + "." + frac;
         }
     }
 }

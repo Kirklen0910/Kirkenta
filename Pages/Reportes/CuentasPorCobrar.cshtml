@@ -1,0 +1,67 @@
+﻿@page
+@model Kirkenta.Pages.Reportes.CuentasPorCobrarModel
+@{
+    ViewData["Title"] = "Antigüedad de saldos";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Reportes/Index" class="back-link">← Volver a reportes</a>
+        <h2>Antigüedad de saldos (clientes)</h2>
+        <p>Cuentas por cobrar de ventas a crédito, según días de vencimiento al @DateTime.Today.ToString("dd/MM/yyyy")</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Reportes/CuentasPorCobrar" asp-page-handler="Csv" class="btn-secondary">Exportar CSV</a>
+        <button type="button" class="btn-secondary" onclick="window.print()">Imprimir</button>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th style="text-align:right;">Corriente</th>
+                    <th style="text-align:right;">1-30</th>
+                    <th style="text-align:right;">31-60</th>
+                    <th style="text-align:right;">61-90</th>
+                    <th style="text-align:right;">Más de 90</th>
+                    <th style="text-align:right;">Total</th>
+                    <th style="width:48px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Filas.Any())
+                {
+                    <tr><td colspan="8" style="text-align:center;padding:24px;">No hay saldos pendientes</td></tr>
+                }
+                @foreach (var f in Model.Filas)
+                {
+                    <tr>
+                        <td>@if (f.ClienteId > 0) { <a asp-page="/Clientes/EstadoCuenta" asp-route-id="@f.ClienteId">@f.Cliente</a> } else { @f.Cliente }</td>
+                        <td style="text-align:right;">@f.Corriente.ToString("N2")</td>
+                        <td style="text-align:right;">@f.D1a30.ToString("N2")</td>
+                        <td style="text-align:right;">@f.D31a60.ToString("N2")</td>
+                        <td style="text-align:right;">@f.D61a90.ToString("N2")</td>
+                        <td style="text-align:right;color:var(--color-danger-text);">@f.Mas90.ToString("N2")</td>
+                        <td style="text-align:right;"><strong>@f.Total.ToString("N2")</strong></td>
+                        <td><partial name="_WhatsAppBtn" model="@(new Kirkenta.Helpers.WhatsAppBtn(Kirkenta.Helpers.WhatsAppHelper.Enlace(f.Telefono, Kirkenta.Helpers.WhatsAppHelper.MensajeCobranza(Model.EmpresaNombre, f.Cliente, f.Total, f.Vencido)), "WhatsApp", true, "Recordar saldo por WhatsApp"))" /></td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td><strong>TOTAL</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.Corriente.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.D1a30.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.D31a60.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.D61a90.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.Mas90.ToString("N2")</strong></td>
+                    <td style="text-align:right;"><strong>@Model.Totales.Total.ToString("N2")</strong></td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>

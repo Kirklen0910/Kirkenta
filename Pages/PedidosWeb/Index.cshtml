@@ -1,0 +1,97 @@
+@page
+@model Kirkenta.Pages.PedidosWeb.IndexModel
+@{
+    ViewData["Title"] = "Pedidos web";
+    string L(decimal v) => "L. " + v.ToString("N2");
+}
+
+<style>
+    .pw-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .pw-tabs a { text-decoration: none; border: 1px solid var(--color-border); border-radius: 999px; padding: 7px 16px; font-weight: 600; font-size: 14px; color: var(--color-text); background: var(--color-surface); }
+    .pw-tabs a.on { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+    .pw-card { margin-bottom: 14px; }
+    .pw-top { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+    .pw-num { font-weight: 800; font-size: 16px; }
+    .pw-meta { color: var(--color-muted); font-size: 13px; }
+    .pw-tot { font-size: 20px; font-weight: 800; }
+    .pw-lin { margin: 10px 0; border-top: 1px solid var(--color-border); }
+    .pw-lin div { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed var(--color-border); font-size: 14px; }
+    .pw-acc { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .pw-badge { border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; }
+    .pw-badge.n { background: var(--color-warning-bg); color: var(--color-warning-text); }
+    .pw-badge.a { background: var(--color-success-bg); color: var(--color-success-text); }
+    .pw-badge.c { background: var(--color-danger-bg); color: var(--color-danger-text); }
+</style>
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Pedidos web</h2>
+        <p>Pedidos que tus clientes armaron en el catálogo en línea. Respóndeles por WhatsApp y, cuando los entregues, cobra normal desde el POS.</p>
+    </div>
+    <a asp-page="/Configuracion/Catalogo" class="btn btn-secondary">⚙️ Ajustes del catálogo</a>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="pw-tabs">
+    <a asp-page="Index" asp-route-estado="Nuevo" class="@(Model.Estado == "Nuevo" ? "on" : "")">Nuevos @(Model.Nuevos > 0 ? $"({Model.Nuevos})" : "")</a>
+    <a asp-page="Index" asp-route-estado="Atendido" class="@(Model.Estado == "Atendido" ? "on" : "")">Atendidos</a>
+    <a asp-page="Index" asp-route-estado="Cancelado" class="@(Model.Estado == "Cancelado" ? "on" : "")">Cancelados</a>
+    <a asp-page="Index" asp-route-estado="Todos" class="@(Model.Estado == "Todos" ? "on" : "")">Todos</a>
+</div>
+
+@if (Model.Pedidos.Count == 0)
+{
+    <div class="module-card" style="text-align:center;color:var(--color-muted);padding:40px 16px;">
+        <div style="font-size:42px;">📭</div>
+        No hay pedidos en esta vista.
+    </div>
+}
+
+@foreach (var f in Model.Pedidos)
+{
+    var p = f.Pedido;
+    var cobrado = (p.Notas ?? "").Contains("Cobrado en POS");
+    <div class="module-card pw-card">
+        <div class="pw-top">
+            <div>
+                <span class="pw-num">@p.Numero</span>
+                <span class="pw-badge @(p.Estado == "Nuevo" ? "n" : p.Estado == "Atendido" ? "a" : "c")">@p.Estado</span>
+                <div class="pw-meta">@p.Fecha.ToString("dd/MM/yyyy HH:mm") · @p.Nombre · @p.Telefono</div>
+            </div>
+            <div class="pw-tot">@L(p.Total)</div>
+        </div>
+        <div class="pw-lin">
+            @foreach (var l in f.Lineas)
+            {
+                <div><span>@l.Cantidad.ToString("0.##") × @l.Nombre</span><span>@L(l.Cantidad * l.Precio)</span></div>
+            }
+        </div>
+        @if (!string.IsNullOrWhiteSpace(p.Direccion)) { <div class="pw-meta">📍 @p.Direccion</div> }
+        @if (!string.IsNullOrWhiteSpace(p.Notas)) { <div class="pw-meta">📝 @p.Notas</div> }
+        @if (cobrado) { <div class="pw-meta" style="color:var(--color-success-text);font-weight:700;">✅ Ya cobrado en el POS</div> }
+        <div class="pw-acc">
+            @if (f.EnlaceWhatsApp != null) { <a class="btn btn-secondary" href="@f.EnlaceWhatsApp" target="_blank" rel="noopener">💬 Responder por WhatsApp</a> }
+            @if (Model.PuedeCobrar && p.Estado != "Cancelado" && !cobrado)
+            {
+                <a class="btn btn-primary" asp-page="/POS/Index" asp-route-pedidoWebId="@p.Id" title="Abre el POS con este pedido cargado; al cobrar pasa a Atendido">🛒 Cobrar en POS</a>
+            }
+            @if (Model.PuedeEditar)
+            {
+                @if (p.Estado != "Atendido")
+                {
+                    <form method="post" asp-page-handler="Cambiar" asp-route-id="@p.Id" asp-route-nuevo="Atendido" asp-route-estado="@Model.Estado" style="display:inline"><button class="btn btn-primary">✔ Marcar atendido</button></form>
+                }
+                @if (p.Estado == "Nuevo")
+                {
+                    <form method="post" asp-page-handler="Cambiar" asp-route-id="@p.Id" asp-route-nuevo="Cancelado" asp-route-estado="@Model.Estado" style="display:inline"><button class="btn btn-secondary">Cancelar</button></form>
+                }
+                @if (p.Estado != "Nuevo")
+                {
+                    <form method="post" asp-page-handler="Cambiar" asp-route-id="@p.Id" asp-route-nuevo="Nuevo" asp-route-estado="@Model.Estado" style="display:inline"><button class="btn btn-secondary">↩ Volver a nuevo</button></form>
+                }
+            }
+        </div>
+    </div>
+}

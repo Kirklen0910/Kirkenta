@@ -17,6 +17,13 @@ namespace Kirkenta.Pages.Logistica.Envios
             _context = context;
         }
 
+        private const int TamanoPagina = 50;
+
+        [BindProperty(SupportsGet = true, Name = "p")]
+        public int Pagina { get; set; } = 1;
+
+        public PagerInfo Pager { get; set; } = new();
+
         // ===== Datos =====
         public List<EnvioItem> Envios { get; set; } = new();
         public List<Ruta> RutasDisponibles { get; set; } = new();
@@ -178,8 +185,10 @@ namespace Kirkenta.Pages.Logistica.Envios
                 query = query.Where(e => e.RutaId == null && e.Estado == "Pendiente");
             }
 
+            Pager = new PagerInfo(Pagina, TamanoPagina, query.Count());
             var envios = query
                 .OrderByDescending(e => e.FechaCreacion)
+                .Skip(Pager.Skip).Take(TamanoPagina)
                 .ToList();
 
             // Cargar rutas para lookup
@@ -221,21 +230,21 @@ namespace Kirkenta.Pages.Logistica.Envios
             }).ToList();
 
             // KPIs (calculados sobre el universo completo, no sobre el filtro)
-            var todos = _context.Envios.AsNoTracking().ToList();
-            TotalPendientes = todos.Count(e => e.Estado == "Pendiente");
-            TotalEnRuta = todos.Count(e => e.Estado == "EnRuta");
-            TotalEntregados = todos.Count(e => e.Estado == "Entregado");
-            TotalFallidos = todos.Count(e => e.Estado == "Fallido");
+            // (conteos en la base de datos; antes se traía toda la tabla a memoria)
+            var porEstado = _context.Envios.AsNoTracking()
+                .GroupBy(e => e.Estado)
+                .Select(g => new { Estado = g.Key, Cantidad = g.Count() })
+                .ToList()
+                .ToDictionary(x => x.Estado, x => x.Cantidad);
+            TotalPendientes = porEstado.GetValueOrDefault("Pendiente");
+            TotalEnRuta = porEstado.GetValueOrDefault("EnRuta");
+            TotalEntregados = porEstado.GetValueOrDefault("Entregado");
+            TotalFallidos = porEstado.GetValueOrDefault("Fallido");
 
-            TotalAtrasados = todos.Count(e =>
-                (e.Estado == "Pendiente" || e.Estado == "EnRuta")
-                && e.FechaEntregaEstimada.HasValue
-                && e.FechaEntregaEstimada.Value.Date < hoy);
-
-            TotalVencenHoy = todos.Count(e =>
-                (e.Estado == "Pendiente" || e.Estado == "EnRuta")
-                && e.FechaEntregaEstimada.HasValue
-                && e.FechaEntregaEstimada.Value.Date == hoy);
+            var abiertos = _context.Envios.AsNoTracking()
+                .Where(e => (e.Estado == "Pendiente" || e.Estado == "EnRuta") && e.FechaEntregaEstimada.HasValue);
+            TotalAtrasados = abiertos.Count(e => e.FechaEntregaEstimada!.Value.Date < hoy);
+            TotalVencenHoy = abiertos.Count(e => e.FechaEntregaEstimada!.Value.Date == hoy);
 
             return Page();
         }

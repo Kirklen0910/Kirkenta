@@ -1,16 +1,16 @@
 ﻿# KIRKENTA ERP - SNAPSHOT: PARTE 2: OPERACIONES
 
-**Fecha de generacion:** 04/10/2026 21:40
+**Fecha de generacion:** 23/10/2026 22:17
 **Raiz del proyecto:** C:\Users\crobe\OneDrive\Kirkenta
 **Descripcion:** POS, Ventas, Compras, Inventario, Finanzas
 
 ---
 
-**Total archivos en esta parte:** 201
+**Total archivos en esta parte:** 208
 
 ## INDICE
 
-- **Helpers\Finanzas** (12 archivo(s))
+- **Helpers\Finanzas** (15 archivo(s))
 - **Pages\Bajas** (10 archivo(s))
 - **Pages\Categorias** (14 archivo(s))
 - **Pages\Clientes** (14 archivo(s))
@@ -18,7 +18,7 @@
 - **Pages\Cotizaciones** (10 archivo(s))
 - **Pages\Devoluciones** (2 archivo(s))
 - **Pages\Facturas** (8 archivo(s))
-- **Pages\Finanzas** (64 archivo(s))
+- **Pages\Finanzas** (68 archivo(s))
 - **Pages\OrdenesCompra** (12 archivo(s))
 - **Pages\PagosProveedor** (6 archivo(s))
 - **Pages\Pedidos** (8 archivo(s))
@@ -31,7 +31,7 @@
 ---
 
 ====================================================
- Helpers\Finanzas - 12 archivo(s)
+ Helpers\Finanzas - 15 archivo(s)
 ====================================================
 
 ===== FILE: Helpers/Finanzas/AdjuntoCierreHelper.cs =====
@@ -141,6 +141,187 @@ namespace Kirkenta.Helpers.Finanzas
 }
 ````
 
+===== FILE: Helpers/Finanzas/AperturaCuentaHelper.cs =====
+
+````csharp
+using Kirkenta.Data;
+using Kirkenta.Models;
+
+namespace Kirkenta.Helpers.Finanzas
+{
+    /// <summary>
+    /// Registra el saldo inicial de las cuentas financieras (Caja/Banco) como
+    /// movimientos contables de tipo "Ingreso" asociados a una categoría de Activo.
+    ///
+    /// Esto es necesario para que el Balance General refleje el Activo real.
+    ///
+    /// Regla: solo se genera un movimiento de apertura si la cuenta tiene
+    /// SaldoInicial > 0 y NO existe ya un movimiento de apertura para esa cuenta.
+    /// Es idempotente.
+    /// </summary>
+    public static class AperturaCuentaHelper
+    {
+        /// <summary>
+        /// Nombre de la categoría de ingreso que se usa como contrapartida
+        /// del saldo inicial de una cuenta de Caja/Banco.
+        /// </summary>
+        public const string CategoriaAperturaNombre = "Apertura de cuenta";
+
+        /// <summary>
+        /// Alias legacy. Registrar apertura para UNA cuenta específica.
+        /// Se llama al crear una nueva cuenta financiera con SaldoInicial > 0.
+        /// Firma exacta que espera Pages/Finanzas/Cuentas/Create.cshtml.cs.
+        /// </summary>
+        public static (MovimientoFinanciero? mov, string? error) RegistrarApertura(
+            ApplicationDbContext context,
+            int cuentaId,
+            int? usuarioId = null)
+        {
+            return RegistrarAperturaCuenta(context, cuentaId, usuarioId);
+        }
+
+        /// <summary>
+        /// Crea el movimiento de apertura para UNA cuenta específica.
+        /// </summary>
+        public static (MovimientoFinanciero? mov, string? error) RegistrarAperturaCuenta(
+            ApplicationDbContext context,
+            int cuentaId,
+            int? usuarioId = null)
+        {
+            try
+            {
+                var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId);
+                if (cuenta == null) return (null, "Cuenta no encontrada");
+
+                if (cuenta.SaldoInicial <= 0) return (null, "La cuenta no tiene saldo inicial");
+
+                bool yaExiste = context.MovimientosFinancieros
+                    .Any(m => m.Origen == "Apertura" && m.OrigenId == cuentaId);
+
+                if (yaExiste) return (null, "Ya existe un movimiento de apertura para esta cuenta");
+
+                var categoria = ObtenerOCrearCategoriaApertura(context);
+                var monedaDefecto = context.Monedas
+                    .FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1;
+
+                var numero = NumeroDocumentoHelper.GenerarSiguiente(context, "MovimientoFinanciero");
+
+                var movimiento = new MovimientoFinanciero
+                {
+                    Numero = numero,
+                    Tipo = "Ingreso",
+                    Fecha = cuenta.FechaCreacion,
+                    CuentaId = cuenta.Id,
+                    CategoriaId = categoria.Id,
+                    Monto = cuenta.SaldoInicial,
+                    MonedaId = monedaDefecto,
+                    TipoCambio = 1,
+                    Concepto = $"Saldo inicial de la cuenta '{cuenta.Nombre}'",
+                    Referencia = cuenta.Codigo,
+                    FormaPago = "Efectivo",
+                    Origen = "Apertura",
+                    OrigenId = cuenta.Id,
+                    EsAutomatico = true,
+                    Notas = "Movimiento contable automático por saldo inicial de la cuenta",
+                    Estado = "Activo",
+                    FechaCreacion = DateTime.Now,
+                    UsuarioCreoId = usuarioId,
+                    EmpresaId = 1
+                };
+
+                context.MovimientosFinancieros.Add(movimiento);
+                context.SaveChanges();
+
+                // ⚠️ NO aplicar SaldoHelper.Aplicar porque el SaldoActual
+                //     ya contempla el SaldoInicial al crear la cuenta.
+                //     Este movimiento es SOLO para el reporte contable.
+
+                return (movimiento, null);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AperturaCuentaHelper] Error: {ex.Message}");
+                return (null, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Procesa TODAS las cuentas activas con saldo inicial > 0 que no
+        /// tengan ya su movimiento de apertura.
+        /// Se llama al arrancar la app desde Program.cs.
+        /// Devuelve cuántos movimientos se crearon.
+        /// </summary>
+        public static int ProcesarAperturasPendientes(ApplicationDbContext context, int? usuarioId = null)
+        {
+            try
+            {
+                var cuentas = context.CuentasFinancieras
+                    .Where(c => c.Activa && c.SaldoInicial > 0)
+                    .Where(c => c.Subtipo == null || c.Subtipo != "CuentasPorCobrar")
+                    .ToList();
+
+                if (cuentas.Count == 0) return 0;
+
+                int creados = 0;
+
+                foreach (var cuenta in cuentas)
+                {
+                    var (mov, error) = RegistrarAperturaCuenta(context, cuenta.Id, usuarioId);
+                    if (mov != null) creados++;
+                }
+
+                return creados;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AperturaCuentaHelper] Error en ProcesarAperturasPendientes: {ex.Message}");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Obtiene (o crea) la categoría de ingreso "Apertura de cuenta",
+        /// que sirve como contrapartida del saldo inicial.
+        /// Se asocia al plan de cuentas de Activo (1.1.01.001 - Caja General).
+        /// </summary>
+        private static CategoriaFinanciera ObtenerOCrearCategoriaApertura(ApplicationDbContext context)
+        {
+            var categoria = context.CategoriasFinancieras
+                .FirstOrDefault(c => c.Tipo == "Ingreso" && c.Nombre == CategoriaAperturaNombre);
+
+            if (categoria != null) return categoria;
+
+            // Buscar la cuenta de plan "Caja General" (o cualquier 1.1.01.x)
+            int? planCuentaId = null;
+            var planCuenta = context.PlanCuentas
+                .FirstOrDefault(p => p.Codigo == "1.1.01.001")
+                ?? context.PlanCuentas.FirstOrDefault(p => p.Codigo.StartsWith("1.1.01"));
+
+            if (planCuenta != null) planCuentaId = planCuenta.Id;
+
+            categoria = new CategoriaFinanciera
+            {
+                Tipo = "Ingreso",
+                Nombre = CategoriaAperturaNombre,
+                Descripcion = "Saldo inicial de cuentas financieras (contrapartida contable de Activo)",
+                CuentaContable = planCuenta?.Codigo,
+                PlanCuentaId = planCuentaId,
+                Color = "#14b8a6",
+                EsSistema = true,
+                Activa = true,
+                FechaCreacion = DateTime.Now,
+                EmpresaId = 1
+            };
+
+            context.CategoriasFinancieras.Add(categoria);
+            context.SaveChanges();
+
+            return categoria;
+        }
+    }
+}
+````
+
 ===== FILE: Helpers/Finanzas/AperturaHelper.cs =====
 
 ````csharp
@@ -165,7 +346,7 @@ namespace Kirkenta.Helpers.Finanzas
         }
 
         /// <summary>
-        /// Verifica si el usuario tiene permiso para usar el POS (necesita apertura activa).
+        /// Verifica si hay una apertura activa para una cuenta.
         /// </summary>
         public static bool HayAperturaActiva(ApplicationDbContext context, int cuentaId)
         {
@@ -184,7 +365,6 @@ namespace Kirkenta.Helpers.Finanzas
         {
             try
             {
-                // Verificar que no haya otra apertura activa para esa cuenta
                 var existente = context.AperturasCaja
                     .FirstOrDefault(a => a.CuentaId == cuentaId && a.Activa);
 
@@ -210,6 +390,12 @@ namespace Kirkenta.Helpers.Finanzas
 
                 context.AperturasCaja.Add(apertura);
                 context.SaveChanges();
+
+                // Aseguramos que el saldo inicial de la cuenta tenga su
+                // movimiento contable (para que el Balance refleje el Activo).
+                // Si ya existe (porque se creó la cuenta con saldo inicial),
+                // el helper es idempotente y no duplica.
+                AperturaCuentaHelper.RegistrarAperturaCuenta(context, cuentaId, usuarioId);
 
                 return (apertura, null);
             }
@@ -496,6 +682,8 @@ namespace Kirkenta.Helpers.Finanzas
 
             decimal saldoInicial = apertura.SaldoInicial;
 
+            // 🔒 FIX: Solo se cuentan movimientos en EFECTIVO para el esperado del arqueo.
+            // Los movimientos de banco/tarjeta/transferencia NO afectan el efectivo físico.
             var movimientosDia = context.MovimientosFinancieros
                 .AsNoTracking()
                 .Where(m => m.Estado == "Activo"
@@ -543,12 +731,6 @@ namespace Kirkenta.Helpers.Finanzas
             return diferencia > 0 ? "Sobrante" : "Faltante";
         }
 
-        /// <summary>
-        /// Registra el cierre. Genera ajuste por diferencia si aplica.
-        /// NO registra distribución todavía — eso lo hace el caller después.
-        /// Si el ajuste es un Egreso y la cuenta no tiene saldo suficiente, se registra
-        /// el cierre igual pero SIN ajuste, y se agrega advertencia a las notas.
-        /// </summary>
         public static (CierreCaja cierre, string? error) Registrar(
             ApplicationDbContext context,
             int cuentaId,
@@ -603,13 +785,11 @@ namespace Kirkenta.Helpers.Finanzas
                     var tipoAjuste = resultado == "Sobrante" ? "Ingreso" : "Egreso";
                     var montoAjuste = Math.Abs(diferencia);
 
-                    // ===== VALIDACIÓN: si es Egreso, verificar saldo =====
                     if (tipoAjuste == "Egreso")
                     {
                         var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId);
                         if (cuenta == null)
                         {
-                            // Cuenta ya no existe (raro), no generar ajuste
                             cierre.Notas = (string.IsNullOrWhiteSpace(cierre.Notas) ? "" : cierre.Notas + "\n") +
                                 $"[Advertencia] No se pudo generar el ajuste por FALTANTE: cuenta no encontrada.";
                             context.SaveChanges();
@@ -618,7 +798,6 @@ namespace Kirkenta.Helpers.Finanzas
 
                         if (cuenta.SaldoActual < montoAjuste)
                         {
-                            // Saldo insuficiente: no generar ajuste, dejar constancia
                             cierre.Notas = (string.IsNullOrWhiteSpace(cierre.Notas) ? "" : cierre.Notas + "\n") +
                                 $"[Advertencia] No se pudo generar el ajuste por FALTANTE de L. {montoAjuste:N2}: " +
                                 $"la cuenta '{cuenta.Nombre}' solo tiene L. {cuenta.SaldoActual:N2} disponible.";
@@ -670,6 +849,10 @@ namespace Kirkenta.Helpers.Finanzas
             var numeroAjuste = NumeroDocumentoHelper.GenerarSiguiente(context, "MovimientoFinanciero");
             var monedaDefecto = context.Monedas.FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1;
 
+            // 🔒 FIX: usar la forma de pago real de la cuenta (efectivo si es caja, transferencia si es banco)
+            var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId);
+            var formaPago = cuenta?.Tipo == "Banco" ? "Transferencia" : "Efectivo";
+
             var ajuste = new MovimientoFinanciero
             {
                 Numero = numeroAjuste,
@@ -682,7 +865,7 @@ namespace Kirkenta.Helpers.Finanzas
                 TipoCambio = 1,
                 Concepto = $"Ajuste por {tipoAjuste.ToLower()} en cierre {numeroCierre}",
                 Referencia = numeroCierre,
-                FormaPago = "Efectivo",
+                FormaPago = formaPago,
                 Origen = "CierreCaja",
                 OrigenId = cierreId,
                 EsAutomatico = true,
@@ -718,6 +901,113 @@ namespace Kirkenta.Helpers.Finanzas
         public decimal TotalIngresos { get; set; }
         public decimal TotalEgresos { get; set; }
         public decimal EfectivoEsperado { get; set; }
+    }
+}
+````
+
+===== FILE: Helpers/Finanzas/COGSHelper.cs =====
+
+````csharp
+using Kirkenta.Data;
+using Kirkenta.Models;
+
+namespace Kirkenta.Helpers.Finanzas
+{
+    /// <summary>
+    /// Calcula y registra el Costo de Ventas (COGS) al vender.
+    /// 
+    /// Se crea un MovimientoFinanciero de Egreso con categoría "Costo de ventas"
+    /// (PlanCuentaId = 5.1.01). El monto es PrecioCompra × Cantidad.
+    /// 
+    /// La contrapartida contable (Inventario → Costo) se refleja implícitamente
+    /// porque el ContabilidadHelper lee SaldoActual de CuentasFinancieras como Activo.
+    /// </summary>
+    public static class COGSHelper
+    {
+        public static (MovimientoFinanciero? mov, string? error) RegistrarCostoVenta(
+            ApplicationDbContext context,
+            int ventaId,
+            string numeroVenta,
+            List<DetalleVenta> items,
+            int usuarioId)
+        {
+            try
+            {
+                if (items == null || items.Count == 0)
+                    return (null, "Sin items para calcular COGS.");
+
+                // Buscar la categoría de costo de ventas
+                var categoria = context.CategoriasFinancieras
+                    .FirstOrDefault(c => c.Nombre == "Costo de ventas" && c.Activa);
+
+                if (categoria == null)
+                    return (null, "No existe la categoría 'Costo de ventas'. Corré FinanzasSeeder.");
+
+                // Calcular el total del costo
+                decimal totalCosto = 0;
+                foreach (var item in items)
+                {
+                    var producto = context.Productos.FirstOrDefault(p => p.Id == item.ProductoId);
+                    if (producto == null) continue;
+
+                    var costoUnitario = producto.PrecioCompra;
+                    totalCosto += costoUnitario * item.Cantidad;
+                }
+
+                if (totalCosto <= 0)
+                    return (null, "El costo calculado es 0. Revisá PrecioCompra de los productos.");
+
+                // Cuenta destino: usar la cuenta de inventario si existe, sino la caja
+                var cuenta = context.CuentasFinancieras
+                    .FirstOrDefault(c => c.Codigo == "INVENTARIO" && c.Activa)
+                    ?? context.CuentasFinancieras
+                        .FirstOrDefault(c => c.Tipo == "Caja" && c.Activa);
+
+                if (cuenta == null)
+                    return (null, "No hay cuenta de inventario ni caja activa para registrar el COGS.");
+
+                var monedaDefecto = context.Monedas
+                    .FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1;
+
+                var numero = NumeroDocumentoHelper.GenerarSiguiente(context, "MovimientoFinanciero");
+
+                var mov = new MovimientoFinanciero
+                {
+                    Numero = numero,
+                    Tipo = "Egreso",
+                    Fecha = DateTime.Now,
+                    CuentaId = cuenta.Id,
+                    CuentaDestinoId = null,
+                    CategoriaId = categoria.Id,
+                    Monto = totalCosto,
+                    MonedaId = monedaDefecto,
+                    TipoCambio = 1,
+                    Concepto = $"Costo de ventas — Venta {numeroVenta}",
+                    Referencia = numeroVenta,
+                    FormaPago = null,
+                    Origen = "Venta",
+                    OrigenId = ventaId,
+                    EsAutomatico = true,
+                    Estado = "Activo",
+                    FechaCreacion = DateTime.Now,
+                    UsuarioCreoId = usuarioId,
+                    EmpresaId = 1
+                };
+
+                context.MovimientosFinancieros.Add(mov);
+                context.SaveChanges();
+
+                // Nota: NO llamamos a SaldoHelper.Aplicar porque el costo
+                // no afecta el saldo real de caja/banco. Solo afecta el reporte contable.
+
+                return (mov, null);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[COGSHelper] Error: {ex.Message}");
+                return (null, ex.Message);
+            }
+        }
     }
 }
 ````
@@ -1148,6 +1438,7 @@ namespace Kirkenta.Helpers.Finanzas
 ````csharp
 using Kirkenta.Data;
 using Kirkenta.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kirkenta.Helpers.Finanzas
 {
@@ -1155,6 +1446,38 @@ namespace Kirkenta.Helpers.Finanzas
     /// Genera reportes contables (Estado de Resultados y Balance General)
     /// agrupando MovimientoFinanciero por la cuenta del Plan de Cuentas
     /// asociada a su CategoriaFinanciera.
+    ///
+    /// REGLAS CONTABLES APLICADAS (Opción A):
+    ///   - Solo se registran movimientos cuando entra/sale dinero real.
+    ///   - La CxC NO es un ingreso devengado: es un saldo en Venta.SaldoPendiente.
+    ///   - Al cobrar, se crea el único Ingreso real.
+    ///   - Las Transferencias entre cuentas de la misma naturaleza no afectan resultados.
+    ///   - Monto firmado por naturaleza:
+    ///       * Cuenta Acreedora (Ingreso, Pasivo, Patrimonio): +Monto en Ingreso, -Monto en Egreso
+    ///       * Cuenta Deudora (Activo, Costo, Gasto): +Monto en Egreso, -Monto en Ingreso
+    ///   - Transferencias no afectan ni Ingreso ni Costo ni Gasto (no entran al Select de resultados).
+    ///
+    /// FIX BALANCE (21/10/2026):
+    ///   - El Balance General SUMA los saldos reales de las cuentas de
+    ///     Caja/Banco como Activo. Esto es necesario porque los movimientos
+    ///     de esas cuentas no llevan una cuenta contable de Activo asociada
+    ///     (van contra su categoría de ingreso/egreso).
+    ///   - Se excluyen los movimientos de "Apertura" del conteo de
+    ///     "sin clasificar" (ya tienen plan de cuentas asignado).
+    /// 
+    /// FIX SIGNOS (22/10/2026):
+    ///   - Se invirtió el signo de la fórmula para que Ingresos y Patrimonio
+    ///     se muestren en POSITIVO en los reportes, como corresponde.
+    ///
+    /// FIX BALANCE (23/10/2026):
+    ///   - Los movimientos de "Apertura" ya no se restan del Activo: el saldo
+    ///     inicial entra al Activo vía SaldoActual y al Patrimonio como
+    ///     "Capital inicial (saldos de apertura)".
+    ///   - El costo de ventas acumulado se descuenta del Inventario (1.1.03.001),
+    ///     cuyas compras entran por la categoría "Pago a proveedores".
+    ///   - Se agrega "Resultados de ejercicios anteriores" al Patrimonio
+    ///     (antes solo se contaba el resultado del año en curso).
+    ///   - Las Transferencias ya no cuentan como "sin clasificar".
     /// </summary>
     public static class ContabilidadHelper
     {
@@ -1162,9 +1485,6 @@ namespace Kirkenta.Helpers.Finanzas
         // DTO DE SALIDA
         // ============================================================
 
-        /// <summary>
-        /// Línea de reporte contable: agrupa los movimientos por cuenta.
-        /// </summary>
         public class LineaReporte
         {
             public int? PlanCuentaId { get; set; }
@@ -1175,57 +1495,141 @@ namespace Kirkenta.Helpers.Finanzas
             public int Nivel { get; set; }
             public decimal Monto { get; set; }
             public int CantidadMovimientos { get; set; }
+
+            /// <summary>
+            /// True cuando la línea representa el saldo real de una cuenta
+            /// financiera (Caja/Banco), no un movimiento contable agrupado.
+            /// </summary>
+            public bool EsSaldoCuentaFinanciera { get; set; }
         }
 
-        /// <summary>
-        /// Resultado completo del Estado de Resultados.
-        /// </summary>
         public class EstadoResultados
         {
             public DateTime Desde { get; set; }
             public DateTime Hasta { get; set; }
-            public List<LineaReporte> Ingresos { get; set; } = new();
-            public List<LineaReporte> Costos { get; set; } = new();
-            public List<LineaReporte> Gastos { get; set; } = new();
-            public decimal TotalIngresos { get; set; }
+
+            // Operativos
+            public List<LineaReporte> IngresosOperativos { get; set; } = new(); // 4.1
+            public List<LineaReporte> IngresosNoOperativos { get; set; } = new(); // 4.2
+            public List<LineaReporte> Costos { get; set; } = new(); // 5.1
+            public List<LineaReporte> GastosVenta { get; set; } = new(); // 6.1
+            public List<LineaReporte> GastosAdministracion { get; set; } = new(); // 6.2
+            public List<LineaReporte> OtrosGastos { get; set; } = new(); // 6.3
+
+            // Totales
+            public decimal TotalIngresosOperativos { get; set; }
+            public decimal TotalIngresosNoOperativos { get; set; }
+            public decimal TotalIngresos => TotalIngresosOperativos + TotalIngresosNoOperativos;
+
             public decimal TotalCostos { get; set; }
-            public decimal TotalGastos { get; set; }
-            public decimal UtilidadBruta { get; set; }
-            public decimal UtilidadOperativa { get; set; }
-            public decimal UtilidadNeta { get; set; }
-            public decimal MargenBruto { get; set; }
-            public decimal MargenNeto { get; set; }
+            public decimal TotalGastosVenta { get; set; }
+            public decimal TotalGastosAdministracion { get; set; }
+            public decimal TotalOtrosGastos { get; set; }
+            public decimal TotalGastos => TotalGastosVenta + TotalGastosAdministracion + TotalOtrosGastos;
+
+            public decimal UtilidadBruta => TotalIngresosOperativos - TotalCostos;
+            public decimal UtilidadOperativa => UtilidadBruta - TotalGastosVenta - TotalGastosAdministracion;
+            public decimal UtilidadNeta => UtilidadOperativa + TotalIngresosNoOperativos - TotalOtrosGastos;
+
+            public decimal MargenBruto => TotalIngresosOperativos > 0
+                ? Math.Round(UtilidadBruta / TotalIngresosOperativos * 100m, 2)
+                : 0m;
+
+            public decimal MargenNeto => TotalIngresos > 0
+                ? Math.Round(UtilidadNeta / TotalIngresos * 100m, 2)
+                : 0m;
+
+            // Punto 11: ingresos cobrados (contra caja/banco real)
+            public decimal IngresosCobrados { get; set; }
+
+            // Punto 6: movimientos sin clasificar
+            public decimal MontoSinClasificar { get; set; }
+            public int MovimientosSinClasificar { get; set; }
+
+            // Punto 12: estado del cierre contable
+            public bool PeriodoCerrado { get; set; }
+            public string? MensajeCierre { get; set; }
         }
 
-        /// <summary>
-        /// Resultado completo del Balance General.
-        /// </summary>
         public class BalanceGeneral
         {
             public DateTime FechaCorte { get; set; }
+
             public List<LineaReporte> Activos { get; set; } = new();
             public List<LineaReporte> Pasivos { get; set; } = new();
             public List<LineaReporte> Patrimonio { get; set; } = new();
+
             public decimal TotalActivos { get; set; }
             public decimal TotalPasivos { get; set; }
             public decimal TotalPatrimonio { get; set; }
             public decimal TotalPasivoPatrimonio { get; set; }
             public decimal Diferencia { get; set; }
+
             public decimal ResultadoEjercicio { get; set; }
-            public bool Cuadra => Math.Abs(Diferencia) < 1.00m;
+            public int AnioResultado { get; set; }
+
+            // Punto 6
+            public decimal MontoSinClasificar { get; set; }
+            public int MovimientosSinClasificar { get; set; }
+
+            public bool Cuadra => Math.Abs(Diferencia) <= 1.00m;
+
+            // Punto 12
+            public bool PeriodoCerrado { get; set; }
+            public string? MensajeCierre { get; set; }
+        }
+
+        // ============================================================
+        // HELPERS INTERNOS
+        // ============================================================
+
+        /// <summary>
+        /// +1 si la cuenta es Deudora (Activo, Costo, Gasto), -1 si Acreedora (Pasivo, Patrimonio, Ingreso).
+        /// </summary>
+        private static int SignoNaturaleza(string naturaleza)
+        {
+            return naturaleza == "Deudora" ? 1 : -1;
+        }
+
+        /// <summary>
+        /// +1 si el movimiento es Ingreso, -1 si Egreso, 0 si Transferencia.
+        /// </summary>
+        private static int SignoMovimiento(string tipo)
+        {
+            return tipo switch
+            {
+                "Ingreso" => 1,
+                "Egreso" => -1,
+                _ => 0
+            };
+        }
+
+        /// <summary>
+        /// Devuelve el prefijo de código para agrupar (ej: "4.1", "6.2"). Null si no aplica.
+        /// </summary>
+        private static string? GrupoCodigo(string tipo, string codigo)
+        {
+            if (string.IsNullOrEmpty(codigo)) return null;
+
+            if (tipo == "Ingreso")
+            {
+                if (codigo.StartsWith("4.1")) return "Operativo";
+                if (codigo.StartsWith("4.2")) return "NoOperativo";
+            }
+            if (tipo == "Costo" && codigo.StartsWith("5.1")) return "CostoVenta";
+            if (tipo == "Gasto")
+            {
+                if (codigo.StartsWith("6.1")) return "Venta";
+                if (codigo.StartsWith("6.2")) return "Administracion";
+                if (codigo.StartsWith("6.3")) return "Otros";
+            }
+            return null;
         }
 
         // ============================================================
         // ESTADO DE RESULTADOS
         // ============================================================
 
-        /// <summary>
-        /// Genera el Estado de Resultados para un período.
-        /// Fórmulas:
-        ///   Utilidad Bruta = Ingresos - Costos
-        ///   Utilidad Operativa = Utilidad Bruta - Gastos
-        ///   Utilidad Neta = Utilidad Operativa (v1: sin otros ingresos/egresos)
-        /// </summary>
         public static EstadoResultados GenerarEstadoResultados(
             ApplicationDbContext context,
             DateTime desde,
@@ -1240,7 +1644,15 @@ namespace Kirkenta.Helpers.Finanzas
             var desdeFull = desde.Date;
             var hastaFull = hasta.Date.AddDays(1).AddSeconds(-1);
 
-            // Traer solo movimientos activos en el rango, con su categoría y plan
+            // Punto 12: verificar cierre contable del mes de la fecha "hasta"
+            var cierre = CierreContableHelper.Obtener(context, hasta.Year, hasta.Month);
+            if (cierre != null && cierre.Estado == "Cerrado")
+            {
+                resultado.PeriodoCerrado = true;
+                resultado.MensajeCierre = $"El período {cierre.PeriodoTexto} está cerrado contablemente. Los movimientos están bloqueados.";
+            }
+
+            // Traer movimientos con plan y cuenta financiera (para saber si es cobro real)
             var movimientos = context.MovimientosFinancieros
                 .Where(m => m.Estado == "Activo"
                          && m.Fecha >= desdeFull
@@ -1251,6 +1663,7 @@ namespace Kirkenta.Helpers.Finanzas
                     m.Tipo,
                     m.Monto,
                     m.CategoriaId,
+                    m.CuentaId,
                     PlanCuentaId = context.CategoriasFinancieras
                         .Where(c => c.Id == m.CategoriaId)
                         .Select(c => c.PlanCuentaId)
@@ -1290,14 +1703,25 @@ namespace Kirkenta.Helpers.Finanzas
                             .Select(p => p.Nivel)
                             .FirstOrDefault())
                         .FirstOrDefault(),
-                    CategoriaNombre = context.CategoriasFinancieras
-                        .Where(c => c.Id == m.CategoriaId)
-                        .Select(c => c.Nombre)
+                    CuentaTipo = context.CuentasFinancieras
+                        .Where(cf => cf.Id == m.CuentaId)
+                        .Select(cf => cf.Tipo)
                         .FirstOrDefault()
                 })
                 .ToList();
 
-            // Agrupar por categoría → plan
+            // Punto 6: contar sin clasificar
+            var sinClasificar = movimientos.Where(m => m.PlanCuentaId == null && m.Tipo != "Transferencia").ToList();
+            resultado.MontoSinClasificar = sinClasificar.Sum(m => m.Monto);
+            resultado.MovimientosSinClasificar = sinClasificar.Count;
+
+            // Punto 11: ingresos cobrados (contra caja/banco)
+            resultado.IngresosCobrados = movimientos
+                .Where(m => m.Tipo == "Ingreso"
+                         && (m.CuentaTipo == "Caja" || m.CuentaTipo == "Banco"))
+                .Sum(m => m.Monto);
+
+            // Punto 3: monto firmado por naturaleza
             var agrupado = movimientos
                 .Where(m => m.PlanCuentaId != null)
                 .GroupBy(m => new
@@ -1317,42 +1741,46 @@ namespace Kirkenta.Helpers.Finanzas
                     Tipo = g.Key.Tipo,
                     Naturaleza = g.Key.Naturaleza,
                     Nivel = g.Key.Nivel,
-                    Monto = g.Sum(x => x.Monto),
-                    CantidadMovimientos = g.Count()
+                    // ✅ FIX SIGNOS: Invertimos el signo de la naturaleza para que 
+                    // los Ingresos (Acreedora) se muestren en POSITIVO.
+                    Monto = g.Sum(x => x.Monto * SignoMovimiento(x.Tipo) * (g.Key.Naturaleza == "Acreedora" ? 1 : -1)),
+                    CantidadMovimientos = g.Count(),
+                    EsSaldoCuentaFinanciera = false
                 })
                 .ToList();
 
-            // Separar por tipo contable
-            resultado.Ingresos = agrupado
-                .Where(l => l.Tipo == "Ingreso")
-                .OrderBy(l => l.Codigo)
-                .ToList();
+            // Punto 10: separar por código jerárquico
+            resultado.IngresosOperativos = agrupado
+                .Where(l => l.Tipo == "Ingreso" && GrupoCodigo(l.Tipo, l.Codigo) == "Operativo")
+                .OrderBy(l => l.Codigo).ToList();
+
+            resultado.IngresosNoOperativos = agrupado
+                .Where(l => l.Tipo == "Ingreso" && GrupoCodigo(l.Tipo, l.Codigo) == "NoOperativo")
+                .OrderBy(l => l.Codigo).ToList();
 
             resultado.Costos = agrupado
                 .Where(l => l.Tipo == "Costo")
-                .OrderBy(l => l.Codigo)
-                .ToList();
+                .OrderBy(l => l.Codigo).ToList();
 
-            resultado.Gastos = agrupado
-                .Where(l => l.Tipo == "Gasto")
-                .OrderBy(l => l.Codigo)
-                .ToList();
+            resultado.GastosVenta = agrupado
+                .Where(l => l.Tipo == "Gasto" && GrupoCodigo(l.Tipo, l.Codigo) == "Venta")
+                .OrderBy(l => l.Codigo).ToList();
 
-            resultado.TotalIngresos = resultado.Ingresos.Sum(l => l.Monto);
+            resultado.GastosAdministracion = agrupado
+                .Where(l => l.Tipo == "Gasto" && GrupoCodigo(l.Tipo, l.Codigo) == "Administracion")
+                .OrderBy(l => l.Codigo).ToList();
+
+            resultado.OtrosGastos = agrupado
+                .Where(l => l.Tipo == "Gasto" && GrupoCodigo(l.Tipo, l.Codigo) == "Otros")
+                .OrderBy(l => l.Codigo).ToList();
+
+            // Totales
+            resultado.TotalIngresosOperativos = resultado.IngresosOperativos.Sum(l => l.Monto);
+            resultado.TotalIngresosNoOperativos = resultado.IngresosNoOperativos.Sum(l => l.Monto);
             resultado.TotalCostos = resultado.Costos.Sum(l => l.Monto);
-            resultado.TotalGastos = resultado.Gastos.Sum(l => l.Monto);
-
-            resultado.UtilidadBruta = resultado.TotalIngresos - resultado.TotalCostos;
-            resultado.UtilidadOperativa = resultado.UtilidadBruta - resultado.TotalGastos;
-            resultado.UtilidadNeta = resultado.UtilidadOperativa;
-
-            resultado.MargenBruto = resultado.TotalIngresos > 0
-                ? Math.Round(resultado.UtilidadBruta / resultado.TotalIngresos * 100m, 2)
-                : 0m;
-
-            resultado.MargenNeto = resultado.TotalIngresos > 0
-                ? Math.Round(resultado.UtilidadNeta / resultado.TotalIngresos * 100m, 2)
-                : 0m;
+            resultado.TotalGastosVenta = resultado.GastosVenta.Sum(l => l.Monto);
+            resultado.TotalGastosAdministracion = resultado.GastosAdministracion.Sum(l => l.Monto);
+            resultado.TotalOtrosGastos = resultado.OtrosGastos.Sum(l => l.Monto);
 
             return resultado;
         }
@@ -1361,25 +1789,27 @@ namespace Kirkenta.Helpers.Finanzas
         // BALANCE GENERAL
         // ============================================================
 
-        /// <summary>
-        /// Genera el Balance General a una fecha de corte.
-        /// Trae TODOS los movimientos activos históricos hasta la fecha,
-        /// y separa por tipo contable (Activo, Pasivo, Patrimonio).
-        /// La utilidad del ejercicio se calcula como diferencia entre
-        /// ingresos y gastos del año en curso.
-        /// </summary>
         public static BalanceGeneral GenerarBalanceGeneral(
             ApplicationDbContext context,
             DateTime fechaCorte)
         {
             var resultado = new BalanceGeneral
             {
-                FechaCorte = fechaCorte.Date
+                FechaCorte = fechaCorte.Date,
+                AnioResultado = fechaCorte.Year
             };
 
             var fechaFin = fechaCorte.Date.AddDays(1).AddSeconds(-1);
 
-            // Todos los movimientos activos hasta la fecha de corte
+            // Punto 12
+            var cierre = CierreContableHelper.Obtener(context, fechaCorte.Year, fechaCorte.Month);
+            if (cierre != null && cierre.Estado == "Cerrado")
+            {
+                resultado.PeriodoCerrado = true;
+                resultado.MensajeCierre = $"El período {cierre.PeriodoTexto} está cerrado contablemente.";
+            }
+
+            // Punto 5: incluir Anio en el Select
             var movimientos = context.MovimientosFinancieros
                 .Where(m => m.Estado == "Activo"
                          && m.Fecha <= fechaFin)
@@ -1388,6 +1818,8 @@ namespace Kirkenta.Helpers.Finanzas
                     m.Id,
                     m.Tipo,
                     m.Monto,
+                    Anio = m.Fecha.Year,
+                    m.Origen,
                     m.CategoriaId,
                     PlanCuentaId = context.CategoriasFinancieras
                         .Where(c => c.Id == m.CategoriaId)
@@ -1431,9 +1863,14 @@ namespace Kirkenta.Helpers.Finanzas
                 })
                 .ToList();
 
-            // Agrupar por plan cuenta
+            // Punto 6
+            var sinClasificar = movimientos.Where(m => m.PlanCuentaId == null && m.Tipo != "Transferencia").ToList();
+            resultado.MontoSinClasificar = sinClasificar.Sum(m => m.Monto);
+            resultado.MovimientosSinClasificar = sinClasificar.Count;
+
+            // Punto 3: monto firmado
             var agrupado = movimientos
-                .Where(m => m.PlanCuentaId != null)
+                .Where(m => m.PlanCuentaId != null && m.Origen != "Apertura")
                 .GroupBy(m => new
                 {
                     PlanId = m.PlanCuentaId!.Value,
@@ -1451,54 +1888,185 @@ namespace Kirkenta.Helpers.Finanzas
                     Tipo = g.Key.Tipo,
                     Naturaleza = g.Key.Naturaleza,
                     Nivel = g.Key.Nivel,
-                    Monto = g.Sum(x => x.Monto),
-                    CantidadMovimientos = g.Count()
+                    // ✅ FIX SIGNOS: Misma corrección que en Estado de Resultados.
+                    Monto = g.Sum(x => x.Monto * SignoMovimiento(x.Tipo) * (g.Key.Naturaleza == "Acreedora" ? 1 : -1)),
+                    CantidadMovimientos = g.Count(),
+                    EsSaldoCuentaFinanciera = false
                 })
                 .ToList();
 
+            // ===== Activos contables (de movimientos con plan) =====
             resultado.Activos = agrupado
                 .Where(l => l.Tipo == "Activo")
-                .OrderBy(l => l.Codigo)
-                .ToList();
+                .OrderBy(l => l.Codigo).ToList();
+
+            // ===== Activos desde saldos reales de Caja/Banco =====
+            var cuentasFin = ObtenerCuentasFinancierasDeActivo(context);
+            resultado.Activos.AddRange(ConstruirActivosDesdeCuentasFinancieras(cuentasFin));
+
+            // ===== Inventario: compras pagadas (1.1.03.x) - costo de ventas acumulado =====
+            decimal costoAcumulado = movimientos
+                .Where(m => m.PlanTipo == "Costo")
+                .Sum(m => m.Monto * SignoMovimiento(m.Tipo) * (m.PlanNaturaleza == "Acreedora" ? 1 : -1));
+
+            if (costoAcumulado != 0)
+            {
+                var lineaInventario = resultado.Activos.FirstOrDefault(l => l.Codigo == "1.1.03.001");
+                if (lineaInventario == null)
+                {
+                    lineaInventario = new LineaReporte
+                    {
+                        Codigo = "1.1.03.001",
+                        Cuenta = "Mercadería para la Venta",
+                        Tipo = "Activo",
+                        Naturaleza = "Deudora",
+                        Nivel = 4,
+                        Monto = 0,
+                        CantidadMovimientos = 0
+                    };
+                    resultado.Activos.Add(lineaInventario);
+                }
+                lineaInventario.Monto -= costoAcumulado;
+            }
+
+            resultado.Activos = resultado.Activos.OrderBy(l => l.Codigo).ToList();
 
             resultado.Pasivos = agrupado
                 .Where(l => l.Tipo == "Pasivo")
-                .OrderBy(l => l.Codigo)
-                .ToList();
+                .OrderBy(l => l.Codigo).ToList();
 
+            // Punto 4: excluir 3.2.04 (Resultado del Ejercicio) del Patrimonio
             resultado.Patrimonio = agrupado
-                .Where(l => l.Tipo == "Patrimonio")
-                .OrderBy(l => l.Codigo)
-                .ToList();
+                .Where(l => l.Tipo == "Patrimonio" && l.Codigo != "3.2.04")
+                .OrderBy(l => l.Codigo).ToList();
+
+            // Capital inicial: los saldos de apertura de las cuentas incluidas en el Activo
+            decimal saldosIniciales = cuentasFin.Sum(c => c.SaldoInicial);
+            if (saldosIniciales != 0)
+            {
+                resultado.Patrimonio.Add(new LineaReporte
+                {
+                    Codigo = "3.1.01",
+                    Cuenta = "Capital inicial (saldos de apertura)",
+                    Tipo = "Patrimonio",
+                    Naturaleza = "Acreedora",
+                    Nivel = 3,
+                    Monto = saldosIniciales
+                });
+            }
+
+            // Resultados de ejercicios anteriores (años < año de corte)
+            decimal resultadoAnterior = movimientos
+                .Where(m => m.Anio < fechaCorte.Year)
+                .Sum(m =>
+                {
+                    decimal firmado = m.Monto * SignoMovimiento(m.Tipo) * (m.PlanNaturaleza == "Acreedora" ? 1 : -1);
+                    return m.PlanTipo == "Ingreso" ? firmado
+                         : (m.PlanTipo == "Costo" || m.PlanTipo == "Gasto") ? -firmado
+                         : 0m;
+                });
+
+            if (resultadoAnterior != 0)
+            {
+                resultado.Patrimonio.Add(new LineaReporte
+                {
+                    Codigo = "3.2.02",
+                    Cuenta = "Resultados de ejercicios anteriores",
+                    Tipo = "Patrimonio",
+                    Naturaleza = "Acreedora",
+                    Nivel = 3,
+                    Monto = resultadoAnterior
+                });
+            }
+
+            resultado.Patrimonio = resultado.Patrimonio.OrderBy(l => l.Codigo).ToList();
 
             resultado.TotalActivos = resultado.Activos.Sum(l => l.Monto);
             resultado.TotalPasivos = resultado.Pasivos.Sum(l => l.Monto);
             resultado.TotalPatrimonio = resultado.Patrimonio.Sum(l => l.Monto);
 
-            // Utilidad del ejercicio = ingresos - costos - gastos acumulados (histórico hasta la fecha)
-            var ingresosHistoricos = agrupado.Where(l => l.Tipo == "Ingreso").Sum(l => l.Monto);
-            var costosHistoricos = agrupado.Where(l => l.Tipo == "Costo").Sum(l => l.Monto);
-            var gastosHistoricos = agrupado.Where(l => l.Tipo == "Gasto").Sum(l => l.Monto);
+            // Punto 5: calcular ResultadoEjercicio solo del año en curso
+            // ✅ FIX SIGNOS: Aquí también corregimos para que los ingresos sumen positivo.
+            var ingresosAnio = movimientos
+                .Where(m => m.Anio == fechaCorte.Year && m.PlanTipo == "Ingreso")
+                .Sum(m => m.Monto * SignoMovimiento(m.Tipo) * (m.PlanNaturaleza == "Acreedora" ? 1 : -1));
 
-            resultado.ResultadoEjercicio = ingresosHistoricos - costosHistoricos - gastosHistoricos;
+            var costosAnio = movimientos
+                .Where(m => m.Anio == fechaCorte.Year && m.PlanTipo == "Costo")
+                .Sum(m => m.Monto * SignoMovimiento(m.Tipo) * (m.PlanNaturaleza == "Acreedora" ? 1 : -1));
 
-            // Sumar la utilidad del ejercicio al patrimonio para cuadrar
+            var gastosAnio = movimientos
+                .Where(m => m.Anio == fechaCorte.Year && m.PlanTipo == "Gasto")
+                .Sum(m => m.Monto * SignoMovimiento(m.Tipo) * (m.PlanNaturaleza == "Acreedora" ? 1 : -1));
+
+            resultado.ResultadoEjercicio = ingresosAnio - costosAnio - gastosAnio;
+
+            // Punto 4: sumar ResultadoEjercicio UNA sola vez
             resultado.TotalPatrimonio += resultado.ResultadoEjercicio;
-
             resultado.TotalPasivoPatrimonio = resultado.TotalPasivos + resultado.TotalPatrimonio;
             resultado.Diferencia = resultado.TotalActivos - resultado.TotalPasivoPatrimonio;
 
             return resultado;
         }
 
+        /// <summary>
+        /// FIX 21/10/2026: lee los SaldosActuales de todas las cuentas
+        /// financieras de tipo Caja/Banco activas (excepto CuentasPorCobrar)
+        /// y los devuelve como líneas de Activo para el Balance General.
+        /// </summary>
+        private static List<CuentaFinanciera> ObtenerCuentasFinancierasDeActivo(
+            ApplicationDbContext context)
+        {
+            return context.CuentasFinancieras
+                .Where(c => c.Activa)
+                .Where(c => c.Subtipo == null || c.Subtipo != "CuentasPorCobrar")
+                .OrderBy(c => c.Tipo)
+                .ThenBy(c => c.Codigo)
+                .ToList();
+        }
+
+        private static List<LineaReporte> ConstruirActivosDesdeCuentasFinancieras(
+            List<CuentaFinanciera> cuentas)
+        {
+            var lineas = new List<LineaReporte>();
+
+            foreach (var cuenta in cuentas)
+            {
+                // Determinar el código del plan a mostrar
+                string codigo = cuenta.CuentaContable ?? "";
+                if (string.IsNullOrWhiteSpace(codigo))
+                {
+                    codigo = cuenta.Tipo == "Banco" ? "1.1.01.004" : "1.1.01.001";
+                }
+
+                // Nivel 4 = cuenta de movimiento (hoja)
+                int nivel = 4;
+                if (!string.IsNullOrEmpty(codigo) && codigo.Contains('.'))
+                {
+                    nivel = codigo.Split('.').Length;
+                }
+
+                lineas.Add(new LineaReporte
+                {
+                    PlanCuentaId = null,
+                    Codigo = codigo,
+                    Cuenta = cuenta.Nombre,
+                    Tipo = "Activo",
+                    Naturaleza = "Deudora",
+                    Nivel = nivel,
+                    Monto = cuenta.SaldoActual,
+                    CantidadMovimientos = 0,
+                    EsSaldoCuentaFinanciera = true
+                });
+            }
+
+            return lineas;
+        }
+
         // ============================================================
         // UTILIDADES
         // ============================================================
 
-        /// <summary>
-        /// Cuenta cuántos movimientos NO tienen categoría con PlanCuentaId
-        /// en un rango. Sirve para mostrar advertencia en el reporte.
-        /// </summary>
         public static int ContarSinPlanCuenta(
             ApplicationDbContext context,
             DateTime desde,
@@ -1511,6 +2079,7 @@ namespace Kirkenta.Helpers.Finanzas
                 .Where(m => m.Estado == "Activo"
                          && m.Fecha >= desdeFull
                          && m.Fecha <= hastaFull)
+                .Where(m => m.Origen != "Apertura") // Apertura SÍ tiene plan
                 .Where(m => m.CategoriaId == null
                          || !context.CategoriasFinancieras
                             .Where(c => c.Id == m.CategoriaId)
@@ -1887,7 +2456,7 @@ namespace Kirkenta.Helpers.Finanzas
 {
     /// <summary>
     /// Crea los datos iniciales de Finanzas: cajas, bancos comunes de Honduras,
-    /// categorías de ingreso/egreso más usadas.
+    /// categorías de ingreso/egreso más usadas, y asocia categorías al plan de cuentas.
     /// Es idempotente: no duplica si ya existen.
     /// </summary>
     public static class FinanzasSeeder
@@ -1897,6 +2466,9 @@ namespace Kirkenta.Helpers.Finanzas
             SeedCuentas(context);
             SeedCategorias(context);
             context.SaveChanges();
+
+            AsociarCategoriasAPlan(context);
+            CorregirMapeos(context);
         }
 
         private static void SeedCuentas(ApplicationDbContext context)
@@ -1906,6 +2478,7 @@ namespace Kirkenta.Helpers.Finanzas
                 new() { Codigo = "CAJA-CHICA", Nombre = "Caja Chica", Tipo = "Caja", Subtipo = "Chica", SaldoInicial = 0, SaldoActual = 0, Activa = true },
                 new() { Codigo = "CAJA-GRAL", Nombre = "Caja General", Tipo = "Caja", Subtipo = "General", SaldoInicial = 0, SaldoActual = 0, Activa = true },
                 new() { Codigo = "CAJA-POS", Nombre = "Caja POS", Tipo = "Caja", Subtipo = "POS", SaldoInicial = 0, SaldoActual = 0, Activa = true },
+                new() { Codigo = "CXC", Nombre = "Cuentas por Cobrar", Tipo = "Caja", Subtipo = "CuentasPorCobrar", SaldoInicial = 0, SaldoActual = 0, Activa = true }
             };
 
             foreach (var cuenta in cuentas)
@@ -1928,6 +2501,7 @@ namespace Kirkenta.Helpers.Finanzas
                 ("Préstamos recibidos", "#f59e0b"),
                 ("Aportes de socios", "#6366f1"),
                 ("Intereses ganados", "#14b8a6"),
+                ("Apertura de cuenta", "#14b8a6"),
                 ("Otros ingresos", "#6b7280"),
             };
 
@@ -1966,6 +2540,8 @@ namespace Kirkenta.Helpers.Finanzas
                 ("Fletes y transporte", "#ea580c"),
                 ("Seguros", "#0891b2"),
                 ("Préstamos (cuotas)", "#b45309"),
+                ("Costo de mercadería vendida", "#b91c1c"),
+                ("Cambio entregado", "#f59e0b"),
                 ("Otros gastos", "#6b7280"),
             };
 
@@ -1984,6 +2560,116 @@ namespace Kirkenta.Helpers.Finanzas
                 }
             }
         }
+
+        /// <summary>
+        /// Asocia las categorías financieras del sistema al Plan de Cuentas contable.
+        /// Es idempotente: solo actualiza las que tengan PlanCuentaId = null.
+        /// </summary>
+        private static void AsociarCategoriasAPlan(ApplicationDbContext context)
+        {
+            // Mapa: nombre de categoría → código de cuenta del plan
+            var mapa = new Dictionary<string, (string Tipo, string CodigoPlan)>
+            {
+                // ===== INGRESOS =====
+                { "Ventas al contado",              ("Ingreso", "4.1.01") },
+                { "Ventas al crédito (cobros)",     ("Ingreso", "4.1.01") },
+                { "Devoluciones de clientes",       ("Ingreso", "4.1.03") },
+                { "Préstamos recibidos",            ("Ingreso", "2.1.05") },
+                { "Aportes de socios",              ("Ingreso", "3.1.02") },
+                { "Intereses ganados",              ("Ingreso", "4.2.01") },
+                { "Apertura de cuenta",             ("Ingreso", "1.1.01.001") },
+                { "Otros ingresos",                 ("Ingreso", "4.2.02") },
+
+                // ===== EGRESOS: COSTOS =====
+                { "Costo de mercadería vendida",    ("Egreso", "5.1.01") },
+
+                // El cambio entregado reduce la venta cobrada (se recibió más de lo que costó)
+                { "Cambio entregado",               ("Egreso", "4.1.01") },
+
+                // ===== EGRESOS: GASTOS =====
+                { "Alquiler",                        ("Egreso", "6.2.03") },
+                { "Energía eléctrica",               ("Egreso", "6.2.04") },
+                { "Agua potable",                    ("Egreso", "6.2.04") },
+                { "Internet y telefonía",            ("Egreso", "6.2.04") },
+                { "Combustible",                     ("Egreso", "6.2.06") },
+                { "Mantenimiento y reparaciones",    ("Egreso", "6.2.06") },
+                { "Papelería y útiles",              ("Egreso", "6.2.07") },
+                { "Publicidad y marketing",          ("Egreso", "6.1.01") },
+                { "Servicios profesionales",         ("Egreso", "6.2.05") },
+                { "Nómina",                          ("Egreso", "6.2.01") },
+                { "Adelantos/Vales a empleados",     ("Egreso", "6.2.02") },
+                { "Pago a proveedores",              ("Egreso", "1.1.03.001") },
+                { "Impuestos (ISV/IVA)",             ("Egreso", "6.2.10") },
+                { "Servicios bancarios",             ("Egreso", "6.2.09") },
+                { "Fletes y transporte",             ("Egreso", "6.3.02") },
+                { "Seguros",                         ("Egreso", "6.2.10") },
+                { "Préstamos (cuotas)",              ("Egreso", "6.3.01") },
+                { "Otros gastos",                    ("Egreso", "6.3.02") },
+            };
+
+            // Diccionario de plan de cuentas para búsquedas rápidas
+            var planDict = context.PlanCuentas
+                .ToDictionary(p => p.Codigo, p => p);
+
+            var categoriasSinPlan = context.CategoriasFinancieras
+                .Where(c => c.PlanCuentaId == null)
+                .ToList();
+
+            bool cambios = false;
+
+            foreach (var categoria in categoriasSinPlan)
+            {
+                if (!mapa.TryGetValue(categoria.Nombre, out var info)) continue;
+                if (info.Tipo != categoria.Tipo) continue; // coherencia de tipo
+
+                if (planDict.TryGetValue(info.CodigoPlan, out var planCuenta))
+                {
+                    categoria.PlanCuentaId = planCuenta.Id;
+                    categoria.CuentaContable = planCuenta.Codigo;
+                    cambios = true;
+                }
+            }
+
+            if (cambios) context.SaveChanges();
+        }
+
+        /// <summary>
+        /// Corrige mapeos antiguos que quedaron mal en bases ya sembradas.
+        /// Solo cambia la categoría si todavía apunta al código incorrecto original
+        /// (no pisa personalizaciones del usuario). Es idempotente.
+        ///  - "Pago a proveedores": era 6.2.10 (gasto) → ahora 1.1.03.001 (Inventario).
+        ///    Como gasto duplicaba el costo (el COGS ya lo descuenta al vender).
+        ///  - "Préstamos recibidos": era 4.2.02 (ingreso) → ahora 2.1.05 (Pasivo).
+        /// </summary>
+        private static void CorregirMapeos(ApplicationDbContext context)
+        {
+            var correcciones = new (string Tipo, string Nombre, string CodigoActual, string CodigoNuevo)[]
+            {
+                ("Egreso",  "Pago a proveedores", "6.2.10", "1.1.03.001"),
+                ("Ingreso", "Préstamos recibidos", "4.2.02", "2.1.05"),
+            };
+
+            bool cambios = false;
+
+            foreach (var (tipo, nombre, codigoActual, codigoNuevo) in correcciones)
+            {
+                var planNuevo = context.PlanCuentas.FirstOrDefault(p => p.Codigo == codigoNuevo);
+                if (planNuevo == null) continue;
+
+                var categoria = context.CategoriasFinancieras
+                    .FirstOrDefault(c => c.Tipo == tipo && c.Nombre == nombre);
+                if (categoria == null || categoria.PlanCuentaId == null) continue;
+
+                var planActual = context.PlanCuentas.FirstOrDefault(p => p.Id == categoria.PlanCuentaId);
+                if (planActual == null || planActual.Codigo != codigoActual) continue;
+
+                categoria.PlanCuentaId = planNuevo.Id;
+                categoria.CuentaContable = planNuevo.Codigo;
+                cambios = true;
+            }
+
+            if (cambios) context.SaveChanges();
+        }
     }
 }
 ````
@@ -1996,16 +2682,8 @@ using Kirkenta.Models;
 
 namespace Kirkenta.Helpers.Finanzas
 {
-    /// <summary>
-    /// Helper para cálculo y desglose de ISV/IVA.
-    /// NO hardcodea tasas: siempre lee del catálogo Impuestos.
-    /// Soporta monto de envío que se suma al subtotal y se grava con la tasa predeterminada.
-    /// </summary>
     public static class ISVHelper
     {
-        /// <summary>
-        /// Resultado del cálculo de ISV agrupado por tasa.
-        /// </summary>
         public class ResultadoISV
         {
             public Dictionary<decimal, decimal> BasePorTasa { get; set; } = new();
@@ -2018,13 +2696,16 @@ namespace Kirkenta.Helpers.Finanzas
             public decimal MontoEnvio { get; set; }
             public decimal Total { get; set; }
             public decimal Descuento { get; set; }
+            public decimal DescuentoAplicadoBase { get; set; }
 
             public List<decimal> TasasAplicadas => BasePorTasa.Keys.OrderBy(t => t).ToList();
         }
 
         /// <summary>
         /// Calcula el ISV de una lista de items + un monto de envío opcional.
-        /// El envío se grava con la tasa predeterminada del catálogo.
+        /// 🔒 FIX: El descuento global se aplica ANTES de calcular el ISV.
+        /// Se prorratea proporcionalmente sobre cada línea y sobre el envío,
+        /// para que la base gravable y el ISV reflejen el descuento real.
         /// </summary>
         public static ResultadoISV Calcular(
             ApplicationDbContext context,
@@ -2045,7 +2726,10 @@ namespace Kirkenta.Helpers.Finanzas
             var impuestoPredeterminado = impuestos
                 .FirstOrDefault(i => i.EsPredeterminado)?.Porcentaje ?? 0m;
 
-            // ===== ITEMS NORMALES =====
+            // 1. Calcular bases brutas por línea (sin descuento global)
+            decimal baseBrutaItems = 0;
+            var lineas = new List<(decimal neto, decimal tasa)>();
+
             foreach (var item in items)
             {
                 var bruto = item.Cantidad * item.PrecioUnitario;
@@ -2063,6 +2747,28 @@ namespace Kirkenta.Helpers.Finanzas
                     tasa = impuestoPredeterminado;
                 }
 
+                lineas.Add((neto, tasa));
+                baseBrutaItems += neto;
+            }
+
+            decimal baseBrutaTotal = baseBrutaItems + montoEnvio;
+
+            // 2. Calcular factor de descuento global
+            // Si el descuento es mayor que la base, se aplica el máximo (base completa)
+            decimal descuentoAplicable = descuentoGlobal;
+            if (descuentoAplicable < 0) descuentoAplicable = 0;
+            if (descuentoAplicable > baseBrutaTotal) descuentoAplicable = baseBrutaTotal;
+
+            decimal factorDescuento = baseBrutaTotal > 0
+                ? (baseBrutaTotal - descuentoAplicable) / baseBrutaTotal
+                : 0;
+
+            // 3. Aplicar el factor proporcionalmente a cada línea
+            foreach (var (neto, tasa) in lineas)
+            {
+                var netoConDescuento = Math.Round(neto * factorDescuento, 2);
+                if (netoConDescuento <= 0) continue;
+
                 if (tasa > 0)
                 {
                     if (!resultado.BasePorTasa.ContainsKey(tasa))
@@ -2070,20 +2776,22 @@ namespace Kirkenta.Helpers.Finanzas
                         resultado.BasePorTasa[tasa] = 0;
                         resultado.ISVPorTasa[tasa] = 0;
                     }
-                    resultado.BasePorTasa[tasa] += neto;
-                    resultado.BaseGravableTotal += neto;
+                    resultado.BasePorTasa[tasa] += netoConDescuento;
+                    resultado.BaseGravableTotal += netoConDescuento;
                 }
                 else
                 {
-                    resultado.BaseExentaTotal += neto;
+                    resultado.BaseExentaTotal += netoConDescuento;
                 }
 
-                resultado.Subtotal += neto;
+                resultado.Subtotal += netoConDescuento;
             }
 
-            // ===== ENVÍO (se grava con la tasa predeterminada) =====
+            // 4. Aplicar el descuento proporcional al envío
             if (montoEnvio > 0)
             {
+                var envioConDescuento = Math.Round(montoEnvio * factorDescuento, 2);
+
                 if (impuestoPredeterminado > 0)
                 {
                     if (!resultado.BasePorTasa.ContainsKey(impuestoPredeterminado))
@@ -2091,18 +2799,18 @@ namespace Kirkenta.Helpers.Finanzas
                         resultado.BasePorTasa[impuestoPredeterminado] = 0;
                         resultado.ISVPorTasa[impuestoPredeterminado] = 0;
                     }
-                    resultado.BasePorTasa[impuestoPredeterminado] += montoEnvio;
-                    resultado.BaseGravableTotal += montoEnvio;
+                    resultado.BasePorTasa[impuestoPredeterminado] += envioConDescuento;
+                    resultado.BaseGravableTotal += envioConDescuento;
                 }
                 else
                 {
-                    resultado.BaseExentaTotal += montoEnvio;
+                    resultado.BaseExentaTotal += envioConDescuento;
                 }
 
-                resultado.Subtotal += montoEnvio;
+                resultado.Subtotal += envioConDescuento;
             }
 
-            // ===== CALCULAR ISV POR TASA =====
+            // 5. Calcular ISV por tasa sobre la base ya descontada
             foreach (var tasa in resultado.BasePorTasa.Keys.ToList())
             {
                 var baseTasa = resultado.BasePorTasa[tasa];
@@ -2111,15 +2819,12 @@ namespace Kirkenta.Helpers.Finanzas
                 resultado.ISVTotal += isv;
             }
 
-            resultado.Total = Math.Round(resultado.Subtotal + resultado.ISVTotal - descuentoGlobal, 2);
-            if (resultado.Total < 0) resultado.Total = 0;
+            resultado.DescuentoAplicadoBase = descuentoAplicable;
+            resultado.Total = Math.Round(resultado.Subtotal + resultado.ISVTotal, 2);
 
             return resultado;
         }
 
-        /// <summary>
-        /// Devuelve la tasa de ISV que aplica a un producto (o la predeterminada).
-        /// </summary>
         public static decimal ObtenerTasaProducto(ApplicationDbContext context, int? impuestoId)
         {
             if (impuestoId.HasValue)
@@ -2134,9 +2839,6 @@ namespace Kirkenta.Helpers.Finanzas
             return predeterminado?.Porcentaje ?? 0m;
         }
 
-        /// <summary>
-        /// Recalcula los items de una factura usando el catálogo de impuestos.
-        /// </summary>
         public static bool SincronizarItems(
             ApplicationDbContext context,
             List<DetalleFactura> items)
@@ -2173,11 +2875,6 @@ namespace Kirkenta.Helpers.Finanzas
             return cambio;
         }
 
-        /// <summary>
-        /// Recalcula el ISV de una factura existente (re-sincronizando con el catálogo)
-        /// y devuelve true si hubo cambios que se deban guardar.
-        /// Considera el monto de envío en el total.
-        /// </summary>
         public static bool RecalcularFactura(
             ApplicationDbContext context,
             Factura factura,
@@ -2218,9 +2915,6 @@ namespace Kirkenta.Helpers.Finanzas
             return cambio;
         }
 
-        /// <summary>
-        /// Obtiene las tasas activas del catálogo.
-        /// </summary>
         public static List<Impuesto> ObtenerTasasActivas(ApplicationDbContext context)
         {
             return context.Impuestos
@@ -2230,9 +2924,6 @@ namespace Kirkenta.Helpers.Finanzas
         }
     }
 
-    /// <summary>
-    /// Item mínimo para calcular ISV.
-    /// </summary>
     public class ItemParaISV
     {
         public int ProductoId { get; set; }
@@ -2250,17 +2941,16 @@ namespace Kirkenta.Helpers.Finanzas
 using Kirkenta.Data;
 using Kirkenta.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Kirkenta.Helpers.Finanzas
 {
     public static class MovimientoAutomaticoHelper
     {
         /// <summary>
-        /// Registra el ingreso por una venta del POS.
-        /// Permite especificar la cuenta (usualmente la de la apertura activa).
-        /// Todo se ejecuta dentro de una transacción atómica.
+        /// Registra el ingreso por una venta del POS (contado o tarjeta).
         /// </summary>
-        public static MovimientoFinanciero? RegistrarIngresoVenta(
+        public static (MovimientoFinanciero? mov, string? error) RegistrarIngresoVenta(
             ApplicationDbContext context,
             int ventaId,
             string numeroVenta,
@@ -2271,22 +2961,24 @@ namespace Kirkenta.Helpers.Finanzas
         {
             try
             {
-                var cuenta = cuentaId.HasValue
-                    ? context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId.Value && c.Activa)
-                    : ResolverCuentaVentas(context);
-
-                if (cuenta == null)
+                CuentaFinanciera? cuenta;
+                if (cuentaId.HasValue)
                 {
-                    Console.WriteLine("[MovimientoAutomatico] No hay cuenta configurada para ventas POS");
-                    return null;
+                    cuenta = context.CuentasFinancieras
+                        .FirstOrDefault(c => c.Id == cuentaId.Value && c.Activa);
+                    if (cuenta == null)
+                        return (null, $"La cuenta especificada (ID {cuentaId}) no existe o está inactiva.");
+                }
+                else
+                {
+                    cuenta = ResolverCuentaVentas(context);
+                    if (cuenta == null)
+                        return (null, "No hay una cuenta de caja configurada y activa para ventas del POS.");
                 }
 
                 var categoria = ResolverCategoria(context, "Ingreso", "Ventas al contado");
                 if (categoria == null)
-                {
-                    Console.WriteLine("[MovimientoAutomatico] No hay categoría 'Ventas al contado'");
-                    return null;
-                }
+                    return (null, "No existe la categoría de ingreso 'Ventas al contado'.");
 
                 return CrearMovimientoAtomico(
                     context,
@@ -2305,11 +2997,259 @@ namespace Kirkenta.Helpers.Finanzas
             catch (Exception ex)
             {
                 Console.WriteLine($"[MovimientoAutomatico] Error al registrar ingreso de venta: {ex.Message}");
-                return null;
+                return (null, $"Excepción al registrar ingreso: {ex.Message}");
             }
         }
 
-        public static MovimientoFinanciero? RegistrarEgresoPagoProveedor(
+        /// <summary>
+        /// Registra el COBRO de una venta al crédito.
+        /// Genera un movimiento de Ingreso REAL en la cuenta de caja/banco.
+        /// Se usa cuando se cobra una venta al crédito.
+        /// </summary>
+        public static (MovimientoFinanciero? mov, string? error) RegistrarIngresoCobro(
+            ApplicationDbContext context,
+            int ventaId,
+            string numeroVenta,
+            decimal monto,
+            int usuarioId,
+            string? formaPago = null,
+            int? cuentaId = null)
+        {
+            try
+            {
+                CuentaFinanciera? cuenta;
+                if (cuentaId.HasValue)
+                {
+                    cuenta = context.CuentasFinancieras
+                        .FirstOrDefault(c => c.Id == cuentaId.Value && c.Activa);
+                    if (cuenta == null)
+                        return (null, $"La cuenta especificada (ID {cuentaId}) no existe o está inactiva.");
+                }
+                else
+                {
+                    cuenta = ResolverCuentaVentas(context);
+                    if (cuenta == null)
+                        return (null, "No hay una cuenta de caja configurada y activa para cobros.");
+                }
+
+                var categoria = ResolverCategoria(context, "Ingreso", "Ventas al crédito");
+                if (categoria == null)
+                {
+                    categoria = new CategoriaFinanciera
+                    {
+                        Tipo = "Ingreso",
+                        Nombre = "Ventas al crédito (cobros)",
+                        Descripcion = "Cobros de ventas a crédito",
+                        Color = "#06b6d4",
+                        EsSistema = true,
+                        Activa = true,
+                        FechaCreacion = DateTime.Now,
+                        EmpresaId = 1
+                    };
+                    context.CategoriasFinancieras.Add(categoria);
+                    context.SaveChanges();
+                }
+
+                return CrearMovimientoAtomico(
+                    context,
+                    tipo: "Ingreso",
+                    cuentaId: cuenta.Id,
+                    categoriaId: categoria.Id,
+                    monto: monto,
+                    concepto: $"Cobro venta al crédito {numeroVenta}",
+                    referencia: numeroVenta,
+                    formaPago: formaPago,
+                    origen: "Venta",
+                    origenId: ventaId,
+                    usuarioId: usuarioId
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MovimientoAutomatico] Error al registrar cobro: {ex.Message}");
+                return (null, $"Excepción al registrar cobro: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// OPCIÓN B (legacy): Registra una cuenta por cobrar por una venta al crédito.
+        /// Crea un movimiento de Ingreso en la cuenta "Cuentas por Cobrar".
+        /// NO afecta caja real. Si la usás, al cobrar debés crear un Egreso en esta misma
+        /// cuenta para bajar el saldo pendiente.
+        /// </summary>
+        public static (MovimientoFinanciero? mov, string? error) RegistrarCuentaPorCobrar(
+            ApplicationDbContext context,
+            int ventaId,
+            string numeroVenta,
+            decimal monto,
+            int usuarioId,
+            string nombreCliente)
+        {
+            try
+            {
+                var cuentaPorCobrar = context.CuentasFinancieras
+                    .FirstOrDefault(c => c.Tipo == "Caja" && c.Subtipo == "CuentasPorCobrar" && c.Activa);
+
+                if (cuentaPorCobrar == null)
+                    return (null, "No se encontró una cuenta financiera de tipo 'Cuentas por Cobrar' activa. Ve a Finanzas > Cuentas y crea una.");
+
+                var categoria = ResolverCategoria(context, "Ingreso", "Ventas al crédito");
+                if (categoria == null)
+                    return (null, "No existe la categoría de ingreso 'Ventas al crédito (cobros)'.");
+
+                return CrearMovimientoAtomico(
+                    context,
+                    tipo: "Ingreso",
+                    cuentaId: cuentaPorCobrar.Id,
+                    categoriaId: categoria.Id,
+                    monto: monto,
+                    concepto: $"Venta a crédito {numeroVenta} - Cliente: {nombreCliente}",
+                    referencia: numeroVenta,
+                    formaPago: "Crédito",
+                    origen: "Venta",
+                    origenId: ventaId,
+                    usuarioId: usuarioId
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MovimientoAutomatico] Error al registrar cuenta por cobrar: {ex.Message}");
+                return (null, $"Excepción al registrar cuenta por cobrar: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// OPCIÓN B (legacy): Registra un Egreso en la cuenta "Cuentas por Cobrar" para
+        /// "bajar" el saldo cuando se cobra parcial o totalmente una venta al crédito.
+        /// Solo se usa si usaste RegistrarCuentaPorCobrar en la venta.
+        /// </summary>
+        public static (MovimientoFinanciero? mov, string? error) RegistrarEgresoCxC(
+            ApplicationDbContext context,
+            int ventaId,
+            string numeroVenta,
+            decimal monto,
+            int usuarioId,
+            string nombreCliente)
+        {
+            try
+            {
+                var cuentaPorCobrar = context.CuentasFinancieras
+                    .FirstOrDefault(c => c.Tipo == "Caja" && c.Subtipo == "CuentasPorCobrar" && c.Activa);
+
+                if (cuentaPorCobrar == null)
+                    return (null, "No se encontró una cuenta financiera de tipo 'Cuentas por Cobrar' activa.");
+
+                var categoria = ResolverCategoria(context, "Egreso", "Ventas al crédito");
+                if (categoria == null)
+                {
+                    categoria = new CategoriaFinanciera
+                    {
+                        Tipo = "Egreso",
+                        Nombre = "Ventas al crédito (cobros)",
+                        Descripcion = "Egreso de CxC por cobro",
+                        Color = "#06b6d4",
+                        EsSistema = true,
+                        Activa = true,
+                        FechaCreacion = DateTime.Now,
+                        EmpresaId = 1
+                    };
+                    context.CategoriasFinancieras.Add(categoria);
+                    context.SaveChanges();
+                }
+
+                return CrearMovimientoAtomico(
+                    context,
+                    tipo: "Egreso",
+                    cuentaId: cuentaPorCobrar.Id,
+                    categoriaId: categoria.Id,
+                    monto: monto,
+                    concepto: $"Cobro venta al crédito {numeroVenta} - Cliente: {nombreCliente}",
+                    referencia: numeroVenta,
+                    formaPago: "Crédito",
+                    origen: "Venta",
+                    origenId: ventaId,
+                    usuarioId: usuarioId
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MovimientoAutomatico] Error al registrar egreso CxC: {ex.Message}");
+                return (null, $"Excepción al registrar egreso CxC: {ex.Message}");
+            }
+        }
+
+        public static (MovimientoFinanciero? mov, string? error) RegistrarEgresoCambio(
+            ApplicationDbContext context,
+            int documentoId,
+            string numeroDocumento,
+            decimal montoCambio,
+            int usuarioId,
+            string? formaPago = null,
+            int? cuentaId = null,
+            string origen = "Venta")
+        {
+            try
+            {
+                if (montoCambio <= 0)
+                    return (null, "El monto del cambio debe ser mayor a cero.");
+
+                CuentaFinanciera? cuenta;
+                if (cuentaId.HasValue)
+                {
+                    cuenta = context.CuentasFinancieras
+                        .FirstOrDefault(c => c.Id == cuentaId.Value && c.Activa);
+                    if (cuenta == null)
+                        return (null, $"La cuenta especificada (ID {cuentaId}) no existe o está inactiva.");
+                }
+                else
+                {
+                    cuenta = ResolverCuentaVentas(context);
+                    if (cuenta == null)
+                        return (null, "No hay una cuenta de caja configurada y activa para el cambio de venta.");
+                }
+
+                var categoria = context.CategoriasFinancieras
+                    .FirstOrDefault(c => c.Tipo == "Egreso" && c.Nombre == "Cambio entregado");
+
+                if (categoria == null)
+                {
+                    categoria = new CategoriaFinanciera
+                    {
+                        Tipo = "Egreso",
+                        Nombre = "Cambio entregado",
+                        Descripcion = "Vuelto entregado al cliente en ventas POS",
+                        Color = "#f59e0b",
+                        EsSistema = true,
+                        Activa = true,
+                        FechaCreacion = DateTime.Now,
+                        EmpresaId = 1
+                    };
+                    context.CategoriasFinancieras.Add(categoria);
+                    context.SaveChanges();
+                }
+
+                return CrearMovimientoAtomico(
+                    context,
+                    tipo: "Egreso",
+                    cuentaId: cuenta.Id,
+                    categoriaId: categoria.Id,
+                    monto: montoCambio,
+                    concepto: $"Cambio entregado — {origen} {numeroDocumento}",
+                    referencia: numeroDocumento,
+                    formaPago: formaPago ?? "Efectivo",
+                    origen: origen,
+                    origenId: documentoId,
+                    usuarioId: usuarioId
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MovimientoAutomatico] Error al registrar egreso de cambio: {ex.Message}");
+                return (null, $"Excepción al registrar cambio: {ex.Message}");
+            }
+        }
+
+        public static (MovimientoFinanciero? mov, string? error) RegistrarEgresoPagoProveedor(
             ApplicationDbContext context,
             int pagoProveedorId,
             string numeroPago,
@@ -2322,17 +3262,11 @@ namespace Kirkenta.Helpers.Finanzas
             {
                 var cuenta = ResolverCuentaPagosProveedor(context);
                 if (cuenta == null)
-                {
-                    Console.WriteLine("[MovimientoAutomatico] No hay cuenta configurada para pagos a proveedores");
-                    return null;
-                }
+                    return (null, "No hay una cuenta bancaria ni caja general activa para pagos a proveedores.");
 
                 var categoria = ResolverCategoria(context, "Egreso", "Pago a proveedores");
                 if (categoria == null)
-                {
-                    Console.WriteLine("[MovimientoAutomatico] No hay categoría 'Pago a proveedores'");
-                    return null;
-                }
+                    return (null, "No existe la categoría de egreso 'Pago a proveedores'.");
 
                 return CrearMovimientoAtomico(
                     context,
@@ -2351,11 +3285,11 @@ namespace Kirkenta.Helpers.Finanzas
             catch (Exception ex)
             {
                 Console.WriteLine($"[MovimientoAutomatico] Error al registrar egreso de pago: {ex.Message}");
-                return null;
+                return (null, $"Excepción al registrar pago a proveedor: {ex.Message}");
             }
         }
 
-        public static MovimientoFinanciero? RegistrarEgresoNomina(
+        public static (MovimientoFinanciero? mov, string? error) RegistrarEgresoNomina(
             ApplicationDbContext context,
             int nominaId,
             string numeroNomina,
@@ -2365,10 +3299,12 @@ namespace Kirkenta.Helpers.Finanzas
             try
             {
                 var cuenta = ResolverCuentaDefault(context);
-                if (cuenta == null) return null;
+                if (cuenta == null)
+                    return (null, "No hay ninguna cuenta activa configurada para el pago de nómina.");
 
                 var categoria = ResolverCategoria(context, "Egreso", "Nómina");
-                if (categoria == null) return null;
+                if (categoria == null)
+                    return (null, "No existe la categoría de egreso 'Nómina'.");
 
                 return CrearMovimientoAtomico(
                     context,
@@ -2387,15 +3323,118 @@ namespace Kirkenta.Helpers.Finanzas
             catch (Exception ex)
             {
                 Console.WriteLine($"[MovimientoAutomatico] Error al registrar nómina: {ex.Message}");
-                return null;
+                return (null, $"Excepción al registrar nómina: {ex.Message}");
+            }
+        }
+
+        // ============================================================
+        // COSTO DE VENTAS (COGS)
+        // ============================================================
+
+        /// <summary>
+        /// Registra el egreso por Costo de Mercadería Vendida (COGS).
+        ///
+        /// Este movimiento es CONTABLE, no de caja. Su propósito es que el
+        /// Estado de Resultados reste el costo real del producto vendido y
+        /// calcule la Utilidad Bruta correctamente.
+        ///
+        /// FIX 23/10/2026: ya NO modifica SaldoActual de la cuenta (SaldoHelper
+        /// ignora los movimientos de la cuenta 5.1.01). Antes cada venta
+        /// descontaba el costo del efectivo real de la caja.
+        /// Es idempotente: si la venta ya tiene su costo, devuelve el existente.
+        ///
+        /// Va asociado a la categoría "Costo de mercadería vendida", que
+        /// debe estar enlazada al plan de cuentas 5.1.01.
+        ///
+        /// El movimiento se aplica contra la misma cuenta de caja/banco que
+        /// recibió el ingreso, porque en el modelo actual no se maneja una
+        /// cuenta puente de Inventario: la "contrapartida" es la misma cuenta
+        /// financiera. Lo importante para el Estado de Resultados es que el
+        /// egreso quede con Tipo = "Egreso" y con una categoría cuyo plan
+        /// sea de tipo Costo.
+        /// </summary>
+        public static (MovimientoFinanciero? mov, string? error) RegistrarEgresoCostoVenta(
+            ApplicationDbContext context,
+            int ventaId,
+            string numeroVenta,
+            decimal montoCosto,
+            int usuarioId,
+            int? cuentaId = null)
+        {
+            try
+            {
+                if (montoCosto <= 0)
+                    return (null, "El costo debe ser mayor a cero");
+
+                // Idempotencia: no duplicar el costo de una misma venta
+                var existente = context.MovimientosFinancieros.FirstOrDefault(m =>
+                    m.Estado == "Activo"
+                    && m.Origen == "Venta"
+                    && m.OrigenId == ventaId
+                    && m.Concepto.StartsWith("Costo de mercadería vendida"));
+                if (existente != null) return (existente, null);
+
+                CuentaFinanciera? cuenta;
+                if (cuentaId.HasValue)
+                {
+                    cuenta = context.CuentasFinancieras
+                        .FirstOrDefault(c => c.Id == cuentaId.Value && c.Activa);
+                    if (cuenta == null)
+                        return (null, $"La cuenta especificada (ID {cuentaId}) no existe o está inactiva.");
+                }
+                else
+                {
+                    cuenta = ResolverCuentaVentas(context);
+                    if (cuenta == null)
+                        return (null, "No hay una cuenta de caja configurada y activa para el costo de venta.");
+                }
+
+                // Buscar la categoría de COGS explícita
+                var categoria = context.CategoriasFinancieras
+                    .FirstOrDefault(c => c.Tipo == "Egreso"
+                                      && c.Nombre == "Costo de mercadería vendida"
+                                      && c.Activa);
+
+                if (categoria == null)
+                {
+                    // Fallback: cualquier categoría de egreso con PlanCuentaId a 5.1.01
+                    categoria = context.CategoriasFinancieras
+                        .FirstOrDefault(c => c.Tipo == "Egreso"
+                                          && c.PlanCuentaId != null
+                                          && c.Activa
+                                          && context.PlanCuentas
+                                             .Any(p => p.Id == c.PlanCuentaId && p.Codigo == "5.1.01"));
+                }
+
+                if (categoria == null)
+                    return (null, "No existe la categoría de egreso 'Costo de mercadería vendida'.");
+
+                return CrearMovimientoAtomico(
+                    context,
+                    tipo: "Egreso",
+                    cuentaId: cuenta.Id,
+                    categoriaId: categoria.Id,
+                    monto: montoCosto,
+                    concepto: $"Costo de mercadería vendida — Venta {numeroVenta}",
+                    referencia: numeroVenta,
+                    formaPago: "N/A",
+                    origen: "Venta",
+                    origenId: ventaId,
+                    usuarioId: usuarioId,
+                    notas: SaldoHelper.MarcaSoloContable
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MovimientoAutomatico] Error al registrar COGS: {ex.Message}");
+                return (null, $"Excepción al registrar costo de venta: {ex.Message}");
             }
         }
 
         /// <summary>
         /// Crea el movimiento + aplica saldo + guarda todo dentro de una transacción atómica.
-        /// Si algo falla en el medio, se revierte TODO.
         /// </summary>
-        private static MovimientoFinanciero? CrearMovimientoAtomico(
+        private static (MovimientoFinanciero? mov, string? error) CrearMovimientoAtomico(
             ApplicationDbContext context,
             string tipo,
             int cuentaId,
@@ -2406,25 +3445,31 @@ namespace Kirkenta.Helpers.Finanzas
             string? formaPago,
             string origen,
             int? origenId,
-            int usuarioId)
+            int usuarioId,
+            string? notas = null)
         {
-            using var transaction = context.Database.BeginTransaction();
+            var currentTx = context.Database.CurrentTransaction;
+            var abrimosNosotros = currentTx == null;
+
+            IDbContextTransaction? transaction = null;
+            if (abrimosNosotros)
+            {
+                transaction = context.Database.BeginTransaction();
+            }
+
             try
             {
-                // Validar que la cuenta exista y esté activa
                 var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId);
                 if (cuenta == null)
                 {
-                    transaction.Rollback();
-                    Console.WriteLine($"[MovimientoAutomatico] Cuenta {cuentaId} no encontrada");
-                    return null;
+                    if (abrimosNosotros) transaction!.Rollback();
+                    return (null, $"La cuenta (ID {cuentaId}) no existe.");
                 }
 
                 if (!cuenta.Activa)
                 {
-                    transaction.Rollback();
-                    Console.WriteLine($"[MovimientoAutomatico] Cuenta {cuentaId} inactiva");
-                    return null;
+                    if (abrimosNosotros) transaction!.Rollback();
+                    return (null, $"La cuenta '{cuenta.Nombre}' está inactiva.");
                 }
 
                 var numero = NumeroDocumentoHelper.GenerarSiguiente(context, "MovimientoFinanciero");
@@ -2447,6 +3492,7 @@ namespace Kirkenta.Helpers.Finanzas
                     Origen = origen,
                     OrigenId = origenId,
                     EsAutomatico = true,
+                    Notas = notas,
                     Estado = "Activo",
                     FechaCreacion = DateTime.Now,
                     UsuarioCreoId = usuarioId,
@@ -2456,18 +3502,31 @@ namespace Kirkenta.Helpers.Finanzas
                 context.MovimientosFinancieros.Add(mov);
                 context.SaveChanges();
 
-                // Aplicar saldo
                 SaldoHelper.Aplicar(context, mov);
                 context.SaveChanges();
 
-                transaction.Commit();
-                return mov;
+                if (abrimosNosotros)
+                {
+                    transaction!.Commit();
+                }
+
+                return (mov, null);
             }
             catch (Exception ex)
             {
-                transaction.Rollback();
+                if (abrimosNosotros)
+                {
+                    transaction!.Rollback();
+                }
                 Console.WriteLine($"[MovimientoAutomatico] Error en transacción, rollback aplicado: {ex.Message}");
-                return null;
+                return (null, $"Error en transacción: {ex.Message}");
+            }
+            finally
+            {
+                if (abrimosNosotros && transaction != null)
+                {
+                    transaction.Dispose();
+                }
             }
         }
 
@@ -2475,7 +3534,6 @@ namespace Kirkenta.Helpers.Finanzas
         {
             var cuentaPOS = context.CuentasFinancieras
                 .FirstOrDefault(c => c.Tipo == "Caja" && c.Subtipo == "POS" && c.Activa);
-
             if (cuentaPOS != null) return cuentaPOS;
 
             return context.CuentasFinancieras
@@ -2490,12 +3548,10 @@ namespace Kirkenta.Helpers.Finanzas
                 .Where(c => c.Tipo == "Banco" && c.Activa)
                 .OrderBy(c => c.Id)
                 .FirstOrDefault();
-
             if (banco != null) return banco;
 
             var cajaGeneral = context.CuentasFinancieras
                 .FirstOrDefault(c => c.Tipo == "Caja" && c.Subtipo == "General" && c.Activa);
-
             if (cajaGeneral != null) return cajaGeneral;
 
             return context.CuentasFinancieras
@@ -2516,7 +3572,6 @@ namespace Kirkenta.Helpers.Finanzas
         {
             var cat = context.CategoriasFinancieras
                 .FirstOrDefault(c => c.Tipo == tipo && c.Nombre == nombre && c.Activa);
-
             if (cat != null) return cat;
 
             return context.CategoriasFinancieras
@@ -2717,6 +3772,120 @@ namespace Kirkenta.Helpers.Finanzas
 }
 ````
 
+===== FILE: Helpers/Finanzas/ReparacionFinanzasHelper.cs =====
+
+````csharp
+using Kirkenta.Data;
+using Kirkenta.Models;
+
+namespace Kirkenta.Helpers.Finanzas
+{
+    /// <summary>
+    /// Correcciones únicas e idempotentes sobre datos de Finanzas generados
+    /// antes del fix del 23/10/2026. Se ejecuta al arrancar (Program.cs).
+    ///
+    /// 1) COGS: los movimientos de costo de ventas ya descontaron su monto del
+    ///    SaldoActual de la caja. Se les devuelve ese monto y se marcan con
+    ///    SaldoHelper.MarcaSoloContable para no procesarlos otra vez.
+    ///    (Los nuevos COGS nacen ya marcados.)
+    ///
+    /// 2) Ventas a crédito que se facturaron: se había creado un ingreso en la
+    ///    cuenta Cuentas por Cobrar y la venta quedó "registrada", bloqueando el
+    ///    cobro. Se anula ese ingreso y se reabre la venta para poder cobrarla.
+    /// </summary>
+    public static class ReparacionFinanzasHelper
+    {
+        public static (int cogsCorregidos, int creditosReabiertos) Ejecutar(ApplicationDbContext context)
+        {
+            int cogs = CorregirSaldosCogs(context);
+            int creditos = ReabrirCreditosFacturados(context);
+            return (cogs, creditos);
+        }
+
+        private static int CorregirSaldosCogs(ApplicationDbContext context)
+        {
+            var categoriasCogsIds = context.CategoriasFinancieras
+                .Where(c => c.PlanCuentaId != null
+                         && context.PlanCuentas.Any(p => p.Id == c.PlanCuentaId && p.Codigo == "5.1.01"))
+                .Select(c => c.Id)
+                .ToList();
+
+            if (categoriasCogsIds.Count == 0) return 0;
+
+            var pendientes = context.MovimientosFinancieros
+                .Where(m => m.Estado == "Activo"
+                         && m.Tipo == "Egreso"
+                         && m.Origen == "Venta"
+                         && m.EsAutomatico
+                         && m.CategoriaId != null
+                         && categoriasCogsIds.Contains(m.CategoriaId.Value)
+                         && (m.Notas == null || !m.Notas.Contains(SaldoHelper.MarcaSoloContable)))
+                .ToList();
+
+            if (pendientes.Count == 0) return 0;
+
+            foreach (var mov in pendientes)
+            {
+                var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == mov.CuentaId);
+                if (cuenta != null)
+                {
+                    cuenta.SaldoActual += mov.Monto;
+                }
+
+                mov.Notas = string.IsNullOrWhiteSpace(mov.Notas)
+                    ? SaldoHelper.MarcaSoloContable
+                    : $"{mov.Notas} {SaldoHelper.MarcaSoloContable}";
+            }
+
+            context.SaveChanges();
+            return pendientes.Count;
+        }
+
+        private static int ReabrirCreditosFacturados(ApplicationDbContext context)
+        {
+            var cuentasCxcIds = context.CuentasFinancieras
+                .Where(c => c.Subtipo == "CuentasPorCobrar")
+                .Select(c => c.Id)
+                .ToList();
+
+            if (cuentasCxcIds.Count == 0) return 0;
+
+            var ventas = context.Ventas
+                .Where(v => v.EsCredito
+                         && v.MovimientoRegistrado
+                         && v.SaldoPendiente > 0
+                         && v.MovimientoIngresoId != null)
+                .ToList();
+
+            int reabiertas = 0;
+
+            foreach (var venta in ventas)
+            {
+                var mov = context.MovimientosFinancieros
+                    .FirstOrDefault(m => m.Id == venta.MovimientoIngresoId);
+
+                if (mov == null || mov.Estado != "Activo") continue;
+                if (!cuentasCxcIds.Contains(mov.CuentaId)) continue;
+
+                mov.Estado = "Anulado";
+                mov.MotivoAnulacion = "Corrección automática: el ingreso de una venta a crédito se registra al cobrar, no al facturar.";
+                mov.FechaAnulacion = DateTime.Now;
+                SaldoHelper.Revertir(context, mov);
+
+                venta.MovimientoRegistrado = false;
+                venta.FechaMovimiento = null;
+                venta.MovimientoIngresoId = null;
+
+                reabiertas++;
+            }
+
+            if (reabiertas > 0) context.SaveChanges();
+            return reabiertas;
+        }
+    }
+}
+````
+
 ===== FILE: Helpers/Finanzas/SaldoHelper.cs =====
 
 ````csharp
@@ -2731,12 +3900,43 @@ namespace Kirkenta.Helpers.Finanzas
     public static class SaldoHelper
     {
         /// <summary>
+        /// Marca que se guarda en Notas de los movimientos de costo de ventas
+        /// (COGS) para indicar que NO afectan el saldo real de caja/banco.
+        /// </summary>
+        public const string MarcaSoloContable = "[SOLO-CONTABLE]";
+
+        /// <summary>
+        /// Un movimiento es "solo contable" cuando su categoría está enlazada a la
+        /// cuenta 5.1.01 (Costo de Mercadería Vendida). El costo de ventas NO saca
+        /// dinero de la caja: solo reduce el inventario / la utilidad.
+        /// </summary>
+        public static bool EsSoloContable(ApplicationDbContext context, MovimientoFinanciero mov)
+        {
+            if (mov.Tipo != "Egreso" || mov.CategoriaId == null) return false;
+
+            return context.CategoriasFinancieras
+                .Where(c => c.Id == mov.CategoriaId)
+                .Join(context.PlanCuentas,
+                      c => c.PlanCuentaId,
+                      p => (int?)p.Id,
+                      (c, p) => p.Codigo)
+                .Any(codigo => codigo == "5.1.01");
+        }
+
+        /// <summary>
         /// Aplica el efecto de un movimiento sobre el saldo de las cuentas.
         /// Se llama al crear un movimiento.
+        ///
+        /// EXCEPCIONES (no modifican SaldoActual):
+        ///  - Origen = "Apertura": la cuenta ya nació con su saldo inicial.
+        ///  - Costo de ventas (5.1.01): es un movimiento contable, no sale dinero.
         /// </summary>
         public static void Aplicar(ApplicationDbContext context, MovimientoFinanciero mov)
         {
             if (mov.Estado != "Activo") return;
+
+            if (mov.Origen == "Apertura") return;
+            if (EsSoloContable(context, mov)) return;
 
             switch (mov.Tipo)
             {
@@ -2770,7 +3970,10 @@ namespace Kirkenta.Helpers.Finanzas
         /// </summary>
         public static void Revertir(ApplicationDbContext context, MovimientoFinanciero mov)
         {
-            if (mov.Estado == "Activo") return; // Ya fue revertido
+            if (mov.Estado == "Activo") return;
+
+            if (mov.Origen == "Apertura") return;
+            if (EsSoloContable(context, mov)) return;
 
             switch (mov.Tipo)
             {
@@ -5794,10 +6997,9 @@ namespace Kirkenta.Pages.Clientes
                 return RedirectToPage("/Clientes/Index");
             }
 
-            // Verificar que no tenga ventas
-            if (_context.Ventas.Any(v => v.ClienteId == id))
+            if (TieneDependencias(id))
             {
-                TempData["Error"] = "No se puede eliminar un cliente que tiene ventas asociadas";
+                TempData["Error"] = "No se puede eliminar el cliente: tiene ventas, facturas, cotizaciones o pedidos asociados. Desactívalo mejor.";
                 return RedirectToPage("/Clientes/Index");
             }
 
@@ -5823,9 +7025,9 @@ namespace Kirkenta.Pages.Clientes
                 return RedirectToPage("/Clientes/Index");
             }
 
-            if (_context.Ventas.Any(v => v.ClienteId == id))
+            if (TieneDependencias(id))
             {
-                TempData["Error"] = "No se puede eliminar un cliente que tiene ventas asociadas";
+                TempData["Error"] = "No se puede eliminar el cliente: tiene ventas, facturas, cotizaciones o pedidos asociados.";
                 return RedirectToPage("/Clientes/Index");
             }
 
@@ -5842,6 +7044,17 @@ namespace Kirkenta.Pages.Clientes
 
             TempData["Success"] = $"Cliente '{nombre}' eliminado correctamente";
             return RedirectToPage("/Clientes/Index");
+        }
+
+        private bool TieneDependencias(int clienteId)
+        {
+            if (_context.Ventas.Any(v => v.ClienteId == clienteId)) return true;
+            if (_context.Facturas.Any(f => f.ClienteId == clienteId)) return true;
+            if (_context.Cotizaciones.Any(c => c.ClienteId == clienteId)) return true;
+            if (_context.Pedidos.Any(p => p.ClienteId == clienteId)) return true;
+            if (_context.Devoluciones.Any(d => d.ClienteId == clienteId)) return true;
+            if (_context.Envios.Any(e => e.ClienteId == clienteId)) return true;
+            return false;
         }
     }
 }
@@ -7423,6 +8636,7 @@ namespace Kirkenta.Pages.Clientes
 ===== FILE: Pages/Compras/HistorialProducto.cshtml.cs =====
 
 ````csharp
+using Kirkenta.Helpers;
 using Kirkenta.Data;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -7464,6 +8678,12 @@ namespace Kirkenta.Pages.Compras
 
         public IActionResult OnGet(int productoId)
         {
+            if (!(PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Compras", "Index")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             var producto = _context.Productos.FirstOrDefault(p => p.Id == productoId);
             if (producto == null)
             {
@@ -7749,6 +8969,7 @@ namespace Kirkenta.Pages.Compras
 ===== FILE: Pages/Compras/Index.cshtml.cs =====
 
 ````csharp
+using Microsoft.AspNetCore.Mvc;
 using Kirkenta.Data;
 using Kirkenta.Helpers;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -7797,8 +9018,14 @@ namespace Kirkenta.Pages.Compras
             public string Estado { get; set; } = "";
         }
 
-        public void OnGet()
+        public IActionResult OnGet()
         {
+            if (!(PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Compras", "Index")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             var hoy = DateTime.Today;
             var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
             var finMes = inicioMes.AddMonths(1);
@@ -7904,6 +9131,8 @@ namespace Kirkenta.Pages.Compras
                 labels = meses.Select(x => x.Label).ToArray(),
                 data = meses.Select(x => x.Total).ToArray()
             });
+
+            return Page();
         }
     }
 }
@@ -8578,9 +9807,34 @@ namespace Kirkenta.Pages.Cotizaciones
         <p>Creada el @Model.Cotizacion.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
     </div>
     <div class="module-header-right">
-        @if (Model.Cotizacion.Estado == "Aceptada")
+        @{
+            var estadoReal = string.IsNullOrEmpty(Model.Cotizacion.Estado) ? "Borrador" : Model.Cotizacion.Estado;
+        }
+
+        @if (estadoReal == "Borrador" || estadoReal == "Enviada")
         {
-            <a asp-page="/POS/Index" asp-route-cotizacionId="@Model.Cotizacion.Id" class="btn-primary" style="background: #10b981;">
+            <form method="post" asp-page-handler="Aceptar" asp-route-id="@Model.Cotizacion.Id" style="display:inline;">
+                <button type="submit" class="btn-primary" style="background:#10b981;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    Marcar Aceptada
+                </button>
+            </form>
+            <form method="post" asp-page-handler="Rechazar" asp-route-id="@Model.Cotizacion.Id" style="display:inline;">
+                <button type="submit" class="btn-danger">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                    Rechazar
+                </button>
+            </form>
+        }
+
+        @if (estadoReal != "Convertida" && estadoReal != "Rechazada" && estadoReal != "Vencida" && estadoReal != "Cancelada")
+        {
+            <a asp-page="/POS/Index" asp-route-cotizacionId="@Model.Cotizacion.Id" class="btn-primary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                     <circle cx="9" cy="21" r="1"/>
                     <circle cx="20" cy="21" r="1"/>
@@ -8588,16 +9842,22 @@ namespace Kirkenta.Pages.Cotizaciones
                 </svg>
                 Cobrar en POS
             </a>
+        }
+
+        @if (estadoReal == "Aceptada")
+        {
             <form method="post" asp-page-handler="Convertir" asp-route-id="@Model.Cotizacion.Id" style="display:inline;" onsubmit="return confirm('¿Convertir a factura directamente (sin cobrar)?');">
-                <button type="submit" class="btn-primary">
+                <button type="submit" class="btn-secondary">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
-                        <polyline points="20 6 9 17 4 12"/>
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
                     </svg>
                     Facturar (sin cobrar)
                 </button>
             </form>
         }
-        @if (Model.Cotizacion.Estado == "Convertida" && Model.Cotizacion.FacturaId.HasValue)
+
+        @if (estadoReal == "Convertida" && Model.Cotizacion.FacturaId.HasValue)
         {
             <a asp-page="/Facturas/Details" asp-route-id="@Model.Cotizacion.FacturaId" class="btn-primary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
@@ -8607,6 +9867,13 @@ namespace Kirkenta.Pages.Cotizaciones
                 Ver factura
             </a>
         }
+        @if (estadoReal == "Convertida" && Model.Cotizacion.VentaId.HasValue)
+        {
+            <a asp-page="/Ventas/Details" asp-route-id="@Model.Cotizacion.VentaId" class="btn-secondary">
+                Ver venta generada
+            </a>
+        }
+
         <button type="button" class="btn-secondary" onclick="window.print()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                 <polyline points="6 9 6 2 18 2 18 9"/>
@@ -8626,6 +9893,17 @@ namespace Kirkenta.Pages.Cotizaciones
             <polyline points="22 4 12 14.01 9 11.01"/>
         </svg>
         @TempData["Success"]
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
     </div>
 }
 
@@ -8663,14 +9941,17 @@ namespace Kirkenta.Pages.Cotizaciones
         <div class="factura-numero">
             <span class="factura-numero-label">COTIZACIÓN</span>
             <strong class="factura-numero-value">@Model.Cotizacion.Numero</strong>
-            <span class="badge @(Model.Cotizacion.Estado switch {
+            <span class="badge @(estadoReal switch {
+                "Borrador" => "badge-info",
+                "Enviada" => "badge-info",
                 "Aceptada" => "badge-success",
                 "Rechazada" => "badge-danger",
-                "Convertida" => "badge-success",
                 "Vencida" => "badge-warning",
-                _ => "badge-info"
+                "Convertida" => "badge-success",
+                "Cancelada" => "badge-danger",
+                _ => "badge"
             })" style="margin-top: 6px;">
-                @Model.Cotizacion.Estado
+                @estadoReal
             </span>
         </div>
     </div>
@@ -8800,11 +10081,31 @@ namespace Kirkenta.Pages.Cotizaciones
 
         public IActionResult OnGet(int id)
         {
+            if (!(PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Ventas", "Cotizaciones")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             var cotizacion = _context.Cotizaciones.FirstOrDefault(c => c.Id == id);
             if (cotizacion == null)
             {
                 TempData["Error"] = "Cotización no encontrada";
                 return RedirectToPage("/Cotizaciones/Index");
+            }
+
+            // Auto-marcar como Vencida si expiró y sigue en Borrador/Enviada/Aceptada
+            if ((string.IsNullOrEmpty(cotizacion.Estado) || cotizacion.Estado == "Borrador" || cotizacion.Estado == "Enviada" || cotizacion.Estado == "Aceptada")
+                && cotizacion.FechaVencimiento.HasValue
+                && cotizacion.FechaVencimiento.Value.Date < DateTime.Today)
+            {
+                cotizacion.Estado = "Vencida";
+                _context.SaveChanges();
+            }
+            else if (string.IsNullOrEmpty(cotizacion.Estado))
+            {
+                cotizacion.Estado = "Borrador";
+                _context.SaveChanges();
             }
 
             Cotizacion = cotizacion;
@@ -8816,8 +10117,38 @@ namespace Kirkenta.Pages.Cotizaciones
             return Page();
         }
 
+        public IActionResult OnPostAceptar(int id)
+        {
+            var cotizacion = _context.Cotizaciones.FirstOrDefault(c => c.Id == id);
+            if (cotizacion != null && (cotizacion.Estado == "Borrador" || cotizacion.Estado == "Enviada"))
+            {
+                cotizacion.Estado = "Aceptada";
+                _context.SaveChanges();
+                TempData["Success"] = "Cotización marcada como Aceptada";
+            }
+            return RedirectToPage("/Cotizaciones/Details", new { id });
+        }
+
+        public IActionResult OnPostRechazar(int id)
+        {
+            var cotizacion = _context.Cotizaciones.FirstOrDefault(c => c.Id == id);
+            if (cotizacion != null && (cotizacion.Estado == "Borrador" || cotizacion.Estado == "Enviada"))
+            {
+                cotizacion.Estado = "Rechazada";
+                _context.SaveChanges();
+                TempData["Success"] = "Cotización marcada como Rechazada";
+            }
+            return RedirectToPage("/Cotizaciones/Details", new { id });
+        }
+
         public IActionResult OnPostConvertir(int id)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Facturas", "crear")))
+            {
+                TempData["Error"] = "No tienes permiso para realizar esta acción";
+                return RedirectToPage("/Index");
+            }
+
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var cotizacion = _context.Cotizaciones.FirstOrDefault(c => c.Id == id);
 
@@ -9463,9 +10794,10 @@ namespace Kirkenta.Pages.Cotizaciones
                     @foreach (var c in Model.Cotizaciones)
                     {
                         var cliente = Model.Clientes.FirstOrDefault(x => x.Id == c.ClienteId);
-                        var badgeClass = c.Estado switch
+                        var estadoReal = string.IsNullOrEmpty(c.Estado) ? "Borrador" : c.Estado;
+                        var badgeClass = estadoReal switch
                         {
-                            "Borrador" => "badge",
+                            "Borrador" => "badge badge-info",
                             "Enviada" => "badge badge-info",
                             "Aceptada" => "badge badge-success",
                             "Rechazada" => "badge badge-danger",
@@ -9477,7 +10809,7 @@ namespace Kirkenta.Pages.Cotizaciones
                         <tr data-numero="@c.Numero.ToLower()"
                             data-cliente="@(cliente?.Nombre.ToLower() ?? "")"
                             data-rtn="@(cliente?.RTN?.ToLower() ?? "")"
-                            data-estado="@c.Estado">
+                            data-estado="@estadoReal">
                             <td><strong>@c.Numero</strong></td>
                             <td>@(cliente?.Nombre ?? "—")</td>
                             <td>
@@ -9494,8 +10826,8 @@ namespace Kirkenta.Pages.Cotizaciones
                             <td>
                                 @if (c.FechaVencimiento.HasValue)
                                 {
-                                    var vencida = c.FechaVencimiento.Value < DateTime.Now && c.Estado != "Convertida" && c.Estado != "Aceptada";
-                                    <span style="@(vencida ? "color: var(--color-danger);" : "")">
+                                    var vencida = c.FechaVencimiento.Value.Date < DateTime.Today && estadoReal != "Convertida" && estadoReal != "Aceptada" && estadoReal != "Rechazada";
+                                    <span style="@(vencida ? "color: var(--color-danger); font-weight: 600;" : "")">
                                         @c.FechaVencimiento.Value.ToString("dd/MM/yyyy")
                                     </span>
                                 }
@@ -9505,7 +10837,7 @@ namespace Kirkenta.Pages.Cotizaciones
                                 }
                             </td>
                             <td><strong>L. @c.Total.ToString("N2")</strong></td>
-                            <td><span class="@badgeClass">@c.Estado</span></td>
+                            <td><span class="@badgeClass">@estadoReal</span></td>
                             <td>
                                 <div class="table-actions">
                                     <a asp-page="/Cotizaciones/Details" asp-route-id="@c.Id" class="btn-icon-action" title="Ver detalle">
@@ -9514,7 +10846,7 @@ namespace Kirkenta.Pages.Cotizaciones
                                             <circle cx="12" cy="12" r="3"/>
                                         </svg>
                                     </a>
-                                    @if (c.Estado != "Convertida" && c.Estado != "Cancelada" && Model.PuedeEditar)
+                                    @if (estadoReal != "Convertida" && estadoReal != "Cancelada" && Model.PuedeEditar)
                                     {
                                         <a asp-page="/Cotizaciones/Edit" asp-route-id="@c.Id" class="btn-icon-action" title="Editar">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -9523,7 +10855,7 @@ namespace Kirkenta.Pages.Cotizaciones
                                             </svg>
                                         </a>
                                     }
-                                    @if (c.Estado == "Aceptada")
+                                    @if ((estadoReal == "Borrador" || estadoReal == "Aceptada") && Model.PuedeEditar)
                                     {
                                         <a asp-page="/POS/Index" asp-route-cotizacionId="@c.Id" class="btn-icon-action" title="Cobrar en POS" style="color: #10b981;">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -9532,15 +10864,8 @@ namespace Kirkenta.Pages.Cotizaciones
                                                 <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
                                             </svg>
                                         </a>
-                                        <form method="post" asp-page-handler="Convertir" asp-route-id="@c.Id" style="display:inline;" onsubmit="return confirm('¿Convertir a factura sin cobrar?');">
-                                            <button type="submit" class="btn-icon-action" title="Facturar sin cobrar">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <polyline points="20 6 9 17 4 12"/>
-                                                </svg>
-                                            </button>
-                                        </form>
                                     }
-                                    @if (c.Estado == "Convertida" && c.FacturaId.HasValue)
+                                    @if (estadoReal == "Convertida" && c.FacturaId.HasValue)
                                     {
                                         <a asp-page="/Facturas/Details" asp-route-id="@c.FacturaId" class="btn-icon-action" title="Ver factura" style="color: var(--color-success);">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -9549,7 +10874,7 @@ namespace Kirkenta.Pages.Cotizaciones
                                             </svg>
                                         </a>
                                     }
-                                    @if (c.Estado != "Convertida" && Model.PuedeEliminar)
+                                    @if (estadoReal != "Convertida" && Model.PuedeEliminar)
                                     {
                                         <a asp-page="/Cotizaciones/Delete" asp-route-id="@c.Id" class="btn-icon-action btn-icon-action-danger" title="Eliminar">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -9636,12 +10961,43 @@ namespace Kirkenta.Pages.Cotizaciones
             PuedeEditar = currentRol == "Admin" || PermisoHelper.TienePermiso(_context, currentRol, "Ventas", "Cotizaciones", "editar");
             PuedeEliminar = currentRol == "Admin" || PermisoHelper.TienePermiso(_context, currentRol, "Ventas", "Cotizaciones", "eliminar");
 
-            Cotizaciones = _context.Cotizaciones.OrderByDescending(c => c.Fecha).ToList();
+            var lista = _context.Cotizaciones.OrderByDescending(c => c.Fecha).ToList();
+
+            // Auto-marcar como Vencidas si la fecha ya pasó y sigue en Borrador/Enviada/Aceptada
+            bool huboCambios = false;
+            foreach (var c in lista)
+            {
+                if ((string.IsNullOrEmpty(c.Estado) || c.Estado == "Borrador" || c.Estado == "Enviada" || c.Estado == "Aceptada")
+                    && c.FechaVencimiento.HasValue
+                    && c.FechaVencimiento.Value.Date < DateTime.Today)
+                {
+                    c.Estado = "Vencida";
+                    huboCambios = true;
+                }
+                else if (string.IsNullOrEmpty(c.Estado))
+                {
+                    c.Estado = "Borrador";
+                    huboCambios = true;
+                }
+            }
+
+            if (huboCambios)
+            {
+                _context.SaveChanges();
+            }
+
+            Cotizaciones = lista;
             Clientes = _context.Clientes.ToList();
         }
 
         public IActionResult OnPostConvertir(int id)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Facturas", "crear")))
+            {
+                TempData["Error"] = "No tienes permiso para realizar esta acción";
+                return RedirectToPage("/Index");
+            }
+
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var cotizacion = _context.Cotizaciones.FirstOrDefault(c => c.Id == id);
 
@@ -9803,6 +11159,8 @@ namespace Kirkenta.Pages.Cotizaciones
 ===== FILE: Pages/Devoluciones/Index.cshtml.cs =====
 
 ````csharp
+using Kirkenta.Helpers;
+using Microsoft.AspNetCore.Mvc;
 using Kirkenta.Data;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -9822,11 +11180,19 @@ namespace Kirkenta.Pages.Devoluciones
         public List<Cliente> Clientes { get; set; } = new();
         public List<Factura> Facturas { get; set; } = new();
 
-        public void OnGet()
+        public IActionResult OnGet()
         {
+            if (!(PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Ventas", "Devoluciones")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             Devoluciones = _context.Devoluciones.OrderByDescending(d => d.Fecha).ToList();
             Clientes = _context.Clientes.ToList();
             Facturas = _context.Facturas.ToList();
+
+            return Page();
         }
     }
 }
@@ -9859,43 +11225,224 @@ namespace Kirkenta.Pages.Devoluciones
     </div>
 </div>
 
-<div class="module-card form-card">
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<div class="module-card form-card-wide">
     <form method="post" class="erp-form">
         <input type="hidden" asp-for="Input.VentaId" />
 
-        <div class="module-alert" style="background: var(--color-primary-soft); border: 1px solid #c7d2fe; color: var(--color-primary); margin: 0;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="16" x2="12" y2="12"/>
-                <line x1="12" y1="8" x2="12.01" y2="8"/>
+        <!-- ============================================ -->
+        <!-- AVISO PRINCIPAL                              -->
+        <!-- ============================================ -->
+        <div class="module-alert" style="background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary); margin: 0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; flex-shrink: 0;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
             </svg>
-            Se generará una factura a partir de la venta <strong>@Model.Venta.Numero</strong> por un total de <strong>L. @Model.Venta.Total.ToString("N2")</strong>
+            <div>
+                <strong>Vas a generar la factura de la venta @Model.Venta.Numero</strong>
+                <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                    La factura se creará con estado <strong>PAGADA</strong> (ya que fue cobrada en el POS) y se registrarán
+                    los movimientos financieros correspondientes.
+                </p>
+            </div>
         </div>
 
-        <div class="form-field">
-            <label>Cliente</label>
-            <input type="text" class="form-input" value="@(Model.Cliente?.Nombre ?? "Consumidor final")" readonly />
+        <!-- ============================================ -->
+        <!-- INFO DE LA VENTA                             -->
+        <!-- ============================================ -->
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Datos de la venta</h3>
+
+        <div class="form-row" style="margin-top: 12px;">
+            <div>
+                <label class="empresa-info-label">Número de venta</label>
+                <p><strong style="font-family: monospace;">@Model.Venta.Numero</strong></p>
+            </div>
+            <div>
+                <label class="empresa-info-label">Fecha de venta</label>
+                <p>@Model.Venta.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
+            </div>
         </div>
 
-        <div class="form-field">
-            <label>Fecha de vencimiento</label>
-            <input asp-for="Input.FechaVencimiento" type="date" class="form-input" value="@DateTime.Now.AddDays(30).ToString("yyyy-MM-dd")" />
+        <div class="form-row" style="margin-top: 12px;">
+            <div>
+                <label class="empresa-info-label">Cliente</label>
+                <p><strong>@(Model.Cliente?.Nombre ?? "Consumidor final")</strong></p>
+                @if (!string.IsNullOrEmpty(Model.Cliente?.RTN))
+                {
+                    <p class="table-user-sub">RTN: @Model.Cliente.RTN</p>
+                }
+            </div>
+            <div>
+                <label class="empresa-info-label">Estado</label>
+                <p>
+                    @if (Model.Venta.Estado == "Completada")
+                    {
+                        <span class="badge badge-success">Completada</span>
+                    }
+                    else
+                    {
+                        <span class="badge">@Model.Venta.Estado</span>
+                    }
+                </p>
+            </div>
         </div>
 
-        <div class="form-field">
-            <label class="form-checkbox">
-                <input asp-for="Input.AnularVenta" type="checkbox" />
-                <span>Anular la venta original (recomendado si es el mismo documento)</span>
-            </label>
+        <!-- ============================================ -->
+        <!-- INFO DEL PAGO                                -->
+        <!-- ============================================ -->
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Información del pago</h3>
+
+        @if (Model.PagoVenta != null)
+        {
+            <div class="kpi-grid" style="margin: 12px 0 0 0;">
+                <div class="kpi-card">
+                    <span class="kpi-label">Método de pago</span>
+                    <span class="kpi-value" style="font-size: 18px;">
+                        @(Model.MetodoPagoVenta?.Nombre ?? "—")
+                    </span>
+                    @if (!string.IsNullOrEmpty(Model.MetodoPagoVenta?.Tipo))
+                    {
+                        <span class="kpi-trend">@Model.MetodoPagoVenta.Tipo</span>
+                    }
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">Monto total</span>
+                    <span class="kpi-value" style="font-size: 18px;">L. @Model.Venta.Total.ToString("N2")</span>
+                </div>
+                @if (Model.EsEfectivo)
+                {
+                    <div class="kpi-card">
+                        <span class="kpi-label">Monto recibido</span>
+                        <span class="kpi-value" style="font-size: 18px;">L. @Model.MontoRecibido.ToString("N2")</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">Cambio</span>
+                        <span class="kpi-value" style="font-size: 18px; color: @(Model.Cambio > 0 ? "var(--color-success)" : "var(--color-muted)");">
+                            L. @Model.Cambio.ToString("N2")
+                        </span>
+                    </div>
+                }
+                else
+                {
+                    <div class="kpi-card">
+                        <span class="kpi-label">Cobro en caja</span>
+                        <span class="kpi-value" style="font-size: 16px; color: var(--color-muted);">
+                            Sin movimiento de efectivo
+                        </span>
+                    </div>
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.PagoVenta.Referencia))
+            {
+                <div style="margin-top: 12px;">
+                    <label class="empresa-info-label">Referencia</label>
+                    <p style="font-family: monospace;">@Model.PagoVenta.Referencia</p>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <strong>No se encontró un pago registrado para esta venta</strong>
+            </div>
+        }
+
+        <!-- ============================================ -->
+        <!-- RESUMEN DE MOVIMIENTOS A GENERAR             -->
+        <!-- ============================================ -->
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Movimientos financieros a registrar</h3>
+        <p class="form-section-desc">Estos movimientos se crearán automáticamente al confirmar la factura.</p>
+
+        <div class="totales-panel" style="max-width: 100%; margin-top: 12px;">
+            <div class="totales-row">
+                <span>Ingreso (entrada a caja):</span>
+                <strong style="color: var(--color-success);">
+                    + L. @((Model.EsEfectivo ? Model.MontoRecibido : Model.Venta.Total).ToString("N2"))
+                </strong>
+            </div>
+            @if (Model.EsEfectivo && Model.Cambio > 0)
+            {
+                <div class="totales-row">
+                    <span>Egreso por cambio (salida de caja):</span>
+                    <strong style="color: var(--color-danger);">
+                        - L. @Model.Cambio.ToString("N2")
+                    </strong>
+                </div>
+                <div class="totales-row" style="border-top: 1px solid var(--color-border); padding-top: 8px; margin-top: 8px;">
+                    <span style="font-weight: 700;">Efecto neto en caja:</span>
+                    <strong>L. @((Model.MontoRecibido - Model.Cambio).ToString("N2"))</strong>
+                </div>
+            }
+            else if (!Model.EsEfectivo)
+            {
+                <div class="totales-row">
+                    <span>Egreso por cambio:</span>
+                    <strong class="table-user-sub">No aplica (pago sin efectivo)</strong>
+                </div>
+            }
+        </div>
+
+        <!-- ============================================ -->
+        <!-- FECHA DE VENCIMIENTO                         -->
+        <!-- ============================================ -->
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Datos de la factura</h3>
+
+        <div class="form-field" style="margin-top: 12px;">
+            <label asp-for="Input.FechaVencimiento">Fecha de vencimiento</label>
+            <input asp-for="Input.FechaVencimiento" type="date" class="form-input" />
+            <small class="form-help">Opcional. Para facturas a crédito.</small>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- ADVERTENCIA FINAL                            -->
+        <!-- ============================================ -->
+        <div class="module-alert" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; margin: 20px 0 0 0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <div>
+                <strong>Al confirmar:</strong>
+                <ul style="margin: 6px 0 0 16px; padding: 0; font-size: 12.5px;">
+                    <li>Se creará la factura con estado <strong>PAGADA</strong> y saldo L. 0.00</li>
+                    <li>Se ligará el pago de la venta a la factura</li>
+                    <li>Se registrará el <strong>ingreso</strong> en Finanzas</li>
+                    @if (Model.EsEfectivo && Model.Cambio > 0)
+                    {
+                        <li>Se registrará el <strong>egreso por cambio</strong> en Finanzas</li>
+                    }
+                    <li>La venta quedará marcada como "Registrada en Finanzas"</li>
+                </ul>
+            </div>
         </div>
 
         <div class="form-actions">
-            <a asp-page="/Ventas/Index" class="btn-secondary">Cancelar</a>
-            <button type="submit" class="btn-primary">
+            <a asp-page="/POS/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary" style="background: var(--color-success);">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                     <polyline points="20 6 9 17 4 12"/>
                 </svg>
-                Generar factura
+                Confirmar facturación
             </button>
         </div>
     </form>
@@ -9907,9 +11454,11 @@ namespace Kirkenta.Pages.Devoluciones
 ````csharp
 using Kirkenta.Data;
 using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kirkenta.Pages.Facturas
 {
@@ -9929,15 +11478,31 @@ namespace Kirkenta.Pages.Facturas
         public Cliente? Cliente { get; set; }
         public string NumeroPreview { get; set; } = "";
 
+        public bool VentaYaFacturada { get; set; }
+        public int? FacturaExistenteId { get; set; }
+        public string? FacturaExistenteNumero { get; set; }
+
+        public Pago? PagoVenta { get; set; }
+        public MetodoPago? MetodoPagoVenta { get; set; }
+        public bool EsEfectivo { get; set; }
+        public bool EsCredito { get; set; }
+        public decimal MontoRecibido { get; set; }
+        public decimal Cambio { get; set; }
+
         public class InputModel
         {
             public int VentaId { get; set; }
             public DateTime? FechaVencimiento { get; set; }
-            public bool AnularVenta { get; set; }
         }
 
         public IActionResult OnGet(int ventaId)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Facturas", "crear")))
+            {
+                TempData["Error"] = "No tienes permiso para realizar esta acción";
+                return RedirectToPage("/Index");
+            }
+
             var venta = _context.Ventas.FirstOrDefault(v => v.Id == ventaId);
             if (venta == null)
             {
@@ -9945,9 +11510,26 @@ namespace Kirkenta.Pages.Facturas
                 return RedirectToPage("/Ventas/Index");
             }
 
+            var facturaExistente = _context.Facturas.FirstOrDefault(f => f.VentaId == ventaId);
+            if (facturaExistente != null)
+            {
+                TempData["Error"] = $"Esta venta ya fue facturada como {facturaExistente.Numero}";
+                return RedirectToPage("/Facturas/Details", new { id = facturaExistente.Id });
+            }
+
+            if (venta.Estado == "Anulada")
+            {
+                TempData["Error"] = "No se puede facturar una venta anulada";
+                return RedirectToPage("/Ventas/Details", new { id = venta.Id });
+            }
+
             Venta = venta;
-            Cliente = venta.ClienteId.HasValue ? _context.Clientes.FirstOrDefault(c => c.Id == venta.ClienteId.Value) : null;
+            Cliente = venta.ClienteId.HasValue
+                ? _context.Clientes.FirstOrDefault(c => c.Id == venta.ClienteId.Value)
+                : null;
             NumeroPreview = NumeroDocumentoHelper.PreviewSiguiente(_context, "Factura");
+
+            CargarInfoPago(venta);
 
             Input = new InputModel
             {
@@ -9960,6 +11542,12 @@ namespace Kirkenta.Pages.Facturas
 
         public IActionResult OnPost()
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Facturas", "crear")))
+            {
+                TempData["Error"] = "No tienes permiso para realizar esta acción";
+                return RedirectToPage("/Index");
+            }
+
             var venta = _context.Ventas.FirstOrDefault(v => v.Id == Input.VentaId);
             if (venta == null)
             {
@@ -9967,65 +11555,265 @@ namespace Kirkenta.Pages.Facturas
                 return RedirectToPage("/Ventas/Index");
             }
 
+            if (_context.Facturas.Any(f => f.VentaId == venta.Id))
+            {
+                TempData["Error"] = "Esta venta ya fue facturada";
+                return RedirectToPage("/Ventas/Details", new { id = venta.Id });
+            }
+
+            if (venta.Estado == "Anulada")
+            {
+                TempData["Error"] = "No se puede facturar una venta anulada";
+                return RedirectToPage("/Ventas/Details", new { id = venta.Id });
+            }
+
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, venta.Fecha);
+            if (!periodoOk)
+            {
+                TempData["Error"] = periodoError;
+                return RedirectToPage("/Ventas/Details", new { id = venta.Id });
+            }
+
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
 
-            // Generar número
-            var numeroFactura = NumeroDocumentoHelper.GenerarSiguiente(_context, "Factura");
+            CargarInfoPago(venta);
 
-            var factura = new Factura
+            using var transaction = _context.Database.BeginTransaction();
+
+            try
             {
-                Numero = numeroFactura,
-                ClienteId = venta.ClienteId ?? 1,
-                VentaId = venta.Id,
-                Fecha = DateTime.Now,
-                FechaVencimiento = Input.FechaVencimiento,
-                Subtotal = venta.Subtotal,
-                Descuento = venta.Descuento,
-                Impuestos = venta.Impuestos,
-                Total = venta.Total,
-                Saldo = venta.Total,
-                Estado = "Emitida",
-                Notas = $"Generada desde venta {venta.Numero}",
-                UsuarioCreoId = currentUser?.Id
-            };
+                // ===== 1. CREAR FACTURA =====
+                var numeroFactura = NumeroDocumentoHelper.GenerarSiguiente(_context, "Factura");
 
-            _context.Facturas.Add(factura);
-            _context.SaveChanges();
-
-            // Copiar items
-            var items = _context.DetalleVentas.Where(d => d.VentaId == venta.Id).ToList();
-            foreach (var item in items)
-            {
-                _context.DetalleFacturas.Add(new DetalleFactura
+                var factura = new Factura
                 {
-                    FacturaId = factura.Id,
-                    ProductoId = item.ProductoId,
-                    Descripcion = item.Descripcion,
-                    Cantidad = item.Cantidad,
-                    PrecioUnitario = item.PrecioUnitario,
-                    Descuento = item.Descuento,
-                    ImpuestoPorcentaje = item.ImpuestoPorcentaje,
-                    Subtotal = item.Subtotal,
-                    Total = item.Total
-                });
-            }
+                    Numero = numeroFactura,
+                    ClienteId = venta.ClienteId ?? 1,
+                    VentaId = venta.Id,
+                    Fecha = DateTime.Now,
+                    FechaVencimiento = Input.FechaVencimiento,
+                    Subtotal = venta.Subtotal,
+                    Descuento = venta.Descuento,
+                    Impuestos = venta.Impuestos,
+                    Total = venta.Total,
+                    Saldo = 0,
+                    Estado = "Pagada",
+                    Notas = $"Generada desde venta {venta.Numero}",
+                    UsuarioCreoId = currentUser?.Id,
+                    RequiereEnvio = venta.RequiereEnvio,
+                    MontoEnvio = venta.MontoEnvio
+                };
 
-            if (Input.AnularVenta)
+                _context.Facturas.Add(factura);
+                _context.SaveChanges();
+
+                // ===== 2. COPIAR ITEMS (con snapshot de costo) =====
+                var items = _context.DetalleVentas
+                    .Where(d => d.VentaId == venta.Id)
+                    .ToList();
+
+                foreach (var item in items)
+                {
+                    _context.DetalleFacturas.Add(new DetalleFactura
+                    {
+                        FacturaId = factura.Id,
+                        ProductoId = item.ProductoId,
+                        Descripcion = item.Descripcion,
+                        Cantidad = item.Cantidad,
+                        PrecioUnitario = item.PrecioUnitario,
+                        Descuento = item.Descuento,
+                        ImpuestoPorcentaje = item.ImpuestoPorcentaje,
+                        Subtotal = item.Subtotal,
+                        Total = item.Total
+                    });
+                }
+
+                // ===== 3. LIGAR PAGO EXISTENTE A LA FACTURA =====
+                if (PagoVenta != null)
+                {
+                    PagoVenta.FacturaId = factura.Id;
+                }
+
+                // ===== 4. LIGAR ENVÍO EXISTENTE A LA FACTURA =====
+                if (venta.RequiereEnvio)
+                {
+                    var envio = _context.Envios.FirstOrDefault(e => e.VentaId == venta.Id && e.FacturaId == null);
+                    if (envio != null)
+                    {
+                        envio.FacturaId = factura.Id;
+                    }
+                }
+
+                _context.SaveChanges();
+
+                // ============================================================
+                // 5. MOVIMIENTOS FINANCIEROS
+                // ============================================================
+                if (!venta.MovimientoRegistrado)
+                {
+                    bool ventaACredito = EsCredito || venta.EsCredito;
+
+                    if (ventaACredito)
+                    {
+                        // 🔒 OPCIÓN A: la venta a crédito NO genera ingreso al facturar.
+                        // El ingreso se registra SOLO al cobrar (Finanzas > Cobros).
+                        // Antes se creaba un ingreso en CxC y se marcaba la venta como
+                        // registrada, lo que bloqueaba el cobro y duplicaba el ingreso.
+                    }
+                    else
+                    {
+                        var apertura = _context.AperturasCaja.FirstOrDefault(a => a.Activa);
+                        int? cuentaId = apertura?.CuentaId;
+
+                        if (!cuentaId.HasValue)
+                        {
+                            var cuentaCaja = _context.CuentasFinancieras
+                                .Where(c => c.Tipo == "Caja" && c.Activa)
+                                .OrderBy(c => c.Id)
+                                .FirstOrDefault();
+                            cuentaId = cuentaCaja?.Id;
+                        }
+
+                        if (!cuentaId.HasValue)
+                        {
+                            transaction.Rollback();
+                            TempData["Error"] = "No hay una cuenta de caja activa para registrar los movimientos financieros";
+                            return RedirectToPage("/Facturas/CreateFromVenta", new { ventaId = venta.Id });
+                        }
+
+                        decimal montoIngreso = EsEfectivo ? MontoRecibido : venta.Total;
+                        decimal montoCambio = EsEfectivo ? Cambio : 0;
+
+                        var (movIngreso, errorIngreso) = MovimientoAutomaticoHelper.RegistrarIngresoVenta(
+                            _context, venta.Id, venta.Numero,
+                            monto: montoIngreso,
+                            usuarioId: currentUser?.Id ?? 0,
+                            formaPago: MetodoPagoVenta?.Nombre,
+                            cuentaId: cuentaId);
+
+                        if (movIngreso == null)
+                        {
+                            transaction.Rollback();
+                            TempData["Error"] = $"No se pudo registrar el ingreso en Finanzas. {errorIngreso ?? "Revisa la configuración de cuentas y categorías."}";
+                            return RedirectToPage("/Facturas/CreateFromVenta", new { ventaId = venta.Id });
+                        }
+
+                        venta.MovimientoIngresoId = movIngreso.Id;
+
+                        if (montoCambio > 0)
+                        {
+                            var (movCambio, errorCambio) = MovimientoAutomaticoHelper.RegistrarEgresoCambio(
+                                _context, venta.Id, venta.Numero,
+                                montoCambio: montoCambio,
+                                usuarioId: currentUser?.Id ?? 0,
+                                formaPago: "Efectivo",
+                                cuentaId: cuentaId,
+                                origen: "Venta");
+
+                            if (movCambio == null)
+                            {
+                                transaction.Rollback();
+                                TempData["Error"] = $"No se pudo registrar el egreso por cambio en Finanzas. {errorCambio ?? "Los movimientos fueron revertidos."}";
+                                return RedirectToPage("/Facturas/CreateFromVenta", new { ventaId = venta.Id });
+                            }
+
+                            venta.MovimientoCambioId = movCambio.Id;
+                        }
+                    }
+
+                    if (!ventaACredito)
+                    {
+                        venta.MovimientoRegistrado = true;
+                        venta.FechaMovimiento = DateTime.Now;
+                    }
+                }
+
+                // ============================================================
+                // 6. COGS: registrar si la venta aún no lo tiene
+                // ============================================================
+                if (!venta.CostoRegistrado && venta.CostoTotalVendido > 0)
+                {
+                    var apertura = _context.AperturasCaja.FirstOrDefault(a => a.Activa);
+                    int? cuentaCogsId = apertura?.CuentaId;
+
+                    if (!cuentaCogsId.HasValue)
+                    {
+                        var cuentaCaja = _context.CuentasFinancieras
+                            .Where(c => c.Tipo == "Caja" && c.Activa)
+                            .OrderBy(c => c.Id)
+                            .FirstOrDefault();
+                        cuentaCogsId = cuentaCaja?.Id;
+                    }
+
+                    if (cuentaCogsId.HasValue)
+                    {
+                        var (movCosto, errorCosto) = MovimientoAutomaticoHelper.RegistrarEgresoCostoVenta(
+                            _context,
+                            venta.Id,
+                            venta.Numero,
+                            venta.CostoTotalVendido,
+                            currentUser?.Id ?? 0,
+                            cuentaCogsId);
+
+                        if (movCosto != null)
+                        {
+                            venta.MovimientoCostoId = movCosto.Id;
+                            venta.CostoRegistrado = true;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[Facturas] Advertencia: no se pudo registrar el COGS. {errorCosto}");
+                        }
+                    }
+                }
+
+                _context.SaveChanges();
+                transaction.Commit();
+
+                ActividadHelper.Registrar(
+                    _context,
+                    currentUser?.Id ?? 0,
+                    "Facturar venta POS",
+                    $"Factura {factura.Numero} generada desde venta {venta.Numero}. COGS: L. {venta.CostoTotalVendido:N2}",
+                    HttpContext.Connection.RemoteIpAddress?.ToString());
+
+                TempData["Success"] = $"Factura {factura.Numero} generada correctamente.";
+                return RedirectToPage("/Facturas/Details", new { id = factura.Id });
+            }
+            catch (Exception ex)
             {
-                venta.Estado = "Anulada";
+                transaction.Rollback();
+                Console.WriteLine($"ERROR al facturar venta {venta.Id}: {ex.Message}");
+                TempData["Error"] = $"Error al facturar la venta: {ex.Message}";
+                return RedirectToPage("/Ventas/Details", new { id = venta.Id });
             }
+        }
 
-            _context.SaveChanges();
+        private void CargarInfoPago(Venta venta)
+        {
+            PagoVenta = _context.Pagos
+                .Where(p => p.VentaId == venta.Id)
+                .OrderByDescending(p => p.Id)
+                .FirstOrDefault();
 
-            ActividadHelper.Registrar(
-                _context,
-                currentUser?.Id ?? 0,
-                "Facturar venta",
-                $"Generó factura {factura.Numero} desde venta {venta.Numero}",
-                HttpContext.Connection.RemoteIpAddress?.ToString());
+            if (PagoVenta != null)
+            {
+                MetodoPagoVenta = _context.MetodosPago.FirstOrDefault(m => m.Id == PagoVenta.MetodoPagoId);
 
-            TempData["Success"] = $"Factura {factura.Numero} generada correctamente";
-            return RedirectToPage("/Facturas/Details", new { id = factura.Id });
+                var tipo = (MetodoPagoVenta?.Tipo ?? "").Trim().ToLower();
+                EsEfectivo = tipo.Contains("efectivo") || tipo.Contains("cash") || tipo.Contains("contado") || tipo == "";
+                EsCredito = tipo.Contains("credito");
+
+                MontoRecibido = PagoVenta.MontoRecibido ?? venta.Total;
+                Cambio = PagoVenta.Cambio ?? 0;
+            }
+            else
+            {
+                EsEfectivo = false;
+                EsCredito = false;
+                MontoRecibido = venta.Total;
+                Cambio = 0;
+            }
         }
     }
 }
@@ -10386,11 +12174,9 @@ namespace Kirkenta.Pages.Facturas
         public List<MetodoPago> MetodosPago { get; set; } = new();
         public ConfiguracionEmpresa Empresa { get; set; } = new();
 
-        // ===== DESGLOSE ISV =====
         public ISVHelper.ResultadoISV DesgloseISV { get; set; } = new();
         public List<Impuesto> ImpuestosActivos { get; set; } = new();
 
-        // ===== ALERTAS CAI =====
         public bool CaiPorVencer { get; set; }
         public bool CaiVencido { get; set; }
         public int DiasParaVencerCai { get; set; }
@@ -10398,6 +12184,12 @@ namespace Kirkenta.Pages.Facturas
 
         public IActionResult OnGet(int id)
         {
+            if (!(PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Ventas", "Facturas")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             var factura = _context.Facturas.FirstOrDefault(f => f.Id == id);
             if (factura == null)
             {
@@ -10414,7 +12206,6 @@ namespace Kirkenta.Pages.Facturas
             Empresa = _context.ConfiguracionEmpresa.FirstOrDefault()
                 ?? new ConfiguracionEmpresa { Nombre = "Mi Empresa" };
 
-            // ===== CARGAR DESGLOSE ISV =====
             ImpuestosActivos = ISVHelper.ObtenerTasasActivas(_context);
 
             var itemsParaISV = Items.Select(i => new ItemParaISV
@@ -10423,13 +12214,16 @@ namespace Kirkenta.Pages.Facturas
                 Cantidad = i.Cantidad,
                 PrecioUnitario = i.PrecioUnitario,
                 Descuento = i.Descuento,
-                // Buscamos el ImpuestoId real del producto, no el % del detalle
                 ImpuestoId = Productos.FirstOrDefault(p => p.Id == i.ProductoId)?.ImpuestoId
             }).ToList();
 
-            DesgloseISV = ISVHelper.Calcular(_context, itemsParaISV, factura.Descuento);
+            // 🔒 FIX: incluir el monto de envío en el cálculo del desglose de ISV
+            DesgloseISV = ISVHelper.Calcular(
+                _context,
+                itemsParaISV,
+                factura.Descuento,
+                factura.MontoEnvio);
 
-            // ===== VALIDAR CAI =====
             if (!string.IsNullOrEmpty(Empresa.CAI) && Empresa.FechaLimiteEmision.HasValue)
             {
                 var dias = (Empresa.FechaLimiteEmision.Value.Date - DateTime.Today).Days;
@@ -10438,7 +12232,6 @@ namespace Kirkenta.Pages.Facturas
                 CaiVencido = dias < 0;
             }
 
-            // Validar si el rango CAI se agotó
             if (!string.IsNullOrEmpty(Empresa.RangoInicial) && !string.IsNullOrEmpty(Empresa.RangoFinal))
             {
                 var facturaEnRango = EstaEnRango(factura.Numero, Empresa.RangoInicial, Empresa.RangoFinal);
@@ -10448,10 +12241,6 @@ namespace Kirkenta.Pages.Facturas
             return Page();
         }
 
-        /// <summary>
-        /// Valida si un número de factura está dentro del rango CAI autorizado.
-        /// Compara solo los dígitos finales del número.
-        /// </summary>
         private static bool EstaEnRango(string numeroFactura, string rangoInicial, string rangoFinal)
         {
             try
@@ -10466,7 +12255,7 @@ namespace Kirkenta.Pages.Facturas
             }
             catch
             {
-                return true; // Si no se puede validar, asumimos OK
+                return true;
             }
         }
 
@@ -10632,6 +12421,8 @@ namespace Kirkenta.Pages.Facturas
 ===== FILE: Pages/Facturas/Index.cshtml.cs =====
 
 ````csharp
+using Kirkenta.Helpers;
+using Microsoft.AspNetCore.Mvc;
 using Kirkenta.Data;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -10650,10 +12441,18 @@ namespace Kirkenta.Pages.Facturas
         public List<Factura> Facturas { get; set; } = new();
         public List<Cliente> Clientes { get; set; } = new();
 
-        public void OnGet()
+        public IActionResult OnGet()
         {
+            if (!(PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Ventas", "Facturas")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             Facturas = _context.Facturas.OrderByDescending(f => f.Fecha).ToList();
             Clientes = _context.Clientes.ToList();
+
+            return Page();
         }
     }
 }
@@ -10742,6 +12541,7 @@ namespace Kirkenta.Pages.Facturas
 ````csharp
 using Kirkenta.Data;
 using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -10780,6 +12580,12 @@ namespace Kirkenta.Pages.Facturas
 
         public IActionResult OnGet(int id)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Facturas", "editar")))
+            {
+                TempData["Error"] = "No tienes permiso para realizar esta acción";
+                return RedirectToPage("/Index");
+            }
+
             var factura = _context.Facturas.FirstOrDefault(f => f.Id == id);
             if (factura == null)
             {
@@ -10807,6 +12613,12 @@ namespace Kirkenta.Pages.Facturas
 
         public IActionResult OnPost()
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Facturas", "editar")))
+            {
+                TempData["Error"] = "No tienes permiso para realizar esta acción";
+                return RedirectToPage("/Index");
+            }
+
             var factura = _context.Facturas.FirstOrDefault(f => f.Id == Input.FacturaId);
             if (factura == null)
             {
@@ -10829,9 +12641,17 @@ namespace Kirkenta.Pages.Facturas
                 return Page();
             }
 
+            // 🔒 FIX: validar que el período contable no esté cerrado
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
+                Factura = factura;
+                return Page();
+            }
+
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
 
-            // Crear pago
             var pago = new Pago
             {
                 FacturaId = factura.Id,
@@ -10846,7 +12666,6 @@ namespace Kirkenta.Pages.Facturas
 
             _context.Pagos.Add(pago);
 
-            // Actualizar saldo de la factura
             factura.Saldo -= Input.Monto;
             if (factura.Saldo <= 0)
             {
@@ -10875,7 +12694,7 @@ namespace Kirkenta.Pages.Facturas
 ````
 
 ====================================================
- Pages\Finanzas - 64 archivo(s)
+ Pages\Finanzas - 68 archivo(s)
 ====================================================
 
 ===== FILE: Pages/Finanzas/Aperturas/Create.cshtml =====
@@ -14610,6 +16429,727 @@ namespace Kirkenta.Pages.Finanzas.CierresContables
 }
 ````
 
+===== FILE: Pages/Finanzas/Cobros/Cobrar.cshtml =====
+
+````html
+@page "{ventaId:int}"
+@model Kirkenta.Pages.Finanzas.Cobros.CobrarModel
+@{
+    ViewData["Title"] = "Registrar Cobro";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/Cobros/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a Cuentas por Cobrar
+        </a>
+        <h2>Registrar Cobro</h2>
+        <p>
+            Venta: <strong>@Model.Venta.Numero</strong>
+            @if (Model.Factura != null)
+            {
+                <text> — Factura: <strong>@Model.Factura.Numero</strong></text>
+            }
+        </p>
+    </div>
+</div>
+
+<div class="module-card form-card" style="max-width: 600px;">
+    <form method="post">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="module-alert module-alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+
+        <div class="kpi-grid" style="margin-bottom: 20px;">
+            <div class="kpi-card">
+                <span class="kpi-label">Cliente</span>
+                <span class="kpi-value" style="font-size: 16px;">@(Model.Cliente.Nombre ?? "—")</span>
+                @if (!string.IsNullOrEmpty(Model.Cliente.RTN))
+                {
+                    <span class="kpi-trend">RTN: @Model.Cliente.RTN</span>
+                }
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Saldo Pendiente</span>
+                <span class="kpi-value" style="color: var(--color-danger);">L. @Model.SaldoPendiente.ToString("N2")</span>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Monto">Monto a Cobrar *</label>
+            <input asp-for="Input.Monto" type="number" step="0.01" min="0.01" max="@Model.SaldoPendiente" class="form-input" required />
+            <small class="form-help">Máximo: L. @Model.SaldoPendiente.ToString("N2")</small>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.MetodoPagoId">Método de Pago *</label>
+            <select asp-for="Input.MetodoPagoId" class="form-input" required>
+                @foreach (var m in Model.MetodosPago)
+                {
+                    <option value="@m.Id">@m.Nombre</option>
+                }
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.CuentaId">Cuenta que recibe el dinero *</label>
+            <select asp-for="Input.CuentaId" class="form-input" required>
+                <option value="">— Selecciona una cuenta —</option>
+                @foreach (var c in Model.CuentasCaja)
+                {
+                    <option value="@c.Id">@(c.Tipo == "Banco" ? "🏦" : "💵") @c.Nombre — Saldo: L. @c.SaldoActual.ToString("N2")</option>
+                }
+            </select>
+            <small class="form-help">Se generará un ingreso a esta cuenta</small>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.Referencia">Referencia</label>
+            <input asp-for="Input.Referencia" class="form-input" placeholder="Nº de recibo, transferencia, etc." />
+        </div>
+
+        <div class="form-actions">
+            <a asp-page="/Finanzas/Cobros/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary" style="background: var(--color-success);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <line x1="12" y1="1" x2="12" y2="23"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                Confirmar Cobro
+            </button>
+        </div>
+    </form>
+</div>
+````
+
+===== FILE: Pages/Finanzas/Cobros/Cobrar.cshtml.cs =====
+
+````csharp
+using Kirkenta.Data;
+using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
+using Kirkenta.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+
+namespace Kirkenta.Pages.Finanzas.Cobros
+{
+    public class CobrarModel : PageModel
+    {
+        private readonly ApplicationDbContext _context;
+
+        public CobrarModel(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public Venta Venta { get; set; } = new();
+        public Factura? Factura { get; set; }
+        public Cliente Cliente { get; set; } = new();
+        public decimal SaldoPendiente { get; set; }
+        public List<MetodoPago> MetodosPago { get; set; } = new();
+        public List<CuentaFinanciera> CuentasCaja { get; set; } = new();
+
+        [BindProperty]
+        public InputModel Input { get; set; } = new();
+
+        public class InputModel
+        {
+            [Required(ErrorMessage = "El monto es obligatorio")]
+            [Range(0.01, double.MaxValue, ErrorMessage = "El monto debe ser mayor a 0")]
+            public decimal Monto { get; set; }
+
+            [Required(ErrorMessage = "El método de pago es obligatorio")]
+            public int MetodoPagoId { get; set; }
+
+            [Required(ErrorMessage = "Debes seleccionar una cuenta")]
+            public int CuentaId { get; set; }
+
+            public string? Referencia { get; set; }
+        }
+
+        public IActionResult OnGet(int ventaId)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" && !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "Cobros", "editar"))
+            {
+                TempData["Error"] = "No tienes permiso para cobrar.";
+                return RedirectToPage("/Finanzas/Cobros/Index");
+            }
+
+            var venta = _context.Ventas.FirstOrDefault(v => v.Id == ventaId);
+            if (venta == null || !venta.EsCredito || venta.SaldoPendiente <= 0)
+            {
+                TempData["Error"] = "Venta no encontrada o no tiene saldo pendiente.";
+                return RedirectToPage("/Finanzas/Cobros/Index");
+            }
+
+            // 🔒 PUNTO 2: Validación de doble conteo
+            if (venta.MovimientoRegistrado)
+            {
+                TempData["Error"] = "Esta venta ya fue registrada en Finanzas. No se puede cobrar de nuevo.";
+                return RedirectToPage("/Finanzas/Cobros/Index");
+            }
+
+            Venta = venta;
+            Factura = _context.Facturas
+                .Where(f => f.VentaId == ventaId)
+                .OrderByDescending(f => f.Id)
+                .FirstOrDefault();
+            Cliente = venta.ClienteId.HasValue
+                ? _context.Clientes.FirstOrDefault(c => c.Id == venta.ClienteId.Value) ?? new Cliente()
+                : new Cliente();
+            SaldoPendiente = venta.SaldoPendiente;
+
+            CargarCatalogos();
+
+            Input = new InputModel
+            {
+                Monto = venta.SaldoPendiente,
+                MetodoPagoId = MetodosPago.FirstOrDefault()?.Id ?? 1,
+                CuentaId = CuentasCaja.FirstOrDefault()?.Id ?? 0
+            };
+
+            return Page();
+        }
+
+        public IActionResult OnPost(int ventaId)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" && !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "Cobros", "editar"))
+            {
+                TempData["Error"] = "No tienes permiso.";
+                return RedirectToPage("/Finanzas/Cobros/Index");
+            }
+
+            var venta = _context.Ventas.FirstOrDefault(v => v.Id == ventaId);
+            if (venta == null || !venta.EsCredito || venta.SaldoPendiente <= 0)
+            {
+                TempData["Error"] = "Venta no encontrada o ya fue cobrada.";
+                return RedirectToPage("/Finanzas/Cobros/Index");
+            }
+
+            // 🔒 PUNTO 2: Validación de doble conteo (POST)
+            if (venta.MovimientoRegistrado)
+            {
+                TempData["Error"] = "Esta venta ya fue registrada en Finanzas. No se puede cobrar de nuevo.";
+                return RedirectToPage("/Finanzas/Cobros/Index");
+            }
+
+            Venta = venta;
+            Factura = _context.Facturas
+                .Where(f => f.VentaId == ventaId)
+                .OrderByDescending(f => f.Id)
+                .FirstOrDefault();
+            Cliente = venta.ClienteId.HasValue
+                ? _context.Clientes.FirstOrDefault(c => c.Id == venta.ClienteId.Value) ?? new Cliente()
+                : new Cliente();
+            SaldoPendiente = venta.SaldoPendiente;
+
+            CargarCatalogos();
+
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
+            if (!periodoOk)
+            {
+                ModelState.AddModelError(string.Empty, periodoError!);
+                return Page();
+            }
+
+            if (!ModelState.IsValid) return Page();
+
+            if (Input.Monto > venta.SaldoPendiente)
+            {
+                ModelState.AddModelError("Input.Monto", "El monto no puede ser mayor al saldo pendiente.");
+                return Page();
+            }
+
+            var cuenta = _context.CuentasFinancieras.FirstOrDefault(c => c.Id == Input.CuentaId);
+            if (cuenta == null)
+            {
+                ModelState.AddModelError("Input.CuentaId", "Cuenta no encontrada.");
+                return Page();
+            }
+
+            // 🔒 Defensa: no permitir cobrar en CxC (debe ser caja o banco real)
+            if (cuenta.Tipo == "Caja" && cuenta.Subtipo == "CuentasPorCobrar")
+            {
+                ModelState.AddModelError("Input.CuentaId", "No puedes cobrar en la cuenta de Cuentas por Cobrar. Selecciona una caja o banco real.");
+                return Page();
+            }
+
+            var metodoPago = _context.MetodosPago.FirstOrDefault(m => m.Id == Input.MetodoPagoId);
+
+            using var transaction = _context.Database.BeginTransaction();
+
+            try            {
+                // 1. Movimiento de ingreso real
+                var (mov, error) = MovimientoAutomaticoHelper.RegistrarIngresoCobro(
+                    _context,
+                    venta.Id,
+                    venta.Numero,
+                    Input.Monto,
+                    currentUser!.Id,
+                    formaPago: metodoPago?.Nombre,
+                    cuentaId: Input.CuentaId
+                );
+
+                if (mov == null)
+                {
+                    transaction.Rollback();
+                    TempData["Error"] = error ?? "No se pudo registrar el cobro.";
+                    return RedirectToPage("/Finanzas/Cobros/Index");
+                }
+
+                // 2. Registrar pago
+                var pago = new Pago
+                {
+                    VentaId = venta.Id,
+                    FacturaId = Factura?.Id,
+                    ClienteId = venta.ClienteId!.Value,
+                    Fecha = DateTime.Now,
+                    Monto = Input.Monto,
+                    MetodoPagoId = Input.MetodoPagoId,
+                    Referencia = Input.Referencia,
+                    UsuarioCreoId = currentUser.Id
+                };
+                _context.Pagos.Add(pago);
+
+                // 3. Actualizar saldo de la venta
+                venta.SaldoPendiente -= Input.Monto;
+                if (venta.SaldoPendiente < 0) venta.SaldoPendiente = 0;
+
+                // 4. Actualizar factura si existe
+                if (Factura != null)
+                {
+                    Factura.Saldo -= Input.Monto;
+                    if (Factura.Saldo < 0) Factura.Saldo = 0;
+                    if (Factura.Saldo == 0)
+                    {
+                        Factura.Estado = "Pagada";
+                    }
+                }
+
+                _context.SaveChanges();
+                transaction.Commit();
+
+                ActividadHelper.Registrar(
+                    _context,
+                    currentUser.Id,
+                    "Cobro de venta al crédito",
+                    $"Cobró L. {Input.Monto:N2} de la venta {venta.Numero}. Saldo restante: L. {venta.SaldoPendiente:N2}",
+                    HttpContext.Connection.RemoteIpAddress?.ToString());
+
+                TempData["Success"] = $"Cobro de L. {Input.Monto:N2} registrado. Saldo restante: L. {venta.SaldoPendiente:N2}";
+                return RedirectToPage("/Finanzas/Cobros/Index");
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                TempData["Error"] = $"Error al registrar el cobro: {ex.Message}";
+                return RedirectToPage("/Finanzas/Cobros/Index");
+            }
+        }
+
+        private void CargarCatalogos()
+        {
+            MetodosPago = _context.MetodosPago.Where(m => m.Activo).OrderBy(m => m.Nombre).ToList();
+            if (MetodosPago.Count == 0)
+            {
+                MetodosPago = new List<MetodoPago>
+                {
+                    new MetodoPago { Id = 1, Nombre = "Efectivo", Tipo = "Efectivo", Activo = true }
+                };
+            }
+
+            CuentasCaja = _context.CuentasFinancieras
+                .Where(c => c.Activa
+                         && (c.Tipo == "Caja" || c.Tipo == "Banco")
+                         && (c.Tipo != "Caja" || c.Subtipo == null || c.Subtipo != "CuentasPorCobrar"))
+                .OrderBy(c => c.Tipo).ThenBy(c => c.Nombre)
+                .ToList();
+
+            var apertura = _context.AperturasCaja.FirstOrDefault(a => a.Activa);
+            if (apertura != null)
+            {
+                var cuentaApertura = CuentasCaja.FirstOrDefault(c => c.Id == apertura.CuentaId);
+                if (cuentaApertura != null)
+                {
+                    CuentasCaja.Remove(cuentaApertura);
+                    CuentasCaja.Insert(0, cuentaApertura);
+                }
+            }
+        }
+    }
+}
+````
+
+===== FILE: Pages/Finanzas/Cobros/Index.cshtml =====
+
+````html
+@page
+@model Kirkenta.Pages.Finanzas.Cobros.IndexModel
+@{
+    ViewData["Title"] = "Cuentas por Cobrar";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a Finanzas
+        </a>
+        <h2>Cuentas por Cobrar</h2>
+        <p>Alertas de cobros pendientes de ventas al crédito</p>
+    </div>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total pendiente de cobro</span>
+        <span class="kpi-value" style="color: var(--color-primary);">L. @Model.TotalPendiente.ToString("N2")</span>
+        <span class="kpi-trend">En @Model.Cobros.Count cobros</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Cobros vencidos</span>
+        <span class="kpi-value" style="color: var(--color-danger);">@Model.CobrosVencidos</span>
+        <span class="kpi-trend down">Requieren acción inmediata</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Cobros por vencer (≤7 días)</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.CobrosProximos</span>
+        <span class="kpi-trend">Próximos a vencer</span>
+    </div>
+</div>
+
+<div class="module-card">
+    @if (TempData["Success"] != null)
+    {
+        <div class="module-alert module-alert-success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="module-alert module-alert-error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            @TempData["Error"]
+        </div>
+    }
+
+    @if (Model.Cobros.Count == 0)
+    {
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <h3>¡Todo al día!</h3>
+            <p>No tienes cuentas por cobrar pendientes.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Filtros -->
+        <div class="module-toolbar" style="margin-bottom: 16px;">
+            <div class="search-box" style="flex: 1; min-width: 250px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" id="searchInput" placeholder="Buscar por cliente, venta o factura..." />
+            </div>
+            <div class="filter-group" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <select id="filterAlerta" class="filter-select">
+                    <option value="">Todas las alertas</option>
+                    <option value="Vencido">🔴 Vencidos</option>
+                    <option value="PorVencer">🟡 Por vencer</option>
+                    <option value="Pendiente">🟢 Pendientes</option>
+                </select>
+                <input type="date" id="filterFechaDesde" class="filter-select" title="Fecha venta desde" />
+                <input type="date" id="filterFechaHasta" class="filter-select" title="Fecha venta hasta" />
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="erp-table" id="cobrosTable">
+                <thead>
+                    <tr>
+                        <th>Venta / Factura</th>
+                        <th>Fecha Venta</th>
+                        <th>Cliente</th>
+                        <th>Contacto</th>
+                        <th style="text-align: right;">Total</th>
+                        <th style="text-align: right;">Saldo Pendiente</th>
+                        <th>Vencimiento</th>
+                        <th>Alerta</th>
+                        <th style="width: 100px; text-align: right;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.Cobros)
+                    {
+                        <tr data-fecha="@c.FechaVenta.ToString("yyyy-MM-dd")"
+                            data-alerta="@c.EstadoAlerta"
+                            data-search="@(c.ClienteNombre.ToLower()) @(c.VentaNumero.ToLower()) @(c.FacturaNumero?.ToLower() ?? "")">
+                            <td>
+                                <strong>@c.VentaNumero</strong>
+                                @if (!string.IsNullOrEmpty(c.FacturaNumero))
+                                {
+                                    <br /><span class="table-user-sub">Factura: @c.FacturaNumero</span>
+                                }
+                            </td>
+                            <td>@c.FechaVenta.ToString("dd/MM/yyyy")</td>
+                            <td>@c.ClienteNombre</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(c.ClienteTelefono))
+                                {
+                                    <span class="table-user-sub">📞 @c.ClienteTelefono</span>
+                                }
+                                @if (!string.IsNullOrEmpty(c.ClienteRTN))
+                                {
+                                    <br /><span class="table-user-sub" style="font-size: 11px;">RTN: @c.ClienteRTN</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">L. @c.TotalVenta.ToString("N2")</td>
+                            <td style="text-align: right;">
+                                <strong style="color: @(c.EstadoAlerta == "Vencido" ? "var(--color-danger)" : c.EstadoAlerta == "PorVencer" ? "var(--color-warning)" : "var(--color-primary)");">
+                                    L. @c.SaldoPendiente.ToString("N2")
+                                </strong>
+                            </td>
+                            <td>
+                                @if (c.FechaVencimiento.HasValue)
+                                {
+                                    @c.FechaVencimiento.Value.ToString("dd/MM/yyyy")
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">—</span>
+                                }
+                            </td>
+                            <td>
+                                @if (c.EstadoAlerta == "Vencido")
+                                {
+                                    <span class="badge badge-danger">🔴 Vencido (@(Math.Abs(c.DiasParaVencer)) días)</span>
+                                }
+                                else if (c.EstadoAlerta == "PorVencer")
+                                {
+                                    <span class="badge badge-warning">🟡 Vence en @c.DiasParaVencer días</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-info">🟢 Pendiente</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    <a asp-page="/Finanzas/Cobros/Cobrar" asp-route-ventaId="@c.VentaId" class="btn-primary btn-sm">Cobrar</a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var filterAlerta = document.getElementById('filterAlerta');
+            var filterFechaDesde = document.getElementById('filterFechaDesde');
+            var filterFechaHasta = document.getElementById('filterFechaHasta');
+            var table = document.getElementById('cobrosTable');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+
+            function filterRows() {
+                var search = (searchInput?.value || '').toLowerCase().trim();
+                var alerta = filterAlerta?.value || '';
+                var fechaDesde = filterFechaDesde?.value || '';
+                var fechaHasta = filterFechaHasta?.value || '';
+
+                rows.forEach(function (row) {
+                    var rowSearch = row.dataset.search || '';
+                    var rowFecha = row.dataset.fecha || '';
+                    var rowAlerta = row.dataset.alerta || '';
+
+                    var matchSearch = !search || rowSearch.includes(search);
+                    var matchAlerta = !alerta || rowAlerta === alerta;
+                    var matchDesde = !fechaDesde || rowFecha >= fechaDesde;
+                    var matchHasta = !fechaHasta || rowFecha <= fechaHasta;
+
+                    row.style.display = (matchSearch && matchAlerta && matchDesde && matchHasta) ? '' : 'none';
+                });
+            }
+
+            searchInput?.addEventListener('input', filterRows);
+            filterAlerta?.addEventListener('change', filterRows);
+            filterFechaDesde?.addEventListener('change', filterRows);
+            filterFechaHasta?.addEventListener('change', filterRows);
+        })();
+    </script>
+}
+````
+
+===== FILE: Pages/Finanzas/Cobros/Index.cshtml.cs =====
+
+````csharp
+using Kirkenta.Data;
+using Kirkenta.Helpers;
+using Kirkenta.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+
+namespace Kirkenta.Pages.Finanzas.Cobros
+{
+    public class IndexModel : PageModel
+    {
+        private readonly ApplicationDbContext _context;
+
+        public IndexModel(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public List<CobroPendiente> Cobros { get; set; } = new();
+        public decimal TotalPendiente { get; set; }
+        public int CobrosVencidos { get; set; }
+        public int CobrosProximos { get; set; }
+
+        public class CobroPendiente
+        {
+            public int VentaId { get; set; }
+            public string VentaNumero { get; set; } = "";
+            public string? FacturaNumero { get; set; }
+            public DateTime FechaVenta { get; set; }
+            public string ClienteNombre { get; set; } = "";
+            public string ClienteTelefono { get; set; } = "";
+            public string ClienteRTN { get; set; } = "";
+            public decimal TotalVenta { get; set; }
+            public decimal SaldoPendiente { get; set; }
+            public int DiasCredito { get; set; }
+            public DateTime? FechaVencimiento { get; set; }
+            public int DiasParaVencer { get; set; }
+            public string EstadoAlerta { get; set; } = "Pendiente";
+        }
+
+        public IActionResult OnGet()
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" && !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "Cobros", "ver"))
+            {
+                TempData["Error"] = "No tienes permiso para ver los cobros pendientes.";
+                return RedirectToPage("/Finanzas/Index");
+            }
+
+            var ventasCredito = _context.Ventas
+                .AsNoTracking()
+                .Where(v => v.EsCredito && v.SaldoPendiente > 0 && v.Estado != "Anulada")
+                .ToList();
+
+            var hoy = DateTime.Today;
+            var clientes = _context.Clientes.AsNoTracking().ToDictionary(c => c.Id);
+
+            // ===== FIX: puede haber varias facturas para una misma venta.
+            // Agrupamos por VentaId y nos quedamos con la más reciente. =====
+            var facturas = _context.Facturas
+                .AsNoTracking()
+                .Where(f => f.VentaId != null)
+                .GroupBy(f => f.VentaId!.Value)
+                .Select(g => g.OrderByDescending(f => f.Id).First())
+                .ToList()
+                .ToDictionary(f => f.VentaId!.Value);
+
+            foreach (var venta in ventasCredito)
+            {
+                if (!venta.ClienteId.HasValue) continue;
+                var cliente = clientes.GetValueOrDefault(venta.ClienteId.Value);
+                if (cliente == null) continue;
+
+                var factura = facturas.GetValueOrDefault(venta.Id);
+
+                var fechaVencimiento = venta.FechaVencimientoCredito
+                    ?? factura?.FechaVencimiento
+                    ?? (cliente.DiasCredito > 0 ? venta.Fecha.AddDays(cliente.DiasCredito) : (DateTime?)null);
+
+                int diasParaVencer = 0;
+                string estadoAlerta = "Pendiente";
+
+                if (fechaVencimiento.HasValue)
+                {
+                    diasParaVencer = (fechaVencimiento.Value.Date - hoy).Days;
+                    if (diasParaVencer < 0) estadoAlerta = "Vencido";
+                    else if (diasParaVencer <= 7) estadoAlerta = "PorVencer";
+                }
+
+                Cobros.Add(new CobroPendiente
+                {
+                    VentaId = venta.Id,
+                    VentaNumero = venta.Numero,
+                    FacturaNumero = factura?.Numero,
+                    FechaVenta = venta.Fecha,
+                    ClienteNombre = cliente.Nombre,
+                    ClienteTelefono = cliente.Telefono ?? "",
+                    ClienteRTN = cliente.RTN ?? "",
+                    TotalVenta = venta.Total,
+                    SaldoPendiente = venta.SaldoPendiente,
+                    DiasCredito = cliente.DiasCredito,
+                    FechaVencimiento = fechaVencimiento,
+                    DiasParaVencer = diasParaVencer,
+                    EstadoAlerta = estadoAlerta
+                });
+            }
+
+            Cobros = Cobros
+                .OrderBy(c => c.FechaVencimiento ?? DateTime.MaxValue)
+                .ThenBy(c => c.VentaNumero)
+                .ToList();
+
+            TotalPendiente = Cobros.Sum(c => c.SaldoPendiente);
+            CobrosVencidos = Cobros.Count(c => c.EstadoAlerta == "Vencido");
+            CobrosProximos = Cobros.Count(c => c.EstadoAlerta == "PorVencer");
+
+            return Page();
+        }
+    }
+}
+````
+
 ===== FILE: Pages/Finanzas/Conciliacion/Create.cshtml =====
 
 ````html
@@ -15890,6 +18430,37 @@ namespace Kirkenta.Pages.Finanzas.Conciliacion
     </form>
 </div>
 
+<!-- Punto 12: período cerrado -->
+@if (Model.Reporte.PeriodoCerrado)
+{
+    <div class="module-alert module-alert-success" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <strong>@Model.Reporte.MensajeCierre</strong>
+    </div>
+}
+
+<!-- Punto 6: movimientos sin clasificar -->
+@if (Model.Reporte.MovimientosSinClasificar > 0)
+{
+    <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <div>
+            <strong>Hay @Model.Reporte.MovimientosSinClasificar movimiento(s) sin cuenta contable (L. @Model.Reporte.MontoSinClasificar.ToString("N2")).</strong>
+            <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                Esto puede hacer que el balance no cuadre. Asocia sus categorías a una cuenta del
+                <a asp-page="/Finanzas/PlanCuentas/Index">Plan de Cuentas</a>.
+            </p>
+        </div>
+    </div>
+}
+
 <!-- Estado de cuadre -->
 @if (!Model.Reporte.Cuadra)
 {
@@ -15902,7 +18473,7 @@ namespace Kirkenta.Pages.Finanzas.Conciliacion
         <div>
             <strong>El balance no cuadra — diferencia de L. @Model.Reporte.Diferencia.ToString("N2")</strong>
             <p style="margin: 4px 0 0 0; font-size: 12.5px;">
-                Esto puede deberse a: movimientos sin categoría contable, saldos iniciales de cuentas
+                Posibles causas: movimientos sin categoría contable, saldos iniciales de cuentas
                 financieras no registrados como movimientos, o categorías sin cuenta del plan asociada.
             </p>
         </div>
@@ -15934,7 +18505,7 @@ else
         <span class="kpi-value" style="color: var(--color-success); font-size: 20px;">L. @Model.Reporte.TotalPatrimonio.ToString("N2")</span>
     </div>
     <div class="kpi-card">
-        <span class="kpi-label">Resultado del Ejercicio</span>
+        <span class="kpi-label">Resultado del Ejercicio @Model.Reporte.AnioResultado</span>
         <span class="kpi-value" style="color: @(Model.Reporte.ResultadoEjercicio >= 0 ? "var(--color-success)" : "var(--color-danger)"); font-size: 20px;">
             L. @Model.Reporte.ResultadoEjercicio.ToString("N2")
         </span>
@@ -15962,7 +18533,7 @@ else
     </div>
 
     <div class="balance-grid">
-        <!-- COLUMNA IZQUIERDA: ACTIVOS -->
+        <!-- ACTIVOS -->
         <div>
             <div class="reporte-seccion">
                 <h4 class="reporte-seccion-titulo" style="color: var(--color-primary);">ACTIVOS</h4>
@@ -15994,7 +18565,7 @@ else
             </div>
         </div>
 
-        <!-- COLUMNA DERECHA: PASIVO + PATRIMONIO -->
+        <!-- PASIVO + PATRIMONIO -->
         <div>
             <div class="reporte-seccion">
                 <h4 class="reporte-seccion-titulo" style="color: var(--color-danger);">PASIVOS</h4>
@@ -16018,9 +18589,7 @@ else
                             <tr class="reporte-total">
                                 <td></td>
                                 <td><strong>Total Pasivos</strong></td>
-                                <td style="text-align: right;">
-                                    <strong>L. @Model.Reporte.TotalPasivos.ToString("N2")</strong>
-                                </td>
+                                <td style="text-align: right;"><strong>L. @Model.Reporte.TotalPasivos.ToString("N2")</strong></td>
                             </tr>
                         </tbody>
                     </table>
@@ -16045,7 +18614,7 @@ else
                         {
                             <tr style="font-style: italic;">
                                 <td style="font-family: monospace; color: var(--color-muted);">—</td>
-                                <td>Resultado del Ejercicio</td>
+                                <td>Resultado del Ejercicio @Model.Reporte.AnioResultado</td>
                                 <td style="text-align: right; color: @(Model.Reporte.ResultadoEjercicio >= 0 ? "var(--color-success)" : "var(--color-danger)");">
                                     L. @Model.Reporte.ResultadoEjercicio.ToString("N2")
                                 </td>
@@ -16055,9 +18624,7 @@ else
                         <tr class="reporte-total">
                             <td></td>
                             <td><strong>Total Patrimonio</strong></td>
-                            <td style="text-align: right;">
-                                <strong>L. @Model.Reporte.TotalPatrimonio.ToString("N2")</strong>
-                            </td>
+                            <td style="text-align: right;"><strong>L. @Model.Reporte.TotalPatrimonio.ToString("N2")</strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -16088,59 +18655,26 @@ else
 </div>
 
 <style>
-    .balance-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 40px;
-    }
-    @@media (max-width: 900px) {
-        .balance-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-    .reporte-seccion {
-        margin-bottom: 24px;
-    }
+    .balance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+    @@media (max-width: 900px) { .balance-grid { grid-template-columns: 1fr; } }
+    .reporte-seccion { margin-bottom: 24px; }
     .reporte-seccion-titulo {
-        font-size: 13px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        padding-bottom: 8px;
-        border-bottom: 2px solid currentColor;
-        margin-bottom: 12px;
+        font-size: 13px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; padding-bottom: 8px;
+        border-bottom: 2px solid currentColor; margin-bottom: 12px;
     }
-    .reporte-tabla {
-        width: 100%;
-        font-size: 13.5px;
-        border-collapse: collapse;
-    }
-    .reporte-tabla td {
-        padding: 6px 8px;
-    }
-    .reporte-tabla tr:not(.reporte-total):hover {
-        background: #f9fafb;
-    }
+    .reporte-tabla { width: 100%; font-size: 13.5px; border-collapse: collapse; }
+    .reporte-tabla td { padding: 6px 8px; }
+    .reporte-tabla tr:not(.reporte-total):hover { background: #f9fafb; }
     .reporte-total td {
         border-top: 1px solid var(--color-border);
-        padding-top: 10px;
-        font-size: 14px;
+        padding-top: 10px; font-size: 14px;
     }
-    .reporte-vacio {
-        font-size: 13px;
-        color: var(--color-muted);
-        font-style: italic;
-        padding: 8px 0;
-    }
+    .reporte-vacio { font-size: 13px; color: var(--color-muted); font-style: italic; padding: 8px 0; }
     .reporte-total-final {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 18px 22px;
-        border: 2px solid;
-        border-radius: 8px;
-        margin-top: 24px;
-        font-weight: 700;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 18px 22px; border: 2px solid; border-radius: 8px;
+        margin-top: 24px; font-weight: 700;
     }
     @@media print {
         .module-header, .module-card form, .module-alert, .erp-sidebar, .erp-topbar, .erp-footer { display: none !important; }
@@ -16251,6 +18785,21 @@ namespace Kirkenta.Pages.Finanzas.Contabilidad
     </form>
 </div>
 
+<!-- Punto 12: advertencia de período cerrado -->
+@if (Model.Reporte.PeriodoCerrado)
+{
+    <div class="module-alert module-alert-success" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <div>
+            <strong>@Model.Reporte.MensajeCierre</strong>
+        </div>
+    </div>
+}
+
+<!-- Punto 6: movimientos sin clasificar -->
 @if (Model.MovimientosSinCuenta > 0)
 {
     <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">
@@ -16260,7 +18809,7 @@ namespace Kirkenta.Pages.Finanzas.Contabilidad
             <line x1="12" y1="17" x2="12.01" y2="17"/>
         </svg>
         <div>
-            <strong>Hay @Model.MovimientosSinCuenta movimiento(s) sin cuenta contable asignada en el período.</strong>
+            <strong>Hay @Model.MovimientosSinCuenta movimiento(s) sin cuenta contable asignada (L. @Model.Reporte.MontoSinClasificar.ToString("N2")).</strong>
             <p style="margin: 4px 0 0 0; font-size: 12.5px;">
                 Esos movimientos no aparecen en este reporte. Asocia sus categorías a una cuenta del
                 <a asp-page="/Finanzas/PlanCuentas/Index">Plan de Cuentas</a> para incluirlos.
@@ -16269,19 +18818,39 @@ namespace Kirkenta.Pages.Finanzas.Contabilidad
     </div>
 }
 
-<!-- KPIs -->
+<!-- KPIs principales -->
 <div class="kpi-grid" style="margin-bottom: 20px;">
     <div class="kpi-card">
-        <span class="kpi-label">Ingresos totales</span>
-        <span class="kpi-value" style="color: var(--color-success);">L. @Model.Reporte.TotalIngresos.ToString("N2")</span>
+        <span class="kpi-label">Ingresos operativos</span>
+        <span class="kpi-value" style="color: var(--color-success);">L. @Model.Reporte.TotalIngresosOperativos.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Ingresos no operativos</span>
+        <span class="kpi-value" style="color: #6366f1; font-size: 20px;">L. @Model.Reporte.TotalIngresosNoOperativos.ToString("N2")</span>
     </div>
     <div class="kpi-card">
         <span class="kpi-label">Costos</span>
         <span class="kpi-value" style="color: var(--color-danger); font-size: 20px;">L. @Model.Reporte.TotalCostos.ToString("N2")</span>
     </div>
     <div class="kpi-card">
-        <span class="kpi-label">Gastos</span>
+        <span class="kpi-label">Gastos totales</span>
         <span class="kpi-value" style="color: var(--color-danger); font-size: 20px;">L. @Model.Reporte.TotalGastos.ToString("N2")</span>
+    </div>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Utilidad Bruta</span>
+        <span class="kpi-value" style="color: @(Model.Reporte.UtilidadBruta >= 0 ? "var(--color-success)" : "var(--color-danger)"); font-size: 20px;">
+            L. @Model.Reporte.UtilidadBruta.ToString("N2")
+        </span>
+        <span class="kpi-trend">Margen: @Model.Reporte.MargenBruto.ToString("N1")%</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Utilidad Operativa</span>
+        <span class="kpi-value" style="color: @(Model.Reporte.UtilidadOperativa >= 0 ? "var(--color-success)" : "var(--color-danger)"); font-size: 20px;">
+            L. @Model.Reporte.UtilidadOperativa.ToString("N2")
+        </span>
     </div>
     <div class="kpi-card">
         <span class="kpi-label">Utilidad Neta</span>
@@ -16290,10 +18859,15 @@ namespace Kirkenta.Pages.Finanzas.Contabilidad
         </span>
         <span class="kpi-trend">Margen: @Model.Reporte.MargenNeto.ToString("N1")%</span>
     </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Ingresos cobrados (caja/banco)</span>
+        <span class="kpi-value" style="color: #06b6d4; font-size: 18px;">L. @Model.Reporte.IngresosCobrados.ToString("N2")</span>
+        <span class="kpi-trend">Solo movimientos con dinero real</span>
+    </div>
 </div>
 
-<!-- Encabezado empresa -->
 <div class="module-card" style="padding: 40px;">
+    <!-- Encabezado empresa -->
     <div style="text-align: center; margin-bottom: 32px;">
         @if (Model.Empresa != null && !string.IsNullOrEmpty(Model.Empresa.LogoPath))
         {
@@ -16312,19 +18886,19 @@ namespace Kirkenta.Pages.Finanzas.Contabilidad
         </p>
     </div>
 
-    <!-- ========== INGRESOS ========== -->
+    <!-- ========== INGRESOS OPERATIVOS (4.1) ========== -->
     <div class="reporte-seccion">
-        <h4 class="reporte-seccion-titulo" style="color: var(--color-success);">INGRESOS</h4>
+        <h4 class="reporte-seccion-titulo" style="color: var(--color-success);">INGRESOS OPERATIVOS</h4>
 
-        @if (Model.Reporte.Ingresos.Count == 0)
+        @if (Model.Reporte.IngresosOperativos.Count == 0)
         {
-            <p class="reporte-vacio">Sin movimientos de ingreso en el período</p>
+            <p class="reporte-vacio">Sin movimientos de ingreso operativo en el período</p>
         }
         else
         {
             <table class="reporte-tabla">
                 <tbody>
-                    @foreach (var l in Model.Reporte.Ingresos)
+                    @foreach (var l in Model.Reporte.IngresosOperativos)
                     {
                         <tr>
                             <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
@@ -16334,9 +18908,9 @@ namespace Kirkenta.Pages.Finanzas.Contabilidad
                     }
                     <tr class="reporte-total">
                         <td></td>
-                        <td><strong>Total Ingresos</strong></td>
+                        <td><strong>Total Ingresos Operativos</strong></td>
                         <td style="text-align: right; color: var(--color-success);">
-                            <strong>L. @Model.Reporte.TotalIngresos.ToString("N2")</strong>
+                            <strong>L. @Model.Reporte.TotalIngresosOperativos.ToString("N2")</strong>
                         </td>
                     </tr>
                 </tbody>
@@ -16344,9 +18918,9 @@ namespace Kirkenta.Pages.Finanzas.Contabilidad
         }
     </div>
 
-    <!-- ========== COSTOS ========== -->
+    <!-- ========== COSTOS (5.1) ========== -->
     <div class="reporte-seccion">
-        <h4 class="reporte-seccion-titulo" style="color: #f97316;">COSTOS</h4>
+        <h4 class="reporte-seccion-titulo" style="color: #f97316;">COSTOS DE VENTA</h4>
 
         @if (Model.Reporte.Costos.Count == 0)
         {
@@ -16384,19 +18958,19 @@ namespace Kirkenta.Pages.Finanzas.Contabilidad
         </strong>
     </div>
 
-    <!-- ========== GASTOS ========== -->
+    <!-- ========== GASTOS DE VENTA (6.1) ========== -->
     <div class="reporte-seccion">
-        <h4 class="reporte-seccion-titulo" style="color: var(--color-danger);">GASTOS OPERATIVOS</h4>
+        <h4 class="reporte-seccion-titulo" style="color: var(--color-danger);">GASTOS DE VENTA</h4>
 
-        @if (Model.Reporte.Gastos.Count == 0)
+        @if (Model.Reporte.GastosVenta.Count == 0)
         {
-            <p class="reporte-vacio">Sin gastos registrados en el período</p>
+            <p class="reporte-vacio">Sin gastos de venta registrados</p>
         }
         else
         {
             <table class="reporte-tabla">
                 <tbody>
-                    @foreach (var l in Model.Reporte.Gastos)
+                    @foreach (var l in Model.Reporte.GastosVenta)
                     {
                         <tr>
                             <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
@@ -16406,15 +18980,96 @@ namespace Kirkenta.Pages.Finanzas.Contabilidad
                     }
                     <tr class="reporte-total">
                         <td></td>
-                        <td><strong>Total Gastos</strong></td>
-                        <td style="text-align: right;">
-                            <strong>L. @Model.Reporte.TotalGastos.ToString("N2")</strong>
-                        </td>
+                        <td><strong>Total Gastos de Venta</strong></td>
+                        <td style="text-align: right;"><strong>L. @Model.Reporte.TotalGastosVenta.ToString("N2")</strong></td>
                     </tr>
                 </tbody>
             </table>
         }
     </div>
+
+    <!-- ========== GASTOS DE ADMINISTRACIÓN (6.2) ========== -->
+    <div class="reporte-seccion">
+        <h4 class="reporte-seccion-titulo" style="color: var(--color-danger);">GASTOS DE ADMINISTRACIÓN</h4>
+
+        @if (Model.Reporte.GastosAdministracion.Count == 0)
+        {
+            <p class="reporte-vacio">Sin gastos de administración registrados</p>
+        }
+        else
+        {
+            <table class="reporte-tabla">
+                <tbody>
+                    @foreach (var l in Model.Reporte.GastosAdministracion)
+                    {
+                        <tr>
+                            <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
+                            <td>@l.Cuenta</td>
+                            <td style="text-align: right; width: 140px;">L. @l.Monto.ToString("N2")</td>
+                        </tr>
+                    }
+                    <tr class="reporte-total">
+                        <td></td>
+                        <td><strong>Total Gastos de Administración</strong></td>
+                        <td style="text-align: right;"><strong>L. @Model.Reporte.TotalGastosAdministracion.ToString("N2")</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <!-- ========== UTILIDAD OPERATIVA ========== -->
+    <div class="reporte-subtotal">
+        <span>UTILIDAD OPERATIVA</span>
+        <strong style="color: @(Model.Reporte.UtilidadOperativa >= 0 ? "var(--color-success)" : "var(--color-danger)");">
+            L. @Model.Reporte.UtilidadOperativa.ToString("N2")
+        </strong>
+    </div>
+
+    <!-- ========== INGRESOS NO OPERATIVOS (4.2) ========== -->
+    @if (Model.Reporte.IngresosNoOperativos.Count > 0)
+    {
+        <div class="reporte-seccion">
+            <h4 class="reporte-seccion-titulo" style="color: #6366f1;">INGRESOS NO OPERATIVOS</h4>
+            <table class="reporte-tabla">
+                <tbody>
+                    @foreach (var l in Model.Reporte.IngresosNoOperativos)
+                    {
+                        <tr>
+                            <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
+                            <td>@l.Cuenta</td>
+                            <td style="text-align: right; width: 140px;">L. @l.Monto.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <!-- ========== OTROS GASTOS (6.3) ========== -->
+    @if (Model.Reporte.OtrosGastos.Count > 0)
+    {
+        <div class="reporte-seccion">
+            <h4 class="reporte-seccion-titulo" style="color: var(--color-danger);">OTROS GASTOS</h4>
+            <table class="reporte-tabla">
+                <tbody>
+                    @foreach (var l in Model.Reporte.OtrosGastos)
+                    {
+                        <tr>
+                            <td style="width: 120px; font-family: monospace; color: var(--color-muted);">@l.Codigo</td>
+                            <td>@l.Cuenta</td>
+                            <td style="text-align: right; width: 140px;">L. @l.Monto.ToString("N2")</td>
+                        </tr>
+                    }
+                    <tr class="reporte-total">
+                        <td></td>
+                        <td><strong>Total Otros Gastos</strong></td>
+                        <td style="text-align: right;"><strong>L. @Model.Reporte.TotalOtrosGastos.ToString("N2")</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    }
 
     <!-- ========== UTILIDAD NETA ========== -->
     <div class="reporte-total-final">
@@ -16431,61 +19086,30 @@ namespace Kirkenta.Pages.Finanzas.Contabilidad
 </div>
 
 <style>
-    .reporte-seccion {
-        margin-bottom: 24px;
-    }
+    .reporte-seccion { margin-bottom: 24px; }
     .reporte-seccion-titulo {
-        font-size: 13px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        padding-bottom: 8px;
-        border-bottom: 2px solid currentColor;
-        margin-bottom: 12px;
+        font-size: 13px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; padding-bottom: 8px;
+        border-bottom: 2px solid currentColor; margin-bottom: 12px;
     }
-    .reporte-tabla {
-        width: 100%;
-        font-size: 13.5px;
-        border-collapse: collapse;
-    }
-    .reporte-tabla td {
-        padding: 6px 8px;
-    }
-    .reporte-tabla tr:not(.reporte-total):hover {
-        background: #f9fafb;
-    }
+    .reporte-tabla { width: 100%; font-size: 13.5px; border-collapse: collapse; }
+    .reporte-tabla td { padding: 6px 8px; }
+    .reporte-tabla tr:not(.reporte-total):hover { background: #f9fafb; }
     .reporte-total td {
         border-top: 1px solid var(--color-border);
-        padding-top: 10px;
-        font-size: 14px;
+        padding-top: 10px; font-size: 14px;
     }
-    .reporte-vacio {
-        font-size: 13px;
-        color: var(--color-muted);
-        font-style: italic;
-        padding: 8px 0;
-    }
+    .reporte-vacio { font-size: 13px; color: var(--color-muted); font-style: italic; padding: 8px 0; }
     .reporte-subtotal {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 14px 20px;
-        background: #f3f4f6;
-        border-radius: 6px;
-        margin: 20px 0;
-        font-size: 14px;
-        font-weight: 700;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 14px 20px; background: #f3f4f6; border-radius: 6px;
+        margin: 20px 0; font-size: 14px; font-weight: 700;
     }
     .reporte-total-final {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px 24px;
-        background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-        border: 2px solid var(--color-primary);
-        border-radius: 8px;
-        margin-top: 24px;
-        font-weight: 700;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 20px 24px; background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+        border: 2px solid var(--color-primary); border-radius: 8px;
+        margin-top: 24px; font-weight: 700;
     }
     @@media print {
         .module-header, .module-card form, .module-alert, .erp-sidebar, .erp-topbar, .erp-footer { display: none !important; }
@@ -16535,7 +19159,6 @@ namespace Kirkenta.Pages.Finanzas.Contabilidad
                 return RedirectToPage("/Finanzas/Index");
             }
 
-            // Por defecto: mes actual
             var hoy = DateTime.Today;
             Desde = desde ?? new DateTime(hoy.Year, hoy.Month, 1);
             Hasta = hasta ?? hoy;
@@ -16709,6 +19332,7 @@ namespace Kirkenta.Pages.Finanzas.Contabilidad
 ````csharp
 using Kirkenta.Data;
 using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -16834,6 +19458,18 @@ namespace Kirkenta.Pages.Finanzas.Cuentas
 
             _context.CuentasFinancieras.Add(cuenta);
             _context.SaveChanges();
+
+            // ✅ NUEVO: registrar movimiento de apertura si hay saldo inicial
+            if (cuenta.SaldoInicial > 0 && cuenta.Subtipo != "CuentasPorCobrar")
+            {
+                var (mov, aperturaError) = AperturaCuentaHelper.RegistrarApertura(
+                    _context, cuenta.Id, currentUser?.Id ?? 1);
+
+                if (aperturaError != null)
+                {
+                    TempData["Warning"] = $"Cuenta creada, pero no se pudo registrar la apertura contable: {aperturaError}";
+                }
+            }
 
             ActividadHelper.Registrar(
                 _context,
@@ -17154,6 +19790,7 @@ namespace Kirkenta.Pages.Finanzas.Cuentas
 ````csharp
 using Kirkenta.Data;
 using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -17294,6 +19931,16 @@ namespace Kirkenta.Pages.Finanzas.Cuentas
             c.Activa = Input.Activa;
 
             _context.SaveChanges();
+
+            // ✅ Si cambió el nombre, actualizar el movimiento de apertura
+            var movApertura = _context.MovimientosFinancieros
+                .FirstOrDefault(m => m.Origen == "Apertura" && m.OrigenId == c.Id && m.Estado == "Activo");
+
+            if (movApertura != null)
+            {
+                movApertura.Concepto = $"Saldo inicial de {c.Nombre}";
+                _context.SaveChanges();
+            }
 
             ActividadHelper.Registrar(
                 _context,
@@ -18971,11 +21618,20 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             <input type="text" id="searchInput" placeholder="Buscar por número, concepto o referencia..." />
         </div>
         <div class="filter-group">
+            <input type="date" id="filterFechaDesde" class="filter-select" title="Desde" />
+            <input type="date" id="filterFechaHasta" class="filter-select" title="Hasta" />
             <select id="filterTipo" class="filter-select">
                 <option value="">Todos los tipos</option>
                 <option value="Ingreso">Ingresos</option>
                 <option value="Egreso">Egresos</option>
                 <option value="Transferencia">Transferencias</option>
+            </select>
+            <select id="filterFormaPago" class="filter-select">
+                <option value="">Todas las formas de pago</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="tarjeta">Tarjeta</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="crédito">Crédito</option>
             </select>
             <select id="filterCuenta" class="filter-select">
                 <option value="">Todas las cuentas</option>
@@ -19016,6 +21672,7 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                         <th>Concepto</th>
                         <th>Cuenta</th>
                         <th>Categoría</th>
+                        <th>Forma Pago</th>
                         <th style="text-align: right;">Monto</th>
                         <th>Estado</th>
                         <th style="width: 140px; text-align: right;">Acciones</th>
@@ -19028,7 +21685,9 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                             data-concepto="@m.Concepto.ToLower()"
                             data-referencia="@(m.Referencia?.ToLower() ?? "")"
                             data-tipo="@m.Tipo"
-                            data-cuentaid="@m.CuentaNombre"
+                            data-cuentas="@(m.CuentaId)@(m.CuentaDestinoId.HasValue ? "," + m.CuentaDestinoId.Value : "")"
+                            data-formapago="@(m.FormaPago?.ToLower() ?? "")"
+                            data-fecha="@m.Fecha.ToString("yyyy-MM-dd")"
                             data-estado="@m.Estado">
                             <td><span style="font-family: monospace;">@m.Numero</span></td>
                             <td>@m.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
@@ -19070,6 +21729,7 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                                     <span class="table-user-sub">—</span>
                                 }
                             </td>
+                            <td>@(m.FormaPago ?? "—")</td>
                             <td style="text-align: right;">
                                 <strong style="color: @(m.Tipo == "Ingreso" ? "var(--color-success)" : m.Tipo == "Egreso" ? "var(--color-danger)" : "var(--color-primary)");">
                                     @(m.Tipo == "Ingreso" ? "+" : m.Tipo == "Egreso" ? "-" : "↔") L. @m.Monto.ToString("N2")
@@ -19122,6 +21782,9 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             var filterTipo = document.getElementById('filterTipo');
             var filterCuenta = document.getElementById('filterCuenta');
             var filterEstado = document.getElementById('filterEstado');
+            var filterFormaPago = document.getElementById('filterFormaPago');
+            var filterFechaDesde = document.getElementById('filterFechaDesde');
+            var filterFechaHasta = document.getElementById('filterFechaHasta');
             var table = document.getElementById('movTable');
             if (!table) return;
             var rows = table.querySelectorAll('tbody tr');
@@ -19131,21 +21794,29 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 var tipo = filterTipo?.value || '';
                 var cuenta = filterCuenta?.value || '';
                 var estado = filterEstado?.value || '';
+                var formaPago = (filterFormaPago?.value || '').toLowerCase();
+                var fechaDesde = filterFechaDesde?.value || '';
+                var fechaHasta = filterFechaHasta?.value || '';
 
                 rows.forEach(function (row) {
                     var numero = row.dataset.numero || '';
                     var concepto = row.dataset.concepto || '';
                     var referencia = row.dataset.referencia || '';
                     var rowTipo = row.dataset.tipo || '';
-                    var rowCuenta = row.dataset.cuentaid || '';
+                    var rowCuentas = (row.dataset.cuentas || '').split(',').filter(function (x) { return x !== ''; });
                     var rowEstado = row.dataset.estado || '';
+                    var rowFormaPago = row.dataset.formapago || '';
+                    var rowFecha = row.dataset.fecha || '';
 
                     var matchSearch = !search || numero.includes(search) || concepto.includes(search) || referencia.includes(search);
                     var matchTipo = !tipo || rowTipo === tipo;
-                    var matchCuenta = !cuenta || rowCuenta === cuenta;
+                    var matchCuenta = !cuenta || rowCuentas.indexOf(cuenta) !== -1;
                     var matchEstado = !estado || rowEstado === estado;
+                    var matchFormaPago = !formaPago || rowFormaPago === formaPago;
+                    var matchFechaDesde = !fechaDesde || rowFecha >= fechaDesde;
+                    var matchFechaHasta = !fechaHasta || rowFecha <= fechaHasta;
 
-                    row.style.display = (matchSearch && matchTipo && matchCuenta && matchEstado) ? '' : 'none';
+                    row.style.display = (matchSearch && matchTipo && matchCuenta && matchEstado && matchFormaPago && matchFechaDesde && matchFechaHasta) ? '' : 'none';
                 });
             }
 
@@ -19153,6 +21824,9 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             filterTipo?.addEventListener('change', filterRows);
             filterCuenta?.addEventListener('change', filterRows);
             filterEstado?.addEventListener('change', filterRows);
+            filterFormaPago?.addEventListener('change', filterRows);
+            filterFechaDesde?.addEventListener('change', filterRows);
+            filterFechaHasta?.addEventListener('change', filterRows);
         })();
     </script>
 }
@@ -19201,12 +21875,15 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             public string Concepto { get; set; } = "";
             public string? Referencia { get; set; }
             public decimal Monto { get; set; }
+            public int CuentaId { get; set; }
+            public int? CuentaDestinoId { get; set; }
             public string CuentaNombre { get; set; } = "";
             public string? CuentaDestinoNombre { get; set; }
             public string? CategoriaNombre { get; set; }
             public string? CategoriaColor { get; set; }
             public string Estado { get; set; } = "Activo";
             public string Origen { get; set; } = "Manual";
+            public string? FormaPago { get; set; }
         }
 
         public IActionResult OnGet()
@@ -19249,6 +21926,8 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 Concepto = m.Concepto,
                 Referencia = m.Referencia,
                 Monto = m.Monto,
+                CuentaId = m.CuentaId,
+                CuentaDestinoId = m.CuentaDestinoId,
                 CuentaNombre = cuentasDict.GetValueOrDefault(m.CuentaId, "—"),
                 CuentaDestinoNombre = m.CuentaDestinoId.HasValue
                     ? cuentasDict.GetValueOrDefault(m.CuentaDestinoId.Value)
@@ -19260,7 +21939,8 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                     ? categoriasDict.GetValueOrDefault(m.CategoriaId.Value)?.Color
                     : null,
                 Estado = m.Estado,
-                Origen = m.Origen
+                Origen = m.Origen,
+                FormaPago = m.FormaPago
             }).ToList();
 
             var activos = lista.Where(m => m.Estado == "Activo").ToList();
@@ -21749,6 +24429,12 @@ namespace Kirkenta.Pages.OrdenesCompra
 
         public IActionResult OnGet(int id)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Compras", "OrdenesDelete", "eliminar")))
+            {
+                TempData["Error"] = "No tienes permiso para realizar esta acción";
+                return RedirectToPage("/Index");
+            }
+
             var orden = _context.OrdenesCompra.FirstOrDefault(o => o.Id == id);
             if (orden == null)
             {
@@ -21769,6 +24455,12 @@ namespace Kirkenta.Pages.OrdenesCompra
 
         public IActionResult OnPost(int id)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Compras", "OrdenesDelete", "eliminar")))
+            {
+                TempData["Error"] = "No tienes permiso para realizar esta acción";
+                return RedirectToPage("/Index");
+            }
+
             var orden = _context.OrdenesCompra.FirstOrDefault(o => o.Id == id);
             if (orden == null)
             {
@@ -23906,7 +26598,7 @@ namespace Kirkenta.Pages.PagosProveedor
 
             _context.SaveChanges();
 
-            // REGISTRO AUTOMÁTICO EN FINANZAS
+            // ===== REGISTRO AUTOMÁTICO EN FINANZAS =====
             string? movimientoError = null;
 
             if (Input.RegistrarEnFinanzas)
@@ -23916,7 +26608,7 @@ namespace Kirkenta.Pages.PagosProveedor
                     var proveedor = _context.Proveedores.FirstOrDefault(p => p.Id == orden.ProveedorId);
                     var metodoPago = _context.MetodosPago.FirstOrDefault(m => m.Id == Input.MetodoPagoId);
 
-                    var mov = MovimientoAutomaticoHelper.RegistrarEgresoPagoProveedor(
+                    var (mov, errorMov) = MovimientoAutomaticoHelper.RegistrarEgresoPagoProveedor(
                         _context,
                         pago.Id,
                         pago.Numero ?? "—",
@@ -23928,7 +26620,8 @@ namespace Kirkenta.Pages.PagosProveedor
 
                     if (mov == null)
                     {
-                        movimientoError = "No se pudo registrar el movimiento financiero (revisa la configuración de cuentas y categorías)";
+                        movimientoError = errorMov
+                            ?? "No se pudo registrar el movimiento financiero (revisa la configuración de cuentas y categorías)";
                     }
                 }
                 catch (Exception ex)
@@ -24993,6 +27686,7 @@ namespace Kirkenta.Pages.Pedidos
 ===== FILE: Pages/Pedidos/Details.cshtml.cs =====
 
 ````csharp
+using Kirkenta.Helpers;
 using Kirkenta.Data;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -25016,6 +27710,12 @@ namespace Kirkenta.Pages.Pedidos
 
         public IActionResult OnGet(int id)
         {
+            if (!(PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Ventas", "Pedidos")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             var pedido = _context.Pedidos.FirstOrDefault(p => p.Id == id);
             if (pedido == null)
             {
@@ -25133,6 +27833,12 @@ namespace Kirkenta.Pages.Pedidos
 
         public IActionResult OnGet(int id)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Pedidos", "editar")))
+            {
+                TempData["Error"] = "No tienes permiso para realizar esta acción";
+                return RedirectToPage("/Index");
+            }
+
             var pedido = _context.Pedidos.FirstOrDefault(p => p.Id == id);
             if (pedido == null)
             {
@@ -25155,6 +27861,12 @@ namespace Kirkenta.Pages.Pedidos
 
         public IActionResult OnPost()
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Pedidos", "editar")))
+            {
+                TempData["Error"] = "No tienes permiso para realizar esta acción";
+                return RedirectToPage("/Index");
+            }
+
             if (!ModelState.IsValid) return Page();
 
             var pedido = _context.Pedidos.FirstOrDefault(p => p.Id == Input.Id);
@@ -25334,6 +28046,8 @@ namespace Kirkenta.Pages.Pedidos
 ===== FILE: Pages/Pedidos/Index.cshtml.cs =====
 
 ````csharp
+using Kirkenta.Helpers;
+using Microsoft.AspNetCore.Mvc;
 using Kirkenta.Data;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -25352,10 +28066,18 @@ namespace Kirkenta.Pages.Pedidos
         public List<Pedido> Pedidos { get; set; } = new();
         public List<Cliente> Clientes { get; set; } = new();
 
-        public void OnGet()
+        public IActionResult OnGet()
         {
+            if (!(PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Ventas", "Pedidos")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             Pedidos = _context.Pedidos.OrderByDescending(p => p.Fecha).ToList();
             Clientes = _context.Clientes.ToList();
+
+            return Page();
         }
     }
 }
@@ -25377,7 +28099,9 @@ namespace Kirkenta.Pages.Pedidos
 @Html.AntiForgeryToken()
 
 <div class="pos-grid">
-    <!-- Columna izquierda: Productos -->
+    <!-- ============================================ -->
+    <!-- COLUMNA IZQUIERDA: PRODUCTOS                 -->
+    <!-- ============================================ -->
     <div class="pos-products-panel">
         <div class="pos-search-wrapper">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -25408,7 +28132,7 @@ namespace Kirkenta.Pages.Pedidos
                 var agotado = prod.Stock <= 0;
 
                 <button type="button"
-                        class="pos-product-card @(agotado ? "is-agotado" : "")"
+                        class="pos-product-item @(agotado ? "is-agotado" : "")"
                         data-id="@prod.Id"
                         data-nombre="@prod.Nombre"
                         data-precio="@prod.PrecioVenta"
@@ -25448,7 +28172,9 @@ namespace Kirkenta.Pages.Pedidos
         </div>
     </div>
 
-    <!-- Columna derecha: Carrito -->
+    <!-- ============================================ -->
+    <!-- COLUMNA DERECHA: CARRITO                     -->
+    <!-- ============================================ -->
     <div class="pos-cart-panel">
         <div class="pos-cart-header">
             <h2>Venta actual</h2>
@@ -25489,54 +28215,57 @@ namespace Kirkenta.Pages.Pedidos
             </div>
         </div>
 
-        <!-- ===== BLOQUE DE ENVÍO ===== -->
+        <!-- ===== BLOQUE DE ENVÍO COLAPSABLE ===== -->
         <div class="pos-envio-toggle">
             <label class="pos-checkbox-label">
                 <input type="checkbox" id="chkRequiereEnvio" />
                 <span>🚚 Requiere envío a domicilio</span>
             </label>
+            <button type="button" class="pos-envio-arrow" id="btnToggleEnvio" aria-label="Expandir envío">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+            </button>
         </div>
 
-        <div id="panelEnvio" style="display: none;">
-            <div class="pos-envio-panel">
+        <div id="panelEnvio" class="pos-envio-panel-collapsible">
+            <div class="form-field">
+                <label>Dirección de entrega *</label>
+                <input type="text" id="envioDireccion" class="form-input" placeholder="Colonia, calle, número..." />
+            </div>
+            <div class="form-field">
+                <label>Referencia</label>
+                <input type="text" id="envioReferencia" class="form-input" placeholder="Punto de referencia para el repartidor" />
+            </div>
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="form-field">
-                    <label>Dirección de entrega *</label>
-                    <input type="text" id="envioDireccion" class="form-input" placeholder="Colonia, calle, número..." />
+                    <label>Recibe *</label>
+                    <input type="text" id="envioContactoNombre" class="form-input" placeholder="Nombre de quien recibe" />
                 </div>
                 <div class="form-field">
-                    <label>Referencia</label>
-                    <input type="text" id="envioReferencia" class="form-input" placeholder="Punto de referencia para el repartidor" />
+                    <label>Teléfono *</label>
+                    <input type="text" id="envioContactoTelefono" class="form-input" placeholder="9999-9999" />
                 </div>
-                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div class="form-field">
-                        <label>Recibe *</label>
-                        <input type="text" id="envioContactoNombre" class="form-input" placeholder="Nombre de quien recibe" />
-                    </div>
-                    <div class="form-field">
-                        <label>Teléfono *</label>
-                        <input type="text" id="envioContactoTelefono" class="form-input" placeholder="9999-9999" />
-                    </div>
+            </div>
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-field">
+                    <label>Zona</label>
+                    <select id="envioZonaId" class="form-input">
+                        <option value="">— Sin zona —</option>
+                        @foreach (var z in Model.ZonasEnvio)
+                        {
+                            <option value="@z.Id" data-precio="@z.PrecioSugerido">@z.Nombre (L. @z.PrecioSugerido.ToString("N2"))</option>
+                        }
+                    </select>
                 </div>
-                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div class="form-field">
-                        <label>Zona</label>
-                        <select id="envioZonaId" class="form-input">
-                            <option value="">— Sin zona —</option>
-                            @foreach (var z in Model.ZonasEnvio)
-                            {
-                                <option value="@z.Id" data-precio="@z.PrecioSugerido">@z.Nombre (L. @z.PrecioSugerido.ToString("N2"))</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Monto envío (L.) *</label>
-                        <input type="number" id="envioMonto" class="form-input" step="0.01" min="0" value="0" />
-                        <small style="font-size: 11px; color: var(--color-muted);">Pon 0 si es gratis</small>
-                    </div>
+                <div class="form-field">
+                    <label>Monto envío (L.) *</label>
+                    <input type="number" id="envioMonto" class="form-input" step="0.01" min="0" value="0" />
                 </div>
             </div>
         </div>
 
+        <!-- ===== LISTA DE ITEMS DEL CARRITO ===== -->
         <div class="pos-cart-items" id="posCartItems">
             <div class="pos-cart-empty">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -25548,6 +28277,7 @@ namespace Kirkenta.Pages.Pedidos
             </div>
         </div>
 
+        <!-- ===== TOTALES ===== -->
         <div class="pos-cart-totals">
             <div class="pos-total-row">
                 <span>Subtotal productos</span>
@@ -25602,7 +28332,7 @@ namespace Kirkenta.Pages.Pedidos
                 <strong id="modalTotal">L. 0.00</strong>
             </div>
 
-            <div id="modalAvisoEnvio" style="display: none; background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary); padding: 10px 14px; border-radius: 8px; font-size: 12.5px; margin-bottom: 14px;">
+            <div id="modalAvisoEnvio" style="display: none; background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary); padding: 10px 14px; border-radius: 8px; font-size: 12.5px;">
                 <strong>🚚 Incluye envío:</strong> <span id="modalAvisoMontoEnvio">L. 0.00</span>
             </div>
 
@@ -25616,9 +28346,10 @@ namespace Kirkenta.Pages.Pedidos
                 </select>
             </div>
 
-            <div class="form-field">
+            <div class="form-field" id="fieldMontoRecibido">
                 <label>Monto recibido</label>
                 <input type="number" id="modalMonto" class="form-input" step="0.01" min="0" />
+                <small class="form-help" id="modalMontoHelp" style="display: none;"></small>
             </div>
 
             <div class="form-field" id="fieldReferencia" style="display: none;">
@@ -25626,25 +28357,15 @@ namespace Kirkenta.Pages.Pedidos
                 <input type="text" id="modalReferencia" class="form-input" placeholder="Ej: 123456" />
             </div>
 
-            <div class="pos-modal-cambio">
+            <div class="pos-modal-cambio" id="cajaCambio">
                 <span>Cambio</span>
                 <strong id="modalCambio">L. 0.00</strong>
-            </div>
-
-            <div class="form-field" style="margin-top: 8px;">
-                <label class="form-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="registrarEnFinanzas" checked />
-                    <span style="font-size: 13px;"><strong>Registrar automáticamente en Finanzas</strong></span>
-                </label>
-                <small class="form-help" style="display: block; margin-top: 4px;">Se creará un movimiento de ingreso en la cuenta POS.</small>
             </div>
         </div>
 
         <div class="pos-modal-footer">
             <button type="button" class="btn-secondary" id="btnCancelarModal">Cancelar</button>
-            <button type="button" class="btn-primary" id="btnConfirmarPago">
-                Confirmar pago
-            </button>
+            <button type="button" class="btn-primary" id="btnConfirmarPago">Confirmar pago</button>
         </div>
     </div>
 </div>
@@ -25658,23 +28379,35 @@ namespace Kirkenta.Pages.Pedidos
                 <polyline points="22 4 12 14.01 9 11.01"/>
             </svg>
         </div>
-        <h3>¡Venta completada!</h3>
+        <h3>¡Venta registrada!</h3>
         <p id="ventaNumero"></p>
         <div class="pos-success-total">
             <span>Total:</span>
             <strong id="ventaTotal"></strong>
         </div>
 
-        <div id="avisoEnvioExito" style="display: none; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 10px 14px; border-radius: 8px; font-size: 12.5px; margin-bottom: 16px; text-align: left;">
+        <div id="avisoCambioExito" style="display: none; background: #fffbeb; border: 1px solid #fde68a; color: #92400e; padding: 10px 14px; border-radius: 8px; font-size: 14px; text-align: center; margin-bottom: 12px;">
+            💵 <strong>Cambio a entregar:</strong><br>
+            <span id="cambioMonto" style="font-size: 24px; font-weight: 700; display: block; margin-top: 4px;"></span>
+        </div>
+
+        <div id="avisoEnvioExito" style="display: none; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 10px 14px; border-radius: 8px; font-size: 12.5px; text-align: left;">
             🚚 <strong>Envío generado:</strong> <span id="avisoEnvioNumero"></span>. Pendiente de asignar ruta.
         </div>
 
-        <div id="avisoMovimiento" style="display: none; background: #fffbeb; border: 1px solid #fde68a; color: #d97706; padding: 10px 14px; border-radius: 8px; font-size: 12.5px; margin-bottom: 16px; text-align: left;">
-            <strong>⚠️ Aviso:</strong> <span id="avisoTexto"></span>
+        <div style="background: #eef2ff; border: 1px solid #c7d2fe; color: #4f46e5; padding: 12px 14px; border-radius: 8px; font-size: 12.5px; text-align: left; margin-top: 12px;">
+            <strong>📄 Siguiente paso</strong>
+            <p style="margin: 4px 0 0 0;">Se redirigirá automáticamente a generar la factura para registrar los movimientos financieros.</p>
         </div>
 
-        <div class="pos-modal-footer">
-            <button type="button" class="btn-primary" id="btnNuevaVenta">Nueva venta</button>
+        <div class="pos-modal-footer" style="margin-top: 20px; justify-content: center; gap: 10px;">
+            <a id="btnIrAFactura" href="#" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                Facturar ahora
+            </a>
         </div>
     </div>
 </div>
@@ -25690,8 +28423,26 @@ namespace Kirkenta.Pages.Pedidos
             var clientes = JSON.parse(document.getElementById('clientesJson').value || '[]');
             var itemsIniciales = JSON.parse(document.getElementById('itemsInicialesJson').value || '[]');
             var cotizacionId = document.getElementById('cotizacionId').value || null;
+            var descuentoGlobal = 0;
+
+            if (itemsIniciales && itemsIniciales.length > 0) {
+                // 🔒 FIX: nos aseguramos de que cada ítem tenga descuento definido
+                carrito = itemsIniciales.map(function (i) {
+                    return {
+                        productoId: i.productoId,
+                        nombre: i.nombre,
+                        precio: i.precio,
+                        cantidad: i.cantidad,
+                        descuento: i.descuento || 0,
+                        impuestoId: i.impuestoId,
+                        impuesto: i.impuesto,
+                        stock: i.stock
+                    };
+                });
+            }
 
             var posSearch = document.getElementById('posSearch');
+            var posCategories = document.getElementById('posCategories');
             var cartItems = document.getElementById('posCartItems');
             var subtotalEl = document.getElementById('posSubtotal');
             var impuestosEl = document.getElementById('posImpuestos');
@@ -25702,8 +28453,8 @@ namespace Kirkenta.Pages.Pedidos
             var modalCobro = document.getElementById('modalCobro');
             var modalExito = document.getElementById('modalExito');
 
-            // Envío
             var chkRequiereEnvio = document.getElementById('chkRequiereEnvio');
+            var btnToggleEnvio = document.getElementById('btnToggleEnvio');
             var panelEnvio = document.getElementById('panelEnvio');
             var envioDireccion = document.getElementById('envioDireccion');
             var envioReferencia = document.getElementById('envioReferencia');
@@ -25717,14 +28468,13 @@ namespace Kirkenta.Pages.Pedidos
             var clienteSearch = document.getElementById('posClienteSearch');
             var clienteResults = document.getElementById('posClienteResults');
             var clienteIdInput = document.getElementById('posClienteId');
-            var descuentoGlobal = 0;
-
-            if (itemsIniciales && itemsIniciales.length > 0) {
-                carrito = itemsIniciales;
-            }
 
             function formatMoney(n) {
                 return 'L. ' + (n || 0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+            }
+
+            function parseMoney(text) {
+                return parseFloat(String(text).replace('L. ', '').replace(/,/g, '')) || 0;
             }
 
             function getMontoEnvio() {
@@ -25732,42 +28482,57 @@ namespace Kirkenta.Pages.Pedidos
                 return parseFloat(envioMonto.value) || 0;
             }
 
-            // === Toggle del panel de envío ===
-            chkRequiereEnvio.addEventListener('change', function () {
-                panelEnvio.style.display = this.checked ? 'block' : 'none';
-                rowEnvio.style.display = this.checked ? '' : 'none';
-                actualizarTotales();
-            });
+            // ===== FILTROS UNIFICADOS =====
+            function aplicarFiltrosProductos() {
+                var texto = (posSearch?.value || '').toLowerCase().trim();
+                var btnActivo = document.querySelector('.pos-category-btn.is-active');
+                var catActiva = btnActivo?.dataset.categoria || '';
 
-            envioMonto.addEventListener('input', actualizarTotales);
-
-            // === Al elegir zona, autocompletar el precio ===
-            envioZonaId.addEventListener('change', function () {
-                var opt = this.options[this.selectedIndex];
-                var precio = parseFloat(opt.dataset.precio) || 0;
-                if (precio >= 0) {
-                    envioMonto.value = precio.toFixed(2);
-                    actualizarTotales();
-                }
-            });
-
-            // === Al elegir cliente, autocompletar dirección si está vacía ===
-            function autocompletarDireccion(clienteId) {
-                var cliente = clientes.find(function (c) { return c.id == clienteId; });
-                if (!cliente) return;
-
-                if (envioDireccion && !envioDireccion.value && cliente.direccion) {
-                    envioDireccion.value = cliente.direccion;
-                }
-                if (envioContactoNombre && !envioContactoNombre.value) {
-                    envioContactoNombre.value = cliente.nombre;
-                }
-                if (envioContactoTelefono && !envioContactoTelefono.value && cliente.telefono) {
-                    envioContactoTelefono.value = cliente.telefono;
-                }
+                var cards = document.querySelectorAll('.pos-product-item');
+                cards.forEach(function (card) {
+                    var nombre = (card.dataset.nombre || '').toLowerCase();
+                    var sku = (card.dataset.sku || '').toLowerCase();
+                    var cardCat = card.dataset.categoria || '';
+                    var matchTexto = !texto || nombre.includes(texto) || sku.includes(texto);
+                    var matchCat = !catActiva || cardCat === catActiva;
+                    card.style.display = (matchTexto && matchCat) ? '' : 'none';
+                });
             }
 
-            // === Buscador de clientes ===
+            posSearch?.addEventListener('input', aplicarFiltrosProductos);
+            posCategories?.querySelectorAll('.pos-category-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    posCategories.querySelectorAll('.pos-category-btn').forEach(function (b) { b.classList.remove('is-active'); });
+                    this.classList.add('is-active');
+                    aplicarFiltrosProductos();
+                });
+            });
+
+            // ===== TOGGLE ENVÍO =====
+            btnToggleEnvio?.addEventListener('click', function () {
+                panelEnvio.classList.toggle('is-open');
+                btnToggleEnvio.classList.toggle('is-open');
+            });
+            chkRequiereEnvio?.addEventListener('change', function () {
+                if (this.checked) {
+                    panelEnvio.classList.add('is-open');
+                    btnToggleEnvio.classList.add('is-open');
+                    rowEnvio.style.display = '';
+                } else {
+                    panelEnvio.classList.remove('is-open');
+                    btnToggleEnvio.classList.remove('is-open');
+                    rowEnvio.style.display = 'none';
+                }
+                actualizarTotales();
+            });
+            envioMonto?.addEventListener('input', actualizarTotales);
+            envioZonaId?.addEventListener('change', function () {
+                var opt = this.options[this.selectedIndex];
+                var precio = parseFloat(opt.dataset.precio) || 0;
+                if (precio >= 0) { envioMonto.value = precio.toFixed(2); actualizarTotales(); }
+            });
+
+            // ===== BUSCADOR DE CLIENTES =====
             function buscarClientes(texto) {
                 if (!texto || texto.length < 2) { clienteResults.style.display = 'none'; return; }
                 var t = texto.toLowerCase();
@@ -25790,8 +28555,7 @@ namespace Kirkenta.Pages.Pedidos
                         '<strong>' + c.nombre + '</strong>' +
                         (c.rtn ? '<small>RTN: ' + c.rtn + '</small>' : '') +
                         (c.codigo ? '<small>Código: ' + c.codigo + '</small>' : '') +
-                        '</div>' +
-                        '</div>';
+                        '</div></div>';
                 }).join('');
                 clienteResults.style.display = 'block';
 
@@ -25805,19 +28569,26 @@ namespace Kirkenta.Pages.Pedidos
                 });
             }
 
-            clienteSearch.addEventListener('input', function () { buscarClientes(this.value); });
-            clienteSearch.addEventListener('focus', function () { if (this.value.length >= 2) buscarClientes(this.value); });
+            function autocompletarDireccion(clienteId) {
+                var cliente = clientes.find(function (c) { return c.id == clienteId; });
+                if (!cliente) return;
+                if (envioDireccion && !envioDireccion.value && cliente.direccion) envioDireccion.value = cliente.direccion;
+                if (envioContactoNombre && !envioContactoNombre.value) envioContactoNombre.value = cliente.nombre;
+                if (envioContactoTelefono && !envioContactoTelefono.value && cliente.telefono) envioContactoTelefono.value = cliente.telefono;
+            }
 
+            clienteSearch?.addEventListener('input', function () { buscarClientes(this.value); });
+            clienteSearch?.addEventListener('focus', function () { if (this.value.length >= 2) buscarClientes(this.value); });
             document.addEventListener('click', function (e) {
                 if (!clienteResults.contains(e.target) && e.target !== clienteSearch) {
                     clienteResults.style.display = 'none';
                 }
             });
 
-            // === Agregar producto ===
-            document.querySelectorAll('.pos-product-card').forEach(function (card) {
+            // ===== AGREGAR PRODUCTO =====
+            document.querySelectorAll('.pos-product-item').forEach(function (card) {
                 card.addEventListener('click', function () {
-                    if (this.classList.contains('is-agotado')) return;
+                    if (this.classList.contains('is-agotado') || this.disabled) return;
                     var id = parseInt(this.dataset.id);
                     var nombre = this.dataset.nombre;
                     var precio = parseFloat(this.dataset.precio);
@@ -25827,10 +28598,7 @@ namespace Kirkenta.Pages.Pedidos
 
                     var existente = carrito.find(function (i) { return i.productoId === id; });
                     if (existente) {
-                        if (existente.cantidad >= stock) {
-                            alert('No hay más stock disponible');
-                            return;
-                        }
+                        if (existente.cantidad >= stock) { alert('No hay más stock disponible'); return; }
                         existente.cantidad++;
                     } else {
                         carrito.push({
@@ -25838,6 +28606,7 @@ namespace Kirkenta.Pages.Pedidos
                             nombre: nombre,
                             precio: precio,
                             cantidad: 1,
+                            descuento: 0,
                             impuestoId: impuestoId,
                             impuesto: impuesto,
                             stock: stock
@@ -25847,7 +28616,8 @@ namespace Kirkenta.Pages.Pedidos
                 });
             });
 
-            // === Renderizar carrito ===
+            // ===== RENDER CARRITO =====
+            // 🔒 FIX: respeta descuento por línea (viene de la cotización)
             function renderCarrito() {
                 if (carrito.length === 0) {
                     cartItems.innerHTML = '<div class="pos-cart-empty">' +
@@ -25861,20 +28631,23 @@ namespace Kirkenta.Pages.Pedidos
                 }
 
                 cartItems.innerHTML = carrito.map(function (item, idx) {
-                    var sub = item.precio * item.cantidad;
+                    var sub = (item.precio * item.cantidad) - (item.descuento || 0);
+                    var descLabel = (item.descuento && item.descuento > 0)
+                        ? ' · Desc: ' + formatMoney(item.descuento)
+                        : '';
                     return '<div class="pos-cart-item">' +
                         '<div class="pos-cart-item-info">' +
-                        '<span class="pos-cart-item-name">' + item.nombre + '</span>' +
-                        '<span class="pos-cart-item-price">' + formatMoney(item.precio) + ' c/u</span>' +
+                            '<span class="pos-cart-item-name">' + item.nombre + '</span>' +
+                            '<span class="pos-cart-item-price">' + formatMoney(item.precio) + ' c/u' + descLabel + '</span>' +
                         '</div>' +
                         '<div class="pos-cart-item-controls">' +
-                        '<button type="button" data-action="menos" data-idx="' + idx + '">−</button>' +
-                        '<span class="pos-cart-item-qty">' + item.cantidad + '</span>' +
-                        '<button type="button" data-action="mas" data-idx="' + idx + '">+</button>' +
+                            '<button type="button" data-action="menos" data-idx="' + idx + '">−</button>' +
+                            '<span class="pos-cart-item-qty">' + item.cantidad + '</span>' +
+                            '<button type="button" data-action="mas" data-idx="' + idx + '">+</button>' +
                         '</div>' +
                         '<span class="pos-cart-item-total">' + formatMoney(sub) + '</span>' +
                         '<button type="button" class="pos-cart-item-remove" data-action="remove" data-idx="' + idx + '">✕</button>' +
-                        '</div>';
+                    '</div>';
                 }).join('');
 
                 cartItems.querySelectorAll('[data-action]').forEach(function (btn) {
@@ -25900,22 +28673,22 @@ namespace Kirkenta.Pages.Pedidos
                 actualizarTotales();
             }
 
+            // 🔒 FIX: el subtotal de cada línea ya descuenta el descuento por línea.
             function actualizarTotales() {
-                var subtotalProductos = 0, impuestos = 0;
+                var subtotalProductos = 0;
+                var impuestos = 0;
                 carrito.forEach(function (item) {
-                    var sub = item.precio * item.cantidad;
-                    subtotalProductos += sub;
-                    impuestos += sub * ((item.impuesto || 0) / 100);
+                    var bruto = item.precio * item.cantidad;
+                    var neto = bruto - (item.descuento || 0);
+                    subtotalProductos += neto;
+                    impuestos += neto * ((item.impuesto || 0) / 100);
                 });
 
-                // El envío se grava con la tasa predeterminada (asumimos 15% aquí para el preview)
-                // El cálculo real lo hace el backend
                 var montoEnvio = getMontoEnvio();
-                var impuestoEnvio = montoEnvio * 0.15;
-                impuestos += impuestoEnvio;
-
+                impuestos += montoEnvio * 0.15;
                 var subtotalConEnvio = subtotalProductos + montoEnvio;
                 var total = subtotalConEnvio + impuestos - descuentoGlobal;
+                if (total < 0) total = 0;
 
                 subtotalEl.textContent = formatMoney(subtotalProductos);
                 impuestosEl.textContent = formatMoney(impuestos);
@@ -25923,7 +28696,7 @@ namespace Kirkenta.Pages.Pedidos
                 totalEl.textContent = formatMoney(total);
             }
 
-            descuentoInput.addEventListener('input', function () {
+            descuentoInput?.addEventListener('input', function () {
                 descuentoGlobal = parseFloat(this.value) || 0;
                 actualizarTotales();
             });
@@ -25937,7 +28710,8 @@ namespace Kirkenta.Pages.Pedidos
                     clienteSearch.value = '';
                     clienteIdInput.value = '';
                     chkRequiereEnvio.checked = false;
-                    panelEnvio.style.display = 'none';
+                    panelEnvio.classList.remove('is-open');
+                    btnToggleEnvio.classList.remove('is-open');
                     rowEnvio.style.display = 'none';
                     envioDireccion.value = '';
                     envioReferencia.value = '';
@@ -25949,30 +28723,17 @@ namespace Kirkenta.Pages.Pedidos
                 }
             });
 
+            // ===== ABRIR MODAL DE COBRO =====
             btnCobrar.addEventListener('click', function () {
-                // Validar envío si está activo
                 if (chkRequiereEnvio.checked) {
-                    if (!envioDireccion.value.trim()) {
-                        alert('Debes indicar la dirección de entrega');
-                        envioDireccion.focus();
-                        return;
-                    }
-                    if (!envioContactoNombre.value.trim()) {
-                        alert('Debes indicar quién recibe el envío');
-                        envioContactoNombre.focus();
-                        return;
-                    }
-                    if (!envioContactoTelefono.value.trim()) {
-                        alert('Debes indicar el teléfono de contacto');
-                        envioContactoTelefono.focus();
-                        return;
-                    }
+                    if (!envioDireccion.value.trim()) { alert('Debes indicar la dirección de entrega'); envioDireccion.focus(); return; }
+                    if (!envioContactoNombre.value.trim()) { alert('Debes indicar quién recibe el envío'); envioContactoNombre.focus(); return; }
+                    if (!envioContactoTelefono.value.trim()) { alert('Debes indicar el teléfono de contacto'); envioContactoTelefono.focus(); return; }
                 }
 
-                var total = parseFloat(totalEl.textContent.replace('L. ', '').replace(/,/g, '')) || 0;
+                var total = parseMoney(totalEl.textContent);
                 document.getElementById('modalTotal').textContent = formatMoney(total);
                 document.getElementById('modalMonto').value = total.toFixed(2);
-                document.getElementById('modalCambio').textContent = 'L. 0.00';
 
                 var avisoEnvio = document.getElementById('modalAvisoEnvio');
                 var avisoMonto = document.getElementById('modalAvisoMontoEnvio');
@@ -25984,67 +28745,172 @@ namespace Kirkenta.Pages.Pedidos
                 }
 
                 modalCobro.classList.add('is-open');
-                document.getElementById('modalMonto').focus();
+
+                aplicarEstadoMetodoPago();
+
+                setTimeout(function () {
+                    if (esPagoEfectivo()) {
+                        document.getElementById('modalMonto').focus();
+                    } else {
+                        document.getElementById('btnConfirmarPago').focus();
+                    }
+                }, 100);
             });
 
-            document.getElementById('btnCloseModal').addEventListener('click', function () {
-                modalCobro.classList.remove('is-open');
-            });
-
-            document.getElementById('btnCancelarModal').addEventListener('click', function () {
-                modalCobro.classList.remove('is-open');
-            });
+            document.getElementById('btnCloseModal').addEventListener('click', function () { modalCobro.classList.remove('is-open'); });
+            document.getElementById('btnCancelarModal').addEventListener('click', function () { modalCobro.classList.remove('is-open'); });
 
             var modalMonto = document.getElementById('modalMonto');
             var modalMetodo = document.getElementById('modalMetodo');
             var modalCambio = document.getElementById('modalCambio');
+            var modalMontoHelp = document.getElementById('modalMontoHelp');
             var fieldReferencia = document.getElementById('fieldReferencia');
+            var fieldMontoRecibido = document.getElementById('fieldMontoRecibido');
+            var cajaCambio = document.getElementById('cajaCambio');
+
+            function esPagoEfectivo() {
+                var opt = modalMetodo.options[modalMetodo.selectedIndex];
+                if (!opt) return true;
+                var tipo = (opt.dataset.tipo || '').trim().toLowerCase();
+                return tipo.includes('efectivo')
+                    || tipo.includes('cash')
+                    || tipo.includes('contado')
+                    || tipo === '';
+            }
+
+            function aplicarEstadoMetodoPago() {
+                var esEfectivo = esPagoEfectivo();
+                var btnConfirmar = document.getElementById('btnConfirmarPago');
+
+                if (esEfectivo) {
+                    fieldMontoRecibido.style.display = '';
+                    cajaCambio.style.display = '';
+
+                    var total = parseMoney(document.getElementById('modalTotal').textContent);
+                    modalMonto.value = total.toFixed(2);
+
+                    modalMonto.disabled = false;
+
+                    if (!cajaCambio.querySelector('#modalCambio')) {
+                        cajaCambio.innerHTML = '<span>Cambio</span><strong id="modalCambio">L. 0.00</strong>';
+                        modalCambio = document.getElementById('modalCambio');
+                    }
+
+                    actualizarCambio();
+                } else {
+                    fieldMontoRecibido.style.display = 'none';
+                    cajaCambio.innerHTML = '<span>Cambio</span><strong style="color: var(--color-muted); font-size: 14px;">No aplica (pago sin efectivo)</strong>';
+                    btnConfirmar.disabled = false;
+                }
+            }
 
             function actualizarCambio() {
-                var total = parseFloat(document.getElementById('modalTotal').textContent.replace('L. ', '').replace(/,/g, '')) || 0;
-                var monto = parseFloat(modalMonto.value) || 0;
-                var cambio = monto - total;
-                modalCambio.textContent = formatMoney(cambio > 0 ? cambio : 0);
+                var esEfectivo = esPagoEfectivo();
+                var btnConfirmar = document.getElementById('btnConfirmarPago');
+
+                if (!esEfectivo) {
+                    btnConfirmar.disabled = false;
+                    return;
+                }
+
+                if (!cajaCambio.querySelector('#modalCambio')) {
+                    cajaCambio.innerHTML = '<span>Cambio</span><strong id="modalCambio">L. 0.00</strong>';
+                    modalCambio = document.getElementById('modalCambio');
+                }
+
+                var total = parseMoney(document.getElementById('modalTotal').textContent);
+                var montoTexto = modalMonto.value.trim();
+                var monto = montoTexto === '' ? 0 : (parseFloat(montoTexto) || 0);
+
+                if (monto < total) {
+                    var falta = total - monto;
+                    modalCambio.textContent = 'Faltan ' + formatMoney(falta);
+                    modalCambio.style.color = 'var(--color-danger)';
+                    modalMontoHelp.style.display = 'block';
+                    modalMontoHelp.style.color = 'var(--color-danger)';
+                    modalMontoHelp.textContent = 'Falta dinero para completar la venta. Faltan ' + formatMoney(falta) + '.';
+                    btnConfirmar.disabled = true;
+                    return;
+                }
+
+                var diferencia = monto - total;
+
+                if (diferencia > 0) {
+                    modalCambio.textContent = formatMoney(diferencia);
+                    modalCambio.style.color = 'var(--color-success)';
+                    modalMontoHelp.style.display = 'block';
+                    modalMontoHelp.style.color = 'var(--color-success)';
+                    modalMontoHelp.textContent = 'Entrega ' + formatMoney(diferencia) + ' de cambio al cliente.';
+                    btnConfirmar.disabled = false;
+                } else {
+                    modalCambio.textContent = 'L. 0.00';
+                    modalCambio.style.color = 'var(--color-muted)';
+                    modalMontoHelp.style.display = 'none';
+                    btnConfirmar.disabled = false;
+                }
             }
 
             function actualizarReferencia() {
                 var opt = modalMetodo.options[modalMetodo.selectedIndex];
+                if (!opt) return;
                 var req = opt.dataset.req === 'true';
                 fieldReferencia.style.display = req ? '' : 'none';
             }
 
             modalMonto.addEventListener('input', actualizarCambio);
-            modalMetodo.addEventListener('change', actualizarReferencia);
+            modalMonto.addEventListener('change', actualizarCambio);
+            modalMetodo.addEventListener('change', function () {
+                actualizarReferencia();
+                aplicarEstadoMetodoPago();
+            });
             actualizarReferencia();
 
-            // === Confirmar pago ===
+            // ===== CONFIRMAR PAGO =====
             document.getElementById('btnConfirmarPago').addEventListener('click', function () {
                 if (carrito.length === 0) return;
 
                 var clienteId = clienteIdInput.value;
                 var metodoId = parseInt(modalMetodo.value);
-                var monto = parseFloat(modalMonto.value) || 0;
                 var referencia = document.getElementById('modalReferencia').value;
-                var registrarEnFinanzas = document.getElementById('registrarEnFinanzas').checked;
+
+                var total = parseMoney(document.getElementById('modalTotal').textContent);
+                var esEfectivo = esPagoEfectivo();
+                var monto = 0;
+                var cambio = 0;
+
+                if (esEfectivo) {
+                    var montoTexto = modalMonto.value.trim();
+                    monto = montoTexto === '' ? 0 : (parseFloat(montoTexto) || 0);
+
+                    if (monto < total) {
+                        alert('Falta dinero para completar la venta. Faltan ' + formatMoney(total - monto) + '.');
+                        modalMonto.focus();
+                        return;
+                    }
+
+                    cambio = monto - total;
+                } else {
+                    monto = total;
+                    cambio = 0;
+                }
 
                 var payload = {
                     clienteId: clienteId ? parseInt(clienteId) : null,
                     metodoPagoId: metodoId,
                     monto: monto,
+                    cambio: cambio,
                     referencia: referencia,
                     descuento: descuentoGlobal,
                     cotizacionId: cotizacionId ? parseInt(cotizacionId) : null,
-                    registrarEnFinanzas: registrarEnFinanzas,
                     items: carrito.map(function (i) {
                         return {
                             productoId: i.productoId,
                             cantidad: i.cantidad,
                             precioUnitario: i.precio,
                             impuestoPorcentaje: i.impuesto,
-                            descuento: 0
+                            descuento: i.descuento || 0
                         };
                     }),
-                    // Envío
                     requiereEnvio: chkRequiereEnvio.checked,
                     montoEnvio: chkRequiereEnvio.checked ? (parseFloat(envioMonto.value) || 0) : 0,
                     envioDireccion: chkRequiereEnvio.checked ? envioDireccion.value.trim() : null,
@@ -26074,11 +28940,8 @@ namespace Kirkenta.Pages.Pedidos
                     }
                     return r.text().then(function (text) {
                         if (!text) throw new Error('Respuesta vacía del servidor');
-                        try {
-                            return JSON.parse(text);
-                        } catch (e) {
-                            throw new Error('Respuesta no válida: ' + text.substring(0, 200));
-                        }
+                        try { return JSON.parse(text); }
+                        catch (e) { throw new Error('Respuesta no válida: ' + text.substring(0, 200)); }
                     });
                 })
                 .then(function (data) {
@@ -26087,7 +28950,15 @@ namespace Kirkenta.Pages.Pedidos
                         document.getElementById('ventaNumero').textContent = 'Venta ' + data.numero;
                         document.getElementById('ventaTotal').textContent = formatMoney(data.total);
 
-                        // Aviso de envío
+                        var avisoCambio = document.getElementById('avisoCambioExito');
+                        var cambioMonto = document.getElementById('cambioMonto');
+                        if (data.cambio && data.cambio > 0) {
+                            cambioMonto.textContent = formatMoney(data.cambio);
+                            avisoCambio.style.display = 'block';
+                        } else {
+                            avisoCambio.style.display = 'none';
+                        }
+
                         var avisoEnvioExito = document.getElementById('avisoEnvioExito');
                         var avisoEnvioNumero = document.getElementById('avisoEnvioNumero');
                         if (data.requiereEnvio && data.envioNumero) {
@@ -26097,16 +28968,15 @@ namespace Kirkenta.Pages.Pedidos
                             avisoEnvioExito.style.display = 'none';
                         }
 
-                        // Aviso de movimiento
-                        var avisoBox = document.getElementById('avisoMovimiento');
-                        if (data.movimientoRegistrado === false && data.movimientoError) {
-                            document.getElementById('avisoTexto').textContent = data.movimientoError;
-                            avisoBox.style.display = 'block';
-                        } else {
-                            avisoBox.style.display = 'none';
-                        }
+                        var btnIrAFactura = document.getElementById('btnIrAFactura');
+                        var urlFactura = '/Facturas/CreateFromVenta?ventaId=' + data.ventaId;
+                        btnIrAFactura.href = urlFactura;
 
                         modalExito.classList.add('is-open');
+
+                        setTimeout(function () {
+                            window.location.href = urlFactura;
+                        }, 2500);
                     } else {
                         alert('Error: ' + (data.error || 'No se pudo registrar la venta'));
                     }
@@ -26117,33 +28987,8 @@ namespace Kirkenta.Pages.Pedidos
                 });
             });
 
-            document.getElementById('btnNuevaVenta').addEventListener('click', function () {
-                window.location.href = '/POS/Index';
-            });
-
-            posSearch.addEventListener('input', function () {
-                var texto = this.value.toLowerCase().trim();
-                document.querySelectorAll('.pos-product-card').forEach(function (card) {
-                    var nombre = card.dataset.nombre.toLowerCase();
-                    var sku = (card.dataset.sku || '').toLowerCase();
-                    var match = !texto || nombre.includes(texto) || sku.includes(texto);
-                    card.style.display = match ? '' : 'none';
-                });
-            });
-
-            document.querySelectorAll('.pos-category-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    document.querySelectorAll('.pos-category-btn').forEach(function (b) { b.classList.remove('is-active'); });
-                    this.classList.add('is-active');
-                    var cat = this.dataset.categoria;
-                    document.querySelectorAll('.pos-product-card').forEach(function (card) {
-                        var cardCat = card.dataset.categoria || '';
-                        card.style.display = (!cat || cardCat === cat) ? '' : 'none';
-                    });
-                });
-            });
-
             renderCarrito();
+            aplicarFiltrosProductos();
         })();
     </script>
 }
@@ -26159,6 +29004,7 @@ using Kirkenta.Helpers.Logistica;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
 namespace Kirkenta.Pages.POS
@@ -26166,6 +29012,7 @@ namespace Kirkenta.Pages.POS
     public class IndexModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private const int MAX_REINTENTOS_CONCURRENCIA = 3;
 
         public IndexModel(ApplicationDbContext context)
         {
@@ -26200,10 +29047,7 @@ namespace Kirkenta.Pages.POS
                 return RedirectToPage("/Index");
             }
 
-            // VALIDAR APERTURA DE CAJA
-            var apertura = _context.AperturasCaja
-                .FirstOrDefault(a => a.Activa);
-
+            var apertura = _context.AperturasCaja.FirstOrDefault(a => a.Activa);
             if (apertura == null)
             {
                 TempData["Error"] = "No hay ninguna caja abierta. Debes registrar una apertura antes de vender.";
@@ -26219,6 +29063,18 @@ namespace Kirkenta.Pages.POS
             Productos = _context.Productos.Where(p => p.Activo).OrderBy(p => p.Nombre).ToList();
             Categorias = _context.Categorias.Where(c => c.Activa).OrderBy(c => c.Nombre).ToList();
             MetodosPago = _context.MetodosPago.Where(m => m.Activo).OrderBy(m => m.Nombre).ToList();
+
+            if (MetodosPago.Count == 0)
+            {
+                MetodosPago = new List<MetodoPago>
+                {
+                    new MetodoPago { Id = 1, Nombre = "Efectivo", Tipo = "Efectivo", RequiereReferencia = false, Activo = true },
+                    new MetodoPago { Id = 2, Nombre = "Tarjeta", Tipo = "Tarjeta", RequiereReferencia = true, Activo = true },
+                    new MetodoPago { Id = 3, Nombre = "Transferencia", Tipo = "Transferencia", RequiereReferencia = true, Activo = true },
+                    new MetodoPago { Id = 4, Nombre = "Crédito", Tipo = "Credito", RequiereReferencia = false, Activo = true },
+                };
+            }
+
             ZonasEnvio = _context.ZonasEnvio.Where(z => z.Activa).OrderBy(z => z.Orden).ThenBy(z => z.Nombre).ToList();
             ImpuestosDict = _context.Impuestos.Where(i => i.Activo).ToDictionary(i => i.Id, i => i.Porcentaje);
 
@@ -26285,13 +29141,12 @@ namespace Kirkenta.Pages.POS
             public int? ClienteId { get; set; }
             public int MetodoPagoId { get; set; }
             public decimal Monto { get; set; }
+            public decimal Cambio { get; set; }
             public string? Referencia { get; set; }
             public decimal Descuento { get; set; }
             public int? CotizacionId { get; set; }
-            public bool RegistrarEnFinanzas { get; set; } = true;
             public List<ItemRequest> Items { get; set; } = new();
 
-            // ===== LOGÍSTICA =====
             public bool RequiereEnvio { get; set; } = false;
             public decimal MontoEnvio { get; set; } = 0;
             public string? EnvioDireccion { get; set; }
@@ -26313,18 +29168,19 @@ namespace Kirkenta.Pages.POS
 
         public IActionResult OnPostRegistrarVenta([FromBody] VentaRequest request)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Create", "crear")))
+                return new JsonResult(new { success = false, error = "No tienes permiso para registrar ventas" });
+
             try
             {
                 var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
                 if (currentUser == null)
                     return new JsonResult(new { success = false, error = "Sesión no válida" });
 
-                // Verificar apertura activa
                 var apertura = _context.AperturasCaja.FirstOrDefault(a => a.Activa);
                 if (apertura == null)
                     return new JsonResult(new { success = false, error = "No hay caja abierta. Contacta al administrador." });
 
-                // ===== VALIDACIÓN: período contable cerrado =====
                 var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, DateTime.Today);
                 if (!periodoOk)
                     return new JsonResult(new { success = false, error = periodoError });
@@ -26332,103 +29188,196 @@ namespace Kirkenta.Pages.POS
                 if (request == null || request.Items == null || request.Items.Count == 0)
                     return new JsonResult(new { success = false, error = "Carrito vacío" });
 
-                // ===== VALIDAR ENVÍO =====
                 if (request.RequiereEnvio)
                 {
                     if (string.IsNullOrWhiteSpace(request.EnvioDireccion))
                         return new JsonResult(new { success = false, error = "Debes indicar la dirección de envío" });
-
                     if (string.IsNullOrWhiteSpace(request.EnvioContactoNombre))
                         return new JsonResult(new { success = false, error = "Debes indicar quién recibe el envío" });
-
                     if (string.IsNullOrWhiteSpace(request.EnvioContactoTelefono))
                         return new JsonResult(new { success = false, error = "Debes indicar el teléfono de contacto del envío" });
-
                     if (request.MontoEnvio < 0)
                         return new JsonResult(new { success = false, error = "El monto de envío no puede ser negativo" });
                 }
 
-                // ===== VALIDAR Y RECALCULAR IMPUESTOS CON ISVHelper =====
-                var productoIds = request.Items.Select(i => i.ProductoId).Distinct().ToList();
-                var productosDict = _context.Productos
-                    .Where(p => productoIds.Contains(p.Id))
-                    .ToDictionary(p => p.Id, p => new { p.Nombre, p.ImpuestoId, p.Stock });
-
-                var impuestosActivos = _context.Impuestos
-                    .Where(i => i.Activo)
-                    .ToDictionary(i => i.Id, i => i.Porcentaje);
-
-                var impuestoPredeterminadoId = _context.Impuestos
-                    .FirstOrDefault(i => i.EsPredeterminado && i.Activo)?.Id;
-
-                var itemsValidados = new List<ItemParaISV>();
-                var itemsConTasa = new List<(ItemRequest original, int productoId, decimal tasa)>();
-
-                foreach (var item in request.Items)
+                int intento = 0;
+                while (intento < MAX_REINTENTOS_CONCURRENCIA)
                 {
-                    if (!productosDict.ContainsKey(item.ProductoId))
-                        return new JsonResult(new { success = false, error = $"Producto {item.ProductoId} no encontrado o inactivo" });
+                    intento++;
 
-                    if (item.Cantidad <= 0)
-                        return new JsonResult(new { success = false, error = "Cantidad inválida" });
-
-                    var prod = productosDict[item.ProductoId];
-                    if (prod.Stock < item.Cantidad)
-                        return new JsonResult(new { success = false, error = $"Stock insuficiente para '{prod.Nombre}'. Disponible: {prod.Stock}" });
-
-                    int? impuestoId = prod.ImpuestoId ?? impuestoPredeterminadoId;
-                    decimal tasaCorrecta = impuestoId.HasValue && impuestosActivos.ContainsKey(impuestoId.Value)
-                        ? impuestosActivos[impuestoId.Value] : 0m;
-
-                    itemsConTasa.Add((item, item.ProductoId, tasaCorrecta));
-
-                    itemsValidados.Add(new ItemParaISV
+                    try
                     {
-                        ProductoId = item.ProductoId,
-                        Cantidad = item.Cantidad,
-                        PrecioUnitario = item.PrecioUnitario,
-                        Descuento = item.Descuento,
-                        ImpuestoId = impuestoId
-                    });
+                        var resultado = IntentarRegistrarVenta(request, currentUser, apertura);
+                        return resultado;
+                    }
+                    catch (DbUpdateConcurrencyException)
+                    {
+                        foreach (var entry in _context.ChangeTracker.Entries())
+                        {
+                            entry.State = EntityState.Detached;
+                        }
+
+                        if (intento >= MAX_REINTENTOS_CONCURRENCIA)
+                        {
+                            Console.WriteLine($"[POS] Venta rechazada por concurrencia tras {intento} intentos.");
+                            return new JsonResult(new
+                            {
+                                success = false,
+                                error = "El stock de uno o más productos cambió mientras procesábamos tu venta. " +
+                                        "Vuelve a intentarlo; probablemente ya no hay suficientes unidades."
+                            });
+                        }
+
+                        System.Threading.Thread.Sleep(50 * intento);
+                    }
                 }
 
-                // ===== CALCULAR CON ISVHelper (incluye envío) =====
-                decimal montoEnvioCalculo = request.RequiereEnvio ? request.MontoEnvio : 0;
-                var isvResult = ISVHelper.Calcular(_context, itemsValidados, request.Descuento, montoEnvioCalculo);
-
-                // ===== CREAR DETALLES CON TASA CORRECTA =====
-                decimal subtotalItems = 0, impuestosTotal = 0, total = 0;
-                var detalles = new List<DetalleVenta>();
-
-                foreach (var (itemOrig, productoId, tasa) in itemsConTasa)
+                return new JsonResult(new
                 {
-                    var st = itemOrig.Cantidad * itemOrig.PrecioUnitario;
-                    var stConDesc = st - itemOrig.Descuento;
-                    var iv = Math.Round(stConDesc * (tasa / 100m), 2);
-                    var tot = stConDesc + iv;
+                    success = false,
+                    error = "No se pudo completar la venta por conflictos de concurrencia. Intenta de nuevo."
+                });
+            }
+            catch (Exception ex)
+            {
+                var inner = ex.InnerException?.Message ?? "";
+                var inner2 = ex.InnerException?.InnerException?.Message ?? "";
+                Console.WriteLine($"[POS] ERROR general: {ex.Message}");
+                Console.WriteLine($"[POS] INNER: {inner}");
+                Console.WriteLine($"[POS] INNER2: {inner2}");
+                return new JsonResult(new
+                {
+                    success = false,
+                    error = $"Error: {ex.Message} | Detalle: {inner} | Detalle2: {inner2}"
+                });
+            }
+        }
 
-                    subtotalItems += st;
-                    impuestosTotal += iv;
-                    total += tot;
+        private IActionResult IntentarRegistrarVenta(VentaRequest request, Usuario currentUser, AperturaCaja apertura)
+        {
+            var productoIds = request.Items.Select(i => i.ProductoId).Distinct().ToList();
 
-                    detalles.Add(new DetalleVenta
+            var productosDict = _context.Productos
+                .Where(p => productoIds.Contains(p.Id))
+                .ToDictionary(p => p.Id, p => p);
+
+            var impuestosActivos = _context.Impuestos
+                .Where(i => i.Activo)
+                .ToDictionary(i => i.Id, i => i.Porcentaje);
+
+            var impuestoPredeterminadoId = _context.Impuestos
+                .FirstOrDefault(i => i.EsPredeterminado && i.Activo)?.Id;
+
+            var itemsValidados = new List<ItemParaISV>();
+            var itemsConTasa = new List<(ItemRequest original, int productoId, decimal tasa, decimal costoUnitario)>();
+
+            foreach (var item in request.Items)
+            {
+                if (!productosDict.ContainsKey(item.ProductoId))
+                    return new JsonResult(new { success = false, error = $"Producto {item.ProductoId} no encontrado o inactivo" });
+
+                if (item.Cantidad <= 0)
+                    return new JsonResult(new { success = false, error = "Cantidad inválida" });
+
+                var prod = productosDict[item.ProductoId];
+                if (prod.Stock < item.Cantidad)
+                    return new JsonResult(new
                     {
-                        ProductoId = productoId,
-                        Cantidad = itemOrig.Cantidad,
-                        PrecioUnitario = itemOrig.PrecioUnitario,
-                        Descuento = itemOrig.Descuento,
-                        ImpuestoPorcentaje = tasa,
-                        Subtotal = stConDesc,
-                        Total = tot
+                        success = false,
+                        error = $"Stock insuficiente para '{prod.Nombre}'. Disponible: {prod.Stock}"
                     });
-                }
 
-                // Ajustar totales finales desde ISVHelper (ya incluye envío)
-                subtotalItems += montoEnvioCalculo;
-                impuestosTotal = isvResult.ISVTotal;
-                total = isvResult.Total;
+                int? impuestoId = prod.ImpuestoId ?? impuestoPredeterminadoId;
+                decimal tasaCorrecta = impuestoId.HasValue && impuestosActivos.ContainsKey(impuestoId.Value)
+                    ? impuestosActivos[impuestoId.Value] : 0m;
 
-                // ===== CREAR VENTA =====
+                // 🔑 COGS: capturamos el costo unitario actual como snapshot
+                decimal costoUnitario = prod.PrecioCompra;
+
+                itemsConTasa.Add((item, item.ProductoId, tasaCorrecta, costoUnitario));
+
+                itemsValidados.Add(new ItemParaISV
+                {
+                    ProductoId = item.ProductoId,
+                    Cantidad = item.Cantidad,
+                    PrecioUnitario = item.PrecioUnitario,
+                    Descuento = item.Descuento,
+                    ImpuestoId = impuestoId
+                });
+            }
+
+            decimal montoEnvioCalculo = request.RequiereEnvio ? request.MontoEnvio : 0;
+            var isvResult = ISVHelper.Calcular(_context, itemsValidados, request.Descuento, montoEnvioCalculo);
+
+            decimal subtotalItems = 0, impuestosTotal = 0, total = 0;
+            decimal costoTotalVendido = 0;
+            var detalles = new List<DetalleVenta>();
+
+            foreach (var (itemOrig, productoId, tasa, costoUnitario) in itemsConTasa)
+            {
+                var st = itemOrig.Cantidad * itemOrig.PrecioUnitario;
+                var stConDesc = st - itemOrig.Descuento;
+                var iv = Math.Round(stConDesc * (tasa / 100m), 2);
+                var tot = stConDesc + iv;
+
+                var costoLinea = costoUnitario * itemOrig.Cantidad;
+
+                subtotalItems += st;
+                impuestosTotal += iv;
+                total += tot;
+                costoTotalVendido += costoLinea;
+
+                detalles.Add(new DetalleVenta
+                {
+                    ProductoId = productoId,
+                    Cantidad = itemOrig.Cantidad,
+                    PrecioUnitario = itemOrig.PrecioUnitario,
+                    Descuento = itemOrig.Descuento,
+                    ImpuestoPorcentaje = tasa,
+                    Subtotal = stConDesc,
+                    Total = tot,
+                    // 🔑 COGS: snapshot del costo
+                    CostoUnitarioSnapshot = costoUnitario,
+                    CostoTotalLinea = costoLinea
+                });
+            }
+
+            subtotalItems += montoEnvioCalculo;
+            impuestosTotal = isvResult.ISVTotal;
+            total = isvResult.Total;
+
+            var metodoPago = _context.MetodosPago.FirstOrDefault(m => m.Id == request.MetodoPagoId);
+            var tipoMetodo = (metodoPago?.Tipo ?? "").Trim().ToLower();
+
+            bool esEfectivo = tipoMetodo.Contains("efectivo")
+                           || tipoMetodo.Contains("cash")
+                           || tipoMetodo.Contains("contado")
+                           || tipoMetodo == "";
+
+            bool esCredito = tipoMetodo.Contains("credito");
+
+            if (request.Monto < total && !esCredito)
+            {
+                return new JsonResult(new
+                {
+                    success = false,
+                    error = $"Falta dinero para completar la venta. Faltan L. {(total - request.Monto):N2}"
+                });
+            }
+
+            decimal montoRecibido = esEfectivo ? request.Monto : total;
+            decimal cambioCalculado = esEfectivo ? (request.Monto - total) : 0;
+            if (cambioCalculado < 0) cambioCalculado = 0;
+
+            if (esCredito && !request.ClienteId.HasValue)
+            {
+                return new JsonResult(new { success = false, error = "Las ventas al crédito requieren un cliente seleccionado." });
+            }
+
+            using var transaction = _context.Database.BeginTransaction();
+
+            try
+            {
                 var numero = NumeroDocumentoHelper.GenerarSiguiente(_context, "Venta");
 
                 var venta = new Venta
@@ -26444,23 +29393,35 @@ namespace Kirkenta.Pages.POS
                     Estado = "Completada",
                     UsuarioCreoId = currentUser.Id,
                     RequiereEnvio = request.RequiereEnvio,
-                    MontoEnvio = montoEnvioCalculo
+                    MontoEnvio = montoEnvioCalculo,
+                    EsCredito = esCredito,
+                    SaldoPendiente = esCredito ? total : 0,
+                    FechaVencimientoCredito = null,
+                    MovimientoRegistrado = false,
+                    // 🔑 COGS
+                    CostoTotalVendido = costoTotalVendido,
+                    CostoRegistrado = false
                 };
+
+                if (esCredito && request.ClienteId.HasValue)
+                {
+                    var cliente = _context.Clientes.FirstOrDefault(c => c.Id == request.ClienteId.Value);
+                    if (cliente != null && cliente.DiasCredito > 0)
+                    {
+                        venta.FechaVencimientoCredito = DateTime.Today.AddDays(cliente.DiasCredito);
+                    }
+                }
 
                 _context.Ventas.Add(venta);
                 _context.SaveChanges();
 
-                // Guardar detalles + descontar stock
                 foreach (var d in detalles)
                 {
                     d.VentaId = venta.Id;
                     _context.DetalleVentas.Add(d);
 
-                    var prod = _context.Productos.FirstOrDefault(p => p.Id == d.ProductoId);
-                    if (prod != null)
-                    {
-                        prod.Stock -= d.Cantidad;
-                    }
+                    var prod = productosDict[d.ProductoId];
+                    prod.Stock -= d.Cantidad;
                 }
 
                 int clienteIdPago = request.ClienteId ?? 1;
@@ -26469,191 +29430,167 @@ namespace Kirkenta.Pages.POS
                     VentaId = venta.Id,
                     ClienteId = clienteIdPago,
                     Fecha = DateTime.Now,
-                    Monto = total,
+                    Monto = esCredito ? 0 : total,
+                    MontoRecibido = esEfectivo ? montoRecibido : (decimal?)null,
+                    Cambio = esEfectivo ? cambioCalculado : (decimal?)null,
                     MetodoPagoId = request.MetodoPagoId,
                     Referencia = request.Referencia,
                     UsuarioCreoId = currentUser.Id
                 };
                 _context.Pagos.Add(pago);
+                _context.SaveChanges();
 
-                _context.SaveChanges();  // 🔑 Guardamos el pago ANTES de crear el envío
-
-                // ===== CREAR ENVÍO SI APLICA =====
-                // REGLA DE NEGOCIO: solo se crea el envío si hay pago registrado (ya se cobró).
-                // El pago se registró arriba, así que validamos que exista en BD.
                 Envio? envio = null;
                 if (request.RequiereEnvio)
                 {
-                    // Doble check: verificar que el pago esté en BD antes de crear el envío
-                    var pagoExiste = _context.Pagos.Any(p => p.VentaId == venta.Id);
-
-                    if (!pagoExiste)
-                    {
-                        Console.WriteLine($"[POS] ⚠️ ADVERTENCIA: Se intentó crear envío para venta {venta.Numero} sin pago registrado. Envío NO creado.");
-                    }
-                    else
-                    {
-                        envio = EnvioHelper.CrearParaVenta(
-                            _context,
-                            venta,
-                            request.EnvioDireccion!,
-                            request.EnvioReferencia,
-                            request.EnvioContactoNombre!,
-                            request.EnvioContactoTelefono!,
-                            request.EnvioCiudad,
-                            request.EnvioZonaId,
-                            montoEnvioCalculo,
-                            currentUser.Id
-                        );
-                    }
-                }
-
-                // ===== REGISTRO AUTOMÁTICO EN FINANZAS =====
-                bool movimientoRegistrado = false;
-                string? movimientoError = null;
-
-                if (request.RegistrarEnFinanzas)
-                {
-                    try
-                    {
-                        var mov = MovimientoAutomaticoHelper.RegistrarIngresoVenta(
-                            _context,
-                            venta.Id,
-                            venta.Numero,
-                            total,
-                            currentUser.Id,
-                            formaPago: request.MetodoPagoId > 0
-                                ? _context.MetodosPago.FirstOrDefault(m => m.Id == request.MetodoPagoId)?.Nombre
-                                : "Efectivo",
-                            cuentaId: apertura.CuentaId
-                        );
-
-                        if (mov != null)
-                        {
-                            movimientoRegistrado = true;
-                        }
-                        else
-                        {
-                            movimientoError = "No se pudo registrar el movimiento financiero (revisa la configuración de cuentas y categorías)";
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        movimientoError = ex.Message;
-                        Console.WriteLine($"[POS] Error al registrar movimiento: {ex.Message}");
-                    }
+                    envio = EnvioHelper.CrearParaVenta(
+                        _context, venta,
+                        request.EnvioDireccion!,
+                        request.EnvioReferencia,
+                        request.EnvioContactoNombre!,
+                        request.EnvioContactoTelefono!,
+                        request.EnvioCiudad,
+                        request.EnvioZonaId,
+                        montoEnvioCalculo,
+                        currentUser.Id
+                    );
                 }
 
                 if (request.CotizacionId.HasValue)
                 {
-                    var cot = _context.Cotizaciones.FirstOrDefault(c => c.Id == request.CotizacionId.Value);
-                    if (cot != null)
+                    var cotizacion = _context.Cotizaciones.FirstOrDefault(c => c.Id == request.CotizacionId.Value);
+                    if (cotizacion != null && cotizacion.Estado == "Aceptada")
                     {
-                        var numeroFactura = NumeroDocumentoHelper.GenerarSiguiente(_context, "Factura");
-
-                        var factura = new Factura
-                        {
-                            Numero = numeroFactura,
-                            ClienteId = cot.ClienteId,
-                            CotizacionId = cot.Id,
-                            VentaId = venta.Id,
-                            Fecha = DateTime.Now,
-                            FechaVencimiento = DateTime.Now.AddDays(30),
-                            Subtotal = subtotalItems,
-                            Descuento = request.Descuento,
-                            Impuestos = impuestosTotal,
-                            Total = total,
-                            Saldo = 0,
-                            Estado = "Pagada",
-                            Notas = $"Facturada desde cotización {cot.Numero}",
-                            UsuarioCreoId = currentUser.Id,
-                            RequiereEnvio = request.RequiereEnvio,
-                            MontoEnvio = montoEnvioCalculo
-                        };
-
-                        _context.Facturas.Add(factura);
-                        _context.SaveChanges();
-
-                        foreach (var d in detalles)
-                        {
-                            _context.DetalleFacturas.Add(new DetalleFactura
-                            {
-                                FacturaId = factura.Id,
-                                ProductoId = d.ProductoId,
-                                Cantidad = d.Cantidad,
-                                PrecioUnitario = d.PrecioUnitario,
-                                Descuento = d.Descuento,
-                                ImpuestoPorcentaje = d.ImpuestoPorcentaje,
-                                Subtotal = d.Subtotal,
-                                Total = d.Total
-                            });
-                        }
-
-                        pago.FacturaId = factura.Id;
-
-                        cot.Estado = "Convertida";
-                        cot.FacturaId = factura.Id;
-                        cot.FechaConversion = DateTime.Now;
-
-                        // Trasladar el envío a la factura también
-                        if (envio != null)
-                        {
-                            envio.FacturaId = factura.Id;
-                        }
-
-                        _context.SaveChanges();
-
-                        ActividadHelper.Registrar(
-                            _context,
-                            currentUser.Id,
-                            "Cotización facturada",
-                            $"Facturó la cotización {cot.Numero} como {factura.Numero} por L. {total:N2}" +
-                            (request.RequiereEnvio ? $" (con envío de L. {montoEnvioCalculo:N2})" : "") +
-                            (movimientoRegistrado ? " (movimiento financiero registrado)" : ""),
-                            HttpContext.Connection.RemoteIpAddress?.ToString());
-
-                        return new JsonResult(new
-                        {
-                            success = true,
-                            numero = factura.Numero,
-                            total = total,
-                            tipo = "factura",
-                            requiereEnvio = request.RequiereEnvio,
-                            envioNumero = envio?.Numero,
-                            movimientoRegistrado = movimientoRegistrado,
-                            movimientoError = movimientoError
-                        });
+                        cotizacion.Estado = "Convertida";
+                        cotizacion.VentaId = venta.Id;
+                        cotizacion.FechaConversion = DateTime.Now;
                     }
                 }
 
                 _context.SaveChanges();
 
-                ActividadHelper.Registrar(
-                    _context,
-                    currentUser.Id,
-                    "Venta POS",
-                    $"Registró la venta {venta.Numero} por L. {venta.Total:N2}" +
-                    (request.RequiereEnvio ? $" (envío L. {montoEnvioCalculo:N2})" : "") +
-                    (movimientoRegistrado ? " (movimiento financiero registrado)" : ""),
+                // ================================================================
+                // MOVIMIENTOS FINANCIEROS
+                // - Contado: Ingreso (venta) + Egreso (cambio) + Egreso (COGS)
+                // - Crédito: NO se registra ingreso (se registra al cobrar),
+                //            pero SÍ se registra el COGS para el Estado de Resultados.
+                // ================================================================
+                if (!esCredito)
+                {
+                    var (movIngreso, errorIngreso) = MovimientoAutomaticoHelper.RegistrarIngresoVenta(
+                        _context, venta.Id, venta.Numero,
+                        monto: total,
+                        usuarioId: currentUser.Id,
+                        formaPago: metodoPago?.Nombre,
+                        cuentaId: apertura.CuentaId
+                    );
+
+                    if (movIngreso == null)
+                    {
+                        transaction.Rollback();
+                        return new JsonResult(new { success = false, error = $"No se pudo registrar el ingreso en Finanzas. {errorIngreso ?? "Revisa la configuración de cuentas y categorías."}" });
+                    }
+                    venta.MovimientoIngresoId = movIngreso.Id;
+
+                    if (esEfectivo && cambioCalculado > 0)
+                    {
+                        var (movCambio, errorCambio) = MovimientoAutomaticoHelper.RegistrarEgresoCambio(
+                            _context, venta.Id, venta.Numero,
+                            montoCambio: cambioCalculado,
+                            usuarioId: currentUser.Id,
+                            formaPago: "Efectivo",
+                            cuentaId: apertura.CuentaId,
+                            origen: "Venta"
+                        );
+
+                        if (movCambio == null)
+                        {
+                            transaction.Rollback();
+                            return new JsonResult(new { success = false, error = $"No se pudo registrar el egreso por cambio en Finanzas. {errorCambio ?? "Los movimientos fueron revertidos."}" });
+                        }
+                        venta.MovimientoCambioId = movCambio.Id;
+                    }
+
+                    venta.MovimientoRegistrado = true;
+                    venta.FechaMovimiento = DateTime.Now;
+                }
+                else
+                {
+                    venta.MovimientoRegistrado = false;
+                    venta.FechaMovimiento = null;
+                }
+
+                // 🔑 COGS: registrar el costo de venta siempre (contado o crédito)
+                if (costoTotalVendido > 0)
+                {
+                    var (movCosto, errorCosto) = MovimientoAutomaticoHelper.RegistrarEgresoCostoVenta(
+                        _context,
+                        venta.Id,
+                        venta.Numero,
+                        costoTotalVendido,
+                        currentUser.Id,
+                        apertura.CuentaId
+                    );
+
+                    if (movCosto == null)
+                    {
+                        // El costo no es bloqueante: advertimos en el log.
+                        // La venta se mantiene; el usuario puede regenerar el costo
+                        // más adelante si es necesario.
+                        Console.WriteLine($"[POS] Advertencia: no se pudo registrar el COGS. {errorCosto}");
+                    }
+                    else
+                    {
+                        venta.MovimientoCostoId = movCosto.Id;
+                        venta.CostoRegistrado = true;
+                    }
+                }
+
+                _context.SaveChanges();
+                transaction.Commit();
+
+                ActividadHelper.Registrar(_context, currentUser.Id, "Venta POS",
+                    $"Registró la venta {venta.Numero} por L. {total:N2}" +
+                    (esCredito ? " (a crédito)" : $" ({(esEfectivo ? $"Efectivo, cambio: L. {cambioCalculado:N2}" : "Tarjeta/Transferencia")})") +
+                    $" | COGS: L. {costoTotalVendido:N2}",
                     HttpContext.Connection.RemoteIpAddress?.ToString());
 
                 return new JsonResult(new
                 {
                     success = true,
                     numero = venta.Numero,
-                    total = venta.Total,
+                    ventaId = venta.Id,
+                    total = total,
+                    montoRecibido = esEfectivo ? montoRecibido : (decimal?)null,
+                    cambio = cambioCalculado,
                     tipo = "venta",
+                    esCredito = esCredito,
                     requiereEnvio = request.RequiereEnvio,
                     envioNumero = envio?.Numero,
-                    movimientoRegistrado = movimientoRegistrado,
-                    movimientoError = movimientoError
+                    movimientoRegistrado = venta.MovimientoRegistrado,
+                    costoRegistrado = venta.CostoRegistrado,
+                    costoTotalVendido = costoTotalVendido,
+                    movimientoError = (string?)null
                 });
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                transaction.Rollback();
+                throw;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"ERROR POS: {ex.Message}");
-                Console.WriteLine($"STACK: {ex.StackTrace}");
-                return new JsonResult(new { success = false, error = ex.Message });
+                transaction.Rollback();
+                var inner = ex.InnerException?.Message ?? "";
+                var inner2 = ex.InnerException?.InnerException?.Message ?? "";
+                Console.WriteLine($"[POS] ERROR (transacción revertida): {ex.Message}");
+                Console.WriteLine($"[POS] INNER: {inner}");
+                Console.WriteLine($"[POS] INNER2: {inner2}");
+                return new JsonResult(new
+                {
+                    success = false,
+                    error = $"Error: {ex.Message} | Detalle: {inner} | Detalle2: {inner2}"
+                });
             }
         }
     }
@@ -27032,6 +29969,12 @@ namespace Kirkenta.Pages.Productos
                 return RedirectToPage("/Productos/Index");
             }
 
+            if (TieneDependencias(id))
+            {
+                TempData["Error"] = "No se puede eliminar el producto: tiene ventas, facturas, cotizaciones, pedidos, órdenes de compra o bajas asociadas. Desactívalo mejor.";
+                return RedirectToPage("/Productos/Index");
+            }
+
             Producto = producto;
             return Page();
         }
@@ -27053,10 +29996,9 @@ namespace Kirkenta.Pages.Productos
                 return RedirectToPage("/Productos/Index");
             }
 
-            // Verificar que no esté en ventas
-            if (_context.DetalleVentas.Any(d => d.ProductoId == id))
+            if (TieneDependencias(id))
             {
-                TempData["Error"] = "No se puede eliminar un producto que tiene ventas registradas";
+                TempData["Error"] = "No se puede eliminar el producto: tiene dependencias asociadas.";
                 return RedirectToPage("/Productos/Index");
             }
 
@@ -27073,6 +30015,19 @@ namespace Kirkenta.Pages.Productos
 
             TempData["Success"] = $"Producto '{nombre}' eliminado";
             return RedirectToPage("/Productos/Index");
+        }
+
+        private bool TieneDependencias(int productoId)
+        {
+            if (_context.DetalleVentas.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.DetalleFacturas.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.DetalleCotizaciones.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.DetallePedidos.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.DetalleOrdenesCompra.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.DetalleDevoluciones.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.DetalleDevolucionesProveedor.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.BajasInventario.Any(b => b.ProductoId == productoId)) return true;
+            return false;
         }
     }
 }
@@ -29184,9 +32139,9 @@ namespace Kirkenta.Pages.Proveedores
                 return RedirectToPage("/Proveedores/Index");
             }
 
-            if (_context.OrdenesCompra.Any(o => o.ProveedorId == id))
+            if (TieneDependencias(id))
             {
-                TempData["Error"] = "No se puede eliminar: tiene órdenes de compra asociadas. Desactívalo mejor.";
+                TempData["Error"] = "No se puede eliminar el proveedor: tiene órdenes de compra, pagos, devoluciones o adjuntos asociados. Desactívalo mejor.";
                 return RedirectToPage("/Proveedores/Index");
             }
 
@@ -29211,9 +32166,9 @@ namespace Kirkenta.Pages.Proveedores
                 return RedirectToPage("/Proveedores/Index");
             }
 
-            if (_context.OrdenesCompra.Any(o => o.ProveedorId == id))
+            if (TieneDependencias(id))
             {
-                TempData["Error"] = "No se puede eliminar: tiene órdenes de compra asociadas";
+                TempData["Error"] = "No se puede eliminar el proveedor: tiene dependencias asociadas.";
                 return RedirectToPage("/Proveedores/Index");
             }
 
@@ -29230,6 +32185,18 @@ namespace Kirkenta.Pages.Proveedores
 
             TempData["Success"] = $"Proveedor '{nombre}' eliminado";
             return RedirectToPage("/Proveedores/Index");
+        }
+
+        private bool TieneDependencias(int proveedorId)
+        {
+            if (_context.OrdenesCompra.Any(o => o.ProveedorId == proveedorId)) return true;
+            if (_context.PagosProveedor.Any(p => p.ProveedorId == proveedorId)) return true;
+            if (_context.DevolucionesProveedor.Any(d => d.ProveedorId == proveedorId)) return true;
+            if (_context.AdjuntosCompras.Any(a =>
+                a.OrdenCompraId != null &&
+                _context.OrdenesCompra.Any(o => o.Id == a.OrdenCompraId && o.ProveedorId == proveedorId)))
+                return true;
+            return false;
         }
     }
 }
@@ -29460,6 +32427,7 @@ namespace Kirkenta.Pages.Proveedores
 ===== FILE: Pages/Proveedores/Details.cshtml.cs =====
 
 ````csharp
+using Kirkenta.Helpers;
 using Kirkenta.Data;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -29485,6 +32453,12 @@ namespace Kirkenta.Pages.Proveedores
 
         public IActionResult OnGet(int id)
         {
+            if (!(PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Compras", "Proveedores")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             var p = _context.Proveedores.FirstOrDefault(x => x.Id == id);
             if (p == null)
             {
@@ -31123,7 +34097,43 @@ namespace Kirkenta.Pages.Proveedores
         <p>@Model.Venta.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
     </div>
     <div class="module-header-right">
-        @if (Model.Venta.Estado != "Anulada")
+        @* ===== NUEVO: si tiene factura, mostramos el badge y el botón "Ver factura" en vez del de registrar en finanzas *@
+        @if (Model.VentaTieneFactura && Model.FacturaAsociada != null)
+        {
+            <span class="badge badge-success" style="padding: 10px 16px; font-size: 13px;">
+                ✓ Facturada como @Model.FacturaAsociada.Numero
+            </span>
+            <a asp-page="/Facturas/Details" asp-route-id="@Model.FacturaAsociada.Id" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                Ver factura
+            </a>
+        }
+        else if (Model.Venta.MovimientoRegistrado)
+        {
+            <span class="badge badge-success" style="padding: 10px 16px; font-size: 13px;">
+                ✓ Registrado en Finanzas
+                @if (Model.Venta.FechaMovimiento.HasValue)
+                {
+                    <text> · @Model.Venta.FechaMovimiento.Value.ToString("dd/MM/yyyy HH:mm")</text>
+                }
+            </span>
+        }
+        else if (Model.Venta.Estado != "Anulada")
+        {
+            <form method="post" asp-page-handler="RegistrarEnFinanzas" asp-route-id="@Model.Venta.Id" style="display:inline;" onsubmit="return confirm('¿Registrar esta venta en Finanzas?\n\nSe generará:\n- Un INGRESO por el efectivo que entró a caja\n- Un EGRESO por el cambio entregado (si aplica)\n\n¿Deseas continuar?');">
+                <button type="submit" class="btn-primary" style="background: var(--color-success);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                        <line x1="12" y1="1" x2="12" y2="23"/>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                    Registrar en Finanzas
+                </button>
+            </form>
+        }
+        @if (Model.Venta.Estado != "Anulada" && !Model.VentaTieneFactura)
         {
             <a asp-page="/Facturas/CreateFromVenta" asp-route-ventaId="@Model.Venta.Id" class="btn-primary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
@@ -31135,6 +34145,103 @@ namespace Kirkenta.Pages.Proveedores
         }
     </div>
 </div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+@if (TempData["Warning"] != null)
+{
+    <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        @TempData["Warning"]
+    </div>
+}
+
+@* ===== NUEVO: aviso especial si la venta ya tiene factura ===== *@
+@if (Model.VentaTieneFactura && Model.FacturaAsociada != null)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <div>
+            <strong>Esta venta ya fue facturada como @Model.FacturaAsociada.Numero</strong>
+            <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                Los movimientos financieros ya fueron registrados al generar la factura.
+                @if (!string.IsNullOrEmpty(Model.FacturaAsociada.Estado))
+                {
+                    <text> Estado de la factura: <strong>@Model.FacturaAsociada.Estado</strong>.</text>
+                }
+                <a asp-page="/Facturas/Details" asp-route-id="@Model.FacturaAsociada.Id" style="font-weight: 600;">Ver factura</a>
+            </p>
+        </div>
+    </div>
+}
+else if (!Model.Venta.MovimientoRegistrado && Model.Venta.Estado != "Anulada")
+{
+    <div class="module-alert" style="background: #fffbeb; border: 1px solid #fde68a; color: #92400e;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <div>
+            <strong>Esta venta aún no se ha registrado en Finanzas</strong>
+            <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                El cobro físico ya ocurrió, pero el movimiento financiero no. Presiona <strong>"Registrar en Finanzas"</strong>
+                para generar el ingreso y, si aplica, el egreso por cambio. O genera la factura para que se registren automáticamente.
+            </p>
+        </div>
+    </div>
+}
+
+@if (Model.Venta.MovimientoRegistrado && !Model.VentaTieneFactura)
+{
+    <div class="module-alert module-alert-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <div>
+            <strong>Venta registrada en Finanzas el @(Model.Venta.FechaMovimiento?.ToString("dd/MM/yyyy HH:mm") ?? "—")</strong>
+            @if (Model.MovimientoIngreso != null)
+            {
+                <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                    Ingreso: <strong style="font-family: monospace;">@Model.MovimientoIngreso.Numero</strong> por L. @Model.MovimientoIngreso.Monto.ToString("N2")
+                    @if (Model.MovimientoCambio != null)
+                    {
+                        <text> · Cambio: <strong style="font-family: monospace;">@Model.MovimientoCambio.Numero</strong> por L. @Model.MovimientoCambio.Monto.ToString("N2")</text>
+                    }
+                </p>
+            }
+        </div>
+    </div>
+}
 
 <div class="module-card" style="padding: 28px;">
     <div class="cotizacion-header">
@@ -31216,6 +34323,8 @@ namespace Kirkenta.Pages.Proveedores
                             <th>Método</th>
                             <th>Referencia</th>
                             <th style="text-align: right;">Monto</th>
+                            <th style="text-align: right;">Recibido</th>
+                            <th style="text-align: right;">Cambio</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -31227,6 +34336,26 @@ namespace Kirkenta.Pages.Proveedores
                                 <td>@(metodo?.Nombre ?? "—")</td>
                                 <td>@(p.Referencia ?? "—")</td>
                                 <td style="text-align: right;"><strong>L. @p.Monto.ToString("N2")</strong></td>
+                                <td style="text-align: right;">
+                                    @if (p.MontoRecibido.HasValue)
+                                    {
+                                        <span>L. @p.MontoRecibido.Value.ToString("N2")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="table-user-sub">—</span>
+                                    }
+                                </td>
+                                <td style="text-align: right;">
+                                    @if (p.Cambio.HasValue && p.Cambio.Value > 0)
+                                    {
+                                        <span style="color: var(--color-success); font-weight: 600;">L. @p.Cambio.Value.ToString("N2")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="table-user-sub">—</span>
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -31241,9 +34370,12 @@ namespace Kirkenta.Pages.Proveedores
 
 ````csharp
 using Kirkenta.Data;
+using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kirkenta.Pages.Ventas
 {
@@ -31262,9 +34394,20 @@ namespace Kirkenta.Pages.Ventas
         public List<Producto> Productos { get; set; } = new();
         public List<Pago> Pagos { get; set; } = new();
         public List<MetodoPago> MetodosPago { get; set; } = new();
+        public MovimientoFinanciero? MovimientoIngreso { get; set; }
+        public MovimientoFinanciero? MovimientoCambio { get; set; }
+
+        public Factura? FacturaAsociada { get; set; }
+        public bool VentaTieneFactura { get; set; }
 
         public IActionResult OnGet(int id)
         {
+            if (!(PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Ventas", "Index")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             var venta = _context.Ventas.FirstOrDefault(v => v.Id == id);
             if (venta == null)
             {
@@ -31281,7 +34424,212 @@ namespace Kirkenta.Pages.Ventas
             Pagos = _context.Pagos.Where(p => p.VentaId == id).ToList();
             MetodosPago = _context.MetodosPago.ToList();
 
+            FacturaAsociada = _context.Facturas.FirstOrDefault(f => f.VentaId == id);
+            VentaTieneFactura = FacturaAsociada != null;
+
+            if (venta.MovimientoIngresoId.HasValue)
+            {
+                MovimientoIngreso = _context.MovimientosFinancieros
+                    .FirstOrDefault(m => m.Id == venta.MovimientoIngresoId.Value);
+            }
+            if (venta.MovimientoCambioId.HasValue)
+            {
+                MovimientoCambio = _context.MovimientosFinancieros
+                    .FirstOrDefault(m => m.Id == venta.MovimientoCambioId.Value);
+            }
+
             return Page();
+        }
+
+        public IActionResult OnPostRegistrarEnFinanzas(int id)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+
+            if (currentRol != "Admin" &&
+                !PermisoHelper.TienePermiso(_context, currentRol, "Finanzas", "MovimientosCreate", "crear"))
+            {
+                TempData["Error"] = "No tienes permiso para registrar movimientos financieros";
+                return RedirectToPage("/Ventas/Details", new { id });
+            }
+
+            var venta = _context.Ventas.FirstOrDefault(v => v.Id == id);
+            if (venta == null)
+            {
+                TempData["Error"] = "Venta no encontrada";
+                return RedirectToPage("/Ventas/Index");
+            }
+
+            if (_context.Facturas.Any(f => f.VentaId == id))
+            {
+                TempData["Error"] = "Esta venta ya tiene una factura asociada. Los movimientos ya fueron registrados al facturar.";
+                return RedirectToPage("/Ventas/Details", new { id });
+            }
+
+            if (venta.MovimientoRegistrado)
+            {
+                TempData["Error"] = "Esta venta ya fue registrada en Finanzas";
+                return RedirectToPage("/Ventas/Details", new { id });
+            }
+
+            if (venta.Estado == "Anulada")
+            {
+                TempData["Error"] = "No se puede registrar una venta anulada";
+                return RedirectToPage("/Ventas/Details", new { id });
+            }
+
+            // 🔒 OPCIÓN A: Las ventas al crédito NO se registran aquí.
+            // Se registran SOLO al cobrar desde Finanzas > Cobros.
+            if (venta.EsCredito)
+            {
+                TempData["Error"] = "Esta es una venta al crédito. Los ingresos se registran automáticamente al cobrar en Finanzas > Cuentas por Cobrar.";
+                return RedirectToPage("/Ventas/Details", new { id });
+            }
+
+            var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(_context, venta.Fecha);
+            if (!periodoOk)
+            {
+                TempData["Error"] = $"No se puede registrar el movimiento: {periodoError}";
+                return RedirectToPage("/Ventas/Details", new { id });
+            }
+
+            // Detectar método de pago
+            var pago = _context.Pagos
+                .Where(p => p.VentaId == id)
+                .OrderByDescending(p => p.Id)
+                .FirstOrDefault();
+
+            var metodoPago = pago != null
+                ? _context.MetodosPago.FirstOrDefault(m => m.Id == pago.MetodoPagoId)
+                : null;
+
+            var tipoMetodo = (metodoPago?.Tipo ?? "").Trim().ToLower();
+            bool esEfectivo = tipoMetodo.Contains("efectivo")
+                           || tipoMetodo.Contains("cash")
+                           || tipoMetodo.Contains("contado")
+                           || tipoMetodo == "";
+
+            decimal montoRecibido = pago?.MontoRecibido ?? venta.Total;
+            decimal cambio = pago?.Cambio ?? 0;
+
+            using var transaction = _context.Database.BeginTransaction();
+
+            try
+            {
+                var apertura = _context.AperturasCaja.FirstOrDefault(a => a.Activa);
+                int? cuentaId = apertura?.CuentaId;
+
+                if (!cuentaId.HasValue)
+                {
+                    var cuentaCaja = _context.CuentasFinancieras
+                        .Where(c => c.Tipo == "Caja" && c.Activa
+                                 && (c.Subtipo == null || c.Subtipo != "CuentasPorCobrar"))
+                        .OrderBy(c => c.Id)
+                        .FirstOrDefault();
+                    cuentaId = cuentaCaja?.Id;
+                }
+
+                if (!cuentaId.HasValue)
+                {
+                    transaction.Rollback();
+                    TempData["Error"] = "No hay una cuenta de caja activa para registrar el movimiento";
+                    return RedirectToPage("/Ventas/Details", new { id });
+                }
+
+                var montoIngreso = esEfectivo ? montoRecibido : venta.Total;
+
+                var (movIngreso, errorIngreso) = MovimientoAutomaticoHelper.RegistrarIngresoVenta(
+                    _context,
+                    venta.Id,
+                    venta.Numero,
+                    monto: montoIngreso,
+                    usuarioId: currentUser?.Id ?? 0,
+                    formaPago: metodoPago?.Nombre,
+                    cuentaId: cuentaId
+                );
+
+                if (movIngreso == null)
+                {
+                    transaction.Rollback();
+                    TempData["Error"] = $"No se pudo registrar el ingreso. {errorIngreso ?? "Revisa la configuración de cuentas y categorías."}";
+                    return RedirectToPage("/Ventas/Details", new { id });
+                }
+
+                venta.MovimientoIngresoId = movIngreso.Id;
+
+                MovimientoFinanciero? movCambio = null;
+                if (esEfectivo && cambio > 0)
+                {
+                    var (mov, errorCambio) = MovimientoAutomaticoHelper.RegistrarEgresoCambio(
+                        _context,
+                        venta.Id,
+                        venta.Numero,
+                        montoCambio: cambio,
+                        usuarioId: currentUser?.Id ?? 0,
+                        formaPago: "Efectivo",
+                        cuentaId: cuentaId,
+                        origen: "Venta"
+                    );
+
+                    if (mov == null)
+                    {
+                        transaction.Rollback();
+                        TempData["Error"] = $"No se pudo registrar el egreso por cambio. {errorCambio ?? "Los movimientos fueron revertidos."}";
+                        return RedirectToPage("/Ventas/Details", new { id });
+                    }
+
+                    movCambio = mov;
+                    venta.MovimientoCambioId = movCambio.Id;
+                }
+
+                // COGS: si la venta aún no tiene su costo registrado
+                if (!venta.CostoRegistrado && venta.CostoTotalVendido > 0)
+                {
+                    var (movCosto, errorCosto) = MovimientoAutomaticoHelper.RegistrarEgresoCostoVenta(
+                        _context,
+                        venta.Id,
+                        venta.Numero,
+                        venta.CostoTotalVendido,
+                        currentUser?.Id ?? 0,
+                        cuentaId);
+
+                    if (movCosto != null)
+                    {
+                        venta.MovimientoCostoId = movCosto.Id;
+                        venta.CostoRegistrado = true;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[Ventas/Details] Advertencia: no se pudo registrar el COGS. {errorCosto}");
+                    }
+                }
+
+                venta.MovimientoRegistrado = true;
+                venta.FechaMovimiento = DateTime.Now;
+                _context.SaveChanges();
+
+                transaction.Commit();
+
+                ActividadHelper.Registrar(
+                    _context,
+                    currentUser?.Id ?? 0,
+                    "Registrar venta en Finanzas",
+                    $"Registró la venta {venta.Numero} en Finanzas (sin factura). Ingreso: L. {montoIngreso:N2}" +
+                    (cambio > 0 ? $", Cambio: L. {cambio:N2}" : ""),
+                    HttpContext.Connection.RemoteIpAddress?.ToString());
+
+                TempData["Success"] = $"Venta {venta.Numero} registrada en Finanzas correctamente" +
+                    (cambio > 0 ? $" (Ingreso: L. {montoIngreso:N2}, Cambio: L. {cambio:N2})" : $" (Ingreso: L. {montoIngreso:N2})");
+
+                return RedirectToPage("/Ventas/Details", new { id });
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                Console.WriteLine($"ERROR al registrar venta en Finanzas: {ex.Message}");
+                TempData["Error"] = $"Error al registrar: {ex.Message}";
+                return RedirectToPage("/Ventas/Details", new { id });
+            }
         }
     }
 }
@@ -31453,6 +34801,7 @@ namespace Kirkenta.Pages.Ventas
 ===== FILE: Pages/Ventas/Index.cshtml.cs =====
 
 ````csharp
+using Kirkenta.Helpers;
 using Kirkenta.Data;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -31472,10 +34821,18 @@ namespace Kirkenta.Pages.Ventas
         public List<Venta> Ventas { get; set; } = new();
         public List<Cliente> Clientes { get; set; } = new();
 
-        public void OnGet()
+        public IActionResult OnGet()
         {
+            if (!(PermisoHelper.UsuarioTieneAcceso(_context, User.Identity?.Name, "Ventas", "Index")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             Ventas = _context.Ventas.OrderByDescending(v => v.Fecha).ToList();
             Clientes = _context.Clientes.ToList();
+
+            return Page();
         }
     }
 }

@@ -46,11 +46,11 @@
     </div>
     <div class="kpi-card">
         <span class="kpi-label">Con goce de sueldo</span>
-        <span class="kpi-value">@Model.DiasConGoce días</span>
+        <span class="kpi-value">@Model.DiasConGoce.ToString("0.##") días</span>
     </div>
     <div class="kpi-card">
         <span class="kpi-label">Sin goce de sueldo</span>
-        <span class="kpi-value" style="color: var(--color-danger);">@Model.DiasSinGoce días</span>
+        <span class="kpi-value" style="color: var(--color-danger);">@Model.DiasSinGoce.ToString("0.##") días</span>
     </div>
 </div>
 
@@ -105,7 +105,7 @@
                             <td>@p.EmpleadoNombre</td>
                             <td>@p.Tipo</td>
                             <td>@p.FechaInicio.ToString("dd/MM") al @p.FechaFin.ToString("dd/MM")</td>
-                            <td style="text-align: right;"><strong>@p.DiasSolicitados</strong></td>
+                            <td style="text-align: right;"><strong>@p.DiasSolicitados.ToString("0.##")</strong></td>
                             <td>
                                 @if (p.ConGoceSueldo) { <span class="badge badge-success">Sí</span> }
                                 else { <span class="badge badge-warning">No</span> }

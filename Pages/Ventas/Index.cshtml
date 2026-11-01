@@ -22,19 +22,25 @@
 </div>
 
 <div class="module-card">
-    <div class="module-toolbar">
+    <form method="get" class="module-toolbar">
         <div class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input type="text" id="searchInput" placeholder="Buscar por número o cliente..." />
+            <input type="text" id="searchInput" name="Q" value="@Model.Q" placeholder="Buscar por venta, factura o cliente..." />
         </div>
         <div class="filter-group">
-            <input type="date" id="filterFechaDesde" class="filter-select" />
-            <input type="date" id="filterFechaHasta" class="filter-select" />
+            <input type="date" id="filterFechaDesde" name="Desde" value="@Model.Desde?.ToString("yyyy-MM-dd")" class="filter-select" />
+            <input type="date" id="filterFechaHasta" name="Hasta" value="@Model.Hasta?.ToString("yyyy-MM-dd")" class="filter-select" />
+            <select name="Estado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="Completada" selected="@(Model.Estado == "Completada")">Completada</option>
+                <option value="Anulada" selected="@(Model.Estado == "Anulada")">Anulada</option>
+            </select>
+            <button type="submit" class="btn-secondary">Filtrar</button>
         </div>
-    </div>
+    </form>
 
     @if (TempData["Success"] != null)
     {
@@ -47,7 +53,7 @@
         </div>
     }
 
-    @if (Model.Ventas.Count == 0)
+    @if (Model.Pager.Total == 0)
     {
         <div class="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -65,7 +71,8 @@
             <table class="erp-table" id="ventasTable">
                 <thead>
                     <tr>
-                        <th>Número</th>
+                        <th>Venta</th>
+                        <th>Factura</th>
                         <th>Cliente</th>
                         <th>Fecha</th>
                         <th>Total</th>
@@ -77,10 +84,15 @@
                     @foreach (var v in Model.Ventas)
                     {
                         var cliente = Model.Clientes.FirstOrDefault(c => c.Id == v.ClienteId);
+                        Model.FacturasPorVenta.TryGetValue(v.Id, out var fac);
                         <tr data-numero="@v.Numero.ToLower()"
                             data-cliente="@(cliente?.Nombre.ToLower() ?? "")"
                             data-fecha="@v.Fecha.ToString("yyyy-MM-dd")">
                             <td><strong>@v.Numero</strong></td>
+                            <td>
+                                @if (fac.Id > 0) { <a asp-page="/Facturas/Details" asp-route-id="@fac.Id">@fac.Numero</a> }
+                                else { <span class="table-user-sub">Sin facturar</span> }
+                            </td>
                             <td>@(cliente?.Nombre ?? "Consumidor final")</td>
                             <td>@v.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
                             <td><strong>L. @v.Total.ToString("N2")</strong></td>
@@ -106,7 +118,7 @@
                                             <circle cx="12" cy="12" r="3"/>
                                         </svg>
                                     </a>
-                                    <a asp-page="/Facturas/CreateFromVenta" asp-route-ventaId="@v.Id" class="btn-icon-action" title="Facturar">
+                                    <a asp-page="/Facturas/CreateFromVenta" asp-route-ventaId="@v.Id" class="btn-icon-action" title="@(fac.Id > 0 ? "Ya facturada: ver factura" : "Facturar")" style="@(fac.Id > 0 ? "opacity:.45" : "")">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                                             <polyline points="14 2 14 8 20 8"/>
@@ -119,40 +131,6 @@
                 </tbody>
             </table>
         </div>
+        <partial name="_Pager" model="Model.Pager" />
     }
 </div>
-
-@section Scripts {
-    <script>
-        (function () {
-            var searchInput = document.getElementById('searchInput');
-            var desde = document.getElementById('filterFechaDesde');
-            var hasta = document.getElementById('filterFechaHasta');
-            var table = document.getElementById('ventasTable');
-            if (!table) return;
-            var rows = table.querySelectorAll('tbody tr');
-
-            function filterRows() {
-                var search = (searchInput?.value || '').toLowerCase().trim();
-                var fDesde = desde?.value || '';
-                var fHasta = hasta?.value || '';
-
-                rows.forEach(function (row) {
-                    var numero = row.dataset.numero || '';
-                    var cliente = row.dataset.cliente || '';
-                    var fecha = row.dataset.fecha || '';
-
-                    var matchSearch = !search || numero.includes(search) || cliente.includes(search);
-                    var matchDesde = !fDesde || fecha >= fDesde;
-                    var matchHasta = !fHasta || fecha <= fHasta;
-
-                    row.style.display = (matchSearch && matchDesde && matchHasta) ? '' : 'none';
-                });
-            }
-
-            searchInput?.addEventListener('input', filterRows);
-            desde?.addEventListener('change', filterRows);
-            hasta?.addEventListener('change', filterRows);
-        })();
-    </script>
-}

@@ -91,7 +91,7 @@
                     "Exito" => "#10b981",
                     _ => "#4f46e5"
                 };
-                <div style="display: flex; gap: 12px; padding: 12px 16px; border-left: 3px solid @color; background: #f9fafb; border-radius: 6px;">
+                <div style="display: flex; gap: 12px; padding: 12px 16px; border-left: 3px solid @color; background: var(--color-surface-2); border-radius: 6px;">
                     <div style="flex: 1;">
                         <strong style="font-size: 13.5px;">@a.Titulo</strong>
                         @if (!string.IsNullOrEmpty(a.Descripcion))
@@ -186,7 +186,7 @@
                 @foreach (var f in Model.FeriadosProximos)
                 {
                     <div class="timeline-item">
-                        <div class="timeline-dot" style="background: #ef4444;"></div>
+                        <div class="timeline-dot" style="background: var(--color-danger);"></div>
                         <div class="timeline-content">
                             <div class="timeline-header">
                                 <strong>@f.Nombre</strong>

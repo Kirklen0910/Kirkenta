@@ -40,13 +40,23 @@
                 <line x1="12" y1="16" x2="12" y2="12"/>
                 <line x1="12" y1="8" x2="12.01" y2="8"/>
             </svg>
-            <span>Marca los productos que recibiste. El stock se actualizará automáticamente. Puedes recibir parcialmente si no llegó todo.</span>
+            <span>Marca (o escanea) los productos que recibiste. Si el proveedor facturó un precio distinto, corrígelo en la columna de precio: el total de la orden, la deuda con el proveedor, el inventario y el costo promedio se actualizan con ese precio. Puedes recibir parcialmente.</span>
+        </div>
+
+        <h3 class="form-section-title">Escanear o buscar producto</h3>
+        <div class="form-field" style="position: relative;">
+            <input type="text" id="buscarProducto" class="form-input" autocomplete="off" autofocus
+                   placeholder="Escanea el código de barras o escribe nombre / SKU y presiona Enter..."
+                   style="font-size: 16px; padding: 12px 14px;" />
+            <small class="form-help">Cada escaneo suma 1 unidad a la línea correspondiente. Si escribes un nombre, elige el producto de la lista: se marca la línea y puedes ajustar cantidad y precio.</small>
+            <div id="buscarResultados" style="display:none; position:absolute; left:0; right:0; top:52px; z-index:20; background:var(--color-surface, #fff); border:1px solid #d1d5db; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,.12); max-height:260px; overflow:auto;"></div>
+            <div id="buscarMensaje" style="margin-top:8px; font-size:13px; min-height:18px;"></div>
         </div>
 
         <h3 class="form-section-title">Productos recibidos</h3>
 
         <div class="table-wrapper" style="margin-top: 16px;">
-            <table class="erp-table">
+            <table class="erp-table" id="tablaRecepcion">
                 <thead>
                     <tr>
                         <th style="width: 50px;">Recibir</th>
@@ -54,7 +64,9 @@
                         <th style="text-align: right;">Pedido</th>
                         <th style="text-align: right;">Ya recibido</th>
                         <th style="text-align: right;">Pendiente</th>
-                        <th style="width: 130px;">Cantidad a recibir</th>
+                        <th style="width: 120px;">Cantidad a recibir</th>
+                        <th style="width: 140px;">Precio unitario facturado</th>
+                        <th style="text-align: right; width: 110px;">Importe</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -64,7 +76,13 @@
                         var prod = Model.Productos.FirstOrDefault(p => p.Id == item.ProductoId);
                         var pendiente = item.Cantidad - item.CantidadRecibida;
 
-                        <tr>
+                        <tr class="fila-recepcion" data-idx="@i"
+                            data-barras="@((prod?.CodigoBarras ?? "").ToLowerInvariant())"
+                            data-sku="@((prod?.SKU ?? "").ToLowerInvariant())"
+                            data-nombre="@((prod?.Nombre ?? "").ToLowerInvariant())"
+                            data-titulo="@(prod?.Nombre ?? "—")"
+                            data-precio-orden="@item.PrecioUnitario.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)"
+                            data-costo-actual="@((prod?.PrecioCompra ?? 0m).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture))">
                             <td style="text-align: center;">
                                 <input type="checkbox"
                                        asp-for="Input.Items[@i].Recibir"
@@ -78,6 +96,11 @@
                                 {
                                     <br /><span class="table-user-sub" style="font-family: monospace;">@prod.SKU</span>
                                 }
+                                @if (!string.IsNullOrEmpty(prod?.CodigoBarras))
+                                {
+                                    <span class="table-user-sub" style="font-family: monospace;"> · @prod.CodigoBarras</span>
+                                }
+                                <br /><span class="table-user-sub">Costo actual: L. @((prod?.PrecioCompra ?? 0m).ToString("N2")) · Stock: @((prod?.Stock ?? 0m).ToString("0.##"))</span>
                             </td>
                             <td style="text-align: right;">@item.Cantidad</td>
                             <td style="text-align: right;">@item.CantidadRecibida</td>
@@ -85,7 +108,7 @@
                             <td>
                                 <input type="hidden" asp-for="Input.Items[@i].DetalleId" />
                                 <input type="hidden" asp-for="Input.Items[@i].ProductoId" />
-                                <input type="number"
+                                <input asp-format="{0:0.##}" type="number"
                                        asp-for="Input.Items[@i].CantidadRecibir"
                                        min="0"
                                        max="@pendiente"
@@ -95,9 +118,26 @@
                                        style="padding: 6px 8px; text-align: center;"
                                        disabled="@(pendiente <= 0)" />
                             </td>
+                            <td>
+                                <input asp-format="{0:0.####}" type="number"
+                                       asp-for="Input.Items[@i].PrecioUnitario"
+                                       min="0"
+                                       step="0.0001"
+                                       class="form-input precio-recibido"
+                                       data-idx="@i"
+                                       style="padding: 6px 8px; text-align: right;" />
+                                <small class="precio-diff" data-idx="@i" style="display:block; font-size:11px; min-height:14px;"></small>
+                            </td>
+                            <td style="text-align: right;" class="importe-linea" data-idx="@i">—</td>
                         </tr>
                     }
                 </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="7" style="text-align: right;"><strong>Importe de lo que se recibe (sin ISV)</strong></td>
+                        <td style="text-align: right;"><strong id="importeTotal">L. 0.00</strong></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
 
@@ -116,6 +156,22 @@
             <small class="form-help">Si lo desmarcas, se conserva el costo anterior</small>
         </div>
 
+        <div class="form-field">
+            <label asp-for="Input.MetodoCosto">¿Cómo calcular el nuevo costo?</label>
+            <select asp-for="Input.MetodoCosto" class="form-input">
+                <option value="Promedio">Costo promedio ponderado (recomendado): mezcla lo que ya hay con lo que entra</option>
+                <option value="Ultimo">Último costo: el costo de esta compra reemplaza al anterior</option>
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.ActualizarPrecioVenta" type="checkbox" />
+                <span>Reajustar también el precio de venta (y el mayorista) manteniendo el mismo margen</span>
+            </label>
+            <small class="form-help">Ej.: si el costo sube de 1.00 a 1.50 y vendías a 2.00, el precio pasa a 3.00. Solo aplica si el costo cambia.</small>
+        </div>
+
         <div class="form-actions">
             <a asp-page="/OrdenesCompra/Details" asp-route-id="@Model.Orden.Id" class="btn-secondary">Cancelar</a>
             <button type="submit" class="btn-primary" style="background: var(--color-success);">
@@ -131,21 +187,126 @@
 @section Scripts {
     <script>
         (function () {
+            var filas = Array.prototype.slice.call(document.querySelectorAll('.fila-recepcion'));
+            var caja = document.getElementById('buscarProducto');
+            var lista = document.getElementById('buscarResultados');
+            var msg = document.getElementById('buscarMensaje');
+            var escaneadas = {};
+
+            function q(sel, idx) { return document.querySelector(sel + '[data-idx="' + idx + '"]'); }
+            function num(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+            function dinero(n) { return 'L. ' + n.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+            function aviso(texto, tipo) {
+                msg.textContent = texto || '';
+                msg.style.color = tipo === 'error' ? '#b91c1c' : tipo === 'ok' ? '#047857' : '#475569';
+            }
+
+            function recalcular() {
+                var total = 0;
+                filas.forEach(function (tr) {
+                    var i = tr.dataset.idx;
+                    var cb = q('.recibir-checkbox', i), cant = q('.cantidad-recibir', i), pr = q('.precio-recibido', i);
+                    var importe = (cb && cb.checked && !cb.disabled) ? num(cant.value) * num(pr.value) : 0;
+                    total += importe;
+                    q('.importe-linea', i).textContent = importe > 0 ? dinero(importe) : '—';
+
+                    var dif = q('.precio-diff', i), orden = num(tr.dataset.precioOrden), nuevo = num(pr.value);
+                    if (Math.abs(nuevo - orden) > 0.00005) {
+                        var sube = nuevo > orden;
+                        dif.textContent = (sube ? '▲ sube ' : '▼ baja ') + dinero(Math.abs(nuevo - orden)) + ' vs. pedido';
+                        dif.style.color = sube ? '#b45309' : '#047857';
+                    } else { dif.textContent = ''; }
+                });
+                document.getElementById('importeTotal').textContent = dinero(total);
+            }
+
+            function marcar(tr, cantidad) {
+                var i = tr.dataset.idx;
+                var cb = q('.recibir-checkbox', i), cant = q('.cantidad-recibir', i);
+                if (!cb || cb.disabled) return false;
+                cb.checked = true; cant.disabled = false;
+                if (cantidad !== undefined) cant.value = cantidad;
+                tr.style.background = '#ecfdf5';
+                setTimeout(function () { tr.style.background = ''; }, 1200);
+                tr.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                recalcular();
+                return true;
+            }
+
+            function escanear(tr) {
+                var i = tr.dataset.idx, cant = q('.cantidad-recibir', i);
+                var max = num(cant.getAttribute('max'));
+                // El primer escaneo de la línea arranca en 1; los siguientes suman 1
+                var actual = escaneadas[i] ? num(cant.value) : 0;
+                if (actual + 1 > max) { aviso('«' + tr.dataset.titulo + '»: ya llegaste a lo pendiente (' + max + ').', 'error'); return; }
+                escaneadas[i] = true;
+                if (marcar(tr, actual + 1)) aviso('«' + tr.dataset.titulo + '»: ' + (actual + 1) + ' de ' + max + ' pendientes.', 'ok');
+            }
+
+            function elegir(tr) {
+                lista.style.display = 'none'; caja.value = '';
+                if (marcar(tr)) {
+                    aviso('«' + tr.dataset.titulo + '» marcado. Ajusta cantidad y precio.', 'ok');
+                    var c = q('.cantidad-recibir', tr.dataset.idx); c.focus(); c.select();
+                }
+            }
+
+            function buscar(texto, enter) {
+                var t = texto.trim().toLowerCase();
+                lista.style.display = 'none'; lista.innerHTML = '';
+                if (!t) { aviso(''); return; }
+
+                var exactas = filas.filter(function (tr) { return tr.dataset.barras === t || tr.dataset.sku === t; });
+                if (exactas.length === 1 && enter) { caja.value = ''; escanear(exactas[0]); return; }
+
+                var coincidencias = filas.filter(function (tr) {
+                    return tr.dataset.nombre.indexOf(t) >= 0 || tr.dataset.sku.indexOf(t) >= 0 || tr.dataset.barras.indexOf(t) >= 0;
+                });
+                if (coincidencias.length === 0) {
+                    if (enter) aviso('Ese producto no está en esta orden de compra (' + texto + ').', 'error');
+                    return;
+                }
+                if (coincidencias.length === 1 && enter) { caja.value = ''; elegir(coincidencias[0]); return; }
+
+                coincidencias.slice(0, 12).forEach(function (tr) {
+                    var b = document.createElement('div');
+                    b.style.cssText = 'padding:9px 12px; cursor:pointer; border-bottom:1px solid #f1f5f9;';
+                    b.textContent = tr.dataset.titulo + (tr.dataset.sku ? '  ·  ' + tr.dataset.sku.toUpperCase() : '');
+                    b.addEventListener('mousedown', function (e) { e.preventDefault(); elegir(tr); });
+                    b.addEventListener('mouseover', function () { b.style.background = '#f1f5f9'; });
+                    b.addEventListener('mouseout', function () { b.style.background = ''; });
+                    lista.appendChild(b);
+                });
+                lista.style.display = 'block';
+            }
+
+            caja.addEventListener('input', function () { buscar(caja.value, false); });
+            caja.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); buscar(caja.value, true); }
+                if (e.key === 'Escape') { lista.style.display = 'none'; }
+            });
+            caja.addEventListener('blur', function () { setTimeout(function () { lista.style.display = 'none'; }, 150); });
+
             document.querySelectorAll('.recibir-checkbox').forEach(function (cb) {
                 cb.addEventListener('change', function () {
                     var idx = this.dataset.idx;
-                    var cantidad = document.querySelector('.cantidad-recibir[data-idx="' + idx + '"]');
+                    var cantidad = q('.cantidad-recibir', idx);
                     if (cantidad) {
                         cantidad.disabled = !this.checked;
                         if (this.checked && (!cantidad.value || parseFloat(cantidad.value) === 0)) {
-                            var max = parseFloat(cantidad.getAttribute('max')) || 0;
-                            cantidad.value = max;
+                            cantidad.value = parseFloat(cantidad.getAttribute('max')) || 0;
                         }
                     }
+                    recalcular();
                 });
                 // Estado inicial
                 cb.dispatchEvent(new Event('change'));
             });
+            document.querySelectorAll('.cantidad-recibir, .precio-recibido').forEach(function (inp) {
+                inp.addEventListener('input', recalcular);
+            });
+            recalcular();
         })();
     </script>
 }

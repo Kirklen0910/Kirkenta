@@ -42,6 +42,37 @@
     </form>
 </div>
 
+<!-- Punto 12: período cerrado -->
+@if (Model.Reporte.PeriodoCerrado)
+{
+    <div class="module-alert module-alert-success" style="background: var(--color-success-bg); border: 1px solid var(--color-success-border); color: var(--color-success-text);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <strong>@Model.Reporte.MensajeCierre</strong>
+    </div>
+}
+
+<!-- Punto 6: movimientos sin clasificar -->
+@if (Model.Reporte.MovimientosSinClasificar > 0)
+{
+    <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <div>
+            <strong>Hay @Model.Reporte.MovimientosSinClasificar movimiento(s) sin cuenta contable (L. @Model.Reporte.MontoSinClasificar.ToString("N2")).</strong>
+            <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                Esto puede hacer que el balance no cuadre. Asocia sus categorías a una cuenta del
+                <a asp-page="/Finanzas/PlanCuentas/Index">Plan de Cuentas</a>.
+            </p>
+        </div>
+    </div>
+}
+
 <!-- Estado de cuadre -->
 @if (!Model.Reporte.Cuadra)
 {
@@ -54,7 +85,7 @@
         <div>
             <strong>El balance no cuadra — diferencia de L. @Model.Reporte.Diferencia.ToString("N2")</strong>
             <p style="margin: 4px 0 0 0; font-size: 12.5px;">
-                Esto puede deberse a: movimientos sin categoría contable, saldos iniciales de cuentas
+                Posibles causas: movimientos sin categoría contable, saldos iniciales de cuentas
                 financieras no registrados como movimientos, o categorías sin cuenta del plan asociada.
             </p>
         </div>
@@ -86,7 +117,7 @@ else
         <span class="kpi-value" style="color: var(--color-success); font-size: 20px;">L. @Model.Reporte.TotalPatrimonio.ToString("N2")</span>
     </div>
     <div class="kpi-card">
-        <span class="kpi-label">Resultado del Ejercicio</span>
+        <span class="kpi-label">Resultado del Ejercicio @Model.Reporte.AnioResultado</span>
         <span class="kpi-value" style="color: @(Model.Reporte.ResultadoEjercicio >= 0 ? "var(--color-success)" : "var(--color-danger)"); font-size: 20px;">
             L. @Model.Reporte.ResultadoEjercicio.ToString("N2")
         </span>
@@ -114,7 +145,7 @@ else
     </div>
 
     <div class="balance-grid">
-        <!-- COLUMNA IZQUIERDA: ACTIVOS -->
+        <!-- ACTIVOS -->
         <div>
             <div class="reporte-seccion">
                 <h4 class="reporte-seccion-titulo" style="color: var(--color-primary);">ACTIVOS</h4>
@@ -140,13 +171,13 @@ else
                 }
             </div>
 
-            <div class="reporte-total-final" style="background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); border-color: var(--color-primary);">
+            <div class="reporte-total-final" style="background: linear-gradient(135deg, var(--color-primary-soft) 0%, var(--color-primary-soft-2) 100%); border-color: var(--color-primary);">
                 <span style="font-size: 14px;">TOTAL ACTIVOS</span>
                 <strong style="font-size: 18px; color: var(--color-primary);">L. @Model.Reporte.TotalActivos.ToString("N2")</strong>
             </div>
         </div>
 
-        <!-- COLUMNA DERECHA: PASIVO + PATRIMONIO -->
+        <!-- PASIVO + PATRIMONIO -->
         <div>
             <div class="reporte-seccion">
                 <h4 class="reporte-seccion-titulo" style="color: var(--color-danger);">PASIVOS</h4>
@@ -170,9 +201,7 @@ else
                             <tr class="reporte-total">
                                 <td></td>
                                 <td><strong>Total Pasivos</strong></td>
-                                <td style="text-align: right;">
-                                    <strong>L. @Model.Reporte.TotalPasivos.ToString("N2")</strong>
-                                </td>
+                                <td style="text-align: right;"><strong>L. @Model.Reporte.TotalPasivos.ToString("N2")</strong></td>
                             </tr>
                         </tbody>
                     </table>
@@ -197,7 +226,7 @@ else
                         {
                             <tr style="font-style: italic;">
                                 <td style="font-family: monospace; color: var(--color-muted);">—</td>
-                                <td>Resultado del Ejercicio</td>
+                                <td>Resultado del Ejercicio @Model.Reporte.AnioResultado</td>
                                 <td style="text-align: right; color: @(Model.Reporte.ResultadoEjercicio >= 0 ? "var(--color-success)" : "var(--color-danger)");">
                                     L. @Model.Reporte.ResultadoEjercicio.ToString("N2")
                                 </td>
@@ -207,17 +236,15 @@ else
                         <tr class="reporte-total">
                             <td></td>
                             <td><strong>Total Patrimonio</strong></td>
-                            <td style="text-align: right;">
-                                <strong>L. @Model.Reporte.TotalPatrimonio.ToString("N2")</strong>
-                            </td>
+                            <td style="text-align: right;"><strong>L. @Model.Reporte.TotalPatrimonio.ToString("N2")</strong></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div class="reporte-total-final" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-color: #f59e0b;">
+            <div class="reporte-total-final" style="background: linear-gradient(135deg, var(--color-warning-bg) 0%, var(--color-warning-border) 100%); border-color: #f59e0b;">
                 <span style="font-size: 14px;">TOTAL PASIVO + PATRIMONIO</span>
-                <strong style="font-size: 18px; color: #92400e;">L. @Model.Reporte.TotalPasivoPatrimonio.ToString("N2")</strong>
+                <strong style="font-size: 18px; color: var(--color-warning-text);">L. @Model.Reporte.TotalPasivoPatrimonio.ToString("N2")</strong>
             </div>
         </div>
     </div>
@@ -240,59 +267,26 @@ else
 </div>
 
 <style>
-    .balance-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 40px;
-    }
-    @@media (max-width: 900px) {
-        .balance-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-    .reporte-seccion {
-        margin-bottom: 24px;
-    }
+    .balance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+    @@media (max-width: 900px) { .balance-grid { grid-template-columns: 1fr; } }
+    .reporte-seccion { margin-bottom: 24px; }
     .reporte-seccion-titulo {
-        font-size: 13px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        padding-bottom: 8px;
-        border-bottom: 2px solid currentColor;
-        margin-bottom: 12px;
+        font-size: 13px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; padding-bottom: 8px;
+        border-bottom: 2px solid currentColor; margin-bottom: 12px;
     }
-    .reporte-tabla {
-        width: 100%;
-        font-size: 13.5px;
-        border-collapse: collapse;
-    }
-    .reporte-tabla td {
-        padding: 6px 8px;
-    }
-    .reporte-tabla tr:not(.reporte-total):hover {
-        background: #f9fafb;
-    }
+    .reporte-tabla { width: 100%; font-size: 13.5px; border-collapse: collapse; }
+    .reporte-tabla td { padding: 6px 8px; }
+    .reporte-tabla tr:not(.reporte-total):hover { background: var(--color-surface-2); }
     .reporte-total td {
         border-top: 1px solid var(--color-border);
-        padding-top: 10px;
-        font-size: 14px;
+        padding-top: 10px; font-size: 14px;
     }
-    .reporte-vacio {
-        font-size: 13px;
-        color: var(--color-muted);
-        font-style: italic;
-        padding: 8px 0;
-    }
+    .reporte-vacio { font-size: 13px; color: var(--color-muted); font-style: italic; padding: 8px 0; }
     .reporte-total-final {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 18px 22px;
-        border: 2px solid;
-        border-radius: 8px;
-        margin-top: 24px;
-        font-weight: 700;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 18px 22px; border: 2px solid; border-radius: 8px;
+        margin-top: 24px; font-weight: 700;
     }
     @@media print {
         .module-header, .module-card form, .module-alert, .erp-sidebar, .erp-topbar, .erp-footer { display: none !important; }

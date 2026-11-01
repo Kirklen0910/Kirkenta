@@ -1,0 +1,119 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Clientes.EstadoCuentaModel
+@{
+    ViewData["Title"] = $"Estado de cuenta - {Model.Cliente.Nombre}";
+}
+
+<div data-pdf-doc>
+<div class="pdf-only" style="display:none;margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid #111;">
+    <strong style="font-size:18px;">@Model.Empresa.Nombre</strong>
+    @if (!string.IsNullOrEmpty(Model.Empresa.RTN)) { <span style="margin-left:8px;color:#555;">RTN: @Model.Empresa.RTN</span> }
+    @if (!string.IsNullOrEmpty(Model.Empresa.Telefono)) { <span style="margin-left:8px;color:#555;">Tel: @Model.Empresa.Telefono</span> }
+</div>
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Clientes/Index" class="back-link">← Volver a clientes</a>
+        <h2>Estado de cuenta</h2>
+        <p>@Model.Cliente.Nombre @(string.IsNullOrEmpty(Model.Cliente.RTN) ? "" : "· RTN " + Model.Cliente.RTN) · Emitido el @DateTime.Now.ToString("dd/MM/yyyy")</p>
+    </div>
+    <div class="module-header-right">
+        <partial name="_WhatsAppPdf" model="@(new Kirkenta.Helpers.WhatsAppPdf(Model.Cliente.Telefono, Model.SaldoPendiente > 0 ? Kirkenta.Helpers.WhatsAppHelper.MensajeCobranza(Model.Empresa.Nombre, Model.Cliente.Nombre, Model.SaldoPendiente, Model.SaldoVencido) : Kirkenta.Helpers.WhatsAppHelper.MensajeEstadoCuenta(Model.Empresa.Nombre, Model.Cliente.Nombre, Model.SaldoPendiente), "Estado-de-cuenta-" + Model.Cliente.Nombre + ".pdf"))" />
+        <button type="button" class="btn-secondary" onclick="window.print()">Imprimir</button>
+    </div>
+</div>
+
+<div class="module-card" style="padding:24px;">
+    <div style="display:flex;gap:32px;flex-wrap:wrap;">
+        <div><small>Límite de crédito</small><br /><strong>@(Model.Cliente.LimiteCredito > 0 ? "L. " + Model.Cliente.LimiteCredito.ToString("N2") : "Sin límite")</strong></div>
+        <div><small>Días de crédito</small><br /><strong>@Model.Cliente.DiasCredito</strong></div>
+        <div><small>Total a crédito</small><br /><strong>L. @Model.TotalCredito.ToString("N2")</strong></div>
+        <div><small>Pagado</small><br /><strong>L. @Model.TotalPagado.ToString("N2")</strong></div>
+        <div><small>Saldo pendiente</small><br /><strong style="color:var(--color-warning-text);">L. @Model.SaldoPendiente.ToString("N2")</strong></div>
+        <div><small>Saldo vencido</small><br /><strong style="color:var(--color-danger-text);">L. @Model.SaldoVencido.ToString("N2")</strong></div>
+        @if (Model.Cliente.LimiteCredito > 0)
+        {
+            <div><small>Crédito disponible</small><br /><strong>L. @Model.CreditoDisponible.ToString("N2")</strong></div>
+        }
+    </div>
+</div>
+
+<div class="module-card" style="margin-top:16px;">
+    <h3 style="padding:16px 16px 0;">Ventas a crédito</h3>
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>Venta</th><th>Factura</th><th>Fecha</th><th>Vence</th>
+                    <th style="text-align:right;">Total</th><th style="text-align:right;">Pagado</th>
+                    <th style="text-align:right;">Saldo</th><th style="text-align:right;">Días vencido</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Ventas.Any())
+                {
+                    <tr><td colspan="8" style="text-align:center;padding:20px;">Sin ventas a crédito</td></tr>
+                }
+                @foreach (var f in Model.Ventas)
+                {
+                    <tr>
+                        <td><a asp-page="/Ventas/Details" asp-route-id="@f.Venta.Id">@f.Venta.Numero</a></td>
+                        <td>@(f.FacturaNumero ?? "—")</td>
+                        <td>@f.Venta.Fecha.ToString("dd/MM/yyyy")</td>
+                        <td>@f.Vencimiento.ToString("dd/MM/yyyy")</td>
+                        <td style="text-align:right;">@f.Venta.Total.ToString("N2")</td>
+                        <td style="text-align:right;">@f.Pagado.ToString("N2")</td>
+                        <td style="text-align:right;"><strong>@f.Venta.SaldoPendiente.ToString("N2")</strong></td>
+                        <td style="text-align:right;color:@(f.DiasVencido > 0 ? "var(--color-danger-text)" : "inherit");">@(f.DiasVencido > 0 ? f.DiasVencido.ToString() : "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="module-card" style="margin-top:16px;">
+    <h3 style="padding:16px 16px 0;">Pagos recibidos (últimos 100)</h3>
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead><tr><th>Fecha</th><th>Referencia</th><th style="text-align:right;">Monto</th></tr></thead>
+            <tbody>
+                @if (!Model.Pagos.Any())
+                {
+                    <tr><td colspan="3" style="text-align:center;padding:20px;">Sin pagos</td></tr>
+                }
+                @foreach (var p in Model.Pagos)
+                {
+                    <tr>
+                        <td>@p.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>@(p.Referencia ?? "—")</td>
+                        <td style="text-align:right;">@p.Monto.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.Devoluciones.Any())
+{
+    <div class="module-card" style="margin-top:16px;">
+        <h3 style="padding:16px 16px 0;">Devoluciones</h3>
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Número</th><th>Fecha</th><th>Motivo</th><th style="text-align:right;">Total</th></tr></thead>
+                <tbody>
+                    @foreach (var d in Model.Devoluciones)
+                    {
+                        <tr>
+                            <td><a asp-page="/Devoluciones/Details" asp-route-id="@d.Id">@d.Numero</a></td>
+                            <td>@d.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@d.Motivo</td>
+                            <td style="text-align:right;">@d.Total.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+</div>

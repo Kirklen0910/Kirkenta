@@ -1,5 +1,6 @@
 using Kirkenta.Data;
 using Kirkenta.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kirkenta.Helpers
 {
@@ -14,7 +15,53 @@ namespace Kirkenta.Helpers
             {
                 var count = ContarDocumentos(context, tipo);
                 var prefijo = tipo.Substring(0, Math.Min(3, tipo.Length)).ToUpper();
-                return $"{prefijo}-{(count + 1):D4}";
+
+                // Contar documentos no basta: si se borran documentos (p.ej. al deshacer un lote migrado) el
+                // conteo baja y el siguiente número chocaría con uno existente. Se toma el mayor entre el
+                // conteo y el último número realmente usado.
+                var temporal = new SerieDocumento
+                {
+                    Prefijo = prefijo,
+                    Separador = "-",
+                    LongitudNumero = 4,
+                    SiguienteNumero = count + 1
+                };
+                SincronizarSerie(context, temporal, tipo, guardar: false);
+                return $"{prefijo}-{temporal.SiguienteNumero:D4}";
+            }
+
+            // Proveedores relacionales (MySQL): reclamo ATÓMICO del correlativo.
+            // UPDATE ... WHERE SiguienteNumero = <valor leído>. Si otro usuario se adelantó
+            // (0 filas), se recarga la serie y se reintenta: dos usuarios nunca reciben el mismo número.
+            if (context.Database.IsRelational())
+            {
+                for (int intento = 0; intento < 10; intento++)
+                {
+                    SincronizarSerie(context, serie, tipo);
+
+                    var entrada = context.Entry(serie);
+                    var propNum = entrada.Property(s => s.SiguienteNumero);
+                    var original = propNum.OriginalValue;
+                    var usar = serie.SiguienteNumero;
+                    var serieId = serie.Id;
+
+                    var filas = context.SeriesDocumentos
+                        .Where(s => s.Id == serieId && s.SiguienteNumero == original)
+                        .ExecuteUpdate(s => s.SetProperty(x => x.SiguienteNumero, usar + 1));
+
+                    if (filas == 1)
+                    {
+                        var numeroAtomico = GenerarNumero(serie);
+                        serie.SiguienteNumero = usar + 1;
+                        propNum.OriginalValue = usar + 1;
+                        propNum.IsModified = false;
+                        return numeroAtomico;
+                    }
+
+                    entrada.Reload();
+                }
+
+                throw new InvalidOperationException("No se pudo reservar el número de documento, intenta de nuevo.");
             }
 
             SincronizarSerie(context, serie, tipo);
@@ -71,7 +118,7 @@ namespace Kirkenta.Helpers
             return $"{prefijo}{sep}{numero}";
         }
 
-        private static void SincronizarSerie(ApplicationDbContext context, SerieDocumento serie, string tipo)
+        private static void SincronizarSerie(ApplicationDbContext context, SerieDocumento serie, string tipo, bool guardar = true)
         {
             try
             {
@@ -146,6 +193,16 @@ namespace Kirkenta.Helpers
                         ultimoNumero = context.BajasInventario
                             .Where(b => b.Numero.StartsWith(prefijoConSep))
                             .Select(b => b.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "Cliente":
+                        ultimoNumero = context.Clientes
+                            .Where(c => c.Codigo != null && c.Codigo.StartsWith(prefijoConSep))
+                            .Select(c => c.Codigo!)
                             .AsEnumerable()
                             .Select(s => ExtraerNumero(s!, prefijoConSep))
                             .DefaultIfEmpty(0)
@@ -295,6 +352,56 @@ namespace Kirkenta.Helpers
                             .Max();
                         break;
 
+                    case "TomaFisica":
+                        ultimoNumero = context.TomasFisicas
+                            .Where(x => x.Numero.StartsWith(prefijoConSep))
+                            .Select(x => x.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "AsientoContable":
+                        ultimoNumero = context.AsientosContables
+                            .Where(x => x.Numero.StartsWith(prefijoConSep))
+                            .Select(x => x.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "GastoCajaChica":
+                        ultimoNumero = context.GastosCajaChica
+                            .Where(x => x.Numero.StartsWith(prefijoConSep))
+                            .Select(x => x.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "ActivoFijo":
+                        ultimoNumero = context.ActivosFijos
+                            .Where(x => x.Codigo.StartsWith(prefijoConSep))
+                            .Select(x => x.Codigo)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
+                    case "OrdenProduccion":
+                        ultimoNumero = context.OrdenesProduccion
+                            .Where(x => x.Numero.StartsWith(prefijoConSep))
+                            .Select(x => x.Numero)
+                            .AsEnumerable()
+                            .Select(s => ExtraerNumero(s!, prefijoConSep))
+                            .DefaultIfEmpty(0)
+                            .Max();
+                        break;
+
                     // ===== LOGÍSTICA =====
                     case "Envio":
                         ultimoNumero = context.Envios
@@ -330,7 +437,7 @@ namespace Kirkenta.Helpers
                 if (ultimoNumero >= serie.SiguienteNumero)
                 {
                     serie.SiguienteNumero = ultimoNumero + 1;
-                    context.SaveChanges();
+                    if (guardar) context.SaveChanges();
                 }
             }
             catch (Exception ex)
@@ -373,6 +480,7 @@ namespace Kirkenta.Helpers
                 "Venta" => context.Ventas.Count(),
                 "Factura" => context.Facturas.Count(),
                 "Devolucion" => context.Devoluciones.Count(),
+                "Cliente" => context.Clientes.Count(),
 
                 // Inventario
                 "Producto" => context.Productos.Count(),
@@ -402,6 +510,13 @@ namespace Kirkenta.Helpers
                 "Envio" => context.Envios.Count(),
                 "Ruta" => context.Rutas.Count(),
                 "Repartidor" => context.Repartidores.Count(),
+
+                // Módulos nuevos
+                "TomaFisica" => context.TomasFisicas.Count(),
+                "AsientoContable" => context.AsientosContables.Count(),
+                "GastoCajaChica" => context.GastosCajaChica.Count(),
+                "ActivoFijo" => context.ActivosFijos.Count(),
+                "OrdenProduccion" => context.OrdenesProduccion.Count(),
 
                 _ => 0
             };

@@ -1,3 +1,5 @@
+using Kirkenta.Helpers;
+using Microsoft.AspNetCore.Mvc;
 using Kirkenta.Data;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -55,8 +57,15 @@ namespace Kirkenta.Pages.Reportes
             public decimal TotalInvertido { get; set; }
         }
 
-        public void OnGet(DateTime? desde, DateTime? hasta, int? proveedorId, string? producto)
+        public IActionResult OnGet(DateTime? desde, DateTime? hasta, int? proveedorId, string? producto)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Reportes", "Compras", "ver") ||
+                  PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Compras", "Reportes", "ver")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             if (desde.HasValue) Desde = desde.Value;
             if (hasta.HasValue) Hasta = hasta.Value;
             FiltroProveedorId = proveedorId;
@@ -70,7 +79,7 @@ namespace Kirkenta.Pages.Reportes
 
             // === Filtrar órdenes ===
             var ordenesQuery = _context.OrdenesCompra
-                .Where(o => o.Fecha >= desdeFull && o.Fecha <= hastaFull && o.Estado != "Cancelada");
+                .Where(o => o.Fecha >= desdeFull && o.Fecha <= hastaFull && o.Estado != "Cancelada" && o.Estado != "Borrador");
 
             if (FiltroProveedorId.HasValue)
             {
@@ -166,6 +175,8 @@ namespace Kirkenta.Pages.Reportes
                 labels = topProd.Select(x => x.NombreProducto).ToArray(),
                 data = topProd.Select(x => x.CantidadComprada).ToArray()
             });
+
+            return Page();
         }
     }
 }

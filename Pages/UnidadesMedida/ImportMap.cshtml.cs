@@ -24,12 +24,19 @@ namespace Kirkenta.Pages.UnidadesMedida
         [BindProperty]
         public Dictionary<string, string> Mapeo { get; set; } = new();
 
+        public IActionResult OnGetPlantilla()
+        {
+            WizardConfig = BuildConfig();
+            return File(WizardConfig.PlantillaXlsx(), ImportReportHelper.TipoXlsx,
+                $"plantilla_{ColumnMapper.Normalizar(WizardConfig.NombrePlural)}.xlsx");
+        }
+
         public IActionResult OnGet()
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
             WizardConfig = BuildConfig();
-            if (currentRol != "Admin") return Redirect(WizardConfig.UrlIndex);
+            if (!Kirkenta.Helpers.PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "UnidadesMedida", "crear")) return Redirect(WizardConfig.UrlIndex);
 
             if (!CargarDesdeSesion())
             {
@@ -46,7 +53,7 @@ namespace Kirkenta.Pages.UnidadesMedida
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
             WizardConfig = BuildConfig();
-            if (currentRol != "Admin") return Redirect(WizardConfig.UrlIndex);
+            if (!Kirkenta.Helpers.PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "UnidadesMedida", "crear")) return Redirect(WizardConfig.UrlIndex);
 
             if (!CargarDesdeSesion())
             {
@@ -76,8 +83,9 @@ namespace Kirkenta.Pages.UnidadesMedida
 
             ImportWizardHelper.LimpiarSesion(HttpContext.Session, WizardConfig);
 
-            TempData["Success"] = $"Importación completada: {resultado.Resumen()}";
-            return Redirect(WizardConfig.UrlIndex);
+            // Éxito limpio => mensaje y listado. Con errores/advertencias => pantalla de resultado
+            // con el motivo de cada fila y CSV descargable para corregir y reintentar.
+            return ImportReportHelper.Finalizar(this, WizardConfig.UrlIndex, resultado, HeadersArchivo, FilasArchivo);
         }
 
         private bool CargarDesdeSesion()
@@ -119,12 +127,17 @@ namespace Kirkenta.Pages.UnidadesMedida
             };
         }
 
+        private string EtiquetaDe(string campo) =>
+            ImportWizardConfig.EtiquetaLimpia(WizardConfig.Campos.FirstOrDefault(c => c.Key == campo)?.Label ?? campo);
+
         private ImportResult ImportarUnidades(
             List<Dictionary<string, string>> filas,
             Dictionary<string, string> mapa,
             int? usuarioId)
         {
             var resultado = new ImportResult { TotalFilas = filas.Count };
+
+            var creadasEnArchivo = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             int filaNum = 1;
             foreach (var fila in filas)
@@ -138,6 +151,9 @@ namespace Kirkenta.Pages.UnidadesMedida
                         if (string.IsNullOrEmpty(header)) return null;
                         return fila.GetValueOrDefault(header)?.Trim();
                     }
+
+                    string? T(string campo, int max) =>
+                        ImportHelper.Texto(resultado, filaNum, EtiquetaDe(campo), Obtener(campo), max);
 
                     var nombre = Obtener("Nombre");
                     if (string.IsNullOrWhiteSpace(nombre))
@@ -159,19 +175,29 @@ namespace Kirkenta.Pages.UnidadesMedida
                     }
                     if (abreviatura.Length > 10)
                     {
+                        resultado.AgregarAdvertencia(filaNum, $"'Abreviatura' excede 10 caracteres; se recortó '{abreviatura}'.");
                         abreviatura = abreviatura.Substring(0, 10);
                     }
+
+                    if (creadasEnArchivo.Contains(nombre))
+                    {
+                        resultado.AgregarAdvertencia(filaNum, $"La unidad '{nombre}' está repetida en el archivo; se ignora esta fila.");
+                        resultado.Ignorados++;
+                        continue;
+                    }
+
+                    var descripcion = T("Descripcion", 200);
 
                     var existente = _context.UnidadesMedida
                         .FirstOrDefault(u => u.Nombre.ToLower() == nombre.ToLower());
 
-                    var activa = ParserHelper.ParsearBool(Obtener("Activa"));
+                    var activa = ImportHelper.Booleano(resultado, filaNum, EtiquetaDe("Activa"), Obtener("Activa"));
 
                     if (existente != null)
                     {
                         existente.Nombre = nombre;
                         existente.Abreviatura = abreviatura;
-                        existente.Descripcion = Obtener("Descripcion") ?? existente.Descripcion;
+                        existente.Descripcion = descripcion ?? existente.Descripcion;
                         existente.Activa = activa ?? existente.Activa;
                         resultado.Actualizados++;
                     }
@@ -181,11 +207,12 @@ namespace Kirkenta.Pages.UnidadesMedida
                         {
                             Nombre = nombre,
                             Abreviatura = abreviatura,
-                            Descripcion = Obtener("Descripcion"),
+                            Descripcion = descripcion,
                             Activa = activa ?? true,
                             FechaCreacion = DateTime.Now
                         };
                         _context.UnidadesMedida.Add(unidad);
+                        creadasEnArchivo.Add(nombre);
                         resultado.Creados++;
                     }
                 }
@@ -195,7 +222,7 @@ namespace Kirkenta.Pages.UnidadesMedida
                 }
             }
 
-            _context.SaveChanges();
+            ImportHelper.GuardarSeguro(_context, resultado, () => _context.SaveChanges());
             return resultado;
         }
     }

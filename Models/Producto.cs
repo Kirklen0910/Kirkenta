@@ -34,6 +34,16 @@ namespace Kirkenta.Models
         public string? Imagen { get; set; }
 
         public bool Activo { get; set; } = true;
+
+        /// <summary>Si es false, el producto nunca recibe descuentos en la venta (ni por línea ni el descuento general).</summary>
+        public bool PermiteDescuento { get; set; } = true;
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
+
+        // ===== CONCURRENCIA OPTIMISTA =====
+        // EF Core 9 con Pomelo MySQL tiene un bug al mapear byte[] con
+        // IsRowVersion(). Usamos DateTime (que mapea a TIMESTAMP(6)) como
+        // token de concurrencia. MySQL lo actualiza en cada UPDATE con
+        // ON UPDATE CURRENT_TIMESTAMP(6).
+        public DateTime RowVersion { get; set; }
     }
 }

@@ -31,6 +31,19 @@ namespace Kirkenta.Pages.PagosProveedor
 
         public string TabActiva { get; set; } = "pagos";
 
+        private const int TamanoPagina = 50;
+
+        [BindProperty(SupportsGet = true)]
+        public string? Q { get; set; }
+
+        [BindProperty(SupportsGet = true)]
+        public int? ProveedorId { get; set; }
+
+        [BindProperty(SupportsGet = true, Name = "p")]
+        public int Pagina { get; set; } = 1;
+
+        public PagerInfo Pager { get; set; } = new();
+
         public IActionResult OnGet(string? tab)
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
@@ -45,10 +58,17 @@ namespace Kirkenta.Pages.PagosProveedor
 
             TabActiva = tab == "porpagar" ? "porpagar" : "pagos";
 
-            Pagos = _context.PagosProveedor
-                .AsNoTracking()
-                .OrderByDescending(p => p.Fecha)
-                .ToList();
+            // Pagos filtrados y paginados en la base de datos (antes se cargaba todo el historial)
+            var pagosQuery = _context.PagosProveedor.AsNoTracking().AsQueryable();
+            if (ProveedorId.HasValue) pagosQuery = pagosQuery.Where(p => p.ProveedorId == ProveedorId.Value);
+            if (!string.IsNullOrWhiteSpace(Q))
+            {
+                var texto = Q.Trim();
+                var idsProv = _context.Proveedores.Where(x => x.Nombre.Contains(texto)).Select(x => x.Id);
+                pagosQuery = pagosQuery.Where(p => (p.Numero != null && p.Numero.Contains(texto)) || idsProv.Contains(p.ProveedorId));
+            }
+            Pager = new PagerInfo(Pagina, TamanoPagina, pagosQuery.Count());
+            Pagos = pagosQuery.OrderByDescending(p => p.Fecha).Skip(Pager.Skip).Take(TamanoPagina).ToList();
 
             Proveedores = _context.Proveedores
                 .AsNoTracking()
@@ -58,8 +78,10 @@ namespace Kirkenta.Pages.PagosProveedor
                 .AsNoTracking()
                 .ToList();
 
+            var idsOrdenes = Pagos.Where(p => p.OrdenCompraId.HasValue).Select(p => p.OrdenCompraId!.Value).Distinct().ToList();
             OrdenesCompra = _context.OrdenesCompra
                 .AsNoTracking()
+                .Where(o => idsOrdenes.Contains(o.Id))
                 .ToList();
 
             // Cuentas por pagar = Recibida o RecibidaParcial con saldo > 0
@@ -74,17 +96,16 @@ namespace Kirkenta.Pages.PagosProveedor
             var inicioMes = new DateTime(ahora.Year, ahora.Month, 1);
             var finMes = inicioMes.AddMonths(1);
 
-            var pagosMes = Pagos
-                .Where(p => p.Fecha >= inicioMes && p.Fecha < finMes)
-                .ToList();
-
-            TotalPagadoMes = pagosMes.Sum(p => p.Monto);
-            CantidadPagosMes = pagosMes.Count;
+            // KPIs sobre TODOS los pagos (no solo la página mostrada)
+            var pagosMes = _context.PagosProveedor.AsNoTracking()
+                .Where(p => p.Fecha >= inicioMes && p.Fecha < finMes);
+            TotalPagadoMes = pagosMes.Sum(p => (decimal?)p.Monto) ?? 0m;
+            CantidadPagosMes = pagosMes.Count();
 
             TotalPorPagar = OrdenesPorPagar.Sum(o => o.Saldo);
             OrdenesPendientes = OrdenesPorPagar.Count;
             ProveedoresConDeuda = OrdenesPorPagar.Select(o => o.ProveedorId).Distinct().Count();
-            TotalHistorico = Pagos.Sum(p => p.Monto);
+            TotalHistorico = _context.PagosProveedor.AsNoTracking().Sum(p => (decimal?)p.Monto) ?? 0m;
 
             return Page();
         }

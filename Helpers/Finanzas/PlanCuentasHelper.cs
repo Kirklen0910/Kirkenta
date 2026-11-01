@@ -56,6 +56,8 @@ namespace Kirkenta.Helpers.Finanzas
                 ("2.1.03", "Sueldos y Salarios por Pagar", "Pasivo", "2.1", true),
                 ("2.1.04", "Retenciones", "Pasivo", "2.1", true),
                 ("2.1.05", "Préstamos a Corto Plazo", "Pasivo", "2.1", true),
+                ("2.1.06", "Saldos a favor de clientes", "Pasivo", "2.1", true),
+                ("2.1.99", "Envíos cobrados por aplicar al flete", "Pasivo", "2.1", true),
                 ("2.2", "Pasivo No Corriente", "Pasivo", "2", false),
                 ("2.2.01", "Préstamos a Largo Plazo", "Pasivo", "2.2", true),
                 ("2.2.02", "Provisiones Laborales", "Pasivo", "2.2", true),

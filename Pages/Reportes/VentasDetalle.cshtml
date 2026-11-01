@@ -1,0 +1,216 @@
+@page
+@model Kirkenta.Pages.Reportes.VentasDetalleModel
+@{
+    ViewData["Title"] = "Ventas por período";
+    string D(DateTime? d) => d?.ToString("yyyy-MM-dd") ?? "";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Reportes/Index" class="back-link">← Volver a reportes</a>
+        <h2>Ventas por período</h2>
+        <p>Del @Model.Desde?.ToString("dd/MM/yyyy") al @Model.Hasta?.ToString("dd/MM/yyyy"). Por día, método de pago, cajero, cliente o venta por venta.</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Reportes/VentasDetalle" asp-page-handler="Csv"
+           asp-route-desde="@D(Model.Desde)" asp-route-hasta="@D(Model.Hasta)"
+           asp-route-metodoPagoId="@Model.MetodoPagoId" asp-route-cajeroId="@Model.CajeroId"
+           asp-route-clienteId="@Model.ClienteId" asp-route-productoId="@Model.ProductoId"
+           asp-route-buscar="@Model.Buscar" asp-route-tipo="@Model.Tipo" asp-route-estado="@Model.Estado"
+           class="btn-secondary">Exportar CSV</a>
+        <button type="button" class="btn-secondary" onclick="window.print()">Imprimir</button>
+    </div>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">@TempData["Error"]</div>
+}
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card"><span class="kpi-label">Ventas</span><span class="kpi-value">@Model.CantidadVentas</span>
+        <span class="kpi-trend">ticket promedio L. @Model.TicketPromedio.ToString("N2")</span></div>
+    <div class="kpi-card"><span class="kpi-label">Total vendido</span><span class="kpi-value">L. @Model.TotalCobrado.ToString("N2")</span>
+        <span class="kpi-trend">con ISV y envío</span></div>
+    <div class="kpi-card"><span class="kpi-label">Descuentos</span><span class="kpi-value">L. @Model.TotalDescuento.ToString("N2")</span>
+        <span class="kpi-trend">sobre bruto L. @Model.TotalBruto.ToString("N2")</span></div>
+    <div class="kpi-card"><span class="kpi-label">ISV</span><span class="kpi-value">L. @Model.TotalIsv.ToString("N2")</span></div>
+    <div class="kpi-card"><span class="kpi-label">Envíos cobrados</span><span class="kpi-value">L. @Model.TotalEnvio.ToString("N2")</span>
+        <span class="kpi-trend">no cuentan como utilidad</span></div>
+    <div class="kpi-card"><span class="kpi-label">Utilidad</span>
+        <span class="kpi-value" style="color:@(Model.TotalUtilidad >= 0 ? "#065f46" : "#b91c1c");">L. @Model.TotalUtilidad.ToString("N2")</span>
+        <span class="kpi-trend">neto L. @Model.TotalNeto.ToString("N2") − costo L. @Model.TotalCosto.ToString("N2")</span></div>
+</div>
+
+<div class="module-card">
+    <form method="get" class="module-toolbar" style="gap:12px;flex-wrap:wrap;">
+        <div class="form-field"><label>Desde</label>
+            <input type="date" name="Desde" class="form-input" value="@D(Model.Desde)" /></div>
+        <div class="form-field"><label>Hasta</label>
+            <input type="date" name="Hasta" class="form-input" value="@D(Model.Hasta)" /></div>
+        <div class="form-field"><label>Método de pago</label>
+            <select name="MetodoPagoId" class="form-input">
+                <option value="">Todos</option>
+                <option value="-1" selected="@(Model.MetodoPagoId == -1)">Crédito</option>
+                @foreach (var m in Model.Metodos)
+                {
+                    <option value="@m.Value" selected="@(Model.MetodoPagoId.ToString() == m.Value)">@m.Text</option>
+                }
+            </select></div>
+        <div class="form-field"><label>Cajero</label>
+            <select name="CajeroId" class="form-input">
+                <option value="">Todos</option>
+                @foreach (var c in Model.Cajeros)
+                {
+                    <option value="@c.Value" selected="@(Model.CajeroId.ToString() == c.Value)">@c.Text</option>
+                }
+            </select></div>
+        <div class="form-field"><label>Tipo</label>
+            <select name="Tipo" class="form-input">
+                <option value="">Contado y crédito</option>
+                <option value="contado" selected="@(Model.Tipo == "contado")">Contado</option>
+                <option value="credito" selected="@(Model.Tipo == "credito")">Crédito</option>
+            </select></div>
+        <div class="form-field"><label>Estado</label>
+            <select name="Estado" class="form-input">
+                <option value="vigentes" selected="@(Model.Estado == "vigentes")">Vigentes</option>
+                <option value="anuladas" selected="@(Model.Estado == "anuladas")">Anuladas</option>
+                <option value="todas" selected="@(Model.Estado == "todas")">Todas</option>
+            </select></div>
+        <div class="form-field"><label>Cliente / # venta</label>
+            <input type="text" name="Buscar" class="form-input" value="@Model.Buscar" placeholder="Nombre, RTN o número" /></div>
+        <div class="form-field"><label>Agrupar por</label>
+            <select name="Agrupar" class="form-input">
+                <option value="dia" selected="@(Model.Agrupar == "dia")">Día</option>
+                <option value="metodo" selected="@(Model.Agrupar == "metodo")">Método de pago</option>
+                <option value="cajero" selected="@(Model.Agrupar == "cajero")">Cajero</option>
+                <option value="cliente" selected="@(Model.Agrupar == "cliente")">Cliente</option>
+                <option value="venta" selected="@(Model.Agrupar == "venta")">Venta por venta</option>
+            </select></div>
+        <input type="hidden" name="ClienteId" value="@Model.ClienteId" />
+        <input type="hidden" name="ProductoId" value="@Model.ProductoId" />
+        <div class="form-field" style="align-self:flex-end;"><button type="submit" class="btn-primary">Filtrar</button></div>
+    </form>
+
+    @if (Model.ClienteId.HasValue || Model.ProductoId.HasValue)
+    {
+        <p style="margin:0 0 12px;">
+            Filtrado por:
+            @if (Model.ClienteId.HasValue) { <strong>Cliente @Model.ClienteNombre</strong> }
+            @if (Model.ProductoId.HasValue) { <strong> Producto @Model.ProductoNombre</strong> }
+            · <a asp-page="/Reportes/VentasDetalle" asp-route-desde="@D(Model.Desde)" asp-route-hasta="@D(Model.Hasta)">quitar</a>
+        </p>
+    }
+
+    @if (Model.MetodosResumen.Any())
+    {
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+            @foreach (var m in Model.MetodosResumen)
+            {
+                <a asp-page="/Reportes/VentasDetalle" asp-route-desde="@D(Model.Desde)" asp-route-hasta="@D(Model.Hasta)"
+                   asp-route-metodoPagoId="@m.Clave" asp-route-agrupar="venta" asp-route-estado="@Model.Estado"
+                   class="btn-secondary" style="font-size:13px;">@m.Etiqueta: L. @m.Cobrado.ToString("N2")</a>
+            }
+        </div>
+    }
+
+    <div class="table-wrapper">
+        @if (Model.Agrupar == "venta")
+        {
+            <table class="erp-table">
+                <thead><tr>
+                    <th>Fecha</th><th>Venta</th><th>Cliente</th><th>Cajero</th><th>Pago</th>
+                    <th style="text-align:right;">Bruto</th><th style="text-align:right;">Descuento</th>
+                    <th style="text-align:right;">Envío</th><th style="text-align:right;">ISV</th>
+                    <th style="text-align:right;">Total</th><th style="text-align:right;">Utilidad</th>
+                </tr></thead>
+                <tbody>
+                @if (!Model.Ventas.Any())
+                {
+                    <tr><td colspan="11" style="text-align:center;padding:24px;">Sin ventas con estos filtros</td></tr>
+                }
+                @foreach (var v in Model.Ventas)
+                {
+                    <tr>
+                        <td>@v.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td><a asp-page="/Ventas/Details" asp-route-id="@v.Id">@v.Numero</a>@if (v.Estado != "Completada") { <span style="color:#b91c1c;font-size:12px;"> (@v.Estado)</span> }</td>
+                        <td>@if (v.ClienteId.HasValue) { <a asp-page="/Clientes/Details" asp-route-id="@v.ClienteId">@v.Cliente</a> } else { @v.Cliente }</td>
+                        <td>@v.Cajero</td>
+                        <td>@v.Metodo</td>
+                        <td style="text-align:right;">L. @v.Bruto.ToString("N2")</td>
+                        <td style="text-align:right;">@(v.Descuento > 0 ? "L. " + v.Descuento.ToString("N2") : "—")</td>
+                        <td style="text-align:right;">@(v.Envio > 0 ? "L. " + v.Envio.ToString("N2") : "—")</td>
+                        <td style="text-align:right;">L. @v.Isv.ToString("N2")</td>
+                        <td style="text-align:right;"><strong>L. @v.Total.ToString("N2")</strong></td>
+                        <td style="text-align:right;color:@(v.Utilidad < 0 ? "#b91c1c" : "#065f46");">L. @v.Utilidad.ToString("N2")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            var etiqueta = Model.Agrupar switch { "metodo" => "Método de pago", "cajero" => "Cajero", "cliente" => "Cliente", _ => "Día" };
+            var esMetodo = Model.Agrupar == "metodo";
+            <table class="erp-table">
+                <thead><tr>
+                    <th>@etiqueta</th><th style="text-align:right;">Ventas</th>
+                    @if (!esMetodo)
+                    {
+                        <th style="text-align:right;">Bruto</th><th style="text-align:right;">Descuento</th>
+                        <th style="text-align:right;">Envío</th><th style="text-align:right;">ISV</th>
+                    }
+                    <th style="text-align:right;">@(esMetodo ? "Cobrado" : "Total")</th>
+                    @if (!esMetodo) { <th style="text-align:right;">Utilidad</th> }
+                    <th></th>
+                </tr></thead>
+                <tbody>
+                @if (!Model.Grupos.Any())
+                {
+                    <tr><td colspan="9" style="text-align:center;padding:24px;">Sin ventas con estos filtros</td></tr>
+                }
+                @foreach (var g in Model.Grupos)
+                {
+                    <tr>
+                        <td>@g.Etiqueta</td>
+                        <td style="text-align:right;">@g.Ventas</td>
+                        @if (!esMetodo)
+                        {
+                            <td style="text-align:right;">L. @g.Bruto.ToString("N2")</td>
+                            <td style="text-align:right;">@(g.Descuento > 0 ? "L. " + g.Descuento.ToString("N2") : "—")</td>
+                            <td style="text-align:right;">@(g.Envio > 0 ? "L. " + g.Envio.ToString("N2") : "—")</td>
+                            <td style="text-align:right;">L. @g.Isv.ToString("N2")</td>
+                        }
+                        <td style="text-align:right;"><strong>L. @g.Total.ToString("N2")</strong></td>
+                        @if (!esMetodo)
+                        {
+                            <td style="text-align:right;color:@(g.Utilidad < 0 ? "#b91c1c" : "#065f46");">L. @g.Utilidad.ToString("N2")</td>
+                        }
+                        <td>
+                            @switch (Model.Agrupar)
+                            {
+                                case "metodo":
+                                    <a asp-page="/Reportes/VentasDetalle" asp-route-desde="@D(Model.Desde)" asp-route-hasta="@D(Model.Hasta)" asp-route-metodoPagoId="@g.Clave" asp-route-agrupar="venta" asp-route-estado="@Model.Estado">ver ventas</a>
+                                    break;
+                                case "cajero":
+                                    <a asp-page="/Reportes/VentasDetalle" asp-route-desde="@D(Model.Desde)" asp-route-hasta="@D(Model.Hasta)" asp-route-cajeroId="@g.Clave" asp-route-agrupar="venta" asp-route-estado="@Model.Estado">ver ventas</a>
+                                    break;
+                                case "cliente":
+                                    <a asp-page="/Reportes/VentasDetalle" asp-route-desde="@D(Model.Desde)" asp-route-hasta="@D(Model.Hasta)" asp-route-clienteId="@g.Clave" asp-route-agrupar="venta" asp-route-estado="@Model.Estado">ver ventas</a>
+                                    break;
+                                default:
+                                    <a asp-page="/Reportes/VentasDetalle" asp-route-desde="@g.Clave" asp-route-hasta="@g.Clave" asp-route-agrupar="venta" asp-route-estado="@Model.Estado">ver ventas</a>
+                                    break;
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </div>
+    @if (Model.CantidadVentas >= 5000)
+    {
+        <p style="color:#b45309;margin-top:10px;">Se muestran las 5000 ventas más recientes; acota el rango de fechas para ver el resto.</p>
+    }
+</div>

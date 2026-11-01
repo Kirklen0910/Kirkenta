@@ -19,7 +19,7 @@ namespace Kirkenta.Pages.Impuestos
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin") return RedirectToPage("/Impuestos/Index");
+            if (!Kirkenta.Helpers.PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Configuracion", "Impuestos", "ver")) return RedirectToPage("/Impuestos/Index");
 
             var columns = ExportColumns.Impuestos();
 
@@ -40,7 +40,7 @@ namespace Kirkenta.Pages.Impuestos
             return formato.ToLower() switch
             {
                 "csv" => CsvExporter.Export(items, columns),
-                "json" => JsonExporter.Export(items),
+                "json" => JsonExporter.Export(items, columns),
                 _ => ExcelExporter.Export(items, columns, "Impuestos", titulo)
             };
         }

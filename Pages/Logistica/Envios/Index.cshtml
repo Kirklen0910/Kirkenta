@@ -56,9 +56,9 @@
 
 <!-- KPIs de alertas -->
 <div class="kpi-grid" style="margin-bottom: 20px;">
-    <a asp-page="/Logistica/Envios/Index" asp-route-filtro="atrasados" class="kpi-card" style="text-decoration: none; cursor: pointer; border-left: 4px solid #ef4444; @(Model.FiltroAlerta == "atrasados" ? "box-shadow: 0 0 0 2px #ef4444;" : "")">
+    <a asp-page="/Logistica/Envios/Index" asp-route-filtro="atrasados" class="kpi-card" style="text-decoration: none; cursor: pointer; border-left: 4px solid var(--color-danger); @(Model.FiltroAlerta == "atrasados" ? "box-shadow: 0 0 0 2px #ef4444;" : "")">
         <span class="kpi-label">🔴 Atrasados</span>
-        <span class="kpi-value" style="color: #ef4444;">@Model.TotalAtrasados</span>
+        <span class="kpi-value" style="color: var(--color-danger);">@Model.TotalAtrasados</span>
         <span class="kpi-trend">Ver solo atrasados</span>
     </a>
     <a asp-page="/Logistica/Envios/Index" asp-route-filtro="vencenHoy" class="kpi-card" style="text-decoration: none; cursor: pointer; border-left: 4px solid #f59e0b; @(Model.FiltroAlerta == "vencenHoy" ? "box-shadow: 0 0 0 2px #f59e0b;" : "")">
@@ -78,12 +78,12 @@
     </a>
     <a asp-page="/Logistica/Envios/Index" asp-route-filtro="entregados" class="kpi-card" style="text-decoration: none; cursor: pointer; @(Model.FiltroAlerta == "entregados" ? "box-shadow: 0 0 0 2px #10b981;" : "")">
         <span class="kpi-label">✅ Entregados</span>
-        <span class="kpi-value" style="color: #10b981;">@Model.TotalEntregados</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.TotalEntregados</span>
         <span class="kpi-trend">Completados</span>
     </a>
     <a asp-page="/Logistica/Envios/Index" asp-route-filtro="fallidos" class="kpi-card" style="text-decoration: none; cursor: pointer; @(Model.FiltroAlerta == "fallidos" ? "box-shadow: 0 0 0 2px #dc2626;" : "")">
         <span class="kpi-label">❌ Fallidos</span>
-        <span class="kpi-value" style="color: #dc2626;">@Model.TotalFallidos</span>
+        <span class="kpi-value" style="color: var(--color-danger-strong);">@Model.TotalFallidos</span>
         <span class="kpi-trend">Requieren reagendar</span>
     </a>
 </div>
@@ -148,13 +148,13 @@
             "sinRuta" => "📭 Mostrando envíos SIN RUTA ASIGNADA",
             _ => ""
         };
-        <div style="padding: 10px 16px; background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary); border-radius: 6px; font-size: 13px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="padding: 10px 16px; background: var(--color-primary-soft); border: 1px solid var(--color-primary-border); color: var(--color-primary); border-radius: 6px; font-size: 13px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
             <span><strong>@texto</strong></span>
             <a asp-page="/Logistica/Envios/Index" style="font-size: 12px; text-decoration: underline;">Quitar filtro</a>
         </div>
     }
 
-    @if (Model.Envios.Count == 0)
+    @if (Model.Pager.Total == 0)
     {
         <div class="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -258,7 +258,7 @@
                                         <span class="table-user-sub">
                                             @if (e.DiasDiferencia.Value > 0)
                                             {
-                                                <span style="color: #ef4444;">@e.DiasDiferencia día(s) atrasado</span>
+                                                <span style="color: var(--color-danger);">@e.DiasDiferencia día(s) atrasado</span>
                                             }
                                             else
                                             {
@@ -313,5 +313,6 @@
                 </tbody>
             </table>
         </div>
+        <partial name="_Pager" model="Model.Pager" />
     }
 </div>

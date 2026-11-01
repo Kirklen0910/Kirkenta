@@ -1,0 +1,243 @@
+@page
+@model Kirkenta.Pages.Configuracion.ActualizacionesModel
+@{
+    ViewData["Title"] = "Actualizaciones del sistema";
+}
+
+<style>
+    .act-wrap { display: grid; gap: 20px; max-width: 880px; }
+    .act-versiones { display: flex; flex-wrap: wrap; gap: 28px; align-items: center; }
+    .act-ver small { display: block; color: var(--color-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+    .act-ver strong { font-size: 26px; line-height: 1.1; }
+    .act-flecha { font-size: 22px; color: var(--color-muted); }
+    .act-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--color-primary); color: #fff; }
+    .act-badge.ok { background: #2e9e5b; }
+    .act-notas { white-space: pre-wrap; padding: 14px 16px; border-radius: 10px; background: rgba(128,128,128,.10); line-height: 1.5; }
+    .act-lista { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+    .act-lista li { display: flex; gap: 10px; align-items: flex-start; color: var(--color-muted); font-size: 14px; line-height: 1.45; }
+    .act-lista li::before { content: "✓"; flex: none; width: 20px; height: 20px; border-radius: 50%; background: rgba(46,158,91,.18); color: #2e9e5b; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+    .act-form { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; padding-top: 18px; border-top: 1px solid rgba(128,128,128,.25); }
+    .act-form .form-group { margin: 0; flex: 1 1 260px; max-width: 340px; }
+    .act-form label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--color-muted); }
+    .act-card-titulo { margin: 0 0 14px; font-size: 18px; }
+    .act-barra { height: 16px; border-radius: 999px; background: rgba(128,128,128,.25); overflow: hidden; }
+    .act-barra > div { height: 100%; width: 0; border-radius: 999px; background: var(--color-primary); transition: width .6s ease; }
+    .act-barra.error > div { background: #d64545; }
+    .act-pct { display: flex; justify-content: space-between; margin: 10px 0 18px; font-size: 14px; }
+    .act-pct strong { font-size: 22px; }
+    .act-pasos { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+    .act-pasos li { display: flex; gap: 12px; align-items: center; font-size: 14px; color: var(--color-muted); }
+    .act-pasos .punto { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(128,128,128,.45); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+    .act-pasos li.hecho { color: inherit; }
+    .act-pasos li.hecho .punto { background: #2e9e5b; border-color: #2e9e5b; color: #fff; }
+    .act-pasos li.actual { color: inherit; font-weight: 600; }
+    .act-pasos li.actual .punto { border-color: var(--color-primary); animation: actPulso 1.2s ease-in-out infinite; }
+    @@keyframes actPulso { 0%,100% { box-shadow: 0 0 0 0 rgba(99,102,241,.45); } 50% { box-shadow: 0 0 0 6px rgba(99,102,241,0); } }
+    .act-aviso { margin-top: 18px; padding: 12px 14px; border-radius: 10px; background: rgba(245,158,11,.12); font-size: 13px; line-height: 1.45; }
+</style>
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Actualizaciones del sistema</h2>
+        <p>Mantén Kirkenta al día sin instalar nada a mano. Tus datos nunca se borran.</p>
+    </div>
+    @if (Model.Configurado && !Model.EnCurso)
+    {
+        <form method="post" asp-page-handler="Buscar">
+            <button type="submit" class="btn btn-secondary">🔎 Buscar actualizaciones</button>
+        </form>
+    }
+</div>
+
+<div class="act-wrap">
+
+@if (!string.IsNullOrEmpty(Model.Mensaje))
+{
+    <div class="module-alert @(Model.MensajeEsError ? "module-alert-error" : "module-alert-success")" role="alert" style="margin:0;">@Model.Mensaje</div>
+}
+
+@if (!Model.Configurado)
+{
+    <div class="module-card">
+        Las actualizaciones por internet no están activadas en esta versión del sistema. Pide a soporte una versión con actualizaciones habilitadas.
+    </div>
+}
+else if (Model.EnCurso)
+{
+    <div class="module-card" id="panelAvance">
+        <h3 class="act-card-titulo">⏳ Actualizando a la versión <span id="verDestino">@Model.VersionDestino</span></h3>
+        <div class="act-barra" id="barra"><div id="barraRelleno"></div></div>
+        <div class="act-pct"><span id="textoEstado">Preparando...</span><strong id="textoPct">0%</strong></div>
+
+        <ol class="act-pasos" id="pasos">
+            <li data-paso="descarga"><span class="punto"></span>Descargar la actualización</li>
+            <li data-paso="verificacion"><span class="punto"></span>Verificar que esté completa y sin alteraciones</li>
+            <li data-paso="respaldo"><span class="punto"></span>Respaldo de seguridad de tus datos</li>
+            <li data-paso="instalando"><span class="punto"></span>Instalar la nueva versión</li>
+            <li data-paso="reinicio"><span class="punto"></span>Reiniciar el sistema</li>
+        </ol>
+
+        <div class="act-aviso" id="avisoAvance">
+            No cierres esta ventana ni apagues la computadora. Esta página se recargará sola cuando el sistema esté listo.
+        </div>
+        <div id="cajaError" style="display:none;margin-top:18px;">
+            <div class="module-alert module-alert-error" id="textoError" style="margin:0 0 14px;"></div>
+            <a class="btn btn-primary" href="/Configuracion/Actualizaciones">Volver e intentar de nuevo</a>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var ORDEN = ['descarga', 'verificacion', 'respaldo', 'instalando', 'reinicio'];
+            var $ = function (id) { return document.getElementById(id); };
+            var cayo = false, tCaida = 0, tInstalando = 0, ultimoPct = 2, termino = false;
+
+            function pintar(fase, pct, texto) {
+                ultimoPct = Math.max(ultimoPct, pct);
+                $('barraRelleno').style.width = ultimoPct + '%';
+                $('textoPct').textContent = Math.round(ultimoPct) + '%';
+                if (texto) $('textoEstado').textContent = texto;
+                var idx = ORDEN.indexOf(fase === 'lanzando' ? 'instalando' : fase);
+                var items = document.querySelectorAll('#pasos li');
+                for (var i = 0; i < items.length; i++) {
+                    items[i].className = i < idx ? 'hecho' : (i === idx ? 'actual' : '');
+                    items[i].querySelector('.punto').textContent = i < idx ? '✓' : '';
+                }
+            }
+
+            function fallo(msg) {
+                termino = true;
+                $('barra').className = 'act-barra error';
+                $('textoError').textContent = msg;
+                $('cajaError').style.display = 'block';
+                $('avisoAvance').style.display = 'none';
+                $('textoEstado').textContent = 'La actualización no se pudo completar';
+            }
+
+            // Mientras el sistema esta apagado por el instalador no hay datos reales: se estima el avance con el tiempo
+            function estimado() {
+                var t = (Date.now() - (tCaida || tInstalando || Date.now())) / 1000;
+                var base = cayo ? 92 : 90;
+                var tope = 99;
+                return base + (tope - base) * (1 - Math.exp(-t / 150));
+            }
+
+            function sondeo() {
+                if (termino) return;
+                fetch('/Configuracion/Actualizaciones?handler=Estado', { cache: 'no-store', credentials: 'same-origin' })
+                    .then(function (r) {
+                        var tipo = r.headers.get('content-type') || '';
+                        if (cayo) { listo(); return null; }          // el sistema volvio a responder despues de apagarse
+                        if (tipo.indexOf('json') < 0) return null;   // sesion vencida u otra respuesta: se ignora
+                        return r.json();
+                    })
+                    .then(function (d) {
+                        if (!d) return;
+                        if (d.error) { fallo(d.mensaje || 'Ocurrió un error.'); return; }
+                        if (!d.activa) {
+                            // El sistema se reinicio con la version nueva (el estado se borra al arrancar)
+                            if (d.actual === d.version || !d.version) { listo(); return; }
+                            return;
+                        }
+                        if (d.fase === 'instalando' && !tInstalando) tInstalando = Date.now();
+                        var pct = d.fase === 'instalando' ? Math.max(d.porcentaje, estimado()) : d.porcentaje;
+                        pintar(d.fase, pct, d.fase === 'instalando' ? 'Instalando la nueva versión (puede tardar unos minutos)...' : d.mensaje);
+                    })
+                    .catch(function () {
+                        if (!cayo) { cayo = true; tCaida = Date.now(); }
+                        pintar('reinicio', estimado(), 'El sistema se está reiniciando con la nueva versión...');
+                    })
+                    .finally(function () { if (!termino) setTimeout(sondeo, cayo ? 3000 : 1000); });
+            }
+
+            function listo() {
+                if (termino) return;
+                termino = true;
+                pintar('listo', 100, '¡Listo! Recargando...');
+                var items = document.querySelectorAll('#pasos li');
+                for (var i = 0; i < items.length; i++) { items[i].className = 'hecho'; items[i].querySelector('.punto').textContent = '✓'; }
+                setTimeout(function () { location.href = '/Configuracion/Actualizaciones'; }, 1800);
+            }
+
+            // Si el sistema nunca se apaga, algo no arranco: se avisa en vez de esperar para siempre
+            setInterval(function () {
+                if (termino) return;
+                if (tInstalando && !cayo && (Date.now() - tInstalando) > 180000) {
+                    $('avisoAvance').textContent = 'Está tardando más de lo normal. Si pasan 10 minutos, revisa el archivo actualizar.log en la carpeta C:\\Kirkenta\\actualizaciones.';
+                }
+            }, 5000);
+
+            pintar('descarga', 2, 'Preparando...');
+            sondeo();
+        })();
+    </script>
+}
+else if (Model.Disponible != null)
+{
+    var d = Model.Disponible;
+    <div class="module-card">
+        <div class="act-versiones">
+            <div class="act-ver"><small>Instalada</small><strong>@Model.VersionActual</strong></div>
+            <div class="act-flecha">→</div>
+            <div class="act-ver"><small>Disponible</small><strong>@d.Version</strong></div>
+            <span class="act-badge">🆕 Nueva versión</span>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(d.Fecha) || d.Bytes > 0)
+        {
+            <p style="color:var(--color-muted);font-size:13px;margin:14px 0 0;">
+                @(!string.IsNullOrWhiteSpace(d.Fecha) ? $"Publicada el {d.Fecha}" : "")@(d.Bytes > 0 ? $" · Tamaño: {(d.Bytes / 1048576.0):N0} MB" : "")
+            </p>
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(d.Notas))
+    {
+        <div class="module-card">
+            <h3 class="act-card-titulo">Novedades</h3>
+            <div class="act-notas">@d.Notas</div>
+        </div>
+    }
+
+    <div class="module-card">
+        <h3 class="act-card-titulo">Antes de instalar</h3>
+        <ul class="act-lista">
+            <li><span>Tus datos (ventas, clientes, productos, usuarios y licencia) <strong>no se borran ni se reemplazan</strong>; solo se agregan las mejoras.</span></li>
+            <li><span>Se crea un <strong>respaldo automático</strong> justo antes de instalar. Si no se puede crear, no se actualiza.</span></li>
+            <li><span>El instalador se verifica con una <strong>firma digital</strong>; si algo no coincide, no se instala.</span></li>
+            <li><span>El sistema se detiene unos minutos: <strong>avisa a los demás usuarios</strong> que terminen lo que están haciendo.</span></li>
+        </ul>
+
+        @if (Model.PuedeInstalar)
+        {
+            <form method="post" asp-page-handler="Instalar" class="act-form" style="margin-top:22px;" onsubmit="return confirm('El sistema se detendrá unos minutos y nadie podrá usarlo. ¿Instalar la versión @d.Version ahora?');">
+                <div class="form-group">
+                    <label for="Password">Tu contraseña (para confirmar)</label>
+                    <input type="password" id="Password" name="Password" class="form-control" autocomplete="current-password" required />
+                </div>
+                <button type="submit" class="btn btn-primary">⬇️ Descargar e instalar @d.Version</button>
+            </form>
+        }
+        else
+        {
+            <p style="margin-top:18px;">Este sistema no fue instalado con el instalador de Kirkenta, así que la actualización debe hacerse manualmente.</p>
+        }
+    </div>
+}
+else
+{
+    <div class="module-card">
+        <div class="act-versiones">
+            <div class="act-ver"><small>Versión instalada</small><strong>@Model.VersionActual</strong></div>
+            @if (Model.UltimaRevision != null) { <span class="act-badge ok">✓ Al día</span> }
+        </div>
+        <p style="color:var(--color-muted);font-size:14px;margin:16px 0 0;line-height:1.5;">
+            @if (Model.UltimaRevision != null)
+            {
+                <text>Última búsqueda: @Model.UltimaRevision.Value.ToString("dd/MM/yyyy HH:mm"). </text>
+            }
+            Pulsa <strong>Buscar actualizaciones</strong> para consultar si hay una versión nueva. El sistema también lo revisa solo cada 12 horas.
+        </p>
+    </div>
+}
+
+</div>

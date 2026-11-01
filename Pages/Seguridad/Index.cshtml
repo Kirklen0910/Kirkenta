@@ -1,0 +1,177 @@
+@page
+@model Kirkenta.Pages.Seguridad.IndexModel
+@{
+    ViewData["Title"] = "Seguridad";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Seguridad</h2>
+        <p>Resumen de usuarios, roles y eventos de acceso</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Usuarios/Index" class="btn-secondary">Gestionar usuarios</a>
+        <a asp-page="/Usuarios/Roles" class="btn-secondary">Gestionar roles</a>
+        <a asp-page="/Seguridad/Auditoria" class="btn-primary">Ver auditoría</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">@TempData["Error"]</div>
+}
+
+<div class="module-card" style="margin-bottom: 20px;">
+    <h3 style="margin-top:0;">Respaldo de la base de datos</h3>
+    @if (Model.Respaldo.Ultimo == null)
+    {
+        <div class="module-alert module-alert-error">Todavía no hay ningún respaldo. Programa el respaldo diario (ver abajo).</div>
+    }
+    else
+    {
+        <div class="module-alert @(Model.AvisoRespaldo == null ? "module-alert-success" : Model.AvisoRespaldo.Nivel == "danger" ? "module-alert-error" : "module-alert-warning")">
+            Último respaldo: <strong>@Model.Respaldo.Ultimo.Value.ToString("dd/MM/yyyy HH:mm")</strong>
+            (@((Model.Respaldo.UltimoBytes / 1024.0 / 1024.0).ToString("0.##")) MB) · @Model.Respaldo.Cantidad respaldo(s) guardado(s)
+            @if (Model.AvisoRespaldo != null) { <span> · @Model.AvisoRespaldo.Texto</span> }
+        </div>
+    }
+    <p class="table-user-sub" style="margin:8px 0 0;">
+        Programar el respaldo diario: <code>powershell -ExecutionPolicy Bypass -File .\tools\programar-respaldo.ps1</code><br />
+        Probar que el último respaldo sí se restaura (usa una base temporal, no toca la real): <code>powershell -ExecutionPolicy Bypass -File .\tools\probar-restauracion.ps1</code>
+    </p>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Usuarios</span>
+        <span class="kpi-value">@Model.Total</span>
+        <span class="kpi-trend">@Model.Activos activos · @Model.Inactivos inactivos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Bloqueados</span>
+        <span class="kpi-value" style="color: var(--color-danger);">@Model.Bloqueados</span>
+        <span class="kpi-trend">Por intentos fallidos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Sin acceso en 30 días</span>
+        <span class="kpi-value" style="color: var(--color-warning);">@Model.SinAcceso30</span>
+        <span class="kpi-trend">Usuarios activos inactivos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Logins fallidos hoy</span>
+        <span class="kpi-value">@Model.FallosHoy</span>
+        <span class="kpi-trend">Revisa la auditoría</span>
+    </div>
+</div>
+
+<div class="module-card" style="margin-bottom: 20px;">
+    <div style="padding: 16px 20px; font-weight: 600;">Roles</div>
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead>
+                <tr><th>Rol</th><th>Descripción</th><th>Usuarios</th><th>Tipo</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model.Roles)
+                {
+                    <tr>
+                        <td><span class="badge" style="background: @r.Color; color: var(--color-on-primary);">@r.Nombre</span></td>
+                        <td>@r.Descripcion</td>
+                        <td>@r.Usuarios</td>
+                        <td>@(r.EsSistema ? "Sistema" : "Personalizado")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="module-card" style="margin-bottom: 20px;">
+    <div style="padding: 16px 20px; font-weight: 600;">Usuarios que requieren atención</div>
+    @if (Model.UsuariosAtencion.Count == 0)
+    {
+        <div class="empty-state">
+            <h3>Todo en orden</h3>
+            <p>No hay usuarios bloqueados, con intentos fallidos ni pendientes de rol</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr><th>Usuario</th><th>Rol</th><th>Intentos fallidos</th><th>Estado</th><th>Último acceso</th><th style="text-align:right;">Acciones</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in Model.UsuariosAtencion)
+                    {
+                        var bloqueado = u.BloqueadoHasta.HasValue && u.BloqueadoHasta.Value > DateTime.Now;
+                        <tr>
+                            <td><strong>@u.Username</strong><br /><small>@u.Email</small></td>
+                            <td>@u.Rol</td>
+                            <td>@u.IntentosFallidos</td>
+                            <td>
+                                @if (bloqueado)
+                                {
+                                    <span class="badge badge-danger">Bloqueado hasta @u.BloqueadoHasta!.Value.ToString("dd/MM HH:mm")</span>
+                                }
+                                else if (u.Rol == "Pendiente")
+                                {
+                                    <span class="badge badge-warning">Sin rol asignado</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-info">Con intentos fallidos</span>
+                                }
+                            </td>
+                            <td>@(u.UltimoAcceso.HasValue ? u.UltimoAcceso.Value.ToString("dd/MM/yyyy HH:mm") : "Nunca")</td>
+                            <td style="text-align:right;">
+                                @if (Model.PuedeEditar && (bloqueado || u.IntentosFallidos > 0))
+                                {
+                                    <form method="post" asp-page-handler="Desbloquear" asp-route-id="@u.Id" style="display:inline;">
+                                        <button type="submit" class="btn-secondary">Desbloquear</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="module-card">
+    <div style="padding: 16px 20px; font-weight: 600; display:flex; justify-content:space-between;">
+        <span>Actividad reciente</span>
+        <a asp-page="/Seguridad/Auditoria">Ver todo</a>
+    </div>
+    @if (Model.Recientes.Count == 0)
+    {
+        <div class="empty-state"><h3>Sin actividad registrada</h3></div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th><th>IP</th></tr></thead>
+                <tbody>
+                    @foreach (var a in Model.Recientes)
+                    {
+                        <tr>
+                            <td>@a.Fecha.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                            <td>@(Model.NombresUsuario.TryGetValue(a.UsuarioId, out var nombre) ? nombre : "—")</td>
+                            <td>@a.Accion</td>
+                            <td>@a.Detalle</td>
+                            <td>@a.Ip</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

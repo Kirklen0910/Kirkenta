@@ -41,9 +41,9 @@ namespace Kirkenta.Pages.Impuestos
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Impuestos", "editar"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para editar o aprobar aquí";
                 return RedirectToPage("/Impuestos/Index");
             }
 
@@ -71,9 +71,9 @@ namespace Kirkenta.Pages.Impuestos
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Impuestos", "editar"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para editar o aprobar aquí";
                 return RedirectToPage("/Impuestos/Index");
             }
 
@@ -91,6 +91,30 @@ namespace Kirkenta.Pages.Impuestos
                 ModelState.AddModelError("Input.Nombre", "Ya existe un impuesto con este nombre");
                 return Page();
             }
+
+            if (Input.Porcentaje < 0 || Input.Porcentaje > 100)
+            {
+                ModelState.AddModelError(string.Empty, "El porcentaje debe estar entre 0 y 100");
+                return Page();
+            }
+
+            // El sistema siempre necesita un impuesto predeterminado y activo (sin él el ISV sale en 0)
+            if (impuesto.EsPredeterminado && !Input.EsPredeterminado)
+            {
+                ModelState.AddModelError(string.Empty, "Este es el impuesto predeterminado. Para cambiarlo, marca otro impuesto como predeterminado.");
+                return Page();
+            }
+            if (Input.EsPredeterminado && !Input.Activo)
+            {
+                ModelState.AddModelError(string.Empty, "El impuesto predeterminado debe estar activo.");
+                return Page();
+            }
+
+            var cambiosImpuesto = CambiosHelper.Describir(
+                ("Nombre", impuesto.Nombre, Input.Nombre),
+                ("Porcentaje", impuesto.Porcentaje, Input.Porcentaje),
+                ("Predeterminado", impuesto.EsPredeterminado, Input.EsPredeterminado),
+                ("Activo", impuesto.Activo, Input.Activo));
 
             // Si es predeterminado, quitar el anterior
             if (Input.EsPredeterminado && !impuesto.EsPredeterminado)
@@ -111,7 +135,7 @@ namespace Kirkenta.Pages.Impuestos
                 _context,
                 currentUser?.Id ?? 0,
                 "Editar impuesto",
-                $"Editó el impuesto '{impuesto.Nombre}'",
+                $"Editó el impuesto '{impuesto.Nombre}'. {cambiosImpuesto}",
                 HttpContext.Connection.RemoteIpAddress?.ToString());
 
             TempData["Success"] = $"Impuesto '{impuesto.Nombre}' actualizado";

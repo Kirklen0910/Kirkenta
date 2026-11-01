@@ -1,0 +1,54 @@
+@page "{id:int}"
+@model Kirkenta.Pages.DevolucionesProveedor.DetailsModel
+@{
+    ViewData["Title"] = $"Devolución {Model.Devolucion.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/DevolucionesProveedor/Index" class="back-link">← Volver</a>
+        <h2>Devolución @Model.Devolucion.Numero</h2>
+        <p>@Model.Devolucion.Fecha.ToString("dd/MM/yyyy HH:mm") — @Model.Devolucion.Estado</p>
+    </div>
+    <div class="module-header-right">
+        <button type="button" class="btn-secondary" onclick="window.print()">Imprimir</button>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">@TempData["Success"]</div>
+}
+
+<div class="module-card" style="padding:32px;">
+    <p>Proveedor: <strong>@(Model.Proveedor?.Nombre ?? "—")</strong> · Orden: <strong>@(Model.Orden?.Numero ?? "—")</strong></p>
+    <p>Motivo: @(Model.Devolucion.Motivo ?? "—")</p>
+
+    <div class="table-wrapper" style="margin-top:16px;">
+        <table class="erp-table">
+            <thead>
+                <tr><th>Producto</th><th style="text-align:right;">Cantidad</th><th style="text-align:right;">Costo unit.</th><th style="text-align:right;">Total</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var (det, producto) in Model.Items)
+                {
+                    <tr>
+                        <td>@producto</td>
+                        <td style="text-align:right;">@det.Cantidad.ToString("0.##")</td>
+                        <td style="text-align:right;">L. @det.PrecioUnitario.ToString("N2")</td>
+                        <td style="text-align:right;">L. @det.Total.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr><td colspan="3" style="text-align:right;"><strong>Total devuelto</strong></td><td style="text-align:right;"><strong>L. @Model.Devolucion.Total.ToString("N2")</strong></td></tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <p style="margin-top:16px;">Redujo la deuda con el proveedor: <strong>L. @Model.Devolucion.MontoAplicadoSaldo.ToString("N2")</strong></p>
+    @if (Model.Devolucion.MontoPorRecuperar > 0)
+    {
+        <p>Por recuperar del proveedor (la orden ya estaba pagada): <strong>L. @Model.Devolucion.MontoPorRecuperar.ToString("N2")</strong></p>
+    }
+</div>

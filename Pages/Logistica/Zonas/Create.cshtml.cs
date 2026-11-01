@@ -91,7 +91,7 @@ namespace Kirkenta.Pages.Logistica.Zonas
                 Activa = Input.Activa,
                 Orden = Input.Orden,
                 FechaCreacion = DateTime.Now,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             _context.ZonasEnvio.Add(zona);

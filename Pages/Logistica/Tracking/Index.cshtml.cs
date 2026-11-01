@@ -89,15 +89,16 @@ namespace Kirkenta.Pages.Logistica.Tracking
             {
                 Id = e.Id,
                 OrdenParada = e.OrdenParada,
-                ClienteNombre = e.ClienteNombre,
-                DireccionEntrega = e.DireccionEntrega,
+                // Página pública y anónima: nunca se exponen datos personales de los clientes
+                ClienteNombre = EnmascararNombre(e.ClienteNombre),
+                DireccionEntrega = "Dirección protegida",
                 Ciudad = e.Ciudad,
-                Referencia = e.Referencia,
+                Referencia = null,
                 Estado = e.Estado,
                 FechaEntregaEstimada = e.FechaEntregaEstimada,
                 FechaEntregaReal = e.FechaEntregaReal,
-                NombreRecibio = e.NombreRecibio,
-                MotivoFallo = e.MotivoFallo
+                NombreRecibio = string.IsNullOrWhiteSpace(e.NombreRecibio) ? null : EnmascararNombre(e.NombreRecibio),
+                MotivoFallo = e.Estado == "Fallido" ? "No se pudo completar la entrega" : null
             }).ToList();
 
             TotalParadas = Paradas.Count;
@@ -122,6 +123,23 @@ namespace Kirkenta.Pages.Logistica.Tracking
                 .Where(h => h.RutaId == ruta.Id)
                 .OrderByDescending(h => h.Fecha)
                 .ToList();
+
+            // No exponer usuarios internos ni detalles libres (pueden incluir nombres o motivos)
+            foreach (var h in Historial)
+            {
+                h.Detalle = null;
+                h.UsuarioNombre = null;
+                h.UsuarioId = null;
+            }
+        }
+
+        /// <summary>"Juan Carlos Pérez" → "Juan P." (solo para mostrar públicamente).</summary>
+        private static string EnmascararNombre(string? nombre)
+        {
+            if (string.IsNullOrWhiteSpace(nombre)) return "Cliente";
+            var partes = nombre.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (partes.Length == 1) return partes[0];
+            return $"{partes[0]} {partes[^1][0]}.";
         }
     }
 }

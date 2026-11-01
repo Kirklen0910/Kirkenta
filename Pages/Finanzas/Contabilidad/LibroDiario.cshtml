@@ -1,0 +1,68 @@
+@page
+@model Kirkenta.Pages.Finanzas.Contabilidad.LibroDiarioModel
+@{
+    ViewData["Title"] = "Libro diario";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Libro diario</h2>
+        <p>Asientos contables en orden cronológico</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Finanzas/Asientos/Index" class="btn-secondary">Asientos</a>
+        <a asp-page="/Finanzas/Contabilidad/LibroMayor" class="btn-secondary">Libro mayor</a>
+    </div>
+</div>
+
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="filter-group">
+            <input type="date" name="Desde" class="filter-select" value="@(Model.Desde?.ToString("yyyy-MM-dd"))" />
+            <input type="date" name="Hasta" class="filter-select" value="@(Model.Hasta?.ToString("yyyy-MM-dd"))" />
+            <button type="submit" class="btn-secondary">Consultar</button>
+        </div>
+    </form>
+
+    @if (Model.Partidas.Count == 0)
+    {
+        <div class="empty-state"><h3>No hay asientos en el período</h3></div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Fecha</th><th>Asiento</th><th>Cuenta</th><th style="text-align:right;">Debe</th><th style="text-align:right;">Haber</th></tr></thead>
+                <tbody>
+                    @foreach (var p in Model.Partidas)
+                    {
+                        <tr style="background: var(--color-surface-2);">
+                            <td><strong>@p.Asiento.Fecha.ToString("dd/MM/yyyy")</strong></td>
+                            <td colspan="4"><a asp-page="/Finanzas/Asientos/Details" asp-route-id="@p.Asiento.Id"><strong>@p.Asiento.Numero</strong></a> — @p.Asiento.Concepto</td>
+                        </tr>
+                        foreach (var l in p.Lineas)
+                        {
+                            <tr>
+                                <td></td>
+                                <td></td>
+                                <td style="@(l.Haber > 0 ? "padding-left: 32px;" : "")">@(Model.Cuentas.TryGetValue(l.PlanCuentaId, out var c) ? c.Codigo + " — " + c.Nombre : "Cuenta eliminada")</td>
+                                <td style="text-align:right;">@(l.Debe > 0 ? l.Debe.ToString("N2") : "")</td>
+                                <td style="text-align:right;">@(l.Haber > 0 ? l.Haber.ToString("N2") : "")</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" style="text-align:right; font-weight:600;">Totales del período</td>
+                        <td style="text-align:right; font-weight:600;">L. @Model.TotalDebe.ToString("N2")</td>
+                        <td style="text-align:right; font-weight:600;">L. @Model.TotalHaber.ToString("N2")</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+    }
+</div>

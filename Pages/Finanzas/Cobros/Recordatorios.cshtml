@@ -1,0 +1,159 @@
+@page
+@model Kirkenta.Pages.Finanzas.Cobros.RecordatoriosModel
+@{
+    ViewData["Title"] = "Recordatorios de cobro";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/Cobros/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a Cuentas por Cobrar
+        </a>
+        <h2>Recordatorios de cobro</h2>
+        <p>Un mensaje formal por cliente, listo para enviar por WhatsApp. Queda registrado a quién se le recordó y cuándo.</p>
+    </div>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Clientes en la lista</span>
+        <span class="kpi-value" id="kpiClientes">@Model.Filas.Count</span>
+        <span class="kpi-trend">@(Model.SinTelefono > 0 ? $"{Model.SinTelefono} sin teléfono válido" : "Todos con teléfono")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Saldo total</span>
+        <span class="kpi-value" style="color: var(--color-primary);">L. @Model.TotalSaldo.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Saldo vencido</span>
+        <span class="kpi-value" style="color: var(--color-danger);">L. @Model.TotalVencido.ToString("N2")</span>
+    </div>
+</div>
+
+<div class="module-card">
+    <form method="get" class="module-toolbar" style="margin-bottom: 16px; gap: 8px; flex-wrap: wrap;">
+        <select name="Filtro" class="filter-select" onchange="this.form.submit()">
+            <option value="vencidos" selected="@(Model.Filtro == "vencidos")">Solo con saldo vencido</option>
+            <option value="sinaviso" selected="@(Model.Filtro == "sinaviso")">Vencidos sin aviso en 7 días</option>
+            <option value="todos" selected="@(Model.Filtro == "todos")">Todos con saldo</option>
+        </select>
+        <select name="DiasMinimos" class="filter-select" onchange="this.form.submit()">
+            <option value="0" selected="@(Model.DiasMinimos == 0)">Cualquier atraso</option>
+            <option value="8" selected="@(Model.DiasMinimos == 8)">Más de 7 días</option>
+            <option value="16" selected="@(Model.DiasMinimos == 16)">Más de 15 días</option>
+            <option value="31" selected="@(Model.DiasMinimos == 31)">Más de 30 días</option>
+            <option value="61" selected="@(Model.DiasMinimos == 61)">Más de 60 días</option>
+        </select>
+        <button type="button" class="btn-primary" id="btnSiguiente" @(Model.Filas.Any(f => f.Enlace != null) ? "" : "disabled")>
+            Enviar al siguiente cliente
+        </button>
+    </form>
+
+    @Html.AntiForgeryToken()
+
+    @if (Model.Filas.Count == 0)
+    {
+        <div class="empty-state">
+            <h3>Nada por recordar 🎉</h3>
+            <p>No hay clientes que cumplan este filtro.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table" id="tablaRecordatorios">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Teléfono</th>
+                        <th style="text-align:right;">Docs.</th>
+                        <th style="text-align:right;">Saldo</th>
+                        <th style="text-align:right;">Vencido</th>
+                        <th>Atraso</th>
+                        <th>Último aviso</th>
+                        <th style="text-align:right;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var f in Model.Filas)
+                    {
+                        <tr data-cliente="@f.ClienteId" data-url="@f.Enlace">
+                            <td><strong>@f.Nombre</strong></td>
+                            <td>@(string.IsNullOrWhiteSpace(f.Telefono) ? "—" : f.Telefono)</td>
+                            <td style="text-align:right;">@f.Documentos</td>
+                            <td style="text-align:right;">L. @f.Saldo.ToString("N2")</td>
+                            <td style="text-align:right; color: var(--color-danger);">@(f.Vencido > 0 ? "L. " + f.Vencido.ToString("N2") : "—")</td>
+                            <td>
+                                @if (f.DiasAtraso > 0)
+                                {
+                                    <span class="badge @(f.DiasAtraso > 30 ? "badge-danger" : "badge-warning")">@f.DiasAtraso días</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-info">Al día</span>
+                                }
+                            </td>
+                            <td class="ult">@(f.UltimoRecordatorio.HasValue ? f.UltimoRecordatorio.Value.ToString("dd/MM/yyyy HH:mm") : "Nunca")</td>
+                            <td style="text-align:right;">
+                                @if (f.Enlace != null)
+                                {
+                                    <button type="button" class="btn-secondary btn-sm btn-enviar">Enviar WhatsApp</button>
+                                }
+                                else
+                                {
+                                    <span class="table-user-sub">Sin teléfono válido</span>
+                                }
+                                <a asp-page="/Finanzas/Cobros/Index" class="btn-secondary btn-sm">Ver cobros</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p class="table-user-sub" style="margin-top:12px;">
+            Al presionar el botón se abre WhatsApp con el mensaje escrito; tú solo das enviar. El sistema deja constancia del aviso.
+        </p>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+            var filas = Array.prototype.slice.call(document.querySelectorAll('#tablaRecordatorios tbody tr'));
+
+            function marcar(tr) {
+                var url = tr.dataset.url;
+                if (!url) return;
+                window.open(url, '_blank', 'noopener');
+                fetch('?handler=Registrar&clienteId=' + encodeURIComponent(tr.dataset.cliente), {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': token }
+                }).then(function (r) { return r.ok ? r.json() : null; })
+                  .then(function (j) {
+                      if (!j) return;
+                      tr.querySelector('.ult').textContent = j.fecha;
+                      tr.dataset.enviado = '1';
+                      var b = tr.querySelector('.btn-enviar');
+                      if (b) b.textContent = 'Enviado ✓';
+                  }).catch(function () { });
+            }
+
+            filas.forEach(function (tr) {
+                var b = tr.querySelector('.btn-enviar');
+                if (b) b.addEventListener('click', function () { marcar(tr); });
+            });
+
+            var sig = document.getElementById('btnSiguiente');
+            if (sig) sig.addEventListener('click', function () {
+                var tr = filas.find(function (x) { return x.dataset.url && x.dataset.enviado !== '1'; });
+                if (!tr) { sig.textContent = 'Ya recorriste toda la lista ✓'; sig.disabled = true; return; }
+                tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                marcar(tr);
+            });
+        })();
+    </script>
+}

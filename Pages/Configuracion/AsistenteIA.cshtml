@@ -1,0 +1,199 @@
+@page
+@model Kirkenta.Pages.Configuracion.AsistenteIAModel
+@{
+    ViewData["Title"] = "Asistente con IA";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Asistente con IA (opcional)</h2>
+        <p>El asistente ya funciona completo <strong>sin costo y sin IA</strong>, con reglas. Si quieres que entienda frases más libres, puedes conectarle una IA: local y gratis (Ollama) o de pago (Claude de Anthropic, OpenAI u otro compatible).</p>
+    </div>
+</div>
+
+@{
+    var activa = Model.ActivaGuardada;
+}
+
+<div class="module-card" id="estadoIA" style="display:flex;gap:12px;align-items:center;border-left:4px solid @(activa ? "var(--color-success)" : "var(--color-faint)");">
+    <span style="font-size:22px;" aria-hidden="true">@(activa ? "🟢" : "⚪")</span>
+    <div>
+        <strong>@(activa ? "IA activa (guardada)" : "IA apagada")</strong>
+        <div style="color:var(--color-muted);font-size:13px;">
+            @if (activa) { <text>El asistente usa el modelo <code>@Model.ModeloGuardado</code> cuando las reglas no entienden una frase.</text> }
+            else { <text>El asistente funciona solo con reglas (sin costo). Configura y guarda abajo para activar la IA.</text> }
+        </div>
+    </div>
+</div>
+
+@if (Model.Diagnostico != null)
+{
+    <div class="module-card" style="border-left:4px solid var(--color-info, var(--color-primary));">
+        <strong>Último intento de la IA en el chat</strong>
+        <div style="color:var(--color-muted);font-size:13px;word-break:break-word;">@Model.Diagnostico</div>
+    </div>
+}
+
+@if (Model.Resultado != null)
+{
+    <div class="module-card" role="status" style="border-left:4px solid @(Model.ResultadoOk ? "var(--color-success)" : "var(--color-danger)");">
+        <strong>@(Model.ResultadoOk ? "✅ Prueba exitosa" : "❌ La prueba falló")</strong>
+        <div style="color:var(--color-muted);font-size:13px;">@Model.Resultado</div>
+        @if (Model.ModelosDisponibles.Count > 0)
+        {
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+                @foreach (var m in Model.ModelosDisponibles)
+                {
+                    <button type="button" class="btn-secondary" style="padding:4px 10px;font-size:12px;" data-modelo="@m">@m</button>
+                }
+            </div>
+        }
+        @if (Model.ResultadoOk)
+        {
+            <div style="font-size:13px;margin-top:6px;">Si marcaste “Activar IA” y pulsaste <strong>Guardar</strong>, ya está funcionando.</div>
+        }
+    </div>
+}
+
+<div class="module-card">
+    <h3 class="form-section-title">Conexión</h3>
+    <p class="form-section-desc">Elige un proveedor para rellenar la dirección sugerida. Puedes cambiarla a mano.</p>
+
+    <form method="post" autocomplete="off">
+        @Html.AntiForgeryToken()
+
+        <div style="display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));">
+            <div class="form-group">
+                <label class="form-label" for="preset">Proveedor</label>
+                <select id="preset" class="form-input">
+                    <option value="">Personalizado</option>
+                    <option value="gemini">Google Gemini (gratis · rápido · lee imágenes)</option>
+                    <option value="groq">Groq (gratis · ultrarrápido · solo texto)</option>
+                    <option value="ollama">Ollama (local · gratis · solo texto)</option>
+                    <option value="anthropic">Claude de Anthropic (de pago · muy preciso · lee imágenes)</option>
+                    <option value="openai">OpenAI (de pago · lee imágenes)</option>
+                    <option value="openrouter">OpenRouter (varios modelos · gratis y de pago)</option>
+                </select>
+                <div id="presetNota" style="margin-top:6px;font-size:13px;color:var(--color-muted);"></div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="Endpoint">Dirección (URL) del chat</label>
+                <input id="Endpoint" name="Endpoint" class="form-input" value="@Model.Endpoint" placeholder="http://localhost:11434/v1/chat/completions" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="Modelo">Modelo</label>
+                <input id="Modelo" name="Modelo" class="form-input" value="@Model.Modelo" placeholder="qwen2.5:7b" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="ApiKey">Clave de API @(Model.TieneClave ? "(ya hay una guardada)" : "(solo si el proveedor la pide)")</label>
+                <input id="ApiKey" name="ApiKey" type="password" class="form-input" autocomplete="new-password"
+                       placeholder="@(Model.TieneClave ? "Déjala vacía para conservar la actual" : "Ollama no necesita clave")" />
+                <div id="claveAviso" role="alert" style="margin-top:6px;font-size:13px;color:var(--color-danger);"></div>
+                @if (Model.TieneClave)
+                {
+                    <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px;color:var(--color-muted);">
+                        <input type="checkbox" name="QuitarClave" value="true" /> Quitar la clave guardada
+                    </label>
+                }
+            </div>
+        </div>
+
+        <label style="display:flex;gap:8px;align-items:center;margin:16px 0;">
+            <input type="checkbox" name="Habilitada" value="true" @(Model.Habilitada ? "checked" : "") />
+            <span><strong>Activar IA en el asistente</strong> <span style="color:var(--color-muted);">(si falla o está apagada, el asistente sigue con reglas)</span></span>
+        </label>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button type="submit" asp-page-handler="Guardar" class="btn-primary">Guardar</button>
+            <button type="submit" asp-page-handler="Probar" class="btn-secondary">Probar conexión</button>
+            <button type="submit" asp-page-handler="Modelos" class="btn-secondary" title="Pide al proveedor los modelos que tu clave puede usar">Ver modelos disponibles</button>
+        </div>
+    </form>
+</div>
+
+<div class="module-card">
+    <h3 class="form-section-title">Cómo conectar Google Gemini (gratis, recomendado)</h3>
+    <ol style="line-height:1.8;margin:0;padding-left:20px;color:var(--color-text);">
+        <li>Entra a <code>aistudio.google.com</code> con una cuenta de Google y crea una clave de API (<em>Get API key</em>). El plan gratuito no pide tarjeta.</li>
+        <li>Elige <em>Google Gemini</em> arriba, pega la clave y pulsa <em>Probar conexión</em> y luego <em>Guardar</em>. Si el modelo sugerido ya no existe, copia el nombre actual de un modelo “flash” desde AI Studio.</li>
+        <li>Es rápido, no pesa nada en tu servidor y <strong>lee fotos de facturas</strong>. El plan gratis tiene límite de peticiones por minuto y por día (de sobra para un negocio pequeño) y, según las condiciones de Google, <strong>los datos del plan gratuito pueden usarse para mejorar sus productos</strong>: para facturas sensibles usa un plan de pago o Ollama local.</li>
+    </ol>
+
+    <h3 class="form-section-title" style="margin-top:20px;">Cómo conectar Ollama (gratis, local)</h3>
+    <ol style="line-height:1.8;margin:0;padding-left:20px;color:var(--color-text);">
+        <li>Instala Ollama en el servidor o en una PC de la red (ollama.com).</li>
+        <li>Descarga un modelo, por ejemplo: <code>ollama pull qwen2.5:7b</code> (con poca memoria usa <code>qwen2.5:3b</code>).</li>
+        <li>Elige <em>Ollama</em> arriba, escribe el modelo, pulsa <em>Probar conexión</em> y luego <em>Guardar</em>.</li>
+    </ol>
+
+    <h3 class="form-section-title" style="margin-top:20px;">Cómo conectar Claude (Anthropic)</h3>
+    <ol style="line-height:1.8;margin:0;padding-left:20px;color:var(--color-text);">
+        <li>Crea una clave de API en <code>console.anthropic.com</code> (la API se factura aparte de la suscripción a Claude; hay que cargar saldo).</li>
+        <li>Elige <em>Claude de Anthropic</em> arriba, pega la clave y deja el modelo sugerido (<code>claude-sonnet-5-5</code>; <code>claude-haiku-5-5</code> es más barato y rápido para el chat del asistente).</li>
+        <li>Pulsa <em>Probar conexión</em> y luego <em>Guardar</em>. Claude también <strong>lee las fotos de facturas</strong> de proveedores (Compras → Orden desde foto de factura).</li>
+    </ol>
+
+    <h3 class="form-section-title" style="margin-top:20px;">Privacidad y seguridad</h3>
+    <ul style="line-height:1.8;margin:0;padding-left:20px;color:var(--color-text);">
+        <li>En el chat, la IA solo recibe lo que el usuario escribe y la lista de acciones disponibles. <strong>Nunca ve ventas, clientes ni saldos.</strong> La única excepción es la función “orden de compra desde foto”, que envía la imagen de la factura del proveedor.</li>
+        <li>Lo que la IA elija pasa por los mismos permisos, confirmaciones y contraseñas de siempre.</li>
+        <li>La clave de API se guarda cifrada en el servidor (carpeta <code>App_Data</code>).</li>
+    </ul>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    var presets = {
+        gemini:     { url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', modelo: 'gemini-2.5-flash', pref: 'AIza', nota: 'Gratis y rápido. Entiende el chat del asistente y lee fotos de facturas. La clave empieza con AIza…' },
+        groq:       { url: 'https://api.groq.com/openai/v1/chat/completions', modelo: 'llama-3.3-70b-versatile', pref: 'gsk_', nota: 'Gratis y ultrarrápido. Solo texto: sirve para el chat del asistente, no para fotos de facturas. La clave empieza con gsk_…' },
+        ollama:     { url: 'http://localhost:11434/v1/chat/completions', modelo: 'qwen2.5:7b', pref: '', nota: 'Local y gratis, sin clave ni internet; tus datos no salen del equipo. Solo texto y depende de la memoria de la PC.' },
+        anthropic:  { url: 'https://api.anthropic.com/v1/messages', modelo: 'claude-sonnet-5-5', pref: 'sk-ant-', nota: 'De pago (carga saldo aparte). Muy preciso; entiende el chat y lee fotos de facturas. La clave empieza con sk-ant-…' },
+        openai:     { url: 'https://api.openai.com/v1/chat/completions', modelo: 'gpt-4o-mini', pref: 'sk-', nota: 'De pago. Entiende el chat y lee imágenes con modelos como gpt-4o-mini. La clave empieza con sk-…' },
+        openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions', modelo: 'openai/gpt-4o-mini', pref: 'sk-or-', nota: 'Un solo servicio con muchos modelos (algunos gratis). Lee imágenes solo si el modelo elegido las soporta. La clave empieza con sk-or-…' }
+    };
+    var sel = document.getElementById('preset');
+    var nota = document.getElementById('presetNota');
+    var clave = document.getElementById('ApiKey');
+    var aviso = document.getElementById('claveAviso');
+    var tieneGuardada = @(Model.TieneClave ? "true" : "false");
+    var urlActual = document.getElementById('Endpoint').value.trim();
+    Object.keys(presets).forEach(function (k) { if (presets[k].url === urlActual) sel.value = k; });
+    var presetInicial = sel.value;
+
+    function pintar() {
+        var p = presets[sel.value];
+        nota.textContent = p ? p.nota : '';
+        validarClave();
+    }
+    function validarClave() {
+        var p = presets[sel.value], v = (clave.value || '').trim();
+        var msg = '';
+        if (p && v && p.pref && v.indexOf(p.pref) !== 0)
+            msg = 'Esta clave no parece de este proveedor: debería empezar con ' + p.pref;
+        else if (p && !v && tieneGuardada && p.pref && sel.value !== presetInicial)
+            msg = 'Ojo: si la dejas vacía se usará la clave guardada antes, que puede ser de otro proveedor (error 401). Pega la clave de este.';
+        aviso.textContent = msg;
+    }
+    sel.addEventListener('change', function () {
+        var p = presets[sel.value];
+        if (p) {
+            document.getElementById('Endpoint').value = p.url;
+            document.getElementById('Modelo').value = p.modelo;
+        }
+        pintar();
+    });
+    clave.addEventListener('input', validarClave);
+    document.querySelectorAll('[data-modelo]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.getElementById('Modelo').value = btn.getAttribute('data-modelo');
+            document.getElementById('Modelo').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    });
+    pintar();
+})();
+</script>
+}

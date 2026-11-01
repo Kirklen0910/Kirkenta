@@ -127,7 +127,7 @@ namespace Kirkenta.Pages.RRHH.Vales
                 Notas = Input.Notas,
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = currentUser?.Id,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             _context.ValesEmpleado.Add(vale);

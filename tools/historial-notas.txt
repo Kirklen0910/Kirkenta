@@ -1,0 +1,57 @@
+﻿== 1.0.13 (2026-10-28) ==
+Importar y exportar más fiel: la plantilla ahora es Excel con una columna por campo
+Los CSV exportados se abren en columnas en Excel en español
+Importar: números como 12,5 o L. 1,250.00 se leen bien y los valores ilegibles se avisan
+Importar: reporte de errores descargable y todo o nada si falla el guardado
+Notas de actualización automáticas al publicar
+Reportes y auditoría: los CSV ahora se abren en columnas en Excel en español
+== 1.0.14 (2026-10-30) ==
+Importar y exportar más fiel: la plantilla ahora es Excel con una columna por campo
+Los CSV exportados se abren en columnas en Excel en español
+Importar: números como 12,5 o L. 1,250.00 se leen bien y los valores ilegibles se avisan
+Importar: reporte de errores descargable y todo o nada si falla el guardado
+Notas de actualización automáticas al publicar
+Reportes y auditoría: los CSV ahora se abren en columnas en Excel en español
+Navegación enlazada: ficha del cliente con historial, y enlaces entre producto, factura, venta, cliente, proveedor y orden de compra
+Compras: al recibir una orden se puede elegir costo promedio o último costo y reajustar el precio de venta manteniendo el margen
+POS: se puede vender mas de lo que hay en existencia con la autorizacion de un supervisor; el stock queda negativo y se recupera al reabastecer
+Inventario: conversion o fraccionamiento de un producto en otro (lance a pies, bolsa a libras) con aprobacion; el costo se traslada y no se registra perdida
+Saldo a favor del cliente: al devolver o cambiar un producto se puede dejar el monto como credito, usarlo al cobrar en el POS, verlo en la ficha del cliente y se devuelve si la venta se anula
+Entregas en bodega: comprobantes de entrega parciales por venta hasta que lo pendiente llegue a cero, con anulacion, impresion y opcion en el POS
+POS: acceso rapido al cliente (historial de compras, saldos, productos que mas compra), botones rapidos de venta, cliente y producto, y enlace al historial de cada producto del carrito
+Nueva herramienta Migración (Configuración → Migrar desde otro sistema): sube el respaldo del sistema anterior (JSON, zip, Excel, CSV o .sql), detecta las tablas, sugiere a qué módulo va cada una y abre el asistente de importación con las columnas ya mapeadas
+Migración etapa 2: saldos por cobrar y por pagar (se cobran/pagan normal), historial de ventas con sus líneas, kardex histórico, revisión previa sin guardar y opción de deshacer cada lote; las ventas migradas no mueven stock ni caja y no se anulan ni devuelven
+Migración automática: un solo botón reconoce todas las tablas del sistema anterior, las ordena (impuestos, unidades, categorías, productos con stock inicial, clientes, proveedores, ventas, saldos por cobrar/pagar, kardex) y las importa juntas con respaldo previo; opción de revisar todo sin guardar y todo-o-nada si algo falla
+Revision general de finanzas: los saldos de caja y banco se actualizan de forma atomica (varias ventas simultaneas ya no se pisan) y los movimientos automaticos de ventas, devoluciones y facturas solo se anulan desde su documento de origen.
+Proteccion contra doble clic / dos usuarios a la vez en: anular venta, cobros de credito, pagos de facturas, cierre de caja (cierre y reparto en una sola transaccion), pago de nomina, caja chica, recepcion de ordenes de compra, devoluciones a proveedor, bajas de inventario, entrega de vales, vacaciones, conversion de cotizaciones y pedidos, y facturacion de ventas.
+Devolucion de una venta pagada con saldo a favor: la parte pagada con saldo vuelve como saldo a favor (ya no se devuelve en efectivo). Se puede devolver mercaderia de ordenes de compra ya pagadas.
+Numeracion fiscal (CAI) y de notas de credito bloqueada para que dos cajeros nunca reciban el mismo numero; numeracion sin serie ya no repite numeros tras borrar documentos.
+Validaciones en movimientos manuales de Finanzas (tipo, monto, fecha futura, categorias), una sola caja abierta a la vez, no se aprueba el cierre propio (salvo Admin), y el impuesto de cada linea coincide con el total de la venta.
+Permisos corregidos: los supervisores (no solo Admin) pueden autorizar ventas sin existencia y usar saldo a favor en el POS; no se puede desactivar al ultimo administrador ni a uno mismo.
+Descuentos en la venta: el descuento general ahora es en porcentaje y se calcula solo sobre el total; cada producto del carrito puede llevar su propio descuento en %, y cada producto tiene el check 'Admite descuento' (si no lo admite, no recibe ningun descuento). El envio nunca se descuenta.
+Utilidades: lo cobrado por envio (base, sin ISV) ya no cuenta como utilidad en el Estado de Resultados; en el Balance aparece como pasivo 'Envios cobrados por aplicar al flete'. El envio sigue pagando ISV.
+Reportes: nuevo "Ventas por período" (por día, método de pago, cajero, cliente o venta por venta, con descuentos, envío, ISV y utilidad) y "Productos vendidos" (más/menos vendidos, ingresos y utilidad, con acceso al historial de cada producto)
+Cierre de caja: el informe muestra una sección de descuentos otorgados con producto, venta y cliente; el historial del producto muestra descuento, cajero y método de pago
+Contabilidad: el ISV cobrado en ventas ya no cuenta como ingreso ni utilidad; aparece como "ISV por pagar" en el Balance y se descuenta en el Estado de Resultados (neto de devoluciones)
+Libro diario: las ventas, cambios y devoluciones registran el ISV en "ISV por pagar" (asientos de 3 líneas), igual que el Balance y el Estado de Resultados
+Cierre de caja: sobrante y faltante se registran como Sobrante de caja (otros ingresos) y Faltante de caja (gasto diverso); la entrega de efectivo a administración ya no cuenta como gasto
+Finanzas: nueva pantalla "Pagar ISV a la SAR" (Finanzas y Declaración de ISV); "ISV por pagar" del Balance = ISV de ventas - crédito de compras - pagos a la SAR, y si queda a favor se muestra como activo
+Contabilidad: las ventas a crédito y facturas pendientes se contabilizan al facturar (ingreso, ISV y envío); el Balance muestra Clientes por cobrar y Proveedores por pagar, y el libro diario genera sus asientos
+Cuentas financieras: no se puede desactivar una caja con apertura activa ni cambiar el tipo de una cuenta que ya tiene movimientos
+Devoluciones: lo devuelto queda como saldo a favor del cliente (pasivo en el Balance, cuenta 2.1.06), baja la venta y se usa en la siguiente compra hasta quedar en 0; las devoluciones sobre ventas a crédito bajan la cuenta por cobrar y su ISV.
+Saldo a favor: pagar con saldo a favor ya no suma dinero a la caja (antes inflaba el saldo); los datos anteriores se corrigen solos al iniciar.
+Compras: al recibir mercancía puedes escanear el código de barras o buscar el producto, ajustar cantidad y el precio facturado (sube o baja); se actualizan el costo promedio ponderado, el inventario, el total y el saldo de la orden.
+Contabilidad: las recepciones parciales cuentan como inventario y deuda con el proveedor; el ISV de pagos a proveedores se separa como crédito fiscal en los asientos.
+Finanzas: dashboard rediseñado (liquidez, por cobrar, por pagar, ISV, saldo a favor, comparativo mensual y salud contable).
+Caja chica y movimientos: no se aprueba el gasto propio (salvo administrador), no hay gastos con fecha futura, anular un movimiento de caja chica anula el gasto y las aprobaciones/anulaciones simultáneas ya no se duplican; la apertura de caja solo admite cajas de efectivo.
+Ventas y facturas: el descuento (por línea y general) ahora sale en la factura y el total cobrado coincide; las facturas anteriores con descuento se corrigen solas al iniciar.
+POS: descuento por producto y descuento general rediseñados (botón + descuento, etiqueta con ahorro, precio original tachado), más limpio y minimalista.
+Comprobante de entrega: diseño minimalista con cliente y número de factura; al imprimir solo sale la información necesaria (sin motivo ni botón de anular).
+Buscadores y referencias: Ventas, Facturas, Entregas en bodega y Devoluciones muestran número de factura, venta y cliente, y se puede buscar por cualquiera de ellos.
+Órdenes de compra: al crearla desde un proveedor se autorrellena proveedor y moneda, con atajos a los productos que ya le compraste y su último precio.
+Órdenes de compra: nueva casilla 'compra ya recibida' (compras por llamada) con número y fecha de factura del proveedor; entra al inventario y ajusta el costo promedio ponderado al instante.
+Cierre de caja e informes: el saldo a favor de clientes (acreditado y aplicado) aparece solo como referencia, sin sumar ni restar al efectivo.
+Menú lateral: los submenús de todos los módulos están en orden alfabético.
+Nueva pantalla Finanzas > Revisión de movimientos: barra de avance de 0 a 100 % que revisa ventas, cobros, créditos a favor, ingresos, egresos, cuentas, compras, inventario y asientos de un día o período, con informe por pestañas, marcas verdes/rojas, enlace al documento con falla e impresión.
+Migración: los archivos .sql, .json y .jsonl en Latin-1/ANSI de sistemas viejos ya conservan los acentos.
+Migración: ahora también lee Excel viejo (.xls), bases dBase/FoxPro (.dbf) y bases SQLite, reconoce más nombres de columnas y, si una columna no tiene un nombre útil, la identifica por su contenido (correo, RTN, teléfono); para Access y respaldos .bak de SQL Server explica cómo exportarlos.

@@ -1,5 +1,6 @@
 using Kirkenta.Data;
 using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -82,6 +83,13 @@ namespace Kirkenta.Pages.Finanzas.PlanCuentas
             if (_context.CategoriasFinancieras.Any(c => c.PlanCuentaId == cuenta.Id))
             {
                 TempData["Error"] = "No se puede eliminar: la cuenta está asociada a categorías financieras. Desactívala en su lugar.";
+                return RedirectToPage("/Finanzas/PlanCuentas/Index");
+            }
+
+            var bloqueo = PlanCuentaProteccion.MotivoBloqueoEliminar(_context, cuenta);
+            if (bloqueo != null)
+            {
+                TempData["Error"] = $"No se puede eliminar: {bloqueo}.";
                 return RedirectToPage("/Finanzas/PlanCuentas/Index");
             }
 

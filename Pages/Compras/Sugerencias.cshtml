@@ -1,0 +1,100 @@
+@page
+@model Kirkenta.Pages.Compras.SugerenciasModel
+@{
+    ViewData["Title"] = "Sugerencia de compras";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Sugerencia de compras</h2>
+        <p>Qué pedir y a quién, según lo que realmente se vende. Descuenta lo que ya viene en camino.</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/OrdenesCompra/Create" class="btn-primary">Nueva orden de compra</a>
+    </div>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Productos por reponer</span>
+        <span class="kpi-value">@Model.Items.Count</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Inversión estimada</span>
+        <span class="kpi-value" style="color: var(--color-primary);">L. @Model.CostoTotal.ToString("N2")</span>
+        <span class="kpi-trend">A costo de la última compra</span>
+    </div>
+</div>
+
+<div class="module-card">
+    <form method="get" class="module-toolbar" style="margin-bottom:16px; gap:8px; flex-wrap:wrap;">
+        <label class="table-user-sub">Ventas de los últimos</label>
+        <select name="Historial" class="filter-select" onchange="this.form.submit()">
+            @foreach (var d in new[] { 15, 30, 60, 90 })
+            {
+                <option value="@d" selected="@(Model.Historial == d)">@d días</option>
+            }
+        </select>
+        <label class="table-user-sub">Cubrir</label>
+        <select name="Cobertura" class="filter-select" onchange="this.form.submit()">
+            @foreach (var d in new[] { 15, 30, 45, 60 })
+            {
+                <option value="@d" selected="@(Model.Cobertura == d)">@d días de venta</option>
+            }
+        </select>
+    </form>
+
+    @if (Model.Items.Count == 0)
+    {
+        <div class="empty-state">
+            <h3>Inventario cubierto ✅</h3>
+            <p>Con el ritmo de ventas actual no hace falta pedir nada.</p>
+        </div>
+    }
+    else
+    {
+        foreach (var grupo in Model.Items.GroupBy(i => i.Proveedor))
+        {
+            <h3 style="margin: 18px 0 8px;">@grupo.Key
+                <span class="table-user-sub">· @grupo.Count() producto(s) · L. @grupo.Sum(i => i.CostoTotal).ToString("N2")</span>
+            </h3>
+            <div class="table-wrapper">
+                <table class="erp-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th style="text-align:right;">Stock</th>
+                            <th style="text-align:right;">Mínimo</th>
+                            <th style="text-align:right;">Vendido</th>
+                            <th style="text-align:right;">Alcanza</th>
+                            <th style="text-align:right;">En camino</th>
+                            <th style="text-align:right;">Pedir</th>
+                            <th style="text-align:right;">Costo est.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var i in grupo)
+                        {
+                            <tr>
+                                <td><strong>@i.Nombre</strong>@if (!string.IsNullOrEmpty(i.Sku)) { <br /><span class="table-user-sub">@i.Sku</span> }</td>
+                                <td style="text-align:right;">@i.Stock.ToString("N2")</td>
+                                <td style="text-align:right;">@i.Minimo.ToString("N2")</td>
+                                <td style="text-align:right;">@i.Vendido.ToString("N2")</td>
+                                <td style="text-align:right;">
+                                    @if (i.DiasRestantes == null) { <span class="table-user-sub">sin ventas</span> }
+                                    else { <span class="badge @(i.DiasRestantes.Value <= 7 ? "badge-danger" : i.DiasRestantes.Value <= 15 ? "badge-warning" : "badge-info")">@(i.DiasRestantes.Value.ToString("0.#")) días</span> }
+                                </td>
+                                <td style="text-align:right;">@(i.EnCamino > 0 ? i.EnCamino.ToString("N2") : "—")</td>
+                                <td style="text-align:right;"><strong>@i.Sugerido.ToString("N0")</strong></td>
+                                <td style="text-align:right;">L. @i.CostoTotal.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        <p class="table-user-sub" style="margin-top:12px;">
+            Fórmula: ventas por día × días a cubrir + stock mínimo − stock actual − pedidos en camino. Es una guía: ajusta por temporada o promociones.
+        </p>
+    }
+</div>

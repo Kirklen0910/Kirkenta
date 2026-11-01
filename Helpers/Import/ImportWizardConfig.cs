@@ -59,7 +59,39 @@ namespace Kirkenta.Helpers.Import
         /// Alias por campo, para autodetección de columnas.
         /// Key = campo.Key, Value = array de alias.
         /// </summary>
-        public Dictionary<string, string[]> AliasCampos { get; set; } = new();
+        public Dictionary<string, string[]> AliasCampos
+        {
+            // La etiqueta visible del campo ("Código de barras", "Teléfono principal"...) también cuenta
+            // como alias: así un archivo exportado o una plantilla del propio sistema se mapea al 100 %.
+            get => ConEtiquetas(_aliasCampos);
+            set => _aliasCampos = value;
+        }
+
+        private Dictionary<string, string[]> _aliasCampos = new();
+
+        private Dictionary<string, string[]> ConEtiquetas(Dictionary<string, string[]> alias)
+        {
+            var resultado = new Dictionary<string, string[]>();
+            foreach (var campo in Campos)
+            {
+                var baseAlias = alias.TryGetValue(campo.Key, out var a) ? a : Array.Empty<string>();
+                resultado[campo.Key] = baseAlias.Append(ColumnMapper.MarcaPropio + EtiquetaLimpia(campo.Label)).ToArray();
+            }
+            // Alias definidos para campos que no están en Campos (no debería pasar, pero no se pierden)
+            foreach (var par in alias)
+                if (!resultado.ContainsKey(par.Key)) resultado[par.Key] = par.Value;
+            return resultado;
+        }
+
+        /// <summary>"Activo (Sí/No)" → "Activo".</summary>
+        public static string EtiquetaLimpia(string etiqueta) =>
+            System.Text.RegularExpressions.Regex.Replace(etiqueta ?? "", @"\s*\(.*?\)", "").Trim();
+
+        /// <summary>CSV de plantilla con las etiquetas de los campos, en el orden de la pantalla de mapeo.</summary>
+        public byte[] PlantillaCsv() => ImportReportHelper.PlantillaCsv(Campos.Select(c => c.Label));
+
+        /// <summary>Plantilla en Excel (.xlsx) con una columna por campo. Es la que ofrece el botón de descarga.</summary>
+        public byte[] PlantillaXlsx() => ImportReportHelper.PlantillaXlsx(Campos.Select(c => c.Label));
 
         /// <summary>
         /// Mapeo mínimo requerido para proceder con la importación.

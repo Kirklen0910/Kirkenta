@@ -63,12 +63,48 @@
                 <label asp-for="Input.FechaEntregaEstimada">Fecha de entrega estimada</label>
                 <input asp-for="Input.FechaEntregaEstimada" type="date" class="form-input" value="@DateTime.Now.AddDays(7).ToString("yyyy-MM-dd")" />
             </div>
-            <div class="form-field">
+            <div class="form-field" id="estadoField">
                 <label asp-for="Input.Estado">Estado inicial</label>
                 <select asp-for="Input.Estado" class="form-input">
                     <option value="Borrador">Borrador</option>
                     <option value="Enviada">Enviada al proveedor</option>
                 </select>
+            </div>
+        </div>
+
+        <div class="form-field" style="margin-top:4px">
+            <label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:600">
+                <input type="checkbox" asp-for="Input.YaRecibida" id="yaRecibida" />
+                Esta compra ya se hizo y la mercadería ya está recibida
+            </label>
+            <small style="color:var(--color-muted)">Úsalo cuando la compra se hizo por llamada: la orden se guarda como recibida, entra al inventario y se ajusta el costo.</small>
+        </div>
+
+        <div id="recibidaBox" style="display:none;border:1px solid var(--color-border);border-radius:10px;padding:14px;margin:8px 0 12px">
+            <div class="form-row">
+                <div class="form-field">
+                    <label>N° de factura del proveedor *</label>
+                    <input asp-for="Input.NumeroFacturaProveedor" class="form-input" maxlength="40" placeholder="000-001-01-00000000" />
+                </div>
+                <div class="form-field">
+                    <label>Fecha de la factura</label>
+                    <input asp-for="Input.FechaFacturaProveedor" type="date" class="form-input" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-field">
+                    <label>Cómo calcular el nuevo costo</label>
+                    <select asp-for="Input.MetodoCosto" class="form-input">
+                        <option value="Promedio">Costo promedio ponderado (recomendado)</option>
+                        <option value="Ultimo">Último costo de esta compra</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label style="display:flex;gap:8px;align-items:center;margin-top:26px;cursor:pointer">
+                        <input type="checkbox" asp-for="Input.ActualizarPrecioVenta" />
+                        Reajustar precio de venta manteniendo el margen
+                    </label>
+                </div>
             </div>
         </div>
 
@@ -79,6 +115,11 @@
 
         <div class="form-divider"></div>
         <h3 class="form-section-title">Productos a comprar</h3>
+
+        <div id="habitualesBox" style="display:none;margin-bottom:10px">
+            <small style="color:var(--color-muted)">Productos que ya le compraste a este proveedor (clic para agregar):</small>
+            <div id="habitualesList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
+        </div>
 
         <div class="items-toolbar">
             <div class="search-box" style="max-width: 400px;">
@@ -133,13 +174,14 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                     <polyline points="20 6 9 17 4 12"/>
                 </svg>
-                Crear orden
+                <span id="btnTexto">Crear orden</span>
             </button>
         </div>
     </div>
 </form>
 
 <input type="hidden" id="productosJson" value="@Model.ProductosJson" />
+<input type="hidden" id="habitualesJson" value="@Model.HabitualesJson" />
 
 @section Scripts {
     <script>
@@ -171,7 +213,7 @@
 
                 resultsBox.innerHTML = filtrados.map(function (p) {
                     return '<div class="producto-result-item" data-id="' + p.id + '">' +
-                        '<div><strong>' + p.nombre + '</strong><br><small>SKU: ' + (p.sku || '—') + ' | Costo: ' + formatMoney(p.precioCompra) + '</small></div>' +
+                        '<div><strong>' + escHtml(p.nombre) + '</strong><br><small>SKU: ' + escHtml(p.sku || '—') + ' | Costo: ' + formatMoney(p.precioCompra) + '</small></div>' +
                         '</div>';
                 }).join('');
                 resultsBox.style.display = 'block';
@@ -217,7 +259,7 @@
                     var total = subtotal + iva;
 
                     return '<tr>' +
-                        '<td><strong>' + item.nombre + '</strong></td>' +
+                        '<td><strong>' + escHtml(item.nombre) + '</strong></td>' +
                         '<td><input type="number" min="1" step="1" value="' + item.cantidad + '" data-idx="' + idx + '" data-field="cantidad" class="form-input" style="padding:6px 8px;text-align:center;" /></td>' +
                         '<td><input type="number" min="0" step="0.01" value="' + item.precio.toFixed(2) + '" data-idx="' + idx + '" data-field="precio" class="form-input" style="padding:6px 8px;" /></td>' +
                         '<td><input type="number" min="0" step="0.01" value="' + item.descuento.toFixed(2) + '" data-idx="' + idx + '" data-field="descuento" class="form-input" style="padding:6px 8px;" /></td>' +
@@ -278,6 +320,51 @@
 
             // Cambiar moneda recalcula
             monedaSelect.addEventListener('change', function () { renderItems(); });
+
+            // Compra ya recibida: campos dinámicos
+            var chk = document.getElementById('yaRecibida');
+            function sincronizarRecibida() {
+                var on = chk.checked;
+                document.getElementById('recibidaBox').style.display = on ? 'block' : 'none';
+                document.getElementById('estadoField').style.display = on ? 'none' : '';
+                document.getElementById('btnTexto').textContent = on ? 'Registrar compra recibida' : 'Crear orden';
+                var f = document.getElementById('Input_NumeroFacturaProveedor');
+                if (f) f.required = on;
+            }
+            chk.addEventListener('change', sincronizarRecibida);
+            sincronizarRecibida();
+
+            // Autorelleno por proveedor: moneda y productos habituales con su último precio
+            var habituales = JSON.parse(document.getElementById('habitualesJson').value || '[]');
+            var provSel = document.getElementById('proveedorSelect');
+            function alCambiarProveedor(aplicarMoneda) {
+                var opt = provSel.options[provSel.selectedIndex];
+                if (aplicarMoneda && opt && opt.dataset.moneda) {
+                    var m = monedaSelect.querySelector('option[value="' + opt.dataset.moneda + '"]');
+                    if (m) { monedaSelect.value = opt.dataset.moneda; renderItems(); }
+                }
+                var pid = parseInt(provSel.value) || 0;
+                var lista = habituales.filter(function (h) { return h.proveedorId === pid; });
+                var box = document.getElementById('habitualesBox');
+                var cont = document.getElementById('habitualesList');
+                cont.innerHTML = '';
+                lista.forEach(function (h) {
+                    var prod = productos.find(function (p) { return p.id === h.productoId; });
+                    if (!prod) return;
+                    var b = document.createElement('button');
+                    b.type = 'button'; b.className = 'btn-secondary'; b.style.padding = '4px 10px'; b.style.fontSize = '12px';
+                    b.textContent = '+ ' + prod.nombre;
+                    b.addEventListener('click', function () {
+                        var existia = items.some(function (i) { return i.productoId === prod.id; });
+                        agregarItem(prod);
+                        if (!existia) { var it = items.find(function (i) { return i.productoId === prod.id; }); if (it) { it.precio = h.precio; renderItems(); } }
+                    });
+                    cont.appendChild(b);
+                });
+                box.style.display = cont.children.length ? 'block' : 'none';
+            }
+            provSel.addEventListener('change', function () { alCambiarProveedor(true); });
+            alCambiarProveedor(false);
         })();
     </script>
 }

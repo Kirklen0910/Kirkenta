@@ -5,20 +5,23 @@ namespace Kirkenta.Helpers
 {
     /// <summary>
     /// Seeder de migración de permisos.
-    /// Cuando se agregan nuevos submódulos a ModulosERP.Modulos, los roles
-    /// existentes no tienen permisos para ellos. Este helper los crea copiando
-    /// los permisos del módulo padre.
+    /// Cuando se agregan nuevos módulos o submódulos a ModulosERP.Modulos, los roles
+    /// existentes no tienen filas de permisos para ellos. Este helper las crea
+    /// SIEMPRE con todos los permisos en falso: un submódulo nuevo nunca da acceso
+    /// por sí solo. El administrador debe activarlo desde Roles → Editar.
+    /// (Antes copiaba los permisos del módulo padre, y eso daba acceso a submódulos
+    /// que el administrador no había marcado.)
     /// Es idempotente: se puede ejecutar múltiples veces sin duplicar.
     /// </summary>
     public static class PermisoSeeder
     {
         /// <summary>
-        /// Migra los permisos de todos los roles existentes hacia los submódulos
-        /// definidos en ModulosERP que aún no tienen permiso en la BD.
+        /// Crea, para todos los roles existentes (excepto Admin), las filas de permiso
+        /// que falten para los módulos/submódulos definidos en ModulosERP.
         /// </summary>
         /// <param name="soloSiHayNuevos">
-        /// Si es true, solo actúa cuando detecta submódulos faltantes.
-        /// Si es false, recorre todo siempre.
+        /// Si es true, solo escribe en consola cuando detecta submódulos faltantes.
+        /// Si es false, también avisa cuando no había nada por crear.
         /// </param>
         public static void MigrarPermisosFaltantes(ApplicationDbContext context, bool soloSiHayNuevos = true)
         {
@@ -51,50 +54,22 @@ namespace Kirkenta.Helpers
                         var modulo = moduloKvp.Key;
                         var submodulos = moduloKvp.Value;
 
-                        // Buscar el permiso del módulo padre
-                        var permisoPadre = permisosExistentes
-                            .FirstOrDefault(p => p.Modulo == modulo && p.Submodulo == null);
-
-                        // Si no existe permiso padre, no podemos migrar (nada que copiar)
-                        if (permisoPadre == null)
+                        // Fila del módulo padre: si falta, se crea sin ningún permiso
+                        if (!clavesExistentes.Contains(ClavePermiso(modulo, null)))
                         {
-                            // Crear uno por defecto con solo "Ver"
-                            permisoPadre = new Permiso
-                            {
-                                RolId = rol.Id,
-                                Modulo = modulo,
-                                Submodulo = null,
-                                PuedeVer = false,
-                                PuedeCrear = false,
-                                PuedeEditar = false,
-                                PuedeEliminar = false
-                            };
-                            context.Permisos.Add(permisoPadre);
-                            permisosExistentes.Add(permisoPadre);
+                            context.Permisos.Add(NuevoPermisoSinAcceso(rol.Id, modulo, null));
                             clavesExistentes.Add(ClavePermiso(modulo, null));
                             permisosCreados++;
                             rolModificado = true;
                         }
 
-                        // Para cada submódulo del módulo, crear el permiso si no existe
+                        // Filas de submódulos: si faltan, se crean sin ningún permiso
                         foreach (var submodulo in submodulos)
                         {
                             var clave = ClavePermiso(modulo, submodulo);
                             if (clavesExistentes.Contains(clave)) continue;
 
-                            // Copia los permisos del padre (excepto "Ver" que se toma tal cual)
-                            var nuevoPermiso = new Permiso
-                            {
-                                RolId = rol.Id,
-                                Modulo = modulo,
-                                Submodulo = submodulo,
-                                PuedeVer = permisoPadre.PuedeVer,
-                                PuedeCrear = permisoPadre.PuedeCrear,
-                                PuedeEditar = permisoPadre.PuedeEditar,
-                                PuedeEliminar = permisoPadre.PuedeEliminar
-                            };
-
-                            context.Permisos.Add(nuevoPermiso);
+                            context.Permisos.Add(NuevoPermisoSinAcceso(rol.Id, modulo, submodulo));
                             clavesExistentes.Add(clave);
                             permisosCreados++;
                             rolModificado = true;
@@ -111,7 +86,7 @@ namespace Kirkenta.Helpers
                 {
                     context.SaveChanges();
                     Console.WriteLine($"[PermisoSeeder] ✅ Migración completada: " +
-                        $"{permisosCreados} permisos creados en {rolesProcesados} roles.");
+                        $"{permisosCreados} permisos creados (sin acceso) en {rolesProcesados} roles.");
                 }
                 else if (!soloSiHayNuevos)
                 {
@@ -123,6 +98,103 @@ namespace Kirkenta.Helpers
                 Console.WriteLine($"[PermisoSeeder] ❌ Error al migrar permisos: {ex.Message}");
                 // No relanzamos: si falla la migración, la app debe seguir funcionando
             }
+        }
+
+        private sealed record Regla(
+            string Modulo, string Submodulo,
+            string RefModulo, string RefSubmodulo,
+            Func<Permiso, bool> DaVer, Func<Permiso, bool> DaCrear,
+            bool CrearImplicaVer);
+
+        /// <summary>
+        /// Da permisos iniciales razonables a los roles (no Admin) para las pantallas de
+        /// devoluciones, tomando como referencia lo que cada rol ya puede hacer:
+        ///   - Ventas/Devoluciones: ver si puede ver Facturas; crear si puede anular facturas.
+        ///   - Compras/DevolucionesProveedor: ver si puede ver Órdenes de compra.
+        ///   - Compras/DevolucionesProveedorCreate: crear si puede editar Órdenes de compra.
+        /// Solo actúa si NINGÚN rol tiene todavía algún permiso en esa pantalla (o sea,
+        /// el administrador nunca la ha configurado), así que no pisa decisiones propias:
+        /// una vez aplicado, ya no vuelve a tocarla. Idempotente.
+        /// </summary>
+        public static void AplicarPermisosPredeterminados(ApplicationDbContext context)
+        {
+            try
+            {
+                var roles = context.Roles.Where(r => r.Nombre != "Admin").ToList();
+                if (roles.Count == 0) return;
+
+                var rolIds = roles.Select(r => r.Id).ToList();
+                var permisos = context.Permisos.Where(p => rolIds.Contains(p.RolId)).ToList();
+
+                var reglas = new[]
+                {
+                    new Regla("Ventas", "Devoluciones", "Ventas", "Facturas",
+                        p => p.PuedeVer, p => p.PuedeEliminar, true),
+                    new Regla("Compras", "DevolucionesProveedor", "Compras", "Ordenes",
+                        p => p.PuedeVer, p => false, false),
+                    new Regla("Compras", "DevolucionesProveedorCreate", "Compras", "Ordenes",
+                        p => false, p => p.PuedeEditar, false),
+                    // Reportes ahora tiene permiso propio por reporte: quien ya veia Reportes sigue viendolos
+                    new Regla("Reportes", "Inventario", "Reportes", "Index", p => p.PuedeVer, p => false, false),
+                    new Regla("Reportes", "Rentabilidad", "Reportes", "Index", p => p.PuedeVer, p => false, false),
+                    new Regla("Reportes", "CuentasPorCobrar", "Reportes", "Index", p => p.PuedeVer, p => false, false),
+                    new Regla("Reportes", "CuentasPorPagar", "Reportes", "Index", p => p.PuedeVer, p => false, false),
+                    new Regla("Reportes", "ISV", "Reportes", "Index", p => p.PuedeVer, p => false, false),
+                    new Regla("Reportes", "PanelDueno", "Reportes", "Index", p => p.PuedeVer, p => false, false)
+                };
+
+                int cambios = 0;
+                foreach (var regla in reglas)
+                {
+                    var objetivo = permisos
+                        .Where(p => p.Modulo == regla.Modulo && p.Submodulo == regla.Submodulo)
+                        .ToList();
+
+                    // Aún no existen las filas, o alguien ya configuró esta pantalla: no tocar
+                    if (objetivo.Count == 0) continue;
+                    if (objetivo.Any(p => p.PuedeVer || p.PuedeCrear || p.PuedeEditar || p.PuedeEliminar)) continue;
+
+                    foreach (var rol in roles)
+                    {
+                        var destino = objetivo.FirstOrDefault(p => p.RolId == rol.Id);
+                        var referencia = permisos.FirstOrDefault(p => p.RolId == rol.Id
+                            && p.Modulo == regla.RefModulo && p.Submodulo == regla.RefSubmodulo);
+                        if (destino == null || referencia == null) continue;
+
+                        if (regla.DaVer(referencia)) { destino.PuedeVer = true; cambios++; }
+                        if (regla.DaCrear(referencia))
+                        {
+                            destino.PuedeCrear = true;
+                            if (regla.CrearImplicaVer) destino.PuedeVer = true;
+                            cambios++;
+                        }
+                    }
+                }
+
+                if (cambios > 0)
+                {
+                    context.SaveChanges();
+                    Console.WriteLine($"[PermisoSeeder] ✅ Permisos iniciales de devoluciones aplicados ({cambios} ajustes).");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PermisoSeeder] ❌ Error al aplicar permisos predeterminados: {ex.Message}");
+            }
+        }
+
+        private static Permiso NuevoPermisoSinAcceso(int rolId, string modulo, string? submodulo)
+        {
+            return new Permiso
+            {
+                RolId = rolId,
+                Modulo = modulo,
+                Submodulo = submodulo,
+                PuedeVer = false,
+                PuedeCrear = false,
+                PuedeEditar = false,
+                PuedeEliminar = false
+            };
         }
 
         private static string ClavePermiso(string modulo, string? submodulo)

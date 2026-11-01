@@ -62,7 +62,7 @@ namespace Kirkenta.Pages.Usuarios
                 return RedirectToPage("/Usuarios/Index");
             }
 
-            Roles = _context.Roles.OrderBy(r => r.Nombre).ToList();
+            Roles = _context.Roles.Where(r => currentRol == "Admin" || r.Nombre != "Admin").OrderBy(r => r.Nombre).ToList();
             return Page();
         }
 
@@ -77,10 +77,30 @@ namespace Kirkenta.Pages.Usuarios
                 return RedirectToPage("/Usuarios/Index");
             }
 
-            Roles = _context.Roles.OrderBy(r => r.Nombre).ToList();
+            Roles = _context.Roles.Where(r => currentRol == "Admin" || r.Nombre != "Admin").OrderBy(r => r.Nombre).ToList();
 
             if (!ModelState.IsValid)
                 return Page();
+
+            var errorClave = PasswordPolicy.Validar(Input.Password, Input.Username);
+            if (errorClave != null)
+            {
+                ModelState.AddModelError("Input.Password", errorClave);
+                return Page();
+            }
+
+            // Seguridad: el rol debe existir y solo un Admin puede crear otros Admin
+            if (Input.Rol != "Pendiente" && !_context.Roles.Any(r => r.Nombre == Input.Rol))
+            {
+                ModelState.AddModelError("Input.Rol", "El rol seleccionado no existe");
+                return Page();
+            }
+
+            if (Input.Rol == "Admin" && currentRol != "Admin")
+            {
+                ModelState.AddModelError("Input.Rol", "Solo un administrador puede crear usuarios con rol Admin");
+                return Page();
+            }
 
             if (_context.Usuarios.Any(u => u.Username == Input.Username))
             {

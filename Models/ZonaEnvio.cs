@@ -30,6 +30,6 @@ namespace Kirkenta.Models
         public int Orden { get; set; } = 0;
 
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
-        public int EmpresaId { get; set; } = 1;
+        public int EmpresaId { get; set; } = Kirkenta.Helpers.EmpresaActual.Id;
     }
 }

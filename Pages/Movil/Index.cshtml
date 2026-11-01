@@ -1,0 +1,227 @@
+@page
+@model Kirkenta.Pages.Movil.IndexModel
+@using System.Globalization
+@{
+    Layout = null;
+    var es = new CultureInfo("es-HN");
+    string L(decimal v) => "L. " + v.ToString("N2", es);
+    var max = Model.Montos7.Count > 0 ? Model.Montos7.Max() : 0m;
+    if (max <= 0) { max = 1; }
+    var cmpAyer = Model.VentasAyer > 0 ? (Model.VentasHoy - Model.VentasAyer) / Model.VentasAyer * 100m : (decimal?)null;
+    var hora = DateTime.Now.Hour;
+    var saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches";
+}
+<!DOCTYPE html>
+<html lang="es" data-pref="@Kirkenta.Helpers.TemaHelper.Preferencia(ViewContext.HttpContext)" data-uid="@Kirkenta.Helpers.TemaHelper.Uid(ViewContext.HttpContext)" data-theme="@Kirkenta.Helpers.TemaHelper.Resuelto(Kirkenta.Helpers.TemaHelper.Preferencia(ViewContext.HttpContext))" data-bs-theme="@Kirkenta.Helpers.TemaHelper.Resuelto(Kirkenta.Helpers.TemaHelper.Preferencia(ViewContext.HttpContext))">
+<head>
+    <meta charset="utf-8" />
+    <partial name="_TemaHead" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Kirkenta" />
+    <title>Panel móvil - Kirkenta</title>
+    <link rel="manifest" href="~/manifest.webmanifest" />
+    <link rel="icon" href="~/favicon.ico" />
+    <link rel="apple-touch-icon" href="~/images/pwa/icon-192.png" />
+    <link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body.mv { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding-bottom: calc(86px + env(safe-area-inset-bottom)); }
+        .mv-top { background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover)); color: #fff; padding: calc(18px + env(safe-area-inset-top)) 16px 78px; }
+        .mv-top-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .mv-top small { opacity: .85; font-size: 12.5px; display: block; }
+        .mv-top h1 { font-size: 20px; margin: 2px 0 0; font-weight: 700; }
+        .mv-icon { border: 0; background: rgba(255,255,255,.18); color: #fff; border-radius: 12px; width: 40px; height: 40px; font-size: 18px; cursor: pointer; }
+        .mv-wrap { padding: 0 14px; max-width: 640px; margin: 0 auto; }
+        .mv-hero { margin-top: -58px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 20px; padding: 18px; box-shadow: 0 10px 28px rgba(0,0,0,.12); }
+        .mv-hero .et { font-size: 12.5px; color: var(--color-muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+        .mv-hero .val { font-size: 34px; font-weight: 800; margin: 2px 0; letter-spacing: -.02em; }
+        .mv-chip { display: inline-block; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; }
+        .mv-chip.up { background: var(--color-success-bg); color: var(--color-success-text); }
+        .mv-chip.down { background: var(--color-danger-bg, #fee2e2); color: var(--color-danger-text, #991b1b); }
+        .mv-chip.neutral { background: var(--color-surface-3); color: var(--color-muted); }
+        .mv-sub { display: flex; gap: 10px; margin-top: 14px; }
+        .mv-sub > div { flex: 1; background: var(--color-surface-2); border-radius: 12px; padding: 10px 12px; }
+        .mv-sub b { display: block; font-size: 15px; margin-top: 2px; }
+        .mv-sub span { font-size: 11.5px; color: var(--color-muted); }
+        .mv-bars { display: flex; align-items: flex-end; gap: 7px; height: 84px; margin-top: 16px; }
+        .mv-bar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+        .mv-bar i { display: block; width: 100%; border-radius: 6px 6px 3px 3px; background: var(--color-primary-soft-2); min-height: 3px; }
+        .mv-bar.hoy i { background: var(--color-primary); }
+        .mv-bar span { font-size: 10.5px; color: var(--color-muted); }
+        .mv-sec { margin: 22px 2px 8px; font-size: 13px; font-weight: 700; color: var(--color-muted); text-transform: uppercase; letter-spacing: .05em; }
+        .mv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .mv-card { display: block; text-decoration: none; color: inherit; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 16px; padding: 14px; }
+        .mv-card .ic { font-size: 20px; }
+        .mv-card .et { font-size: 12px; color: var(--color-muted); margin-top: 6px; }
+        .mv-card .val { font-size: 19px; font-weight: 800; margin-top: 2px; word-break: break-word; }
+        .mv-card .det { font-size: 11.5px; margin-top: 4px; color: var(--color-muted); }
+        .mv-card .det.up { color: var(--color-success-text); }
+        .mv-card .det.down { color: var(--color-danger-text, #b91c1c); font-weight: 600; }
+        .mv-alert { display: block; text-decoration: none; padding: 12px 14px; border-radius: 14px; margin-bottom: 8px; font-size: 14px; font-weight: 600; }
+        .mv-alert.warning { background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning-text); }
+        .mv-alert.danger { background: var(--color-danger-bg, #fee2e2); border: 1px solid var(--color-danger-border, #fecaca); color: var(--color-danger-text, #991b1b); }
+        .mv-list { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 16px; overflow: hidden; }
+        .mv-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--color-border); }
+        .mv-row:first-child { border-top: 0; }
+        .mv-row small { display: block; color: var(--color-muted); font-size: 12px; }
+        .mv-row strong { white-space: nowrap; }
+        .mv-vacio { text-align: center; color: var(--color-muted); padding: 40px 10px; }
+        .mv-nav { position: fixed; left: 0; right: 0; bottom: 0; background: var(--color-surface); border-top: 1px solid var(--color-border); display: flex; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); gap: 6px; z-index: 20; }
+        .mv-nav a, .mv-nav button { flex: 1; text-align: center; text-decoration: none; color: var(--color-muted); font-size: 11px; font-weight: 600; padding: 6px 2px; border-radius: 12px; border: 0; background: transparent; cursor: pointer; font-family: inherit; }
+        .mv-nav a b, .mv-nav button b { display: block; font-size: 20px; line-height: 1.2; }
+        .mv-nav .on { color: var(--color-primary); background: var(--color-primary-soft); }
+        .mv-install { display: none; margin-top: 18px; background: var(--color-primary-soft); border: 1px solid var(--color-primary-border); color: var(--color-primary); border-radius: 16px; padding: 14px; font-size: 13.5px; }
+        .mv-install button { margin-top: 8px; border: 0; background: var(--color-primary); color: #fff; border-radius: 10px; padding: 9px 16px; font-weight: 700; font-size: 14px; cursor: pointer; }
+        .mv-off { display: none; background: #b45309; color: #fff; text-align: center; font-size: 12.5px; font-weight: 600; padding: 6px; }
+        .mv-act { font-size: 11.5px; color: var(--color-muted); text-align: center; margin-top: 18px; }
+    </style>
+</head>
+<body class="mv">
+    <div class="mv-off" id="mvOff">📡 Sin conexión · mostrando los datos de la última vez</div>
+
+    <header class="mv-top">
+        <div class="mv-top-row">
+            <div>
+                <small>@saludo, @Model.Usuario</small>
+                <h1>@Model.Negocio</h1>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button type="button" class="mv-icon" id="mvTema" title="Cambiar tema" aria-label="Cambiar tema">🌓</button>
+                <button type="button" class="mv-icon" id="mvRecargar" title="Actualizar" aria-label="Actualizar">↻</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="mv-wrap">
+        @if (Model.SinAcceso)
+        {
+            <div class="mv-hero"><div class="mv-vacio">Tu rol todavía no tiene indicadores disponibles aquí.<br />Pide al administrador que te habilite el acceso.</div></div>
+        }
+        else
+        {
+            @if (Model.MostrarVentas)
+            {
+                <section class="mv-hero">
+                    <div class="et">Ventas de hoy</div>
+                    <div class="val">@L(Model.VentasHoy)</div>
+                    @if (cmpAyer.HasValue)
+                    {
+                        <span class="mv-chip @(cmpAyer >= 0 ? "up" : "down")">@(cmpAyer >= 0 ? "↑" : "↓") @(Math.Abs(cmpAyer.Value).ToString("N0", es))% vs ayer</span>
+                    }
+                    else
+                    {
+                        <span class="mv-chip neutral">@(Model.VentasHoy > 0 ? "Ayer sin ventas" : "Aún sin ventas hoy")</span>
+                    }
+                    <div class="mv-sub">
+                        <div><span>Ventas</span><b>@Model.CantidadVentasHoy</b></div>
+                        <div><span>Ticket promedio</span><b>@L(Model.TicketPromedio)</b></div>
+                        <div><span>Del mes</span><b>@L(Model.VentasMes)</b></div>
+                    </div>
+                    <div class="mv-bars" aria-label="Ventas de los últimos 7 días">
+                        @for (var i = 0; i < Model.Montos7.Count; i++)
+                        {
+                            var h = (int)Math.Round(Model.Montos7[i] / max * 100m);
+                            <div class="mv-bar @(i == Model.Montos7.Count - 1 ? "hoy" : "")" title="@L(Model.Montos7[i])">
+                                <i style="height:@(Math.Max(h, 3))%"></i>
+                                <span>@Model.Dias7[i]</span>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
+
+            @if (Model.Alertas.Any())
+            {
+                <div class="mv-sec">Requiere atención</div>
+                @foreach (var a in Model.Alertas)
+                {
+                    <a class="mv-alert @a.Nivel" href="@(a.Pagina ?? "#")">@(a.Nivel == "danger" ? "🔴" : "🟠") @a.Texto</a>
+                }
+            }
+
+            @if (Model.Tarjetas.Any())
+            {
+                <div class="mv-sec">Tu negocio</div>
+                <div class="mv-grid">
+                    @foreach (var t in Model.Tarjetas)
+                    {
+                        <a class="mv-card" href="@(t.Pagina ?? "#")">
+                            <div class="ic">@t.Icono</div>
+                            <div class="et">@t.Etiqueta</div>
+                            <div class="val">@t.Valor</div>
+                            <div class="det @t.Clase">@t.Detalle</div>
+                        </a>
+                    }
+                </div>
+            }
+
+            @if (Model.UltimasVentas.Any())
+            {
+                <div class="mv-sec">Últimas ventas</div>
+                <div class="mv-list">
+                    @foreach (var v in Model.UltimasVentas)
+                    {
+                        <div class="mv-row">
+                            <div>@v.Numero<small>@v.Cliente · @v.Fecha.ToString("dd/MM HH:mm")</small></div>
+                            <strong>@L(v.Total)</strong>
+                        </div>
+                    }
+                </div>
+            }
+        }
+
+        <div class="mv-install" id="mvInstall">
+            📲 <strong>Instala Kirkenta en tu celular</strong>
+            <div id="mvInstallTxt">Ábrelo como una app, sin barra del navegador.</div>
+            <button type="button" id="mvInstallBtn" style="display:none">Instalar app</button>
+        </div>
+
+        <div class="mv-act">Actualizado @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
+    </main>
+
+    <nav class="mv-nav">
+        <a href="/Movil" class="on"><b>📊</b>Resumen</a>
+        @if (Model.PuedeVender)
+        {
+            <a href="/POS"><b>🛒</b>Vender</a>
+        }
+        <a href="/Index"><b>🏠</b>Sistema</a>
+        <button type="button" id="mvSalir" onclick="document.getElementById('mvFormSalir').submit()"><b>🚪</b>Salir</button>
+    </nav>
+    <form id="mvFormSalir" method="post" action="/Auth/Logout" style="display:none">@Html.AntiForgeryToken()</form>
+
+    <script src="~/js/kirkenta-offline.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            var off = document.getElementById('mvOff');
+            function estado() { off.style.display = navigator.onLine ? 'none' : 'block'; }
+            window.addEventListener('online', estado); window.addEventListener('offline', estado); estado();
+
+            document.getElementById('mvRecargar').addEventListener('click', function () { location.reload(); });
+
+            // Tema claro / oscuro (mismo mecanismo que el resto del sistema)
+            document.getElementById('mvTema').addEventListener('click', function () {
+                var h = document.documentElement, oscuro = h.getAttribute('data-theme') === 'dark', n = oscuro ? 'light' : 'dark';
+                h.setAttribute('data-theme', n); h.setAttribute('data-bs-theme', n);
+            });
+
+            // Instalar como app
+            var caja = document.getElementById('mvInstall'), btn = document.getElementById('mvInstallBtn'), prompt = null;
+            var instalada = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+            if (!instalada) {
+                window.addEventListener('beforeinstallprompt', function (e) {
+                    e.preventDefault(); prompt = e; caja.style.display = 'block'; btn.style.display = 'inline-block';
+                });
+                btn.addEventListener('click', function () { if (prompt) { prompt.prompt(); prompt = null; caja.style.display = 'none'; } });
+                if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+                    caja.style.display = 'block';
+                    document.getElementById('mvInstallTxt').textContent = 'En Safari toca el botón Compartir y elige “Agregar a pantalla de inicio”.';
+                }
+            }
+        })();
+    </script>
+</body>
+</html>

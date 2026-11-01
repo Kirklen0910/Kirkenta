@@ -57,9 +57,9 @@ namespace Kirkenta.Pages.Series
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Series", "editar"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para editar o aprobar aquí";
                 return RedirectToPage("/Series/Index");
             }
 
@@ -92,13 +92,11 @@ namespace Kirkenta.Pages.Series
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Series", "editar"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para editar o aprobar aquí";
                 return RedirectToPage("/Series/Index");
             }
-
-            if (!ModelState.IsValid) return Page();
 
             var serie = _context.SeriesDocumentos.FirstOrDefault(s => s.Id == Input.Id);
             if (serie == null)
@@ -106,6 +104,12 @@ namespace Kirkenta.Pages.Series
                 TempData["Error"] = "Serie no encontrada";
                 return RedirectToPage("/Series/Index");
             }
+
+            // Se acepta un tipo fuera del catálogo solo si la serie ya lo tenía (series antiguas)
+            if (!TiposDocumento.Existe(Input.Tipo) && Input.Tipo != serie.Tipo)
+                ModelState.AddModelError("Input.Tipo", "Selecciona un tipo de documento de la lista");
+
+            if (!ModelState.IsValid) return Page();
 
             // Si es predeterminada, quitar la predeterminada anterior del mismo tipo
             if (Input.EsPredeterminada && !serie.EsPredeterminada)

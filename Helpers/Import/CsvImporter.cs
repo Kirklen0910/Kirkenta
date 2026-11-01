@@ -2,14 +2,27 @@ using System.Text;
 
 namespace Kirkenta.Helpers.Import
 {
+    /// <summary>
+    /// Lee archivos de texto delimitados: CSV (coma o punto y coma), TSV (tabulador) o TXT.
+    /// - Detecta el separador automáticamente (, ; tab |).
+    /// - Detecta la codificación (UTF-8 / UTF-16 con BOM; si no es UTF-8 válido usa Windows-1252/Latin1,
+    ///   que es lo que genera Excel en español con "CSV (delimitado por comas)").
+    /// - Soporta celdas entre comillas con saltos de línea y comillas dobles escapadas.
+    /// </summary>
     public static class CsvImporter
     {
         public static ImportFile Read(Stream stream)
         {
             var result = new ImportFile();
 
-            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-            var contenido = reader.ReadToEnd();
+            string contenido;
+            using (var ms = new MemoryStream())
+            {
+                stream.CopyTo(ms);
+                contenido = Decodificar(ms.ToArray());
+            }
+
+            contenido = contenido.Replace("﻿", "");
 
             if (string.IsNullOrWhiteSpace(contenido))
             {
@@ -17,27 +30,30 @@ namespace Kirkenta.Helpers.Import
                 return result;
             }
 
-            var lineas = contenido.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None)
-                .Where(l => !string.IsNullOrWhiteSpace(l))
+            // Excel a veces agrega una primera línea "sep=;"
+            if (contenido.StartsWith("sep=", StringComparison.OrdinalIgnoreCase))
+            {
+                int fin = contenido.IndexOf('\n');
+                contenido = fin >= 0 ? contenido[(fin + 1)..] : "";
+            }
+
+            char separador = DetectarSeparador(contenido);
+            var registros = ParseRegistros(contenido, separador)
+                .Where(r => r.Any(c => !string.IsNullOrWhiteSpace(c)))
                 .ToList();
 
-            if (lineas.Count < 2)
+            if (registros.Count < 2)
             {
                 result.Error = "El archivo debe tener al menos un encabezado y una fila de datos";
                 return result;
             }
 
-            // Detectar separador
-            char separador = DetectarSeparador(lineas[0]);
-
-            // Parsear headers
-            var headers = ParseLine(lineas[0], separador);
+            var headers = ImportFile.HacerHeadersUnicos(registros[0]);
             result.Headers = headers;
 
-            // Parsear filas
-            for (int i = 1; i < lineas.Count; i++)
+            for (int i = 1; i < registros.Count; i++)
             {
-                var valores = ParseLine(lineas[i], separador);
+                var valores = registros[i];
                 var rowDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
                 for (int c = 0; c < headers.Count; c++)
@@ -51,48 +67,119 @@ namespace Kirkenta.Helpers.Import
             return result;
         }
 
-        private static char DetectarSeparador(string lineaHeader)
+        public static string Decodificar(byte[] bytes)
         {
-            var candidatos = new[] { ',', ';', '\t', '|' };
-            var conteos = candidatos.Select(c => new { Sep = c, Count = lineaHeader.Count(x => x == c) }).ToList();
-            return conteos.OrderByDescending(x => x.Count).First().Sep;
+            if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+                return Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
+            if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
+                return Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2);
+            if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
+                return Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2);
+
+            try
+            {
+                return new UTF8Encoding(false, true).GetString(bytes);
+            }
+            catch (DecoderFallbackException)
+            {
+                // No es UTF-8 válido: casi seguro viene de Excel en Windows (ANSI)
+                return Encoding.Latin1.GetString(bytes);
+            }
         }
 
-        private static List<string> ParseLine(string linea, char separador)
+        /// <summary>
+        /// Cuenta cada separador candidato en la primera línea (fuera de comillas)
+        /// y elige el más frecuente.
+        /// </summary>
+        private static char DetectarSeparador(string contenido)
         {
-            var resultado = new List<string>();
-            var actual = new StringBuilder();
+            var candidatos = new[] { ',', ';', '\t', '|' };
+            var conteos = candidatos.ToDictionary(c => c, _ => 0);
             bool enComillas = false;
 
-            for (int i = 0; i < linea.Length; i++)
+            foreach (var ch in contenido)
             {
-                char c = linea[i];
-
-                if (c == '"')
+                if (ch == '"') { enComillas = !enComillas; continue; }
+                if (!enComillas && (ch == '\n' || ch == '\r'))
                 {
-                    if (enComillas && i + 1 < linea.Length && linea[i + 1] == '"')
+                    if (conteos.Values.Any(v => v > 0)) break; // ya tenemos la línea de encabezados
+                    continue;
+                }
+                if (!enComillas && conteos.ContainsKey(ch)) conteos[ch]++;
+            }
+
+            var mejor = conteos.OrderByDescending(x => x.Value).First();
+            return mejor.Value == 0 ? ',' : mejor.Key;
+        }
+
+        private static List<List<string>> ParseRegistros(string texto, char separador)
+        {
+            var registros = new List<List<string>>();
+            var fila = new List<string>();
+            var celda = new StringBuilder();
+            bool enComillas = false;
+
+            void TerminarFila()
+            {
+                fila.Add(celda.ToString());
+                celda.Clear();
+                registros.Add(fila);
+                fila = new List<string>();
+            }
+
+            for (int i = 0; i < texto.Length; i++)
+            {
+                char c = texto[i];
+
+                if (enComillas)
+                {
+                    if (c == '"')
                     {
-                        actual.Append('"');
-                        i++;
+                        if (i + 1 < texto.Length && texto[i + 1] == '"')
+                        {
+                            celda.Append('"');
+                            i++;
+                        }
+                        else
+                        {
+                            enComillas = false;
+                        }
                     }
                     else
                     {
-                        enComillas = !enComillas;
+                        celda.Append(c);
                     }
+                    continue;
                 }
-                else if (c == separador && !enComillas)
+
+                if (c == '"')
                 {
-                    resultado.Add(actual.ToString());
-                    actual.Clear();
+                    enComillas = true;
+                }
+                else if (c == separador)
+                {
+                    fila.Add(celda.ToString());
+                    celda.Clear();
+                }
+                else if (c == '\r')
+                {
+                    if (i + 1 < texto.Length && texto[i + 1] == '\n') i++;
+                    TerminarFila();
+                }
+                else if (c == '\n')
+                {
+                    TerminarFila();
                 }
                 else
                 {
-                    actual.Append(c);
+                    celda.Append(c);
                 }
             }
 
-            resultado.Add(actual.ToString());
-            return resultado;
+            if (celda.Length > 0 || fila.Count > 0)
+                TerminarFila();
+
+            return registros;
         }
     }
 }

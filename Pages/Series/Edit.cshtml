@@ -37,23 +37,19 @@
             <div class="form-field">
                 <label asp-for="Input.Tipo">Tipo de documento *</label>
                 <select asp-for="Input.Tipo" class="form-input" required>
-                    <optgroup label="Ventas">
-                        <option value="Cotizacion">Cotización</option>
-                        <option value="Pedido">Pedido</option>
-                        <option value="Venta">Venta</option>
-                        <option value="Factura">Factura</option>
-                        <option value="Devolucion">Devolución</option>
-                    </optgroup>
-                    <optgroup label="Inventario">
-                        <option value="Producto">Producto (SKU)</option>
-                        <option value="Baja">Baja de inventario</option>
-                    </optgroup>
-                    <optgroup label="Compras">
-                        <option value="Proveedor">Proveedor</option>
-                        <option value="OrdenCompra">Orden de compra</option>
-                        <option value="PagoProveedor">Pago a proveedor</option>
-                        <option value="DevolucionProveedor">Devolución a proveedor</option>
-                    </optgroup>
+                    @foreach (var grupo in Kirkenta.Helpers.TiposDocumento.PorGrupo())
+                    {
+                        <optgroup label="@grupo.Key">
+                            @foreach (var tipo in grupo)
+                            {
+                                <option value="@tipo.Valor">@tipo.Nombre</option>
+                            }
+                        </optgroup>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.Input.Tipo) && !Kirkenta.Helpers.TiposDocumento.Existe(Model.Input.Tipo))
+                    {
+                        <option value="@Model.Input.Tipo">@Model.Input.Tipo (personalizado)</option>
+                    }
                 </select>
             </div>
             <div class="form-field">

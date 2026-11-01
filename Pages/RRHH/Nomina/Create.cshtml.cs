@@ -55,7 +55,7 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 return RedirectToPage("/RRHH/Nomina/Index");
             }
 
-            CargarDatos();
+            CargarDatos(sugerirFechas: true);
             return Page();
         }
 
@@ -71,7 +71,8 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 return RedirectToPage("/RRHH/Nomina/Index");
             }
 
-            CargarDatos();
+            // OJO: en el POST NO se sugieren fechas (antes se pisaban las fechas que el usuario eligió)
+            CargarDatos(sugerirFechas: false);
 
             if (Input.FechaFin < Input.FechaInicio)
             {
@@ -93,6 +94,18 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 return Page();
             }
 
+            // Evita pagar dos veces el mismo período: no puede traslaparse con otra nómina vigente del mismo tipo
+            var traslape = _context.Nominas.FirstOrDefault(n =>
+                n.Tipo == Input.Tipo && n.Estado != "Anulada" &&
+                n.FechaInicio <= Input.FechaFin && n.FechaFin >= Input.FechaInicio);
+            if (traslape != null)
+            {
+                ModelState.AddModelError(string.Empty,
+                    $"Ya existe la nómina {traslape.Numero} ({traslape.FechaInicio:dd/MM/yyyy} - {traslape.FechaFin:dd/MM/yyyy}) que se traslapa con este período. Anúlala primero si quieres recalcularla.");
+                return Page();
+            }
+
+            using var tx = _context.Database.BeginTransaction();
             var numero = NumeroDocumentoHelper.GenerarSiguiente(_context, "Nomina");
             var diasPeriodo = NominaHelper.DiasPeriodo(Input.Tipo);
             var periodoDesc = string.IsNullOrWhiteSpace(Input.PeriodoDescripcion)
@@ -113,7 +126,7 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 FechaCalculo = DateTime.Now,
                 Notas = Input.Notas,
                 FechaCreacion = DateTime.Now,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             _context.Nominas.Add(nomina);
@@ -153,6 +166,7 @@ namespace Kirkenta.Pages.RRHH.Nomina
             nomina.TotalNeto = totalNeto;
 
             _context.SaveChanges();
+            tx.Commit();
 
             ActividadHelper.Registrar(
                 _context,
@@ -165,9 +179,11 @@ namespace Kirkenta.Pages.RRHH.Nomina
             return RedirectToPage("/RRHH/Nomina/Details", new { id = nomina.Id });
         }
 
-        private void CargarDatos()
+        private void CargarDatos(bool sugerirFechas)
         {
             NumeroPreview = NumeroDocumentoHelper.PreviewSiguiente(_context, "Nomina");
+
+            if (!sugerirFechas) return;
 
             // Sugerir fechas del período actual
             var (inicio, fin, pago) = NominaHelper.CalcularPeriodo("Mensual", DateTime.Today);

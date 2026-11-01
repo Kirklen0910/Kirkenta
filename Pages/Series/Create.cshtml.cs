@@ -55,9 +55,9 @@ namespace Kirkenta.Pages.Series
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Series", "crear"))
             {
-                TempData["Error"] = "Solo administradores pueden crear series";
+                TempData["Error"] = "No tienes permiso para crear o importar aquí";
                 return RedirectToPage("/Series/Index");
             }
             return Page();
@@ -67,11 +67,14 @@ namespace Kirkenta.Pages.Series
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Series", "crear"))
             {
-                TempData["Error"] = "Solo administradores pueden crear series";
+                TempData["Error"] = "No tienes permiso para crear o importar aquí";
                 return RedirectToPage("/Series/Index");
             }
+
+            if (!TiposDocumento.Existe(Input.Tipo))
+                ModelState.AddModelError("Input.Tipo", "Selecciona un tipo de documento de la lista");
 
             if (!ModelState.IsValid) return Page();
 

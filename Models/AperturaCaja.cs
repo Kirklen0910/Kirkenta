@@ -37,6 +37,6 @@ namespace Kirkenta.Models
         /// </summary>
         public int? CierreId { get; set; }
 
-        public int EmpresaId { get; set; } = 1;
+        public int EmpresaId { get; set; } = Kirkenta.Helpers.EmpresaActual.Id;
     }
 }

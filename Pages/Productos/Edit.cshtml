@@ -40,7 +40,7 @@
             </div>
             <div class="form-field">
                 <label asp-for="Input.CodigoBarras">Código de barras</label>
-                <input asp-for="Input.CodigoBarras" class="form-input" />
+                <input asp-for="Input.CodigoBarras" class="form-input" data-escaner="llenar" />
             </div>
         </div>
 
@@ -65,23 +65,45 @@
             </select>
         </div>
 
+        <div class="form-field">
+            <label asp-for="Input.ImpuestoId">Impuesto (ISV)</label>
+            <select asp-for="Input.ImpuestoId" class="form-input">
+                <option value="">Predeterminado del sistema</option>
+                @foreach (var imp in Model.Impuestos)
+                {
+                    <option value="@imp.Id">@imp.Nombre (@imp.Porcentaje.ToString("0.##")%)@(imp.EsPredeterminado ? " — predeterminado" : "")</option>
+                }
+            </select>
+            <small class="form-help">
+                Define cómo sale en la factura: gravado (15%, 18%) o exento (0%). ¿Falta alguno?
+                <a asp-page="/Impuestos/Create" target="_blank">Crear impuesto</a>
+            </small>
+        </div>
+
         <div class="form-divider"></div>
         <h3 class="form-section-title">Precios</h3>
 
         <div class="form-row">
             <div class="form-field">
                 <label asp-for="Input.PrecioCompra">Precio compra (L.)</label>
-                <input asp-for="Input.PrecioCompra" type="number" step="0.01" class="form-input" />
+                <input asp-for="Input.PrecioCompra" asp-format="{0:0.00}" type="number" step="0.01" class="form-input" />
             </div>
             <div class="form-field">
                 <label asp-for="Input.PrecioVenta">Precio venta (L.) *</label>
-                <input asp-for="Input.PrecioVenta" type="number" step="0.01" class="form-input" required />
+                <input asp-for="Input.PrecioVenta" asp-format="{0:0.00}" type="number" step="0.01" class="form-input" required />
             </div>
         </div>
 
         <div class="form-field">
+            <label for="gananciaPct">% de ganancia sobre el costo</label>
+            <input id="gananciaPct" type="number" step="0.01" class="form-input" placeholder="Ej. 30" />
+            <small id="gananciaInfo" class="form-help">Ingresa costo y precio para ver la ganancia.</small>
+            <small class="form-help">Escribe el % y el precio de venta se calcula solo (costo × (1 + %)). Si escribes el precio, el % se ajusta. El ISV se suma aparte al vender.</small>
+        </div>
+
+        <div class="form-field">
             <label asp-for="Input.PrecioMayorista">Precio mayorista (L.)</label>
-            <input asp-for="Input.PrecioMayorista" type="number" step="0.01" class="form-input" />
+            <input asp-for="Input.PrecioMayorista" asp-format="{0:0.00}" type="number" step="0.01" class="form-input" />
         </div>
 
         <div class="form-divider"></div>
@@ -90,11 +112,11 @@
         <div class="form-row">
             <div class="form-field">
                 <label asp-for="Input.Stock">Stock actual</label>
-                <input asp-for="Input.Stock" type="number" step="0.01" class="form-input" />
+                <input asp-for="Input.Stock" asp-format="{0:0.##}" type="number" step="0.01" class="form-input" />
             </div>
             <div class="form-field">
                 <label asp-for="Input.StockMinimo">Stock mínimo</label>
-                <input asp-for="Input.StockMinimo" type="number" step="0.01" class="form-input" />
+                <input asp-for="Input.StockMinimo" asp-format="{0:0.##}" type="number" step="0.01" class="form-input" />
             </div>
         </div>
 
@@ -125,6 +147,14 @@
             </label>
         </div>
 
+        <div class="form-field">
+            <label class="form-checkbox">
+                <input asp-for="Input.PermiteDescuento" type="checkbox" />
+                <span>Admite descuento en la venta</span>
+            </label>
+            <small class="form-help">Si lo desmarcas, este producto nunca recibe descuento (ni el de su línea ni el descuento general de la venta).</small>
+        </div>
+
         <div class="form-actions">
             <a asp-page="/Productos/Index" class="btn-secondary">Cancelar</a>
             <button type="submit" class="btn-primary">
@@ -136,3 +166,5 @@
         </div>
     </form>
 </div>
+
+<script src="~/js/ganancia-producto.js" asp-append-version="true"></script>

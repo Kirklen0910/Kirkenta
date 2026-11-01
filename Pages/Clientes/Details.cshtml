@@ -1,0 +1,224 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Clientes.DetailsModel
+@{
+    ViewData["Title"] = $"Cliente: {Model.Cliente.Nombre}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Clientes/Index" class="back-link">← Volver a clientes</a>
+        <h2>@Model.Cliente.Nombre</h2>
+        <p>@Model.Cliente.Codigo • @(Model.Cliente.Activo ? "Activo" : "Inactivo")@(string.IsNullOrEmpty(Model.Cliente.RTN) ? "" : " • RTN " + Model.Cliente.RTN)</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Clientes/EstadoCuenta" asp-route-id="@Model.Cliente.Id" class="btn-secondary">Estado de cuenta</a>
+        <a asp-page="/POS/Index" class="btn-secondary">Nueva venta (POS)</a>
+        <a asp-page="/Cotizaciones/Create" class="btn-secondary">Nueva cotización</a>
+        <a asp-page="/Clientes/Edit" asp-route-id="@Model.Cliente.Id" class="btn-secondary">Editar</a>
+    </div>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Total comprado</span>
+        <span class="kpi-value">L. @Model.TotalComprado.ToString("N2")</span>
+        <span class="kpi-trend">@Model.CantidadVentas ventas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Ticket promedio</span>
+        <span class="kpi-value">L. @Model.TicketPromedio.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Saldo pendiente</span>
+        <span class="kpi-value" style="color: @(Model.SaldoPendiente > 0 ? "var(--color-danger)" : "var(--color-success)");">L. @Model.SaldoPendiente.ToString("N2")</span>
+        @if (Model.Cliente.LimiteCredito > 0)
+        {
+            <span class="kpi-trend">Límite L. @Model.Cliente.LimiteCredito.ToString("N2")</span>
+        }
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Saldo a favor</span>
+        <span class="kpi-value" style="color: @(Model.SaldoFavor > 0 ? "var(--color-success)" : "inherit");">L. @Model.SaldoFavor.ToString("N2")</span>
+        <span class="kpi-trend">Crédito para su próxima compra</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Última compra</span>
+        <span class="kpi-value" style="font-size: 18px;">@(Model.UltimaCompra?.ToString("dd/MM/yyyy") ?? "Sin compras")</span>
+    </div>
+</div>
+
+@if (Model.MovimientosSaldo.Count > 0)
+{
+    <div class="module-card" style="padding: 24px; margin-bottom: 20px;">
+        <h3 class="form-section-title">Saldo a favor: movimientos</h3>
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Fecha</th><th>Concepto</th><th style="text-align:right;">Monto</th></tr></thead>
+                <tbody>
+                    @foreach (var m in Model.MovimientosSaldo)
+                    {
+                        <tr>
+                            <td>@m.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                @m.Concepto
+                                @if (m.DevolucionId.HasValue) { <a asp-page="/Devoluciones/Details" asp-route-id="@m.DevolucionId">ver devolución</a> }
+                                @if (m.VentaId.HasValue) { <a asp-page="/Ventas/Details" asp-route-id="@m.VentaId">ver venta</a> }
+                            </td>
+                            <td style="text-align:right; color: @(m.Monto >= 0 ? "var(--color-success)" : "var(--color-danger)");">@(m.Monto >= 0 ? "+" : "−") L. @Math.Abs(m.Monto).ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<div class="module-card" style="padding: 24px; margin-bottom: 20px;">
+    <h3 class="form-section-title">Datos de contacto</h3>
+    <div class="empresa-info-grid">
+        @if (!string.IsNullOrEmpty(Model.Cliente.RazonSocial))
+        {
+            <div class="empresa-info-item"><span class="empresa-info-label">Razón social</span><span class="empresa-info-value">@Model.Cliente.RazonSocial</span></div>
+        }
+        @if (!string.IsNullOrEmpty(Model.Cliente.Telefono))
+        {
+            <div class="empresa-info-item"><span class="empresa-info-label">Teléfono</span><span class="empresa-info-value">@Model.Cliente.Telefono</span></div>
+        }
+        @if (!string.IsNullOrEmpty(Model.Cliente.Email))
+        {
+            <div class="empresa-info-item"><span class="empresa-info-label">Email</span><span class="empresa-info-value">@Model.Cliente.Email</span></div>
+        }
+        @if (!string.IsNullOrEmpty(Model.Cliente.Direccion))
+        {
+            <div class="empresa-info-item empresa-info-full"><span class="empresa-info-label">Dirección</span><span class="empresa-info-value">@Model.Cliente.Direccion @Model.Cliente.Ciudad</span></div>
+        }
+        <div class="empresa-info-item"><span class="empresa-info-label">Tipo</span><span class="empresa-info-value">@Model.Cliente.TipoCliente</span></div>
+        <div class="empresa-info-item"><span class="empresa-info-label">Crédito</span><span class="empresa-info-value">@(Model.Cliente.LimiteCredito > 0 ? $"L. {Model.Cliente.LimiteCredito:N2} / {Model.Cliente.DiasCredito} días" : "Sin crédito")</span></div>
+    </div>
+</div>
+
+<div class="module-card" style="padding: 24px; margin-bottom: 20px;">
+    <h3 class="form-section-title">Lo que más compra</h3>
+    <p class="form-section-desc">Productos de este cliente (clic para ver el historial del producto)</p>
+    @if (Model.TopProductos.Count == 0)
+    {
+        <p style="font-size:13px; color: var(--color-muted);">Sin compras registradas</p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Producto</th><th style="text-align:right;">Cantidad</th><th style="text-align:right;">Monto</th><th>Última compra</th></tr></thead>
+                <tbody>
+                    @foreach (var p in Model.TopProductos)
+                    {
+                        <tr>
+                            <td>
+                                @if (Model.PuedeVerProductos)
+                                {
+                                    <a asp-page="/Productos/Historial" asp-route-id="@p.ProductoId"><strong>@p.Nombre</strong></a>
+                                }
+                                else
+                                {
+                                    <strong>@p.Nombre</strong>
+                                }
+                            </td>
+                            <td style="text-align:right;">@p.Cantidad.ToString("0.##")</td>
+                            <td style="text-align:right;">L. @p.Monto.ToString("N2")</td>
+                            <td>@p.Ultima.ToString("dd/MM/yyyy")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="module-card" style="padding: 24px; margin-bottom: 20px;">
+    <h3 class="form-section-title">Ventas recientes</h3>
+    @if (Model.Ventas.Count == 0)
+    {
+        <p style="font-size:13px; color: var(--color-muted);">Sin ventas</p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Venta</th><th>Fecha</th><th>Factura</th><th style="text-align:right;">Total</th><th style="text-align:right;">Saldo</th><th>Estado</th></tr></thead>
+                <tbody>
+                    @foreach (var v in Model.Ventas)
+                    {
+                        <tr>
+                            <td><a asp-page="/Ventas/Details" asp-route-id="@v.Id"><strong>@v.Numero</strong></a></td>
+                            <td>@v.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                @if (v.FacturaId.HasValue)
+                                {
+                                    <a asp-page="/Facturas/Details" asp-route-id="@v.FacturaId.Value">@v.FacturaNumero</a>
+                                }
+                                else
+                                {
+                                    <span style="color: var(--color-muted);">—</span>
+                                }
+                            </td>
+                            <td style="text-align:right;">L. @v.Total.ToString("N2")</td>
+                            <td style="text-align:right;">@(v.Saldo > 0 ? "L. " + v.Saldo.ToString("N2") : "—")</td>
+                            <td>@v.Estado</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="module-card" style="padding: 24px; margin-bottom: 20px;">
+    <h3 class="form-section-title">Facturas</h3>
+    @if (Model.Facturas.Count == 0)
+    {
+        <p style="font-size:13px; color: var(--color-muted);">Sin facturas</p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Factura</th><th>Fecha</th><th style="text-align:right;">Total</th><th style="text-align:right;">Saldo</th><th>Estado</th></tr></thead>
+                <tbody>
+                    @foreach (var f in Model.Facturas)
+                    {
+                        <tr>
+                            <td><a asp-page="/Facturas/Details" asp-route-id="@f.Id"><strong>@f.Numero</strong></a></td>
+                            <td>@f.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td style="text-align:right;">L. @f.Total.ToString("N2")</td>
+                            <td style="text-align:right;">@(f.Saldo > 0 ? "L. " + f.Saldo.ToString("N2") : "—")</td>
+                            <td>@f.Estado</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (Model.Devoluciones.Count > 0)
+{
+    <div class="module-card" style="padding: 24px; margin-bottom: 20px;">
+        <h3 class="form-section-title">Devoluciones</h3>
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Devolución</th><th>Fecha</th><th>Motivo</th><th style="text-align:right;">Total</th></tr></thead>
+                <tbody>
+                    @foreach (var d in Model.Devoluciones)
+                    {
+                        <tr>
+                            <td><a asp-page="/Devoluciones/Details" asp-route-id="@d.Id"><strong>@d.Numero</strong></a></td>
+                            <td>@d.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@d.Motivo</td>
+                            <td style="text-align:right;">L. @d.Total.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

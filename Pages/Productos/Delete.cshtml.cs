@@ -34,6 +34,12 @@ namespace Kirkenta.Pages.Productos
                 return RedirectToPage("/Productos/Index");
             }
 
+            if (TieneDependencias(id))
+            {
+                TempData["Error"] = "No se puede eliminar el producto: tiene ventas, facturas, cotizaciones, pedidos, órdenes de compra o bajas asociadas. Desactívalo mejor.";
+                return RedirectToPage("/Productos/Index");
+            }
+
             Producto = producto;
             return Page();
         }
@@ -55,10 +61,9 @@ namespace Kirkenta.Pages.Productos
                 return RedirectToPage("/Productos/Index");
             }
 
-            // Verificar que no esté en ventas
-            if (_context.DetalleVentas.Any(d => d.ProductoId == id))
+            if (TieneDependencias(id))
             {
-                TempData["Error"] = "No se puede eliminar un producto que tiene ventas registradas";
+                TempData["Error"] = "No se puede eliminar el producto: tiene movimientos o documentos asociados. Desactívalo (Editar → Activo) para que no aparezca en ventas.";
                 return RedirectToPage("/Productos/Index");
             }
 
@@ -75,6 +80,25 @@ namespace Kirkenta.Pages.Productos
 
             TempData["Success"] = $"Producto '{nombre}' eliminado";
             return RedirectToPage("/Productos/Index");
+        }
+
+        private bool TieneDependencias(int productoId)
+        {
+            if (_context.DetalleVentas.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.DetalleFacturas.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.DetalleCotizaciones.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.DetallePedidos.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.DetalleOrdenesCompra.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.DetalleDevoluciones.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.DetalleDevolucionesProveedor.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.BajasInventario.Any(b => b.ProductoId == productoId)) return true;
+            // Kardex, producción, calidad y tomas físicas también guardan el historial del producto
+            if (_context.MovimientosInventario.Any(m => m.ProductoId == productoId)) return true;
+            if (_context.OrdenesProduccion.Any(o => o.ProductoId == productoId)) return true;
+            if (_context.DetallesOrdenProduccion.Any(d => d.ProductoId == productoId)) return true;
+            if (_context.InspeccionesCalidad.Any(i => i.ProductoId == productoId)) return true;
+            if (_context.DetallesTomaFisica.Any(d => d.ProductoId == productoId)) return true;
+            return false;
         }
     }
 }

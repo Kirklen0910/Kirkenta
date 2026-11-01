@@ -40,7 +40,7 @@ namespace Kirkenta.Helpers.Logistica
             {
                 Numero = numero,
                 VentaId = venta.Id,
-                ClienteId = venta.ClienteId ?? 0,
+                ClienteId = venta.ClienteId ?? 1, // 1 = consumidor final (igual que facturas y pagos)
                 ClienteNombre = cliente?.Nombre ?? "Consumidor final",
                 DireccionEntrega = direccionEntrega,
                 Referencia = referencia,
@@ -55,7 +55,7 @@ namespace Kirkenta.Helpers.Logistica
                 FechaEntregaEstimada = DateTime.Today.AddDays(1),
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = usuarioId,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             context.Envios.Add(envio);
@@ -109,7 +109,7 @@ namespace Kirkenta.Helpers.Logistica
                 FechaEntregaEstimada = DateTime.Today.AddDays(1),
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = usuarioId,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             context.Envios.Add(envio);
@@ -163,7 +163,7 @@ namespace Kirkenta.Helpers.Logistica
                 FechaEntregaEstimada = pedido.FechaEntrega ?? DateTime.Today.AddDays(1),
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = usuarioId,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             context.Envios.Add(envio);
@@ -217,7 +217,7 @@ namespace Kirkenta.Helpers.Logistica
                 FechaEntregaEstimada = DateTime.Today.AddDays(1),
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = usuarioId,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             context.Envios.Add(envio);
@@ -243,8 +243,8 @@ namespace Kirkenta.Helpers.Logistica
                 var envio = context.Envios.FirstOrDefault(e => e.Id == envioId);
                 if (envio == null) return (false, "Envío no encontrado");
 
-                if (envio.Estado == "Entregado")
-                    return (false, "Este envío ya fue marcado como entregado");
+                if (envio.Estado != "Pendiente" && envio.Estado != "EnRuta")
+                    return (false, $"Un envío en estado '{envio.Estado}' no se puede marcar como entregado");
 
                 var estadoAnterior = envio.Estado;
 
@@ -323,7 +323,7 @@ namespace Kirkenta.Helpers.Logistica
                 var envio = context.Envios.FirstOrDefault(e => e.Id == envioId);
                 if (envio == null) return (false, "Envío no encontrado");
 
-                if (envio.Estado == "Entregado" || envio.Estado == "Fallido")
+                if (envio.Estado != "Pendiente" && envio.Estado != "EnRuta")
                     return (false, "Este envío ya fue procesado");
 
                 var estadoAnterior = envio.Estado;
@@ -433,6 +433,30 @@ namespace Kirkenta.Helpers.Logistica
                         UsuarioId = usuarioId,
                         UsuarioNombre = usuario?.Username
                     });
+
+                    // Si la ruta sigue activa, la parada sale de ella: sin esto TotalParadas queda contando
+                    // un envío que ya no pertenece a la ruta y la ruta nunca se completa sola.
+                    var ruta = context.Rutas.FirstOrDefault(r => r.Id == rutaAnteriorId.Value);
+                    if (ruta != null && (ruta.Estado == "Borrador" || ruta.Estado == "EnReparto"))
+                    {
+                        var restantes = context.Envios
+                            .Where(e => e.RutaId == ruta.Id)
+                            .ToList()
+                            // Filtro en memoria: este envío aún figura en la BD con la ruta (no se ha guardado)
+                            .Where(e => e.RutaId == ruta.Id)
+                            .ToList();
+
+                        ruta.TotalParadas = restantes.Count;
+                        ruta.ParadasEntregadas = restantes.Count(e => e.Estado == "Entregado");
+                        ruta.ParadasFallidas = restantes.Count(e => e.Estado == "Fallido");
+
+                        var totalResueltas = ruta.ParadasEntregadas + ruta.ParadasFallidas;
+                        if (ruta.TotalParadas > 0 && totalResueltas >= ruta.TotalParadas && ruta.Estado == "EnReparto")
+                        {
+                            ruta.Estado = "Completada";
+                            ruta.FechaRegreso = DateTime.Now;
+                        }
+                    }
                 }
 
                 context.SaveChanges();
@@ -462,10 +486,12 @@ namespace Kirkenta.Helpers.Logistica
         /// </summary>
         public static string GenerarTrackingCode()
         {
+            // El código es la "llave" de la página pública de seguimiento:
+            // debe ser impredecible (generador criptográfico, 10 caracteres ≈ 50 bits).
             const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-            var random = new Random();
-            var sufijo = new string(Enumerable.Repeat(chars, 6)
-                .Select(s => s[random.Next(s.Length)]).ToArray());
+            var sufijo = new string(Enumerable.Range(0, 10)
+                .Select(_ => chars[System.Security.Cryptography.RandomNumberGenerator.GetInt32(chars.Length)])
+                .ToArray());
 
             return $"KRT-{DateTime.Now.Year}-{sufijo}";
         }

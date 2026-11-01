@@ -17,9 +17,10 @@ namespace Kirkenta.Models
         public bool AplicaIHSS { get; set; } = true;
 
         [Range(0, 100)]
-        public decimal PorcentajeIHSS { get; set; } = 2.5m;
+        public decimal PorcentajeIHSS { get; set; } = 5.0m;   // 2.5% EM + 2.5% IVM
 
-        public decimal TopeIHSS { get; set; } = 11995.00m;
+        /// <summary>Techo de cotización IHSS (L. 11,903.13 en 2026). También es el piso del RAP.</summary>
+        public decimal TopeIHSS { get; set; } = 11903.13m;
 
         // ===== RAP =====
         public bool AplicaRAP { get; set; } = true;
@@ -33,9 +34,9 @@ namespace Kirkenta.Models
         public bool AplicaISR { get; set; } = true;
 
         /// <summary>
-        /// Tope anual exento de ISR (L. 250,000 en Honduras 2024-2026)
+        /// Exento anual de ISR publicado por el SAR (L. 228,324.32 en 2026). Define el primer tramo de la tabla.
         /// </summary>
-        public decimal TopeAnualExentoISR { get; set; } = 250000.00m;
+        public decimal TopeAnualExentoISR { get; set; } = 228324.32m;
 
         /// <summary>
         /// Método: "Acumulativo" (SAR) o "MensualSimple"

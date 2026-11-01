@@ -1,0 +1,112 @@
+﻿@page
+@model Kirkenta.Pages.Reportes.RentabilidadModel
+@{
+    ViewData["Title"] = "Rentabilidad de productos";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Reportes/Index" class="back-link">← Volver a reportes</a>
+        <h2>Rentabilidad y rotación de productos</h2>
+        <p>Del @Model.Desde?.ToString("dd/MM/yyyy") al @Model.Hasta?.ToString("dd/MM/yyyy"). Cifras netas de devoluciones; ventas sin ISV.</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Reportes/Rentabilidad" asp-page-handler="Csv"
+           asp-route-desde="@Model.Desde?.ToString("yyyy-MM-dd")" asp-route-hasta="@Model.Hasta?.ToString("yyyy-MM-dd")"
+           asp-route-filtro="@Model.Filtro" asp-route-margenMin="@Model.MargenMin" class="btn-secondary">Exportar CSV</a>
+        <button type="button" class="btn-secondary" onclick="window.print()">Imprimir</button>
+    </div>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">@TempData["Error"]</div>
+}
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Ventas del período</span>
+        <span class="kpi-value">L. @Model.TotalVentas.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Utilidad</span>
+        <span class="kpi-value" style="color:@(Model.TotalUtilidad >= 0 ? "var(--color-success-text)" : "var(--color-danger-text)");">L. @Model.TotalUtilidad.ToString("N2")</span>
+        <span class="kpi-trend">margen @Model.MargenGlobalPct.ToString("0.#")%</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Productos sin ventas</span>
+        <span class="kpi-value">@Model.ProductosSinVentas</span>
+        <span class="kpi-trend">en el período</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Capital sin movimiento</span>
+        <span class="kpi-value">L. @Model.CapitalSinMovimiento.ToString("N2")</span>
+        <span class="kpi-trend">stock a costo de esos productos</span>
+    </div>
+</div>
+
+<div class="module-card">
+    <form method="get" class="module-toolbar" style="gap:12px;flex-wrap:wrap;">
+        <div class="form-field">
+            <label>Desde</label>
+            <input type="date" name="Desde" class="form-input" value="@Model.Desde?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="form-field">
+            <label>Hasta</label>
+            <input type="date" name="Hasta" class="form-input" value="@Model.Hasta?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="form-field">
+            <label>Mostrar</label>
+            <select name="Filtro" class="form-input">
+                <option value="" selected="@(string.IsNullOrEmpty(Model.Filtro))">Todos (por utilidad)</option>
+                <option value="SinVentas" selected="@(Model.Filtro == "SinVentas")">Sin ventas en el período</option>
+                <option value="MargenBajo" selected="@(Model.Filtro == "MargenBajo")">Margen bajo</option>
+            </select>
+        </div>
+        <div class="form-field">
+            <label>Margen mínimo %</label>
+            <input type="number" name="MargenMin" class="form-input" step="0.1" min="-100" max="100" value="@Model.MargenMin?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" style="max-width:110px;" />
+        </div>
+        <div class="form-field" style="align-self:flex-end;"><button type="submit" class="btn-primary">Filtrar</button></div>
+    </form>
+
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Producto</th>
+                    <th style="text-align:right;">Stock</th>
+                    <th style="text-align:right;">Unidades</th>
+                    <th style="text-align:right;">Ventas</th>
+                    <th style="text-align:right;">Costo</th>
+                    <th style="text-align:right;">Utilidad</th>
+                    <th style="text-align:right;">Margen</th>
+                    <th>Última venta</th>
+                    <th style="text-align:right;">Stock a costo</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Filas.Any())
+                {
+                    <tr><td colspan="10" style="text-align:center;padding:24px;">Sin resultados para este filtro</td></tr>
+                }
+                @foreach (var f in Model.Filas)
+                {
+                    <tr>
+                        <td>@f.SKU</td>
+                        <td><a asp-page="/Productos/Historial" asp-route-id="@f.ProductoId">@f.Nombre</a></td>
+                        <td style="text-align:right;">@f.Stock.ToString("0.##")</td>
+                        <td style="text-align:right;">@f.Unidades.ToString("0.##")</td>
+                        <td style="text-align:right;">L. @f.Ventas.ToString("N2")</td>
+                        <td style="text-align:right;">L. @f.Costo.ToString("N2")</td>
+                        <td style="text-align:right;color:@(f.Utilidad < 0 ? "var(--color-danger-text)" : "var(--color-success-text)");">L. @f.Utilidad.ToString("N2")</td>
+                        <td style="text-align:right;">@(f.MargenPct.HasValue ? f.MargenPct.Value.ToString("0.#") + "%" : "—")</td>
+                        <td>@(f.UltimaVenta.HasValue ? f.UltimaVenta.Value.ToString("dd/MM/yyyy") : "Nunca")</td>
+                        <td style="text-align:right;">L. @f.ValorStock.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

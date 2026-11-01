@@ -65,6 +65,6 @@ namespace Kirkenta.Models
         // ===== MOVIMIENTO DE AJUSTE =====
         public int? MovimientoAjusteId { get; set; }
 
-        public int EmpresaId { get; set; } = 1;
+        public int EmpresaId { get; set; } = Kirkenta.Helpers.EmpresaActual.Id;
     }
 }

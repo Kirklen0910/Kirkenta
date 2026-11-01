@@ -34,6 +34,12 @@ namespace Kirkenta.Pages.Pedidos
 
         public IActionResult OnGet(int id)
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Pedidos", "editar")))
+            {
+                TempData["Error"] = "No tienes permiso para realizar esta acción";
+                return RedirectToPage("/Index");
+            }
+
             var pedido = _context.Pedidos.FirstOrDefault(p => p.Id == id);
             if (pedido == null)
             {
@@ -56,6 +62,12 @@ namespace Kirkenta.Pages.Pedidos
 
         public IActionResult OnPost()
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Pedidos", "editar")))
+            {
+                TempData["Error"] = "No tienes permiso para realizar esta acción";
+                return RedirectToPage("/Index");
+            }
+
             if (!ModelState.IsValid) return Page();
 
             var pedido = _context.Pedidos.FirstOrDefault(p => p.Id == Input.Id);
@@ -65,7 +77,8 @@ namespace Kirkenta.Pages.Pedidos
                 return RedirectToPage("/Pedidos/Index");
             }
 
-            pedido.Estado = Input.Estado;
+            // El estado NO se cambia aquí: solo por el flujo controlado de Pedidos/Details
+            // (transiciones válidas, facturación y reversa de inventario/costos).
             pedido.FechaEntrega = Input.FechaEntrega;
             pedido.Notas = Input.Notas;
 
@@ -76,7 +89,7 @@ namespace Kirkenta.Pages.Pedidos
                 _context,
                 currentUser?.Id ?? 0,
                 "Actualizar pedido",
-                $"Cambió el estado del pedido {pedido.Numero} a '{pedido.Estado}'",
+                $"Actualizó fecha de entrega/notas del pedido {pedido.Numero}",
                 HttpContext.Connection.RemoteIpAddress?.ToString());
 
             TempData["Success"] = $"Pedido {pedido.Numero} actualizado";

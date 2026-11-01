@@ -1,0 +1,145 @@
+@page
+@model Kirkenta.Pages.Configuracion.RespaldosModel
+@{
+    ViewData["Title"] = "Respaldos del sistema";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Respaldos del sistema</h2>
+        <p>Un solo archivo .zip con <strong>toda la información del cliente</strong>: ventas, clientes, productos, finanzas, RRHH, usuarios, configuración y archivos subidos. Sirve para recuperar el negocio en un sistema nuevo y en blanco.</p>
+    </div>
+    <form method="post" asp-page-handler="Crear">
+        <button type="submit" class="btn btn-primary">💾 Crear respaldo ahora</button>
+    </form>
+</div>
+
+@{ var errorRespaldo = Kirkenta.Helpers.RespaldoEstado.LeerError(Model.Carpeta); }
+@if (errorRespaldo != null)
+{
+    <div class="module-alert module-alert-error" role="alert">
+        ❌ El último respaldo falló el <strong>@errorRespaldo.Value.Fecha.ToString("dd/MM/yyyy HH:mm")</strong>: @errorRespaldo.Value.Mensaje
+        <div style="font-size:13px;">Crea uno manual con el botón de arriba; si sale bien, este aviso desaparece.</div>
+    </div>
+}
+
+<div class="module-card" style="border-left:4px solid var(--color-info, var(--color-primary));">
+    <strong>Cómo funciona</strong>
+    <ul style="margin:6px 0 0 18px;color:var(--color-muted);font-size:13px;">
+        <li>@(Model.Config.Automatico ? $"Se hace un respaldo automático cada día a las {Model.Config.Hora} y se guardan los últimos {Model.Config.Conservar} en" : "El respaldo automático está APAGADO. Los respaldos manuales se guardan en") <code>@Model.Carpeta</code>.</li>
+        <li>Para estar protegido de verdad, configura abajo una <strong>copia externa</strong> (USB, otro disco o unidad de red): si se daña la computadora, los respaldos no se pierden con ella.</li>
+        <li>Para restaurar en un sistema nuevo: instala el sistema, entra como administrador (o deja la base vacía), sube el .zip aquí y restaura.</li>
+        <li>Restaurar <strong>reemplaza todos los datos actuales</strong>. Antes se guarda una copia de lo que había, y si algo falla se revierte todo.</li>
+    </ul>
+</div>
+
+<div class="module-card">
+    <h3 style="margin-top:0;">⏰ Respaldo automático</h3>
+    <form method="post" asp-page-handler="Configurar" id="formAuto">
+        <div style="display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+            <div class="form-group">
+                <label style="display:flex;gap:8px;align-items:center;font-weight:600;">
+                    <input type="checkbox" name="CfgAutomatico" value="true" @(Model.Config.Automatico ? "checked" : "") />
+                    <input type="hidden" name="CfgAutomatico" value="false" />
+                    Activar el respaldo diario
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="CfgHora">Hora</label>
+                <input type="time" id="CfgHora" name="CfgHora" class="form-control" value="@Model.Config.Hora" />
+            </div>
+            <div class="form-group">
+                <label for="CfgConservar">Cuántos conservar</label>
+                <input type="number" id="CfgConservar" name="CfgConservar" class="form-control" min="1" max="365" value="@Model.Config.Conservar" />
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+                <label for="CfgCopiaExterna">Copia externa (carpeta de un USB, otro disco o red)</label>
+                <input type="text" id="CfgCopiaExterna" name="CfgCopiaExterna" class="form-control" value="@Model.Config.CopiaExterna" placeholder="E:\Respaldos   o   \\servidor\respaldos" autocomplete="off" />
+                <small style="color:var(--color-muted);">Cada respaldo también se copia aquí y se conservan los mismos últimos respaldos. Si la carpeta no está disponible, el respaldo normal no se afecta y el sistema te avisa.</small>
+            </div>
+        </div>
+        @if (Model.UltimaCopia != null)
+        {
+            <div style="margin:6px 0 10px;font-size:13px;color:@(Model.UltimaCopia.Ok ? "var(--color-success-text)" : "var(--color-danger-text)");">
+                @(Model.UltimaCopia.Ok ? "✅" : "❌") Última copia externa (@Model.UltimaCopia.Fecha.ToString("dd/MM/yyyy HH:mm")): @Model.UltimaCopia.Mensaje
+            </div>
+        }
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button type="submit" asp-page-handler="Configurar" class="btn btn-primary">Guardar</button>
+            <button type="submit" asp-page-handler="ProbarCopia" class="btn btn-secondary">Probar carpeta externa</button>
+        </div>
+    </form>
+</div>
+
+<div class="module-card">
+    <h3 style="margin-top:0;">Respaldos guardados</h3>
+    @if (Model.Respaldos.Count == 0)
+    {
+        <p style="color:var(--color-muted);">Todavía no hay respaldos. Pulsa “Crear respaldo ahora”.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead><tr><th>Archivo</th><th>Fecha</th><th>Tamaño</th><th>Contenido</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var r in Model.Respaldos)
+                {
+                    <tr>
+                        <td><code>@r.Nombre</code></td>
+                        <td>@r.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>@((r.Bytes / 1024.0 / 1024.0).ToString("N1")) MB</td>
+                        <td>@(r.Info == null ? "—" : $"{r.Info.Tablas.Count} tablas · {r.Info.FilasTotales:N0} registros · {r.Info.Archivos} archivos")</td>
+                        <td style="white-space:nowrap;">
+                            <a class="btn btn-sm" asp-page-handler="Descargar" asp-route-nombre="@r.Nombre">⬇ Descargar</a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="module-card" style="border-left:4px solid var(--color-danger);">
+    <h3 style="margin-top:0;">♻️ Restaurar</h3>
+    <p style="color:var(--color-muted);font-size:13px;">Elige un respaldo guardado <em>o</em> sube uno desde tu computadora. Se reemplazan los datos actuales.</p>
+    <form method="post" asp-page-handler="Restaurar" enctype="multipart/form-data" id="formRestaurar">
+        <div class="form-group">
+            <label for="Archivo">Respaldo guardado</label>
+            <select id="Archivo" name="Archivo" class="form-control">
+                <option value="">— ninguno —</option>
+                @foreach (var r in Model.Respaldos)
+                {
+                    <option value="@r.Nombre">@r.Nombre (@r.Fecha.ToString("dd/MM/yyyy HH:mm"))</option>
+                }
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="Subido">…o subir un archivo .zip</label>
+            <input type="file" id="Subido" name="Subido" accept=".zip" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label>¿Qué restaurar?</label>
+            <label style="display:block;font-weight:400;"><input type="radio" name="Alcance" value="todo" checked onchange="document.getElementById('bloqueModulos').style.display='none'" /> Todo el sistema (recomendado para un sistema nuevo)</label>
+            <label style="display:block;font-weight:400;"><input type="radio" name="Alcance" value="modulos" onchange="document.getElementById('bloqueModulos').style.display=''" /> Solo algunos módulos</label>
+        </div>
+        <div id="bloqueModulos" class="form-group" style="display:none;padding:10px;border:1px dashed var(--color-border);border-radius:8px;">
+            <p style="color:var(--color-warning);font-size:13px;margin:0 0 8px;">⚠ Solo para recuperar un módulo dañado o borrado. Se reemplazan las tablas elegidas con lo que traía el respaldo; los demás módulos quedan como están. Si el respaldo es viejo, pueden quedar registros relacionados que no coinciden (por ejemplo ventas de un cliente que no existía).</p>
+            @foreach (var g in Kirkenta.Services.RespaldoSistemaService.Grupos.Keys)
+            {
+                <label style="display:block;font-weight:400;"><input type="checkbox" name="Modulos" value="@g" /> @g</label>
+            }
+            <label style="display:block;font-weight:400;margin-top:6px;"><input type="checkbox" name="IncluirArchivos" value="true" /> Restaurar también los archivos subidos (imágenes y adjuntos)</label>
+        </div>
+        <div class="form-group">
+            <label for="Password">Tu contraseña de administrador</label>
+            <input type="password" id="Password" name="Password" class="form-control" autocomplete="current-password" required />
+        </div>
+        <div class="form-group">
+            <label for="Confirmacion">Escribe <strong>RESTAURAR</strong> para confirmar</label>
+            <input type="text" id="Confirmacion" name="Confirmacion" class="form-control" autocomplete="off" required />
+        </div>
+        <button type="submit" class="btn btn-danger" onclick="return document.getElementById('Archivo').value || document.getElementById('Subido').files.length ? true : (alert('Elige o sube un respaldo.'), false);">Restaurar y reemplazar datos</button>
+    </form>
+</div>

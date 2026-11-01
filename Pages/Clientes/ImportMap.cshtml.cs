@@ -27,6 +27,13 @@ namespace Kirkenta.Pages.Clientes
         [BindProperty]
         public string ModoImportacion { get; set; } = "upsert";
 
+        public IActionResult OnGetPlantilla()
+        {
+            WizardConfig = BuildConfig();
+            return File(WizardConfig.PlantillaXlsx(), ImportReportHelper.TipoXlsx,
+                $"plantilla_{ColumnMapper.Normalizar(WizardConfig.NombrePlural)}.xlsx");
+        }
+
         public IActionResult OnGet()
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
@@ -97,8 +104,9 @@ namespace Kirkenta.Pages.Clientes
 
             ImportWizardHelper.LimpiarSesion(HttpContext.Session, WizardConfig);
 
-            TempData["Success"] = $"Importación completada: {resultado.Resumen()}";
-            return Redirect(WizardConfig.UrlIndex);
+            // Éxito limpio => mensaje y listado. Con errores/advertencias => pantalla de resultado
+            // con el motivo de cada fila y CSV descargable para corregir y reintentar.
+            return ImportReportHelper.Finalizar(this, WizardConfig.UrlIndex, resultado, HeadersArchivo, FilasArchivo);
         }
 
         private bool CargarDesdeSesion()
@@ -161,6 +169,9 @@ namespace Kirkenta.Pages.Clientes
             };
         }
 
+        private string EtiquetaDe(string campo) =>
+            ImportWizardConfig.EtiquetaLimpia(WizardConfig.Campos.FirstOrDefault(c => c.Key == campo)?.Label ?? campo);
+
         private ImportResult ImportarClientes(
             List<Dictionary<string, string>> filas,
             Dictionary<string, string> mapa,
@@ -173,7 +184,7 @@ namespace Kirkenta.Pages.Clientes
             var codigosExistentes = _context.Clientes
                 .Where(c => c.Codigo != null)
                 .Select(c => c.Codigo!)
-                .ToHashSet();
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             // ===== 2. Serie y próximo número local =====
             var serieCliente = _context.SeriesDocumentos
@@ -206,6 +217,9 @@ namespace Kirkenta.Pages.Clientes
                         return fila.GetValueOrDefault(header)?.Trim();
                     }
 
+                    string? T(string campo, int max) =>
+                        ImportHelper.Texto(resultado, filaNum, EtiquetaDe(campo), Obtener(campo), max);
+
                     var nombre = Obtener("Nombre");
                     if (string.IsNullOrWhiteSpace(nombre))
                     {
@@ -236,6 +250,7 @@ namespace Kirkenta.Pages.Clientes
                         resultado.AgregarAdvertencia(filaNum, $"El RTN '{rtn}' excede 20 caracteres. Se ignora.");
                         rtn = null;
                     }
+                    rtn = DocumentoHonduras.FormatearRtn(rtn);
 
                     // Buscar existente
                     Cliente? existente = null;
@@ -257,6 +272,14 @@ namespace Kirkenta.Pages.Clientes
                         continue;
                     }
 
+                    // Código repetido dentro del mismo archivo: antes hacía fallar toda la importación
+                    if (existente == null && !string.IsNullOrEmpty(codigo) && !codigosExistentes.Add(codigo))
+                    {
+                        resultado.AgregarAdvertencia(filaNum, $"El código '{codigo}' está repetido en el archivo; se ignora esta fila.");
+                        resultado.Ignorados++;
+                        continue;
+                    }
+
                     // ===== Autogenerar código si no viene o si fue rechazado =====
                     if (string.IsNullOrEmpty(codigo) && existente == null)
                     {
@@ -270,21 +293,21 @@ namespace Kirkenta.Pages.Clientes
                         codigosExistentes.Add(codigo);
                     }
 
-                    var activo = ParserHelper.ParsearBool(Obtener("Activo"));
-                    var diasCredito = ParserHelper.ParsearInt(Obtener("DiasCredito"));
-                    var limiteCredito = ParserHelper.ParsearDecimal(Obtener("LimiteCredito"));
+                    var activo = ImportHelper.Booleano(resultado, filaNum, EtiquetaDe("Activo"), Obtener("Activo"));
+                    var diasCredito = ImportHelper.Entero(resultado, filaNum, EtiquetaDe("DiasCredito"), Obtener("DiasCredito"));
+                    var limiteCredito = ImportHelper.Decimal(resultado, filaNum, EtiquetaDe("LimiteCredito"), Obtener("LimiteCredito"));
 
                     if (existente != null)
                     {
                         existente.Nombre = nombre;
-                        existente.RazonSocial = Truncar(Obtener("RazonSocial"), 200) ?? existente.RazonSocial;
+                        existente.RazonSocial = T("RazonSocial", 200) ?? existente.RazonSocial;
                         existente.RTN = rtn ?? existente.RTN;
-                        existente.Email = Truncar(Obtener("Email"), 150) ?? existente.Email;
-                        existente.Telefono = Truncar(Obtener("Telefono"), 30) ?? existente.Telefono;
-                        existente.Direccion = Truncar(Obtener("Direccion"), 300) ?? existente.Direccion;
-                        existente.Ciudad = Truncar(Obtener("Ciudad"), 100) ?? existente.Ciudad;
-                        existente.Pais = Truncar(Obtener("Pais"), 80) ?? existente.Pais;
-                        existente.TipoCliente = Truncar(Obtener("TipoCliente"), 20) ?? existente.TipoCliente;
+                        existente.Email = T("Email", 150) ?? existente.Email;
+                        existente.Telefono = T("Telefono", 30) ?? existente.Telefono;
+                        existente.Direccion = T("Direccion", 300) ?? existente.Direccion;
+                        existente.Ciudad = T("Ciudad", 100) ?? existente.Ciudad;
+                        existente.Pais = T("Pais", 80) ?? existente.Pais;
+                        existente.TipoCliente = T("TipoCliente", 20) ?? existente.TipoCliente;
                         existente.DiasCredito = diasCredito ?? existente.DiasCredito;
                         existente.LimiteCredito = limiteCredito ?? existente.LimiteCredito;
                         existente.Notas = Obtener("Notas") ?? existente.Notas;
@@ -297,14 +320,14 @@ namespace Kirkenta.Pages.Clientes
                         {
                             Codigo = codigo,
                             Nombre = nombre,
-                            RazonSocial = Truncar(Obtener("RazonSocial"), 200),
+                            RazonSocial = T("RazonSocial", 200),
                             RTN = rtn,
-                            Email = Truncar(Obtener("Email"), 150),
-                            Telefono = Truncar(Obtener("Telefono"), 30),
-                            Direccion = Truncar(Obtener("Direccion"), 300),
-                            Ciudad = Truncar(Obtener("Ciudad"), 100),
-                            Pais = Truncar(Obtener("Pais"), 80) ?? "Honduras",
-                            TipoCliente = Truncar(Obtener("TipoCliente"), 20) ?? "Regular",
+                            Email = T("Email", 150),
+                            Telefono = T("Telefono", 30),
+                            Direccion = T("Direccion", 300),
+                            Ciudad = T("Ciudad", 100),
+                            Pais = T("Pais", 80) ?? "Honduras",
+                            TipoCliente = T("TipoCliente", 20) ?? "Regular",
                             DiasCredito = diasCredito ?? 0,
                             LimiteCredito = limiteCredito ?? 0,
                             Notas = Obtener("Notas"),
@@ -323,13 +346,17 @@ namespace Kirkenta.Pages.Clientes
                 }
             }
 
-            _context.SaveChanges();
-
-            if (serieCliente != null && resultado.Creados > 0)
+            // Todo o nada: si algo falla al guardar no queda una importación a medias
+            ImportHelper.GuardarSeguro(_context, resultado, () =>
             {
-                serieCliente.SiguienteNumero = proximoNumeroLocal;
                 _context.SaveChanges();
-            }
+
+                if (serieCliente != null && resultado.Creados > 0)
+                {
+                    serieCliente.SiguienteNumero = proximoNumeroLocal;
+                    _context.SaveChanges();
+                }
+            });
 
             return resultado;
         }

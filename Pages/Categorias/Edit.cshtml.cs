@@ -38,9 +38,9 @@ namespace Kirkenta.Pages.Categorias
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Inventario", "Categorias", "editar"))
             {
-                TempData["Error"] = "No tienes permiso";
+                TempData["Error"] = "No tienes permiso para editar o aprobar aquí";
                 return RedirectToPage("/Categorias/Index");
             }
 
@@ -67,9 +67,9 @@ namespace Kirkenta.Pages.Categorias
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Inventario", "Categorias", "editar"))
             {
-                TempData["Error"] = "No tienes permiso";
+                TempData["Error"] = "No tienes permiso para editar o aprobar aquí";
                 return RedirectToPage("/Categorias/Index");
             }
 

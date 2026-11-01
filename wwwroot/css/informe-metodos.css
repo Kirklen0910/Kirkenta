@@ -1,0 +1,28 @@
+/* Informe por método de pago (dinámico). Usa los tokens del tema claro/oscuro. */
+.kk-inf { margin: 8px 0 20px; }
+.kk-inf-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 16px; }
+.kk-inf-tab { appearance:none; cursor:pointer; padding:8px 14px; border-radius:999px; border:1px solid var(--color-border-strong); background:var(--color-surface); color:var(--color-text); font:inherit; font-size:13px; display:inline-flex; gap:8px; align-items:center; }
+.kk-inf-tab:hover { background:var(--color-surface-2); }
+.kk-inf-tab.is-on { background:var(--color-primary); border-color:var(--color-primary); color:var(--color-on-primary); }
+.kk-inf-tab small { opacity:.8; font-size:12px; }
+.kk-inf-kpis { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); margin-bottom:16px; }
+.kk-inf-card { background:var(--color-surface); border:1px solid var(--color-border); border-radius:14px; padding:14px 16px; box-shadow:var(--shadow-sm); text-align:left; font:inherit; color:var(--color-text); }
+button.kk-inf-card { cursor:pointer; }
+button.kk-inf-card:hover { border-color:var(--color-primary); }
+.kk-inf-card.is-on { border-color:var(--color-primary); box-shadow:0 0 0 2px var(--color-primary-soft); }
+.kk-inf-label { font-size:12px; color:var(--color-muted); text-transform:uppercase; letter-spacing:.04em; }
+.kk-inf-value { font-size:22px; font-weight:700; margin:4px 0 2px; font-variant-numeric:tabular-nums; }
+.kk-inf-sub { font-size:13px; color:var(--color-muted); }
+.kk-inf-bar { height:6px; border-radius:99px; background:var(--color-surface-3); margin-top:10px; overflow:hidden; }
+.kk-inf-bar > i { display:block; height:100%; background:var(--color-primary); border-radius:99px; }
+.kk-inf-h { font-size:15px; font-weight:600; margin:20px 0 10px; }
+.kk-inf-box { background:var(--color-surface); border:1px solid var(--color-border); border-radius:14px; padding:6px 10px; overflow-x:auto; }
+.kk-inf-table { width:100%; border-collapse:collapse; font-size:14px; }
+.kk-inf-table th { text-align:left; font-size:12px; color:var(--color-muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--color-border); }
+.kk-inf-table td { padding:9px 10px; border-bottom:1px solid var(--color-border); }
+.kk-inf-table tbody tr:last-child td { border-bottom:0; }
+.kk-inf-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+.kk-inf-table tfoot td { font-weight:700; border-top:2px solid var(--color-border-strong); border-bottom:0; }
+.kk-inf-empty { margin:10px 4px; color:var(--color-muted); font-size:14px; }
+.kk-inf-conteo input { width:130px; }
+@media print { .kk-inf-tabs { display:none; } .kk-inf-card { box-shadow:none; } }

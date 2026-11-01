@@ -49,55 +49,17 @@ namespace Kirkenta.Pages.Productos
                 return RedirectToPage("/Productos/Index");
             }
 
-            if (Archivo == null || Archivo.Length == 0)
+            var lectura = Helpers.Import.ImportWizardHelper.ProcesarArchivo(Archivo);
+            if (!lectura.Ok)
             {
-                Error = "Debes seleccionar un archivo";
+                Error = lectura.Error;
                 return Page();
             }
 
-            if (Archivo.Length > 20 * 1024 * 1024)
-            {
-                Error = "El archivo no puede pesar más de 20 MB";
-                return Page();
-            }
-
-            var extension = Path.GetExtension(Archivo.FileName).ToLowerInvariant();
-            if (extension != ".xlsx" && extension != ".csv")
-            {
-                Error = "Solo se permiten archivos Excel (.xlsx) o CSV (.csv)";
-                return Page();
-            }
-
-            Helpers.Import.ImportFile archivoLeido;
-            using (var stream = Archivo.OpenReadStream())
-            {
-                archivoLeido = extension == ".xlsx"
-                    ? Helpers.Import.ExcelImporter.Read(stream)
-                    : Helpers.Import.CsvImporter.Read(stream);
-            }
-
-            if (!archivoLeido.Ok)
-            {
-                Error = archivoLeido.Error ?? "No se pudo leer el archivo";
-                return Page();
-            }
-
-            if (archivoLeido.Rows.Count == 0)
-            {
-                Error = "El archivo no contiene filas de datos";
-                return Page();
-            }
-
-            if (archivoLeido.Rows.Count > 5000)
-            {
-                Error = $"El archivo tiene {archivoLeido.Rows.Count} filas. El máximo es 5,000 filas por importación.";
-                return Page();
-            }
-
-            var jsonHeaders = System.Text.Json.JsonSerializer.Serialize(archivoLeido.Headers);
-            var jsonRows = System.Text.Json.JsonSerializer.Serialize(archivoLeido.Rows);
-            HttpContext.Session.SetString("ImportProductos_Headers", jsonHeaders);
-            HttpContext.Session.SetString("ImportProductos_Rows", jsonRows);
+            HttpContext.Session.SetString("ImportProductos_Headers",
+                System.Text.Json.JsonSerializer.Serialize(lectura.Headers));
+            HttpContext.Session.SetString("ImportProductos_Rows",
+                System.Text.Json.JsonSerializer.Serialize(lectura.Rows));
 
             return RedirectToPage("/Productos/ImportMap");
         }

@@ -1,0 +1,99 @@
+@page
+@model Kirkenta.Pages.EntregasBodega.IndexModel
+@{
+    ViewData["Title"] = "Entregas en bodega";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Entregas en bodega</h2>
+        <p>Ventas con mercadería pendiente por entregar y sus comprobantes parciales</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<form method="get" class="module-card" style="margin-bottom:16px;padding:12px 16px;display:flex;gap:8px;align-items:center">
+    <input type="text" name="Q" value="@Model.Q" placeholder="Buscar por venta, factura, cliente o comprobante..." style="flex:1" />
+    <button type="submit" class="btn-primary">Buscar</button>
+    @if (!string.IsNullOrWhiteSpace(Model.Q)) { <a asp-page="/EntregasBodega/Index" class="btn-secondary">Limpiar</a> }
+</form>
+
+<div class="module-card" style="margin-bottom:20px">
+    <h3 class="form-section-title" style="padding:16px 16px 0">Pendientes de entregar (@Model.Pendientes.Count)</h3>
+    @if (Model.Pendientes.Count == 0)
+    {
+        <div class="empty-state">
+            <h3>No hay entregas pendientes</h3>
+            <p>Activa "Entrega en bodega por partes" al cobrar en el POS, o desde el detalle de una venta, para controlar lo que falta por entregar.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Venta</th><th>Factura</th><th>Fecha</th><th>Cliente</th>
+                        <th style="text-align:right">Vendido</th><th style="text-align:right">Entregado</th><th style="text-align:right">Pendiente</th>
+                        <th style="text-align:right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model.Pendientes)
+                    {
+                        <tr>
+                            <td><a asp-page="/Ventas/Details" asp-route-id="@p.VentaId"><strong>@p.Numero</strong></a></td>
+                            <td>@if (Model.Refs.TryGetValue(p.VentaId, out var rf) && rf.FacturaId.HasValue) { <a asp-page="/Facturas/Details" asp-route-id="@rf.FacturaId">@rf.FacturaNumero</a> } else { <span class="table-user-sub">—</span> }</td>
+                            <td>@p.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                @if (p.ClienteId.HasValue) { <a asp-page="/Clientes/Details" asp-route-id="@p.ClienteId">@p.Cliente</a> } else { @p.Cliente }
+                            </td>
+                            <td style="text-align:right">@p.Vendido.ToString("0.####")</td>
+                            <td style="text-align:right">@p.Entregado.ToString("0.####")</td>
+                            <td style="text-align:right"><span class="badge badge-warning">@p.Pendiente.ToString("0.####")</span></td>
+                            <td style="text-align:right">
+                                @if (Model.PuedeCrear)
+                                {
+                                    <a asp-page="/EntregasBodega/Create" asp-route-ventaId="@p.VentaId" class="btn-primary">Entregar</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="module-card">
+    <h3 class="form-section-title" style="padding:16px 16px 0">Últimos comprobantes</h3>
+    @if (Model.Recientes.Count == 0)
+    {
+        <div class="empty-state"><p>Aún no hay comprobantes de entrega.</p></div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Comprobante</th><th>Fecha</th><th>Venta</th><th>Factura</th><th>Cliente</th><th>Recibe</th><th>Estado</th></tr></thead>
+                <tbody>
+                    @foreach (var e in Model.Recientes)
+                    {
+                        <tr>
+                            <td><a asp-page="/EntregasBodega/Details" asp-route-id="@e.Id"><strong>@e.Numero</strong></a></td>
+                            <td>@e.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td><a asp-page="/Ventas/Details" asp-route-id="@e.VentaId">@Model.Ventas.GetValueOrDefault(e.VentaId, "—")</a></td>
+                            @{ Model.Refs.TryGetValue(e.VentaId, out var re); }
+                            <td>@if (re?.FacturaId != null) { <a asp-page="/Facturas/Details" asp-route-id="@re.FacturaId">@re.FacturaNumero</a> } else { <span class="table-user-sub">—</span> }</td>
+                            <td>@(re?.ClienteNombre ?? "—")</td>
+                            <td>@(e.RecibidoPor ?? "—")</td>
+                            <td>@if (e.Anulada) { <span class="badge badge-danger">Anulado</span> } else { <span class="badge badge-success">Vigente</span> }</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

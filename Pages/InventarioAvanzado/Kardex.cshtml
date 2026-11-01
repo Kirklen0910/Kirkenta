@@ -1,0 +1,77 @@
+@page
+@model Kirkenta.Pages.InventarioAvanzado.KardexModel
+@{
+    ViewData["Title"] = "Kardex";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Kardex de inventario</h2>
+        <p>Historial de entradas, salidas y ajustes por producto</p>
+    </div>
+</div>
+
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="filter-group">
+            <select name="ProductoId" class="filter-select" style="min-width: 260px;">
+                <option value="">— Selecciona un producto —</option>
+                @foreach (var p in Model.Productos)
+                {
+                    <option value="@p.Id" selected="@(Model.ProductoId == p.Id)">@p.Nombre @(string.IsNullOrEmpty(p.SKU) ? "" : "(" + p.SKU + ")")</option>
+                }
+            </select>
+            <input type="date" name="Desde" class="filter-select" value="@(Model.Desde?.ToString("yyyy-MM-dd"))" />
+            <input type="date" name="Hasta" class="filter-select" value="@(Model.Hasta?.ToString("yyyy-MM-dd"))" />
+            <button type="submit" class="btn-secondary">Consultar</button>
+        </div>
+    </form>
+
+    @if (Model.Producto == null)
+    {
+        <div class="empty-state"><h3>Selecciona un producto para ver su kardex</h3></div>
+    }
+    else
+    {
+        <div class="kpi-grid" style="padding: 16px;">
+            <div class="kpi-card"><span class="kpi-label">Stock actual</span><span class="kpi-value">@Model.Producto.Stock.ToString("0.##")</span></div>
+            <div class="kpi-card"><span class="kpi-label">Entradas (período)</span><span class="kpi-value" style="color: var(--color-success);">@Model.TotalEntradas.ToString("0.##")</span></div>
+            <div class="kpi-card"><span class="kpi-label">Salidas (período)</span><span class="kpi-value" style="color: var(--color-danger);">@Model.TotalSalidas.ToString("0.##")</span></div>
+            <div class="kpi-card"><span class="kpi-label">Costo actual</span><span class="kpi-value">L. @Model.Producto.PrecioCompra.ToString("N2")</span></div>
+        </div>
+
+        if (Model.Movimientos.Count == 0)
+        {
+            <div class="empty-state"><h3>Sin movimientos en el período</h3></div>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="erp-table">
+                    <thead>
+                        <tr><th>Fecha</th><th>Tipo</th><th>Origen</th><th>Documento</th><th style="text-align:right;">Cantidad</th><th style="text-align:right;">Stock anterior</th><th style="text-align:right;">Stock nuevo</th><th style="text-align:right;">Costo unit.</th><th>Notas</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in Model.Movimientos)
+                        {
+                            <tr>
+                                <td>@m.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td><span class="badge @(m.Cantidad > 0 ? "badge-success" : m.Cantidad < 0 ? "badge-danger" : "badge-info")">@m.Tipo</span></td>
+                                <td>@m.Origen</td>
+                                <td>@m.DocumentoNumero</td>
+                                <td style="text-align:right; font-weight:600;">@(m.Cantidad > 0 ? "+" : "")@m.Cantidad.ToString("0.##")</td>
+                                <td style="text-align:right;">@m.StockAnterior.ToString("0.##")</td>
+                                <td style="text-align:right;">@m.StockPosterior.ToString("0.##")</td>
+                                <td style="text-align:right;">@(m.CostoUnitario.HasValue ? "L. " + m.CostoUnitario.Value.ToString("N2") : "—")</td>
+                                <td>@m.Notas</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <partial name="_Pager" model="Model.Pager" />
+        }
+    }
+</div>

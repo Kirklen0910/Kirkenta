@@ -1,0 +1,158 @@
+@page
+@model Kirkenta.Pages.Migracion.AutomaticaModel
+@using Kirkenta.Helpers.Migracion
+@{
+    ViewData["Title"] = "Migración automática";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>⚡ Migración automática</h2>
+        <p>Kirkenta reconoce cada tabla, la ordena según sus dependencias y la importa toda junta: o entra completa o no entra nada.</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Migracion/Index" asp-route-continuar="1" class="btn-secondary">Modo manual (tabla por tabla)</a>
+    </div>
+</div>
+
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+@if (Model.Resultado != null)
+{
+    var res = Model.Resultado;
+    <div class="module-card" style="padding:16px;margin-bottom:12px">
+        @if (!res.Ok)
+        {
+            <div class="module-alert module-alert-error"><strong>❌ @res.ErrorFatal</strong></div>
+        }
+        else if (res.SoloRevision)
+        {
+            <div class="module-alert module-alert-success"><strong>🔎 Revisión terminada: no se guardó nada.</strong> Esto es exactamente lo que pasaría al migrar.</div>
+        }
+        else
+        {
+            <div class="module-alert module-alert-success"><strong>✅ Migración terminada.</strong>
+                @if (res.Respaldo != null) { <span> Respaldo previo: <code>@res.Respaldo</code> (Configuración → Respaldos).</span> }
+            </div>
+        }
+
+        @if (res.Pasos.Count > 0)
+        {
+            <div class="table-wrapper">
+                <table class="erp-table">
+                    <thead><tr><th>Paso</th><th>Tabla</th><th style="text-align:right">Filas</th><th style="text-align:right">@(res.SoloRevision ? "Se crearían" : "Creados")</th><th style="text-align:right">Ya estaban</th><th style="text-align:right">Descartados</th><th>Detalle</th></tr></thead>
+                    <tbody>
+                    @foreach (var rp in res.Pasos)
+                    {
+                        var x = rp.Res!;
+                        <tr>
+                            <td><strong>@rp.Paso.Titulo</strong></td>
+                            <td>@rp.Paso.TablaNombre</td>
+                            <td style="text-align:right">@x.Filas.ToString("N0")</td>
+                            <td style="text-align:right">@x.Creados.ToString("N0")</td>
+                            <td style="text-align:right">@x.YaImportados.ToString("N0")</td>
+                            <td style="text-align:right">@((x.DescartadasTotal + x.Omitidos).ToString("N0"))</td>
+                            <td style="font-size:12px">
+                                @if (x.Errores.Count > 0) { <span style="color:#b91c1c">@string.Join(" ", x.Errores)</span> }
+                                else
+                                {
+                                    @if (x.TercerosCreados > 0 || x.TercerosPorCrear > 0) { <div>Clientes/proveedores nuevos: @(Math.Max(x.TercerosCreados, x.TercerosPorCrear))</div> }
+                                    @if (x.LineasCreadas > 0) { <div>Líneas de venta: @x.LineasCreadas.ToString("N0")</div> }
+                                    @if (x.Monto > 0) { <div>@(rp.Paso.Destino == "Productos" ? "Valor del inventario al costo" : "Monto"): L. @x.Monto.ToString("N2")</div> }
+                                }
+                            </td>
+                        </tr>
+                        @if (x.Descartes.Count > 0 || x.Advertencias.Count > 0)
+                        {
+                            <tr><td colspan="7" style="background:var(--color-surface-2)">
+                                <details>
+                                    <summary style="cursor:pointer;font-size:13px">@rp.Paso.Titulo: @(x.Descartes.Count > 0 ? $"{x.DescartadasTotal} fila(s) descartada(s)" : "") @(x.Advertencias.Count > 0 ? $"· {x.Advertencias.Count} aviso(s)" : "")</summary>
+                                    <ul style="font-size:12px;margin-top:6px">
+                                        @foreach (var d in x.Descartes) { <li><strong>Descartada:</strong> @d</li> }
+                                        @foreach (var a in x.Advertencias) { <li>@a</li> }
+                                    </ul>
+                                </details>
+                            </td></tr>
+                        }
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        @if (res.Aplicado)
+        {
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+                <a asp-page="/Productos/Index" class="btn-secondary">Ver productos</a>
+                <a asp-page="/Clientes/Index" class="btn-secondary">Ver clientes</a>
+                <a asp-page="/Finanzas/Cobros/Index" class="btn-secondary">Ver cobros pendientes</a>
+                <a asp-page="/Migracion/Index" asp-route-continuar="1" class="btn-primary">Ver lotes / deshacer</a>
+            </div>
+        }
+    </div>
+}
+
+@if (Model.Resultado == null || !Model.Resultado.Aplicado)
+{
+    <form method="post" class="module-card" style="padding:16px">
+        <input type="hidden" name="Token" value="@Model.Token" />
+
+        @if (Model.RegistrosExistentes > 0)
+        {
+            <div class="module-alert module-alert-error" style="margin-bottom:12px">
+                El sistema ya tiene datos (@Model.RegistrosExistentes.ToString("N0") entre productos, clientes, proveedores y ventas).
+                Lo que ya exista se salta sin duplicar, pero lo ideal es migrar sobre un sistema vacío.
+            </div>
+        }
+
+        <h3 style="margin-bottom:6px">Plan de migración</h3>
+        <p style="font-size:13px;color:var(--color-muted);margin-bottom:10px">
+            Se ejecuta en este orden. Si una tabla no se reconoció bien, cambia su destino. Las filas con datos inválidos se descartan y se te listan al final; nada se inventa.
+        </p>
+
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>#</th><th>Tabla del archivo</th><th style="text-align:right">Filas</th><th>Destino</th><th>Seguridad</th><th>Estado</th></tr></thead>
+                <tbody>
+                @{ int n = 0; }
+                @foreach (var p in Model.Plan)
+                {
+                    n++;
+                    var etiqueta = p.Incluir ? "✔ Se migra" : "— No se migra";
+                    <tr style="@(p.Incluir ? "" : "opacity:.7")">
+                        <td>@(p.Incluir ? p.Orden.ToString() : "")</td>
+                        <td><strong>@p.TablaNombre</strong></td>
+                        <td style="text-align:right">@p.Filas.ToString("N0")</td>
+                        <td>
+                            <select name="Destino[@p.TablaIndice]" class="filter-select">
+                                <option value="" selected="@(p.Destino == "")">— No migrar —</option>
+                                @foreach (var dst in MigracionAutomaticaHelper.Destinos)
+                                {
+                                    <option value="@dst" selected="@(p.Destino == dst)">@MigracionAutomaticaHelper.TituloDe(dst)</option>
+                                }
+                            </select>
+                        </td>
+                        <td>@p.Confianza</td>
+                        <td style="font-size:12px">
+                            @etiqueta
+                            @if (p.Motivo != null) { <div style="color:var(--color-muted)">@p.Motivo</div> }
+                            @if (p.Incluir && p.DetalleIndice.HasValue) { <div style="color:var(--color-muted)">con líneas de «@Model.Tablas[p.DetalleIndice.Value].Nombre»</div> }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top:14px;font-size:13px">
+            <label style="display:flex;gap:8px;align-items:flex-start">
+                <input type="checkbox" name="Confirmo" value="true" />
+                <span>Entiendo que se hará un <strong>respaldo automático</strong> y luego se importará todo lo marcado. Las ventas migradas no mueven stock ni caja; el stock inicial entra por Productos.</span>
+            </label>
+        </div>
+
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+            <button type="submit" asp-page-handler="Revisar" class="btn-secondary">1. Revisar todo (no guarda nada)</button>
+            <button type="submit" asp-page-handler="Migrar" class="btn-primary">2. Migrar todo</button>
+        </div>
+    </form>
+}

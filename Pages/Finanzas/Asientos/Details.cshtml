@@ -1,0 +1,66 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Finanzas.Asientos.DetailsModel
+@{
+    ViewData["Title"] = $"Asiento {Model.Asiento.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/Asientos/Index" class="back-link">← Volver a asientos</a>
+        <h2>Asiento @Model.Asiento.Numero</h2>
+        <p>@Model.Asiento.Fecha.ToString("dd/MM/yyyy") · @Model.Asiento.Concepto</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+@if (Model.Asiento.Estado == "Anulado")
+{
+    <div class="module-alert module-alert-error">Asiento ANULADO: @Model.Asiento.MotivoAnulacion</div>
+}
+
+<div class="module-card" style="margin-bottom: 20px;">
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead><tr><th>Cuenta</th><th>Detalle</th><th style="text-align:right;">Debe</th><th style="text-align:right;">Haber</th></tr></thead>
+            <tbody>
+                @foreach (var l in Model.Lineas)
+                {
+                    <tr>
+                        <td>@(Model.Cuentas.TryGetValue(l.PlanCuentaId, out var c) ? c.Codigo + " — " + c.Nombre : "Cuenta eliminada")</td>
+                        <td>@l.Detalle</td>
+                        <td style="text-align:right;">@(l.Debe > 0 ? "L. " + l.Debe.ToString("N2") : "")</td>
+                        <td style="text-align:right;">@(l.Haber > 0 ? "L. " + l.Haber.ToString("N2") : "")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="2" style="text-align:right; font-weight:600;">Totales</td>
+                    <td style="text-align:right; font-weight:600;">L. @(Model.Lineas.Sum(x => x.Debe).ToString("N2"))</td>
+                    <td style="text-align:right; font-weight:600;">L. @(Model.Lineas.Sum(x => x.Haber).ToString("N2"))</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<div class="module-card" style="padding: 20px; margin-bottom: 20px;">
+    <p><strong>Referencia:</strong> @(Model.Asiento.Referencia ?? "—")</p>
+    <p><strong>Registrado por:</strong> @(Model.Creador ?? "—") el @Model.Asiento.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</p>
+</div>
+
+@if (Model.PuedeAnular)
+{
+    <div class="module-card" style="padding: 20px;">
+        <h3 class="form-section-title">Anular asiento</h3>
+        <form method="post" asp-page-handler="Anular" asp-route-id="@Model.Asiento.Id" class="erp-form" onsubmit="return confirm('¿Anular este asiento? Dejará de contar en el libro mayor y la balanza.');">
+            <div class="form-field">
+                <label>Motivo *</label>
+                <input name="motivo" class="form-input" maxlength="300" required />
+            </div>
+            <div class="form-actions"><button type="submit" class="btn-primary" style="background: var(--color-danger);">Anular</button></div>
+        </form>
+    </div>
+}

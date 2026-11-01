@@ -61,8 +61,11 @@ namespace Kirkenta.Helpers.Finanzas
                 // Saldo sistema = saldo inicial del período + movimientos del período
                 // Simplificación: usamos el saldo actual y restamos los movimientos posteriores al período.
                 // Una implementación más robusta requeriría un registro histórico de saldos.
+                // Los movimientos de apertura y los de costo (solo contables) nunca movieron el saldo del banco
                 var movimientosPosteriores = context.MovimientosFinancieros
                     .Where(m => m.Estado == "Activo"
+                             && m.Origen != "Apertura"
+                             && (m.Notas == null || !m.Notas.Contains(SaldoHelper.MarcaSoloContable))
                              && m.Fecha > fechaFin.Date.AddDays(1).AddSeconds(-1)
                              && (m.CuentaId == cuentaId || m.CuentaDestinoId == cuentaId))
                     .ToList();
@@ -99,7 +102,7 @@ namespace Kirkenta.Helpers.Finanzas
                     Notas = notas,
                     FechaCreacion = DateTime.Now,
                     UsuarioCreoId = usuarioId,
-                    EmpresaId = 1
+                    EmpresaId = EmpresaActual.Id
                 };
 
                 context.ConciliacionesBancarias.Add(conciliacion);
@@ -138,6 +141,8 @@ namespace Kirkenta.Helpers.Finanzas
 
             var movimientos = context.MovimientosFinancieros
                 .Where(m => m.Estado == "Activo"
+                         && m.Origen != "Apertura"
+                         && (m.Notas == null || !m.Notas.Contains(SaldoHelper.MarcaSoloContable))
                          && m.Fecha >= conciliacion.FechaInicio
                          && m.Fecha < conciliacion.FechaFin.AddDays(1)
                          && (m.CuentaId == conciliacion.CuentaId || m.CuentaDestinoId == conciliacion.CuentaId))

@@ -12,5 +12,18 @@ namespace Kirkenta.Models
         public string? Referencia { get; set; }
         public string? Notas { get; set; }
         public int? UsuarioCreoId { get; set; }
+
+        // ===== EFECTIVO =====
+        /// <summary>
+        /// Monto que el cliente entregó físicamente. Solo aplica cuando el método
+        /// de pago es Efectivo. Null para pagos con tarjeta / transferencia / etc.
+        /// </summary>
+        public decimal? MontoRecibido { get; set; }
+
+        /// <summary>
+        /// Vuelto entregado al cliente. Solo aplica cuando el método de pago es Efectivo
+        /// y el monto recibido supera al total. Null para pagos con tarjeta / transferencia.
+        /// </summary>
+        public decimal? Cambio { get; set; }
     }
 }

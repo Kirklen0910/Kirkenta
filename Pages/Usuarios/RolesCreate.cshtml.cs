@@ -79,62 +79,87 @@ namespace Kirkenta.Pages.Usuarios
                 return Page();
             }
 
-            // Crear el rol
-            var rol = new Rol
+            // Rol + permisos en una sola transacción: o se guarda todo o nada
+            using var transaction = _context.Database.BeginTransaction();
+            try
             {
-                Nombre = Input.Nombre,
-                Descripcion = Input.Descripcion,
-                Color = Input.Color,
-                EsSistema = false,
-                FechaCreacion = DateTime.Now
-            };
-
-            _context.Roles.Add(rol);
-            _context.SaveChanges();
-
-            // Guardar permisos
-            foreach (var moduloKvp in Input.Permisos)
-            {
-                var modulo = moduloKvp.Key;
-                var permisoModulo = moduloKvp.Value;
-
-                // Permiso del módulo padre (Submodulo = NULL)
-                var permiso = new Permiso
+                var rol = new Rol
                 {
-                    RolId = rol.Id,
+                    Nombre = Input.Nombre,
+                    Descripcion = Input.Descripcion,
+                    Color = Input.Color,
+                    EsSistema = false,
+                    FechaCreacion = DateTime.Now
+                };
+
+                _context.Roles.Add(rol);
+                _context.SaveChanges();
+
+                _context.Permisos.AddRange(ConstruirPermisos(rol.Id));
+                _context.SaveChanges();
+
+                transaction.Commit();
+
+                TempData["Success"] = $"Rol '{rol.Nombre}' creado correctamente";
+                return RedirectToPage("/Usuarios/Roles");
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                Console.WriteLine($"[RolesCreate] Error al crear el rol: {ex.Message}");
+                ModelState.AddModelError(string.Empty, "No se pudo crear el rol. Intenta de nuevo.");
+                return Page();
+            }
+        }
+
+        /// <summary>
+        /// Construye UNA fila de permiso por cada módulo y submódulo definido en ModulosERP.
+        /// Lo que no llegó marcado en el formulario se guarda explícitamente en falso.
+        /// (Los checkboxes sin marcar no se envían, y antes eso dejaba filas sin crear,
+        /// que luego PermisoSeeder rellenaba copiando los permisos del módulo padre.)
+        /// Las claves enviadas que no existan en ModulosERP se ignoran.
+        /// </summary>
+        private List<Permiso> ConstruirPermisos(int rolId)
+        {
+            var lista = new List<Permiso>();
+
+            foreach (var (modulo, submodulos) in ModulosERP.Modulos)
+            {
+                Input.Permisos.TryGetValue(modulo, out var permisoModulo);
+
+                lista.Add(new Permiso
+                {
+                    RolId = rolId,
                     Modulo = modulo,
                     Submodulo = null,
-                    PuedeVer = permisoModulo.PuedeVer,
-                    PuedeCrear = permisoModulo.PuedeCrear,
-                    PuedeEditar = permisoModulo.PuedeEditar,
-                    PuedeEliminar = permisoModulo.PuedeEliminar
-                };
-                _context.Permisos.Add(permiso);
+                    PuedeVer = permisoModulo?.PuedeVer ?? false,
+                    PuedeCrear = permisoModulo?.PuedeCrear ?? false,
+                    PuedeEditar = permisoModulo?.PuedeEditar ?? false,
+                    PuedeEliminar = permisoModulo?.PuedeEliminar ?? false
+                });
 
-                // Permisos de submódulos
-                foreach (var subKvp in permisoModulo.Submodulos)
+                foreach (var submodulo in submodulos)
                 {
-                    var submodulo = subKvp.Key;
-                    var permisoSub = subKvp.Value;
-
-                    var permisoSubmodulo = new Permiso
+                    PermisoModuloInput? permisoSub = null;
+                    if (permisoModulo != null)
                     {
-                        RolId = rol.Id,
+                        permisoModulo.Submodulos.TryGetValue(submodulo, out permisoSub);
+                    }
+
+                    lista.Add(new Permiso
+                    {
+                        RolId = rolId,
                         Modulo = modulo,
                         Submodulo = submodulo,
-                        PuedeVer = permisoSub.PuedeVer,
-                        PuedeCrear = permisoSub.PuedeCrear,
-                        PuedeEditar = permisoSub.PuedeEditar,
-                        PuedeEliminar = permisoSub.PuedeEliminar
-                    };
-                    _context.Permisos.Add(permisoSubmodulo);
+                        PuedeVer = permisoSub?.PuedeVer ?? false,
+                        PuedeCrear = permisoSub?.PuedeCrear ?? false,
+                        PuedeEditar = permisoSub?.PuedeEditar ?? false,
+                        PuedeEliminar = permisoSub?.PuedeEliminar ?? false
+                    });
                 }
             }
 
-            _context.SaveChanges();
-
-            TempData["Success"] = $"Rol '{rol.Nombre}' creado correctamente";
-            return RedirectToPage("/Usuarios/Roles");
+            return lista;
         }
     }
 }

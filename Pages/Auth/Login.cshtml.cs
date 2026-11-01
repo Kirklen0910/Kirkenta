@@ -4,17 +4,34 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace Kirkenta.Pages.Auth
 {
     public class LoginModel : PageModel
     {
-        private readonly ApplicationDbContext _context;
+        // Un solo mensaje para todos los fallos (usuario inexistente, clave mala, cuenta bloqueada):
+        // así un atacante no puede saber si un usuario existe ni si su cuenta está bloqueada.
+        private const string MensajeCredencialesInvalidas =
+            "Usuario o contraseña incorrectos. Si fallas varias veces, la cuenta se bloquea unos minutos.";
 
-        public LoginModel(ApplicationDbContext context)
+        // Hash falso: cuando el usuario no existe también se hace una verificación BCrypt,
+        // así el tiempo de respuesta no delata si el usuario existe o no.
+        private static readonly string HashFalso = BCrypt.Net.BCrypt.HashPassword("kirkenta-hash-falso");
+
+        private readonly ApplicationDbContext _context;
+        private readonly ILogger<LoginModel> _logger;
+        private readonly int _maxIntentos;
+        private readonly int _minutosBloqueo;
+
+        public LoginModel(ApplicationDbContext context, IConfiguration configuration, ILogger<LoginModel> logger)
         {
             _context = context;
+            _logger = logger;
+            _maxIntentos = Math.Max(1, configuration.GetValue("Seguridad:MaxIntentosLogin", 5));
+            _minutosBloqueo = Math.Max(1, configuration.GetValue("Seguridad:MinutosBloqueoLogin", 15));
+            MostrarRegistro = configuration.GetValue("Seguridad:PermitirRegistroPublico", false);
         }
 
         [BindProperty]
@@ -22,6 +39,9 @@ namespace Kirkenta.Pages.Auth
 
         [BindProperty]
         public string Password { get; set; } = string.Empty;
+
+        /// <summary>Si es false, la vista oculta el enlace "Regístrate".</summary>
+        public bool MostrarRegistro { get; }
 
         public void OnGet() { }
 
@@ -33,67 +53,100 @@ namespace Kirkenta.Pages.Auth
                 return Page();
             }
 
-            var user = _context.Usuarios.FirstOrDefault(u => u.Username == Username);
-
-            if (user == null)
+            // Límites de tamaño: evita enviar textos enormes para forzar al servidor a procesarlos
+            if (Username.Length > 100 || Password.Length > 200)
             {
-                ModelState.AddModelError(string.Empty, "Usuario o contraseña incorrectos.");
+                await EsperaAntiFuerzaBrutaAsync();
+                ModelState.AddModelError(string.Empty, MensajeCredencialesInvalidas);
                 return Page();
             }
 
+            var username = Username.Trim();
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var userAgent = Request.Headers["User-Agent"].ToString();
+            var ahora = DateTime.Now;
+
+            var user = await _context.Usuarios.FirstOrDefaultAsync(u => u.Username == username);
+
+            if (user == null)
+            {
+                // Verificación falsa para igualar tiempos de respuesta
+                BCrypt.Net.BCrypt.Verify(Password, HashFalso);
+                _logger.LogWarning("[Seguridad] Intento de inicio de sesión con un usuario que no existe, desde {Ip}", ip);
+                await EsperaAntiFuerzaBrutaAsync();
+                ModelState.AddModelError(string.Empty, MensajeCredencialesInvalidas);
+                return Page();
+            }
+
+            // ----- Cuenta bloqueada temporalmente -----
+            // Mientras dure el bloqueo no se verifica la contraseña, para que no se pueda
+            // seguir probando claves.
+            if (user.BloqueadoHasta.HasValue && user.BloqueadoHasta.Value > ahora)
+            {
+                // Se hace la misma verificación (lenta) que en un intento normal para que el tiempo de respuesta
+                // no delate que la cuenta existe y está bloqueada.
+                BCrypt.Net.BCrypt.Verify(Password, HashFalso);
+                _logger.LogWarning("[Seguridad] Intento de inicio de sesión en una cuenta bloqueada, desde {Ip}", ip);
+                await EsperaAntiFuerzaBrutaAsync();
+                ModelState.AddModelError(string.Empty, MensajeCredencialesInvalidas);
+                return Page();
+            }
+
+            // El bloqueo ya venció: se limpia para empezar a contar desde cero
+            if (user.BloqueadoHasta.HasValue)
+            {
+                user.BloqueadoHasta = null;
+                user.IntentosFallidos = 0;
+            }
+
+            // ----- Contraseña incorrecta -----
+            if (!BCrypt.Net.BCrypt.Verify(Password, user.PasswordHash))
+            {
+                user.IntentosFallidos++;
+                var bloquear = user.IntentosFallidos >= _maxIntentos;
+
+                if (bloquear)
+                {
+                    user.BloqueadoHasta = ahora.AddMinutes(_minutosBloqueo);
+                }
+
+                await _context.SaveChangesAsync();
+
+                ActividadHelper.Registrar(
+                    _context,
+                    user.Id,
+                    bloquear ? "Cuenta bloqueada" : "Login fallido",
+                    bloquear
+                        ? $"Bloqueada por {_minutosBloqueo} minutos tras {user.IntentosFallidos} intentos fallidos"
+                        : $"Intento fallido #{user.IntentosFallidos}",
+                    ip,
+                    userAgent);
+
+                if (bloquear)
+                    _logger.LogWarning("[Seguridad] Cuenta bloqueada por {Min} minutos tras {N} intentos fallidos, desde {Ip}", _minutosBloqueo, _maxIntentos, ip);
+
+                await EsperaAntiFuerzaBrutaAsync();
+                ModelState.AddModelError(string.Empty, MensajeCredencialesInvalidas);
+                return Page();
+            }
+
+            // ----- Contraseña correcta pero cuenta desactivada -----
+            // Se revisa DESPUÉS de validar la contraseña: solo quien conoce la clave
+            // llega a saber que la cuenta existe y está desactivada.
             if (!user.Activo)
             {
                 ModelState.AddModelError(string.Empty, "Tu cuenta está desactivada. Contacta al administrador.");
                 return Page();
             }
 
-            if (!BCrypt.Net.BCrypt.Verify(Password, user.PasswordHash))
-            {
-                user.IntentosFallidos++;
-                _context.SaveChanges();
-
-                var ipFallido = HttpContext.Connection.RemoteIpAddress?.ToString();
-                var uaFallido = Request.Headers["User-Agent"].ToString();
-
-                ActividadHelper.Registrar(
-                    _context,
-                    user.Id,
-                    "Login fallido",
-                    $"Intento fallido #{user.IntentosFallidos}",
-                    ipFallido,
-                    uaFallido);
-
-                ModelState.AddModelError(string.Empty, "Usuario o contraseña incorrectos.");
-                return Page();
-            }
-
             // ✅ Login exitoso
-            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
-            var userAgent = Request.Headers["User-Agent"].ToString();
-
-            user.UltimoAcceso = DateTime.Now;
+            user.UltimoAcceso = ahora;
             user.IntentosFallidos = 0;
-            _context.SaveChanges();
+            user.BloqueadoHasta = null;
+            await _context.SaveChangesAsync();
 
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Email, user.Email ?? ""),
-                new Claim(ClaimTypes.Role, user.Rol ?? "User")
-            };
-
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
-
-            await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                principal,
-                new AuthenticationProperties
-                {
-                    IsPersistent = true,
-                    ExpiresUtc = DateTime.UtcNow.AddHours(8)
-                });
+            // La cookie lleva un sello de la contraseña: si la clave cambia, esta sesión deja de valer
+            await SesionHelper.IniciarSesionAsync(HttpContext, user);
 
             ActividadHelper.Registrar(
                 _context,
@@ -105,5 +158,8 @@ namespace Kirkenta.Pages.Auth
 
             return RedirectToPage("/Index");
         }
+
+        /// <summary>Pausa breve y aleatoria tras cada fallo: encarece los ataques de fuerza bruta.</summary>
+        private static Task EsperaAntiFuerzaBrutaAsync() => Task.Delay(Random.Shared.Next(350, 800));
     }
 }

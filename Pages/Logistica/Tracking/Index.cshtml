@@ -5,19 +5,20 @@
     ViewData["Title"] = "Tracking de envío";
 }
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-pref="@Kirkenta.Helpers.TemaHelper.Preferencia(ViewContext.HttpContext)" data-uid="@Kirkenta.Helpers.TemaHelper.Uid(ViewContext.HttpContext)" data-theme="@Kirkenta.Helpers.TemaHelper.Resuelto(Kirkenta.Helpers.TemaHelper.Preferencia(ViewContext.HttpContext))" data-bs-theme="@Kirkenta.Helpers.TemaHelper.Resuelto(Kirkenta.Helpers.TemaHelper.Preferencia(ViewContext.HttpContext))">
 <head>
     <meta charset="utf-8" />
+    <partial name="_TemaHead" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Kirkenta ERP</title>
-    <link rel="icon" type="image/png" href="~/favicon.png?v=@DateTime.Now.Ticks" />
+    <link rel="icon" type="image/png" href="~/favicon.png" asp-append-version="true" />
     <link rel="apple-touch-icon" href="~/favicon.png" />
     <link rel="shortcut icon" type="image/png" href="~/favicon.png" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/theme.css?v=@DateTime.Now.Ticks" />
+    <link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
     <style>
         body.tracking-body {
-            background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 50%, #f5f3ff 100%);
+            background: linear-gradient(135deg, var(--color-primary-soft) 0%, var(--color-primary-soft-2) 50%, var(--color-primary-soft) 100%);
             min-height: 100vh;
             padding: 40px 20px;
             font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -40,17 +41,17 @@
         .tracking-title {
             font-size: 32px;
             font-weight: 800;
-            color: #1f2937;
+            color: var(--color-text);
             margin-bottom: 8px;
             letter-spacing: -0.02em;
         }
         .tracking-subtitle {
             font-size: 15px;
-            color: #6b7280;
+            color: var(--color-muted);
             margin: 0;
         }
         .tracking-search-card {
-            background: #ffffff;
+            background: var(--color-surface);
             border-radius: 16px;
             padding: 32px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
@@ -70,7 +71,7 @@
             flex: 1;
             font-size: 16px;
             padding: 14px 18px;
-            border: 2px solid #e5e7eb;
+            border: 2px solid var(--color-border);
             border-radius: 10px;
             transition: all 0.2s;
             font-family: monospace;
@@ -79,13 +80,13 @@
         }
         .tracking-input:focus {
             outline: none;
-            border-color: #4f46e5;
+            border-color: var(--color-primary);
             box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
         }
         .tracking-btn {
             padding: 14px 32px;
-            background: #4f46e5;
-            color: #fff;
+            background: var(--color-primary);
+            color: var(--color-on-primary);
             border: none;
             border-radius: 10px;
             font-size: 15px;
@@ -98,18 +99,18 @@
             white-space: nowrap;
         }
         .tracking-btn:hover {
-            background: #4338ca;
+            background: var(--color-primary-hover);
             transform: translateY(-1px);
             box-shadow: 0 6px 20px rgba(79, 70, 229, 0.3);
         }
         .tracking-hint {
             font-size: 13px;
-            color: #9ca3af;
+            color: var(--color-faint);
             margin-top: 12px;
             text-align: center;
         }
         .tracking-result-card {
-            background: #ffffff;
+            background: var(--color-surface);
             border-radius: 16px;
             padding: 32px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
@@ -122,14 +123,14 @@
             flex-wrap: wrap;
             gap: 16px;
             padding-bottom: 20px;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid var(--color-border);
             margin-bottom: 24px;
         }
         .tracking-code {
             font-family: monospace;
             font-size: 24px;
             font-weight: 800;
-            color: #4f46e5;
+            color: var(--color-primary);
             letter-spacing: 0.05em;
         }
         .tracking-estado-badge {
@@ -143,10 +144,10 @@
             text-transform: uppercase;
             letter-spacing: 0.03em;
         }
-        .estado-borrador { background: #fef3c7; color: #92400e; }
-        .estado-enreparto { background: #dbeafe; color: #1e40af; }
-        .estado-completada { background: #d1fae5; color: #065f46; }
-        .estado-cancelada { background: #fee2e2; color: #991b1b; }
+        .estado-borrador { background: var(--color-warning-bg); color: var(--color-warning-text); }
+        .estado-enreparto { background: var(--color-info-bg); color: var(--color-info-text); }
+        .estado-completada { background: var(--color-success-bg); color: var(--color-success-text); }
+        .estado-cancelada { background: var(--color-danger-bg); color: var(--color-danger-text); }
 
         .tracking-kpi-grid {
             display: grid;
@@ -155,7 +156,7 @@
             margin-bottom: 24px;
         }
         .tracking-kpi {
-            background: #f9fafb;
+            background: var(--color-surface-2);
             border-radius: 10px;
             padding: 16px;
             text-align: center;
@@ -163,7 +164,7 @@
         .tracking-kpi-label {
             display: block;
             font-size: 11.5px;
-            color: #6b7280;
+            color: var(--color-muted);
             text-transform: uppercase;
             letter-spacing: 0.05em;
             font-weight: 600;
@@ -173,7 +174,7 @@
             display: block;
             font-size: 18px;
             font-weight: 800;
-            color: #1f2937;
+            color: var(--color-text);
         }
 
         .tracking-info-grid {
@@ -194,14 +195,14 @@
             display: block;
             font-size: 12px;
             font-weight: 700;
-            color: #6b7280;
+            color: var(--color-muted);
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 4px;
         }
         .tracking-info-value {
             font-size: 14.5px;
-            color: #1f2937;
+            color: var(--color-text);
         }
 
         .tracking-progress-wrapper {
@@ -212,18 +213,18 @@
             justify-content: space-between;
             font-size: 13px;
             font-weight: 700;
-            color: #4f46e5;
+            color: var(--color-primary);
             margin-bottom: 8px;
         }
         .tracking-progress-track {
             height: 12px;
-            background: #e5e7eb;
+            background: var(--color-border);
             border-radius: 6px;
             overflow: hidden;
         }
         .tracking-progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #4f46e5 0%, #6366f1 100%);
+            background: linear-gradient(90deg, var(--color-primary) 0%, #6366f1 100%);
             border-radius: 6px;
             transition: width 0.4s ease;
         }
@@ -235,29 +236,29 @@
             display: flex;
             gap: 16px;
             padding: 16px;
-            background: #f9fafb;
+            background: var(--color-surface-2);
             border-radius: 10px;
             margin-bottom: 10px;
-            border-left: 4px solid #e5e7eb;
+            border-left: 4px solid var(--color-border);
             transition: all 0.2s;
         }
-        .tracking-parada-item.parada-entregado { border-left-color: #10b981; background: #ecfdf5; }
-        .tracking-parada-item.parada-fallido { border-left-color: #ef4444; background: #fef2f2; }
-        .tracking-parada-item.parada-enruta { border-left-color: #3b82f6; background: #eff6ff; }
-        .tracking-parada-item.parada-pendiente { border-left-color: #f59e0b; background: #fffbeb; }
+        .tracking-parada-item.parada-entregado { border-left-color: var(--color-success); background: var(--color-success-bg); }
+        .tracking-parada-item.parada-fallido { border-left-color: var(--color-danger); background: var(--color-danger-bg); }
+        .tracking-parada-item.parada-enruta { border-left-color: #3b82f6; background: var(--color-info-bg); }
+        .tracking-parada-item.parada-pendiente { border-left-color: #f59e0b; background: var(--color-warning-bg); }
 
         .tracking-parada-orden {
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: #fff;
-            border: 2px solid #e5e7eb;
+            background: var(--color-surface);
+            border: 2px solid var(--color-border);
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 800;
             font-size: 15px;
-            color: #6b7280;
+            color: var(--color-muted);
             flex-shrink: 0;
         }
         .tracking-parada-info {
@@ -266,12 +267,12 @@
         .tracking-parada-cliente {
             font-weight: 700;
             font-size: 14.5px;
-            color: #1f2937;
+            color: var(--color-text);
             margin-bottom: 4px;
         }
         .tracking-parada-dir {
             font-size: 13px;
-            color: #6b7280;
+            color: var(--color-muted);
             margin-bottom: 6px;
         }
         .tracking-parada-estado {
@@ -284,7 +285,7 @@
         }
 
         .tracking-empty {
-            background: #ffffff;
+            background: var(--color-surface);
             border-radius: 16px;
             padding: 60px 32px;
             text-align: center;
@@ -298,12 +299,12 @@
         .tracking-empty h3 {
             font-size: 18px;
             font-weight: 700;
-            color: #1f2937;
+            color: var(--color-text);
             margin-bottom: 8px;
         }
         .tracking-empty p {
             font-size: 14px;
-            color: #6b7280;
+            color: var(--color-muted);
             margin: 0;
         }
 
@@ -311,13 +312,13 @@
             text-align: center;
             margin-top: 40px;
             font-size: 13px;
-            color: #9ca3af;
+            color: var(--color-faint);
         }
 
         .tracking-historial {
             margin-top: 32px;
             padding-top: 24px;
-            border-top: 1px solid #e5e7eb;
+            border-top: 1px solid var(--color-border);
         }
         .tracking-timeline-item {
             display: flex;
@@ -328,7 +329,7 @@
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background: #4f46e5;
+            background: var(--color-primary);
             flex-shrink: 0;
             margin-top: 5px;
         }
@@ -342,14 +343,14 @@
             margin-bottom: 2px;
         }
         .tracking-timeline-header strong {
-            color: #1f2937;
+            color: var(--color-text);
         }
         .tracking-timeline-header span {
-            color: #9ca3af;
+            color: var(--color-faint);
             font-size: 12px;
         }
         .tracking-timeline-detail {
-            color: #6b7280;
+            color: var(--color-muted);
             margin: 0;
             font-size: 13px;
         }
@@ -424,11 +425,11 @@
                 <!-- Encabezado con código y estado -->
                 <div class="tracking-result-header">
                     <div>
-                        <div style="font-size: 12px; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">
+                        <div style="font-size: 12px; color: var(--color-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">
                             Código de tracking
                         </div>
                         <div class="tracking-code">@ruta.TrackingCode</div>
-                        <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
+                        <div style="font-size: 12px; color: var(--color-faint); margin-top: 4px;">
                             Ruta @ruta.Numero • Creada el @ruta.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
                         </div>
                     </div>
@@ -446,7 +447,7 @@
                     </div>
                     <div class="tracking-kpi">
                         <span class="tracking-kpi-label">Entregadas</span>
-                        <span class="tracking-kpi-value" style="color: #10b981;">@Model.ParadasEntregadas</span>
+                        <span class="tracking-kpi-value" style="color: var(--color-success);">@Model.ParadasEntregadas</span>
                     </div>
                     <div class="tracking-kpi">
                         <span class="tracking-kpi-label">Pendientes</span>
@@ -502,7 +503,7 @@
 
                 <!-- Listado de paradas -->
                 <div class="tracking-paradas-list">
-                    <h3 style="font-size: 15px; font-weight: 800; color: #1f2937; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.03em;">
+                    <h3 style="font-size: 15px; font-weight: 800; color: var(--color-text); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.03em;">
                         📍 Paradas de la ruta
                     </h3>
 
@@ -556,15 +557,15 @@
                                     </span>
                                     @if (p.Estado == "Entregado" && !string.IsNullOrEmpty(p.NombreRecibio))
                                     {
-                                        <span style="font-size: 12px; color: #6b7280;">Recibió: <strong>@p.NombreRecibio</strong></span>
+                                        <span style="font-size: 12px; color: var(--color-muted);">Recibió: <strong>@p.NombreRecibio</strong></span>
                                     }
                                     @if (p.Estado == "Fallido" && !string.IsNullOrEmpty(p.MotivoFallo))
                                     {
-                                        <span style="font-size: 12px; color: #991b1b;">@p.MotivoFallo</span>
+                                        <span style="font-size: 12px; color: var(--color-danger-text);">@p.MotivoFallo</span>
                                     }
                                     @if (p.FechaEntregaEstimada.HasValue && p.Estado != "Entregado")
                                     {
-                                        <span style="font-size: 12px; color: #6b7280;">Est: @p.FechaEntregaEstimada.Value.ToString("dd/MM/yyyy")</span>
+                                        <span style="font-size: 12px; color: var(--color-muted);">Est: @p.FechaEntregaEstimada.Value.ToString("dd/MM/yyyy")</span>
                                     }
                                 </div>
                             </div>
@@ -576,7 +577,7 @@
                 @if (Model.Historial.Count > 0)
                 {
                     <div class="tracking-historial">
-                        <h3 style="font-size: 15px; font-weight: 800; color: #1f2937; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.03em;">
+                        <h3 style="font-size: 15px; font-weight: 800; color: var(--color-text); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.03em;">
                             🕐 Historial de eventos
                         </h3>
                         @foreach (var h in Model.Historial)

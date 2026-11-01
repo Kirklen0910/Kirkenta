@@ -17,14 +17,21 @@ namespace Kirkenta.Pages.Series
 
         public List<SerieDocumento> Series { get; set; } = new();
         public Dictionary<int, string> Previews { get; set; } = new();
+        public bool PuedeCrear { get; set; }
+        public bool PuedeEditar { get; set; }
+        public bool PuedeEliminar { get; set; }
+
 
         public IActionResult OnGet()
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            PuedeCrear = PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Series", "crear");
+            PuedeEditar = PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Series", "editar");
+            PuedeEliminar = PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Series", "eliminar");
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Series", "ver"))
             {
-                TempData["Error"] = "Solo administradores pueden ver esta configuración";
+                TempData["Error"] = "No tienes permiso para ver esta sección";
                 return RedirectToPage("/Index");
             }
 

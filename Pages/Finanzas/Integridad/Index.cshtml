@@ -1,0 +1,153 @@
+@page
+@model Kirkenta.Pages.Finanzas.Integridad.IndexModel
+@{
+    ViewData["Title"] = "Revisión de movimientos";
+}
+<style>
+    .rv-bar { height:14px; background:var(--color-border); border-radius:99px; overflow:hidden; }
+    .rv-bar > span { display:block; height:100%; width:0; background:var(--color-primary, #4f46e5); transition:width .25s; }
+    .rv-tabs { display:flex; gap:6px; flex-wrap:wrap; margin:16px 0 12px; }
+    .rv-tab { border:1px solid var(--color-border); background:transparent; color:inherit; padding:7px 14px; border-radius:99px; cursor:pointer; font-size:13px; }
+    .rv-tab.activa { background:var(--color-primary, #4f46e5); color:#fff; border-color:transparent; }
+    .rv-pill { display:inline-block; min-width:18px; padding:0 6px; border-radius:99px; font-size:11px; margin-left:6px; background:#dc2626; color:#fff; }
+    .rv-ok { color:#16a34a; font-weight:700; }
+    .rv-mal { color:#dc2626; font-weight:700; }
+    .rv-item { border-bottom:1px solid var(--color-border); padding:12px 0; }
+    .rv-item:last-child { border-bottom:0; }
+    .rv-head { display:flex; gap:10px; align-items:baseline; }
+    .rv-sub { color:var(--color-muted); font-size:13px; margin:2px 0 0 26px; }
+    .rv-tabla { width:100%; border-collapse:collapse; margin:8px 0 0 26px; width:calc(100% - 26px); font-size:13px; }
+    .rv-tabla td { padding:5px 8px; border-top:1px solid var(--color-border); }
+    .rv-print-title { display:none; }
+    @@media print {
+        .rv-noprint, .erp-sidebar, .erp-topbar, header, nav { display:none !important; }
+        .rv-panel { display:block !important; break-inside:avoid; }
+        .rv-print-title { display:block; margin-bottom:10px; }
+        .module-card { box-shadow:none !important; border:0 !important; }
+    }
+</style>
+
+<div class="module-header rv-noprint">
+    <div class="module-header-left">
+        <h2>Revisión de movimientos</h2>
+        <p>Revisa ventas, cobros, créditos a favor, ingresos, egresos, cuentas, compras, inventario y asientos, y marca lo que cuadra y lo que no. Solo lee, no modifica nada.</p>
+    </div>
+</div>
+
+<div class="module-card rv-noprint" style="padding:16px">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-field" style="margin:0"><label>Desde</label><input type="date" id="rvDesde" class="form-input" value="@Model.Desde!.Value.ToString("yyyy-MM-dd")" /></div>
+        <div class="form-field" style="margin:0"><label>Hasta</label><input type="date" id="rvHasta" class="form-input" value="@Model.Hasta!.Value.ToString("yyyy-MM-dd")" /></div>
+        <button type="button" id="rvIniciar" class="btn-primary">Iniciar revisión</button>
+        <button type="button" id="rvImprimir" class="btn-secondary" style="display:none" onclick="window.print()">Imprimir informe</button>
+    </div>
+    <div id="rvProgreso" style="display:none;margin-top:14px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+            <span id="rvEtapa">Preparando…</span><strong id="rvPct">0%</strong>
+        </div>
+        <div class="rv-bar"><span id="rvBarra"></span></div>
+    </div>
+</div>
+
+<div id="rvResultado" style="display:none">
+    <div class="rv-print-title"><h2>@Model.Empresa — Revisión de movimientos</h2><div id="rvPeriodoImp"></div></div>
+    <div class="module-card" id="rvResumen" style="padding:14px 16px;margin-top:14px"></div>
+    <div class="rv-tabs rv-noprint" id="rvTabs"></div>
+    <div id="rvPaneles"></div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    var total = @Model.TotalPasos;
+    var modulos = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Modulos));
+    var url = '@Url.Page("/Finanzas/Integridad/Index")';
+    var res = [];
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+    function fmt(d) { var p = d.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+
+    async function paso(i, desde, hasta) {
+        var r = await fetch(url + '?handler=Paso&i=' + i + '&desde=' + desde + '&hasta=' + hasta, { headers: { 'Accept': 'application/json' } });
+        if (!r.ok) throw new Error('Error ' + r.status);
+        return r.json();
+    }
+
+    document.getElementById('rvIniciar').addEventListener('click', async function () {
+        var desde = document.getElementById('rvDesde').value, hasta = document.getElementById('rvHasta').value;
+        if (!desde || !hasta) return;
+        if (hasta < desde) { var t = desde; desde = hasta; hasta = t; }
+        var btn = this; btn.disabled = true;
+        document.getElementById('rvImprimir').style.display = 'none';
+        document.getElementById('rvResultado').style.display = 'none';
+        document.getElementById('rvProgreso').style.display = 'block';
+        res = [];
+        for (var i = 0; i < total; i++) {
+            document.getElementById('rvEtapa').textContent = 'Revisando… (' + (i + 1) + ' de ' + total + ')';
+            try { res.push(await paso(i, desde, hasta)); }
+            catch (e) { res.push({ area: 'Sistema', titulo: 'Paso ' + (i + 1), explicacion: 'No se pudo completar: ' + e.message, revisados: 0, total: 1, ejemplos: [{ documento: 'Error', detalle: e.message }] }); }
+            var pct = Math.round(((i + 1) / total) * 100);
+            document.getElementById('rvBarra').style.width = pct + '%';
+            document.getElementById('rvPct').textContent = pct + '%';
+        }
+        document.getElementById('rvEtapa').textContent = 'Revisión completa';
+        render(desde, hasta);
+        btn.disabled = false;
+    });
+
+    function render(desde, hasta) {
+        var fallas = res.filter(function (x) { return x.total > 0; });
+        var totalFallas = res.reduce(function (a, x) { return a + x.total; }, 0);
+        var revisados = res.reduce(function (a, x) { return a + (x.revisados || 0); }, 0);
+        var periodo = desde === hasta ? fmt(desde) : fmt(desde) + ' al ' + fmt(hasta);
+        document.getElementById('rvPeriodoImp').textContent = 'Período: ' + periodo + ' · Generado: ' + new Date().toLocaleString();
+        document.getElementById('rvResumen').innerHTML =
+            (totalFallas === 0
+                ? '<span class="rv-ok">✔ Todo cuadra.</span> '
+                : '<span class="rv-mal">✖ ' + totalFallas + ' diferencia(s) en ' + fallas.length + ' revisión(es).</span> ')
+            + 'Período ' + esc(periodo) + ' · ' + revisados.toLocaleString() + ' registros revisados en ' + res.length + ' controles.';
+
+        var tabs = document.getElementById('rvTabs'), paneles = document.getElementById('rvPaneles');
+        tabs.innerHTML = ''; paneles.innerHTML = '';
+        modulos.forEach(function (m, k) {
+            var items = res.filter(function (x) { return x.area === m; });
+            if (!items.length) return;
+            var malos = items.reduce(function (a, x) { return a + x.total; }, 0);
+            var b = document.createElement('button');
+            b.type = 'button'; b.className = 'rv-tab' + (k === 0 ? ' activa' : '');
+            b.innerHTML = esc(m) + (malos ? '<span class="rv-pill">' + malos + '</span>' : ' <span class="rv-ok">✔</span>');
+            b.dataset.m = m; tabs.appendChild(b);
+
+            var p = document.createElement('div');
+            p.className = 'module-card rv-panel'; p.style.padding = '8px 16px'; p.dataset.m = m;
+            p.innerHTML = '<h3 class="form-section-title" style="margin:10px 0 0">' + esc(m) + '</h3>' + items.map(function (x) {
+                var ok = x.total === 0;
+                var det = x.revisados === 0 && ok ? 'Sin registros en el período' : x.revisados + ' registro(s) revisado(s)';
+                var h = '<div class="rv-item"><div class="rv-head"><span class="' + (ok ? 'rv-ok' : 'rv-mal') + '">' + (ok ? '✔' : '✖') + '</span><strong>' + esc(x.titulo) + '</strong>'
+                    + '<span style="color:var(--color-muted);font-size:12px">' + det + (x.global ? ' · estado actual' : '') + '</span></div>'
+                    + '<div class="rv-sub">' + esc(x.explicacion) + '</div>';
+                if (!ok) {
+                    h += '<table class="rv-tabla">' + x.ejemplos.map(function (e) {
+                        var doc = e.url ? '<a href="' + esc(e.url) + '"><strong>' + esc(e.documento) + '</strong></a>' : '<strong>' + esc(e.documento) + '</strong>';
+                        return '<tr><td style="width:170px">' + doc + '</td><td>' + esc(e.detalle) + '</td></tr>';
+                    }).join('') + '</table>';
+                    if (x.total > x.ejemplos.length) h += '<div class="rv-sub">Se muestran ' + x.ejemplos.length + ' de ' + x.total + '.</div>';
+                }
+                return h + '</div>';
+            }).join('');
+            p.style.display = k === 0 ? 'block' : 'none';
+            paneles.appendChild(p);
+        });
+        tabs.querySelectorAll('.rv-tab').forEach(function (t) {
+            t.addEventListener('click', function () {
+                tabs.querySelectorAll('.rv-tab').forEach(function (o) { o.classList.toggle('activa', o === t); });
+                paneles.querySelectorAll('.rv-panel').forEach(function (pp) { pp.style.display = pp.dataset.m === t.dataset.m ? 'block' : 'none'; });
+            });
+        });
+        // primera pestaña con fallas, si la hay
+        var primera = tabs.querySelector('.rv-pill'); if (primera) primera.closest('.rv-tab').click();
+        document.getElementById('rvResultado').style.display = 'block';
+        document.getElementById('rvImprimir').style.display = '';
+    }
+})();
+</script>
+}

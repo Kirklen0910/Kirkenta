@@ -54,6 +54,49 @@ namespace Kirkenta.Migrations
                     b.ToTable("Actividades");
                 });
 
+            modelBuilder.Entity("Kirkenta.Models.AdjuntoCierre", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CierreCajaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime>("FechaSubida")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("NombreArchivo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("RutaArchivo")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<int>("TamanoKB")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TipoArchivo")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int?>("UsuarioId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AdjuntosCierre");
+                });
+
             modelBuilder.Entity("Kirkenta.Models.AdjuntoCompra", b =>
                 {
                     b.Property<int>("Id")
@@ -93,6 +136,164 @@ namespace Kirkenta.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("AdjuntosCompras");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.AdjuntoEmpleado", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int>("EmpleadoId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("FechaDocumento")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaSubida")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaVencimiento")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("NombreArchivo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("RutaArchivo")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<int>("TamanoKB")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TipoArchivo")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("TipoDocumentoId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UsuarioSubioId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Vigente")
+                        .HasColumnType("tinyint(1)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AdjuntosEmpleado");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.AlertaPersonalizada", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Completada")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<int?>("EmpleadoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FechaAlerta")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaCompletada")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaVigenciaHasta")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("MostrarEnDashboard")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Prioridad")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<int?>("UsuarioCreoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AlertasPersonalizadas");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.AperturaCaja", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("CierreId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CuentaId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaApertura")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<decimal>("SaldoInicial")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int>("UsuarioAbreId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Numero")
+                        .IsUnique();
+
+                    b.ToTable("AperturasCaja");
                 });
 
             modelBuilder.Entity("Kirkenta.Models.BajaInventario", b =>
@@ -240,6 +441,9 @@ namespace Kirkenta.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
+                    b.Property<int?>("PlanCuentaId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Tipo")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -250,6 +454,161 @@ namespace Kirkenta.Migrations
                     b.ToTable("CategoriasFinancieras");
                 });
 
+            modelBuilder.Entity("Kirkenta.Models.CierreCaja", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AperturaId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CuentaId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Diferencia")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("EfectivoContado")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("EfectivoEsperado")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EstadoActa")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaAprobacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaCierre")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("MotivoRechazo")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int?>("MovimientoAjusteId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("Resultado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<decimal>("SaldoInicialSistema")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("Tolerancia")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TotalDistribuido")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TotalEgresosEfectivo")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TotalIngresosEfectivo")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int?>("UsuarioApruebaId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UsuarioCierraId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Numero")
+                        .IsUnique();
+
+                    b.ToTable("CierresCaja");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.CierreContable", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Anio")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Balance")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int>("CantidadMovimientos")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime?>("FechaCierre")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaReapertura")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Mes")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MotivoReapertura")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<decimal>("TotalEgresos")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TotalIngresos")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int?>("UsuarioCierreId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UsuarioReaperturaId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Anio", "Mes")
+                        .IsUnique();
+
+                    b.ToTable("CierresContables");
+                });
+
             modelBuilder.Entity("Kirkenta.Models.Cliente", b =>
                 {
                     b.Property<int>("Id")
@@ -257,6 +616,21 @@ namespace Kirkenta.Migrations
                         .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("EsExonerado")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("ExoneradoConstancia")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("ExoneradoOrdenCompraExenta")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("ExoneradoRegistroSag")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
 
                     b.Property<bool>("Activo")
                         .HasColumnType("tinyint(1)");
@@ -326,6 +700,202 @@ namespace Kirkenta.Migrations
                     b.ToTable("Clientes");
                 });
 
+            modelBuilder.Entity("Kirkenta.Models.ConciliacionBancaria", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CuentaId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Diferencia")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime?>("FechaCierre")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaFin")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaInicio")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("NotasCierre")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<decimal>("SaldoBanco")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("SaldoSistema")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int>("TotalLineasBanco")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalLineasSistema")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalMatcheadas")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalNoMatcheadas")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UsuarioCierraId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UsuarioCreoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Numero")
+                        .IsUnique();
+
+                    b.ToTable("ConciliacionesBancarias");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.ConciliacionDetalle", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ConciliacionBancariaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("Matcheada")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("MatcheadaConDetalleId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Monto")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int?>("MovimientoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Origen")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Referencia")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("TipoMatch")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ConciliacionesDetalle");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.ConfiguracionDeduccion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("Anio")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("AplicaIHSS")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("AplicaISR")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("AplicaRAP")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("MetodoISR")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<decimal>("PorcentajeIHSS")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("PorcentajeRAP")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TopeAnualExentoISR")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TopeIHSS")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal?>("TopeRAP")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int?>("UsuarioCreoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Anio")
+                        .IsUnique();
+
+                    b.ToTable("ConfiguracionDeducciones");
+                });
+
             modelBuilder.Entity("Kirkenta.Models.ConfiguracionEmpresa", b =>
                 {
                     b.Property<int>("Id")
@@ -350,6 +920,9 @@ namespace Kirkenta.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)");
 
+                    b.Property<bool>("FacturacionFiscalActiva")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<DateTime>("FechaActualizacion")
                         .HasColumnType("datetime(6)");
 
@@ -365,12 +938,110 @@ namespace Kirkenta.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)");
 
+                    b.Property<string>("NotaCreditoCAI")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime?>("NotaCreditoFechaLimite")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("NotaCreditoRangoFinal")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("NotaCreditoRangoInicial")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
                     b.Property<string>("NotasFactura")
                         .HasColumnType("longtext");
 
                     b.Property<string>("Pais")
                         .HasMaxLength(80)
                         .HasColumnType("varchar(80)");
+
+                    b.Property<string>("PaisCodigo")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<bool>("RHAlertaAniversarios")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("RHAlertaContratosDias")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("RHAlertaContratosPorVencer")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("RHAlertaCumpleanios")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("RHAlertaDocumentosVencidos")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("RHAlertaFeriadosDias")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("RHAlertaFeriadosProximos")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("RHAlertaVacacionesDias")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("RHAlertaVacacionesProximas")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("RHAlertaValesPorVencer")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("RHAntiguedadMaxTabla")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("RHAplicaIHSS")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("RHAplicaISR")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("RHAplicaRAP")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("RHCargarFeriadosAuto")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("RHDiaPago1")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RHDiaPago2")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RHDiaSemanalPago")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RHFrecuenciaPagoDefault")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("RHMetodoISRDefault")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<decimal>("RHPorcentajeIHSS")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("RHPorcentajeRAP")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("RHTablaVacaciones")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<decimal>("RHTopeIHSS")
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<string>("RTN")
                         .HasMaxLength(20)
@@ -388,6 +1059,12 @@ namespace Kirkenta.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
 
+                    b.Property<long>("SiguienteNumeroFiscal")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("SiguienteNumeroNotaCredito")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("SitioWeb")
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)");
@@ -395,6 +1072,11 @@ namespace Kirkenta.Migrations
                     b.Property<string>("Telefono")
                         .HasMaxLength(30)
                         .HasColumnType("varchar(30)");
+
+                    b.Property<string>("ZonaHoraria")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)");
 
                     b.HasKey("Id");
 
@@ -434,12 +1116,18 @@ namespace Kirkenta.Migrations
                     b.Property<decimal>("Impuestos")
                         .HasColumnType("decimal(65,30)");
 
+                    b.Property<decimal>("MontoEnvio")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<string>("Notas")
                         .HasColumnType("longtext");
 
                     b.Property<string>("Numero")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
+
+                    b.Property<bool>("RequiereEnvio")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<decimal>("Subtotal")
                         .HasColumnType("decimal(65,30)");
@@ -451,6 +1139,9 @@ namespace Kirkenta.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("Validez")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("VentaId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -513,6 +1204,11 @@ namespace Kirkenta.Migrations
                     b.Property<string>("Responsable")
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)");
+
+                    b.Property<DateTime>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp(6)");
 
                     b.Property<decimal>("SaldoActual")
                         .HasColumnType("decimal(65,30)");
@@ -591,6 +1287,12 @@ namespace Kirkenta.Migrations
                     b.Property<decimal>("Cantidad")
                         .HasColumnType("decimal(65,30)");
 
+                    b.Property<decimal>("CostoUnitario")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int?>("DetalleVentaId")
+                        .HasColumnType("int");
+
                     b.Property<int>("DevolucionId")
                         .HasColumnType("int");
 
@@ -618,6 +1320,9 @@ namespace Kirkenta.Migrations
 
                     b.Property<decimal>("Cantidad")
                         .HasColumnType("decimal(65,30)");
+
+                    b.Property<int?>("DetalleOrdenCompraId")
+                        .HasColumnType("int");
 
                     b.Property<int>("DevolucionId")
                         .HasColumnType("int");
@@ -674,6 +1379,86 @@ namespace Kirkenta.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("DetalleFacturas");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.DetalleNomina", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("BonoAlimentacion")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("BonoTransporte")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("Comisiones")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("DeduccionIHSS")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("DeduccionISR")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("DeduccionRAP")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("DeduccionVales")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("DiasAusencia")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("DiasPermiso")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("DiasTrabajados")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("DiasVacaciones")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int>("EmpleadoId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("HorasExtra")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("MontoHorasExtra")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int>("NominaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<decimal>("OtrasDeducciones")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("OtrosBonos")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("SalarioBase")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("SalarioNeto")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TotalBruto")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TotalDeducciones")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DetalleNominas");
                 });
 
             modelBuilder.Entity("Kirkenta.Models.DetalleOrdenCompra", b =>
@@ -767,6 +1552,12 @@ namespace Kirkenta.Migrations
                     b.Property<decimal>("Cantidad")
                         .HasColumnType("decimal(65,30)");
 
+                    b.Property<decimal>("CostoTotalLinea")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("CostoUnitarioSnapshot")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<string>("Descripcion")
                         .HasColumnType("longtext");
 
@@ -804,8 +1595,15 @@ namespace Kirkenta.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("CAI")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
                     b.Property<int>("ClienteId")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("CostoRevertido")
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<string>("Estado")
                         .IsRequired()
@@ -817,12 +1615,42 @@ namespace Kirkenta.Migrations
                     b.Property<DateTime>("Fecha")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<DateTime?>("FechaLimiteEmision")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("FormaReembolso")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<decimal>("MontoAplicadoSaldo")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("MontoReembolsado")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<string>("Motivo")
                         .HasColumnType("longtext");
+
+                    b.Property<int?>("MovimientoCostoId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MovimientoReembolsoId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Numero")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
+
+                    b.Property<string>("RangoFinal")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("RangoInicial")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<bool>("ReingresaInventario")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<decimal>("Total")
                         .HasColumnType("decimal(65,30)");
@@ -859,6 +1687,12 @@ namespace Kirkenta.Migrations
                     b.Property<DateTime>("Fecha")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<decimal>("MontoAplicadoSaldo")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("MontoPorRecuperar")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<string>("Motivo")
                         .HasColumnType("longtext");
 
@@ -886,6 +1720,464 @@ namespace Kirkenta.Migrations
                     b.ToTable("DevolucionesProveedor");
                 });
 
+            modelBuilder.Entity("Kirkenta.Models.DistribucionCierre", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CierreCajaId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CuentaDestinoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DestinoDescripcion")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("Monto")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int?>("MovimientoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NombreRecibe")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Referencia")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int?>("UsuarioRecibeId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DistribucionesCierre");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.Empleado", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Apellidos")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<bool>("AplicaISR")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Banco")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<decimal?>("BonoAlimentacion")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal?>("BonoTransporte")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("Cedula")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Ciudad")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("ContactoEmergenciaNombre")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("ContactoEmergenciaParentesco")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("ContactoEmergenciaTelefono")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<bool>("CotizaIHSS")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("CotizaRAP")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("CuentaBancaria")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Departamento")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<decimal>("DiasVacacionesDisponibles")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("DiasVacacionesGanados")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("DiasVacacionesTomados")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("Direccion")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("EstadoCivil")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<DateTime?>("FechaBaja")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaFinContrato")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaIngreso")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaNacimiento")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("FotoPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("FrecuenciaPago")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Genero")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("JefeInmediato")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("Nacionalidad")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Nombres")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("Notas")
+                        .HasColumnType("longtext");
+
+                    b.Property<decimal?>("OtrosBonos")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("Pais")
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
+                    b.Property<int?>("PuestoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PuestoNombre")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("RTN")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<decimal>("SalarioBase")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("Telefono")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("TelefonoSecundario")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("TipoContrato")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("TipoJornada")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int>("UltimoAnioVacacionesProcesado")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UsuarioCreoId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UsuarioId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.ToTable("Empleados");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.Envio", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Ciudad")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("ClienteId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ClienteNombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("ContactoNombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("ContactoTelefono")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int?>("CotizacionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DireccionEntrega")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("EsGratis")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int?>("FacturaId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaEntregaEstimada")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaEntregaReal")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaSalida")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("FirmaImagen")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("FotoEntrega")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<decimal>("Monto")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("MotivoFallo")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("NombreRecibio")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int?>("OrdenParada")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PedidoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Referencia")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<int?>("RepartidorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RepartidorNombre")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<int?>("RutaId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UsuarioCreoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Vehiculo")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int?>("VentaId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ZonaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ZonaNombre")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Numero")
+                        .IsUnique();
+
+                    b.ToTable("Envios");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.ExpedienteEmpleado", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("DiasSuspension")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("EmpleadoFirmo")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("EmpleadoId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaFinSuspension")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaFirma")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaInicioSuspension")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Gravedad")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("NombreRegistro")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("RutaDocumentoFirmado")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("Testigos")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<int?>("UsuarioRegistroId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ExpedientesEmpleado");
+                });
+
             modelBuilder.Entity("Kirkenta.Models.Factura", b =>
                 {
                     b.Property<int>("Id")
@@ -893,6 +2185,21 @@ namespace Kirkenta.Migrations
                         .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("EsExonerada")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("ExoneradoConstancia")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("ExoneradoOrdenCompraExenta")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("ExoneradoRegistroSag")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
 
                     b.Property<string>("CAI")
                         .HasColumnType("longtext");
@@ -922,6 +2229,9 @@ namespace Kirkenta.Migrations
                     b.Property<decimal>("Impuestos")
                         .HasColumnType("decimal(65,30)");
 
+                    b.Property<decimal>("MontoEnvio")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<string>("Notas")
                         .HasColumnType("longtext");
 
@@ -937,6 +2247,9 @@ namespace Kirkenta.Migrations
 
                     b.Property<string>("RangoInicial")
                         .HasColumnType("longtext");
+
+                    b.Property<bool>("RequiereEnvio")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<decimal>("Saldo")
                         .HasColumnType("decimal(65,30)");
@@ -959,6 +2272,56 @@ namespace Kirkenta.Migrations
                         .IsUnique();
 
                     b.ToTable("Facturas");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.Feriado", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("Anio")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<bool>("EsMovil")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("EsRecurrente")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("PaisCodigo")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Feriados");
                 });
 
             modelBuilder.Entity("Kirkenta.Models.Impuesto", b =>
@@ -1170,6 +2533,176 @@ namespace Kirkenta.Migrations
                     b.ToTable("MovimientosFinancieros");
                 });
 
+            modelBuilder.Entity("Kirkenta.Models.MovimientoInventario", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Cantidad")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("CostoUnitario")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int?>("DocumentoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DocumentoNumero")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("Origen")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<int>("ProductoId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("StockAnterior")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("StockPosterior")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int?>("UsuarioId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductoId", "Fecha");
+
+                    b.ToTable("MovimientosInventario");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.Nomina", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CantidadEmpleados")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CuentaId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime?>("FechaAprobacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaCalculo")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaFin")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaInicio")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaPago")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaPagoReal")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("MovimientoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("PeriodoDescripcion")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<decimal>("TotalBonos")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TotalDeduccionIHSS")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TotalDeduccionISR")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TotalDeduccionRAP")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TotalDeduccionVales")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TotalHorasExtra")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TotalNeto")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TotalOtrasDeducciones")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("TotalSalariosBrutos")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int?>("UsuarioApruebaId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UsuarioCalculoId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UsuarioPagaId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Numero")
+                        .IsUnique();
+
+                    b.ToTable("Nominas");
+                });
+
             modelBuilder.Entity("Kirkenta.Models.OrdenCompra", b =>
                 {
                     b.Property<int>("Id")
@@ -1247,6 +2780,9 @@ namespace Kirkenta.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal?>("Cambio")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<int>("ClienteId")
                         .HasColumnType("int");
 
@@ -1260,6 +2796,9 @@ namespace Kirkenta.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("Monto")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal?>("MontoRecibido")
                         .HasColumnType("decimal(65,30)");
 
                     b.Property<string>("Notas")
@@ -1277,6 +2816,72 @@ namespace Kirkenta.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Pagos");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.PagoNominaEmpleado", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CuentaId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DetalleNominaId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpleadoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime>("FechaPago")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("MetodoPago")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<decimal>("Monto")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int?>("MovimientoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NominaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("Referencia")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int?>("UsuarioPagoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Numero")
+                        .IsUnique();
+
+                    b.ToTable("PagosNominaEmpleado");
                 });
 
             modelBuilder.Entity("Kirkenta.Models.PagoProveedor", b =>
@@ -1361,12 +2966,18 @@ namespace Kirkenta.Migrations
                     b.Property<decimal>("Impuestos")
                         .HasColumnType("decimal(65,30)");
 
+                    b.Property<decimal>("MontoEnvio")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<string>("Notas")
                         .HasColumnType("longtext");
 
                     b.Property<string>("Numero")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
+
+                    b.Property<bool>("RequiereEnvio")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<decimal>("Subtotal")
                         .HasColumnType("decimal(65,30)");
@@ -1423,6 +3034,143 @@ namespace Kirkenta.Migrations
                     b.ToTable("Permisos");
                 });
 
+            modelBuilder.Entity("Kirkenta.Models.PermisoEmpleado", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("ConGoceSueldo")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<decimal>("DiasSolicitados")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int>("EmpleadoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<DateTime?>("FechaAprobacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaFin")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaInicio")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaSolicitud")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Motivo")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("MotivoRechazo")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("RutaDocumentoSoporte")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<int?>("UsuarioApruebaId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UsuarioSolicitaId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Numero")
+                        .IsUnique();
+
+                    b.ToTable("PermisosEmpleado");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.PlanCuenta", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("CodigoPadre")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("EsMovimiento")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Naturaleza")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("Nivel")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.ToTable("PlanCuentas");
+                });
+
             modelBuilder.Entity("Kirkenta.Models.Producto", b =>
                 {
                     b.Property<int>("Id")
@@ -1459,6 +3207,9 @@ namespace Kirkenta.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)");
 
+                    b.Property<bool>("PermiteDescuento")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<decimal>("PrecioCompra")
                         .HasColumnType("decimal(65,30)");
 
@@ -1467,6 +3218,11 @@ namespace Kirkenta.Migrations
 
                     b.Property<decimal>("PrecioVenta")
                         .HasColumnType("decimal(65,30)");
+
+                    b.Property<DateTime>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp(6)");
 
                     b.Property<string>("SKU")
                         .HasMaxLength(50)
@@ -1588,6 +3344,64 @@ namespace Kirkenta.Migrations
                     b.ToTable("Proveedores");
                 });
 
+            modelBuilder.Entity("Kirkenta.Models.Repartidor", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Licencia")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("Placa")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Telefono")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int?>("UsuarioCreoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Vehiculo")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.ToTable("Repartidores");
+                });
+
             modelBuilder.Entity("Kirkenta.Models.Rol", b =>
                 {
                     b.Property<int>("Id")
@@ -1619,6 +3433,146 @@ namespace Kirkenta.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Roles");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.Ruta", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaRegreso")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaSalida")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("MontoTotalEnvios")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int>("ParadasEntregadas")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ParadasFallidas")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Placa")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int?>("RepartidorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RepartidorNombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<int>("TotalParadas")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TrackingCode")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int?>("UsuarioCreoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Vehiculo")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int?>("ZonaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ZonaNombre")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Numero")
+                        .IsUnique();
+
+                    b.HasIndex("TrackingCode")
+                        .IsUnique();
+
+                    b.ToTable("Rutas");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.RutaHistorial", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Detalle")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int?>("EnvioId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EstadoAnterior")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("EstadoNuevo")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("Evento")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("RutaId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UsuarioId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UsuarioNombre")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("RutasHistorial");
                 });
 
             modelBuilder.Entity("Kirkenta.Models.SerieDocumento", b =>
@@ -1669,6 +3623,96 @@ namespace Kirkenta.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("SeriesDocumentos");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.TipoDocumentoEmpleado", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Categoria")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<int?>("DiasAlertaVencimiento")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("EsObligatorio")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("EsSistema")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Icono")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("RequiereVencimiento")
+                        .HasColumnType("tinyint(1)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TiposDocumentoEmpleado");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.TramoISR", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ConfiguracionDeduccionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<decimal>("Desde")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal?>("Hasta")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("MontoFijo")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Porcentaje")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TramosISR");
                 });
 
             modelBuilder.Entity("Kirkenta.Models.UnidadMedida", b =>
@@ -1759,6 +3803,80 @@ namespace Kirkenta.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Usuarios");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.VacacionEmpleado", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("DiasADescontar")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int>("DiasFeriados")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DiasSolicitados")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int>("EmpleadoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<DateTime?>("FechaAprobacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaFin")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaInicio")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaSolicitud")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaTomaReal")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Motivo")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("MotivoRechazo")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int?>("UsuarioApruebaId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UsuarioSolicitaId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Numero")
+                        .IsUnique();
+
+                    b.ToTable("VacacionesEmpleado");
                 });
 
             modelBuilder.Entity("Kirkenta.Models.ValeDescuento", b =>
@@ -1857,7 +3975,8 @@ namespace Kirkenta.Migrations
                         .HasColumnType("varchar(300)");
 
                     b.Property<string>("MotivoRechazo")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
 
                     b.Property<int?>("MovimientoId")
                         .HasColumnType("int");
@@ -1893,14 +4012,26 @@ namespace Kirkenta.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("EsExonerada")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<int?>("ClienteId")
                         .HasColumnType("int");
+
+                    b.Property<bool>("CostoRegistrado")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<decimal>("CostoTotalVendido")
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<int?>("CotizacionId")
                         .HasColumnType("int");
 
                     b.Property<decimal>("Descuento")
                         .HasColumnType("decimal(65,30)");
+
+                    b.Property<bool>("EsCredito")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Estado")
                         .IsRequired()
@@ -1909,8 +4040,29 @@ namespace Kirkenta.Migrations
                     b.Property<DateTime>("Fecha")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<DateTime?>("FechaMovimiento")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaVencimientoCredito")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<decimal>("Impuestos")
                         .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("MontoEnvio")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int?>("MovimientoCambioId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MovimientoCostoId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MovimientoIngresoId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("MovimientoRegistrado")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Notas")
                         .HasColumnType("longtext");
@@ -1921,6 +4073,12 @@ namespace Kirkenta.Migrations
 
                     b.Property<int?>("PedidoId")
                         .HasColumnType("int");
+
+                    b.Property<bool>("RequiereEnvio")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<decimal>("SaldoPendiente")
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<decimal>("Subtotal")
                         .HasColumnType("decimal(65,30)");
@@ -1937,6 +4095,51 @@ namespace Kirkenta.Migrations
                         .IsUnique();
 
                     b.ToTable("Ventas");
+                });
+
+            modelBuilder.Entity("Kirkenta.Models.ZonaEnvio", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("PrecioSugerido")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Nombre")
+                        .IsUnique();
+
+                    b.ToTable("ZonasEnvio");
                 });
 #pragma warning restore 612, 618
         }

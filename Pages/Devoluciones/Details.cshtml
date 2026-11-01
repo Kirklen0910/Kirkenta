@@ -1,0 +1,92 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Devoluciones.DetailsModel
+@{
+    ViewData["Title"] = $"Devolución {Model.Devolucion.Numero}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Devoluciones/Index" class="back-link">← Volver a devoluciones</a>
+        <h2>Devolución @Model.Devolucion.Numero</h2>
+        <p>@Model.Devolucion.Fecha.ToString("dd/MM/yyyy HH:mm") — Estado: @Model.Devolucion.Estado</p>
+    </div>
+    <div class="module-header-right">
+        <partial name="_WhatsAppPdf" model="@(new Kirkenta.Helpers.WhatsAppPdf(Model.Cliente?.Telefono, Kirkenta.Helpers.WhatsAppHelper.MensajeDevolucion(Model.Empresa?.Nombre ?? "Empresa", (string.IsNullOrWhiteSpace(Model.Cliente?.Nombre) || (Model.Cliente?.Nombre ?? "").Contains("consumidor final", StringComparison.OrdinalIgnoreCase) ? null : Model.Cliente?.Nombre), Model.Devolucion.Numero, Model.Devolucion.Total), "Devolucion-" + Model.Devolucion.Numero + ".pdf"))" />
+        <button type="button" class="btn-secondary" onclick="window.print()">Imprimir</button>
+        @if (Model.Venta != null)
+        {
+            <a asp-page="/Ventas/Details" asp-route-id="@Model.Venta.Id" class="btn-secondary">Ver venta</a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">@TempData["Success"]</div>
+}
+
+<div class="module-card" style="padding:32px;" data-pdf-doc>
+    <h3>@(Model.Empresa?.Nombre ?? "Empresa")</h3>
+    @if (!string.IsNullOrEmpty(Model.Empresa?.RTN)) { <p>RTN: @Model.Empresa!.RTN</p> }
+    <h4 style="margin-top:16px;">NOTA DE CRÉDITO / DEVOLUCIÓN @Model.Devolucion.Numero</h4>
+    <p>
+        Cliente: <strong>@(Model.Cliente?.Nombre ?? "Consumidor final")</strong>
+        @if (!string.IsNullOrEmpty(Model.Cliente?.RTN)) { <span> — RTN: @Model.Cliente!.RTN</span> }
+    </p>
+    <p>
+        @if (Model.Venta != null) { <span>Venta: <strong>@Model.Venta.Numero</strong>  </span> }
+        @if (Model.Factura != null) { <span>Factura: <strong>@Model.Factura.Numero</strong></span> }
+    </p>
+    @if (!string.IsNullOrEmpty(Model.Devolucion.CAI))
+    {
+        <p style="font-size:12px;color:var(--color-text-muted);">
+            CAI: @Model.Devolucion.CAI — Rango: @Model.Devolucion.RangoInicial al @Model.Devolucion.RangoFinal
+            @if (Model.Devolucion.FechaLimiteEmision.HasValue) { <span> — Fecha límite de emisión: @Model.Devolucion.FechaLimiteEmision.Value.ToString("dd/MM/yyyy")</span> }
+        </p>
+    }
+    <p>Motivo: @(Model.Devolucion.Motivo ?? "—")</p>
+
+    <div class="table-wrapper" style="margin-top:16px;">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th style="text-align:right;">Cantidad</th>
+                    <th style="text-align:right;">Valor unit.</th>
+                    <th style="text-align:right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var (det, producto) in Model.Items)
+                {
+                    <tr>
+                        <td>@producto</td>
+                        <td style="text-align:right;">@det.Cantidad.ToString("0.##")</td>
+                        <td style="text-align:right;">L. @det.PrecioUnitario.ToString("N2")</td>
+                        <td style="text-align:right;">L. @det.Total.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" style="text-align:right;"><strong>Total devuelto</strong></td>
+                    <td style="text-align:right;"><strong>L. @Model.Devolucion.Total.ToString("N2")</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div style="margin-top:16px;">
+        <p>Reembolsado al cliente: <strong>L. @Model.Devolucion.MontoReembolsado.ToString("N2")</strong>
+            @if (!string.IsNullOrEmpty(Model.Devolucion.FormaReembolso)) { <span>(@Model.Devolucion.FormaReembolso)</span> }
+        </p>
+        @if (Model.Devolucion.MontoSaldoFavor > 0)
+        {
+            <p>Quedó como saldo a favor del cliente: <strong>L. @Model.Devolucion.MontoSaldoFavor.ToString("N2")</strong> (lo puede usar en su próxima compra)</p>
+        }
+        <p>Aplicado al saldo pendiente: <strong>L. @Model.Devolucion.MontoAplicadoSaldo.ToString("N2")</strong></p>
+        <p>Regresó al inventario: <strong>@(Model.Devolucion.ReingresaInventario ? "Sí" : "No (merma)")</strong>
+            @if (Model.Devolucion.CostoRevertido > 0) { <span> — costo revertido L. @Model.Devolucion.CostoRevertido.ToString("N2")</span> }
+        </p>
+    </div>
+</div>

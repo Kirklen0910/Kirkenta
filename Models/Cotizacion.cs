@@ -15,6 +15,7 @@ namespace Kirkenta.Models
         public string? Notas { get; set; }
         public int Validez { get; set; } = 30;
         public int? FacturaId { get; set; }
+        public int? VentaId { get; set; }
         public DateTime? FechaConversion { get; set; }
         public int? UsuarioCreoId { get; set; }
 

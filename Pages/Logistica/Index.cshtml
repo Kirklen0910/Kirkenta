@@ -88,9 +88,9 @@ else
 <!-- KPIs DE ALERTAS (semaforos)                   -->
 <!-- ============================================ -->
 <div class="kpi-grid" style="margin-bottom: 24px;">
-    <div class="kpi-card" style="border-left: 4px solid #ef4444;">
+    <div class="kpi-card" style="border-left: 4px solid var(--color-danger);">
         <span class="kpi-label">🔴 Envíos atrasados</span>
-        <span class="kpi-value" style="color: #ef4444;">@Model.Alertas.EnviosAtrasados</span>
+        <span class="kpi-value" style="color: var(--color-danger);">@Model.Alertas.EnviosAtrasados</span>
         <span class="kpi-trend @(Model.Alertas.EnviosAtrasados > 0 ? "down" : "up")">
             @(Model.Alertas.EnviosAtrasados > 0 ? "Requieren atención urgente" : "Sin atrasos")
         </span>
@@ -100,14 +100,14 @@ else
         <span class="kpi-value" style="color: #f59e0b;">@Model.Alertas.EnviosVencenHoy</span>
         <span class="kpi-trend">Deben entregarse hoy</span>
     </div>
-    <div class="kpi-card" style="border-left: 4px solid #4f46e5;">
+    <div class="kpi-card" style="border-left: 4px solid var(--color-primary);">
         <span class="kpi-label">🟢 Entregados hoy</span>
-        <span class="kpi-value" style="color: #10b981;">@Model.Alertas.EnviosEntregadosHoy</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.Alertas.EnviosEntregadosHoy</span>
         <span class="kpi-trend up">Completados con éxito</span>
     </div>
-    <div class="kpi-card" style="border-left: 4px solid #dc2626;">
+    <div class="kpi-card" style="border-left: 4px solid var(--color-danger-strong);">
         <span class="kpi-label">❌ Fallidos</span>
-        <span class="kpi-value" style="color: #dc2626;">@Model.Alertas.EnviosFallidos</span>
+        <span class="kpi-value" style="color: var(--color-danger-strong);">@Model.Alertas.EnviosFallidos</span>
         <span class="kpi-trend @(Model.Alertas.EnviosFallidos > 0 ? "down" : "up")">
             @(Model.Alertas.EnviosFallidos > 0 ? "Requieren reagendar" : "Sin fallos")
         </span>
@@ -177,10 +177,10 @@ else
 <!-- ============================================ -->
 @if (Model.EnviosAtrasados.Count > 0)
 {
-    <div class="module-card" style="padding: 0; margin-bottom: 20px; border-left: 4px solid #ef4444;">
+    <div class="module-card" style="padding: 0; margin-bottom: 20px; border-left: 4px solid var(--color-danger);">
         <div style="padding: 20px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <h3 class="panel-title" style="margin: 0; color: #ef4444;">🔴 Envíos atrasados (@Model.EnviosAtrasados.Count)</h3>
+                <h3 class="panel-title" style="margin: 0; color: var(--color-danger);">🔴 Envíos atrasados (@Model.EnviosAtrasados.Count)</h3>
                 <p class="panel-muted" style="margin: 4px 0 0 0;">Estos envíos debieron entregarse antes de hoy</p>
             </div>
             <a asp-page="/Logistica/Envios/Index" asp-route-filtro="atrasados" class="btn-secondary btn-sm">Ver todos</a>
@@ -344,7 +344,7 @@ else
         }
     </div>
 
-    <div class="module-card" style="padding: 20px; border-left: 4px solid #10b981;">
+    <div class="module-card" style="padding: 20px; border-left: 4px solid var(--color-success);">
         <h3 class="panel-title" style="margin-bottom: 16px;">🟢 Entregados hoy (@Model.EnviosEntregadosHoy.Count)</h3>
         @if (Model.EnviosEntregadosHoy.Count == 0)
         {
@@ -358,7 +358,7 @@ else
                 @foreach (var e in Model.EnviosEntregadosHoy.Take(8))
                 {
                     <div class="timeline-item">
-                        <div class="timeline-dot" style="background: #10b981;"></div>
+                        <div class="timeline-dot" style="background: var(--color-success);"></div>
                         <div class="timeline-content">
                             <div class="timeline-header">
                                 <strong>@e.Numero</strong>
@@ -388,9 +388,9 @@ else
 <!-- ============================================ -->
 @if (Model.EnviosFallidosLista.Count > 0)
 {
-    <div class="module-card" style="padding: 0; margin-bottom: 20px; border-left: 4px solid #dc2626;">
+    <div class="module-card" style="padding: 0; margin-bottom: 20px; border-left: 4px solid var(--color-danger-strong);">
         <div style="padding: 20px; border-bottom: 1px solid var(--color-border);">
-            <h3 class="panel-title" style="margin: 0; color: #dc2626;">❌ Envíos fallidos (@Model.EnviosFallidosLista.Count)</h3>
+            <h3 class="panel-title" style="margin: 0; color: var(--color-danger-strong);">❌ Envíos fallidos (@Model.EnviosFallidosLista.Count)</h3>
             <p class="panel-muted" style="margin: 4px 0 0 0;">Estos envíos no se pudieron entregar y requieren reagendar</p>
         </div>
         <div class="table-wrapper">

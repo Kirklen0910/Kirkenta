@@ -57,7 +57,7 @@
         <div class="form-row">
             <div class="form-field">
                 <label asp-for="Input.Cantidad">Cantidad a dar de baja *</label>
-                <input asp-for="Input.Cantidad" type="number" step="0.01" min="0.01" class="form-input" id="cantidadInput" required />
+                <input asp-for="Input.Cantidad" asp-format="{0:0.##}" type="number" step="0.01" min="0.01" class="form-input" id="cantidadInput" required />
                 <small class="form-help" id="stockInfo"></small>
             </div>
             <div class="form-field">
@@ -149,10 +149,11 @@
                     return;
                 }
 
+                function escHtmlBaja(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
                 productoResults.innerHTML = filtrados.map(function (p) {
                     return '<div class="producto-result-item" data-id="' + p.id + '">' +
-                        '<div><strong>' + p.nombre + '</strong>' +
-                        (p.sku ? '<br><small>SKU: ' + p.sku + '</small>' : '') +
+                        '<div><strong>' + escHtmlBaja(p.nombre) + '</strong>' +
+                        (p.sku ? '<br><small>SKU: ' + escHtmlBaja(p.sku) + '</small>' : '') +
                         '<br><small>Stock actual: ' + p.stock + ' | Costo: ' + formatMoney(p.precioCompra) + '</small>' +
                         '</div></div>';
                 }).join('');

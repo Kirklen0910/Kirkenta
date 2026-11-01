@@ -63,12 +63,19 @@ namespace Kirkenta.Pages.Usuarios
                 return RedirectToPage("/Usuarios/Index");
             }
 
-            Roles = _context.Roles.OrderBy(r => r.Nombre).ToList();
+            Roles = _context.Roles.Where(r => currentRol == "Admin" || r.Nombre != "Admin").OrderBy(r => r.Nombre).ToList();
 
             var user = _context.Usuarios.FirstOrDefault(u => u.Id == id);
             if (user == null)
             {
                 TempData["Error"] = "Usuario no encontrado";
+                return RedirectToPage("/Usuarios/Index");
+            }
+
+            // Seguridad: solo un Admin puede modificar a otro Admin
+            if (user.Rol == "Admin" && currentRol != "Admin")
+            {
+                TempData["Error"] = "Solo un administrador puede editar a otro administrador";
                 return RedirectToPage("/Usuarios/Index");
             }
 
@@ -97,16 +104,54 @@ namespace Kirkenta.Pages.Usuarios
                 return RedirectToPage("/Usuarios/Index");
             }
 
-            Roles = _context.Roles.OrderBy(r => r.Nombre).ToList();
+            Roles = _context.Roles.Where(r => currentRol == "Admin" || r.Nombre != "Admin").OrderBy(r => r.Nombre).ToList();
 
             if (!ModelState.IsValid)
                 return Page();
+
+            if (!string.IsNullOrWhiteSpace(Input.NewPassword))
+            {
+                var errorClave = PasswordPolicy.Validar(Input.NewPassword, Input.Username);
+                if (errorClave != null)
+                {
+                    ModelState.AddModelError("Input.NewPassword", errorClave);
+                    return Page();
+                }
+            }
 
             var user = _context.Usuarios.FirstOrDefault(u => u.Id == Input.Id);
             if (user == null)
             {
                 TempData["Error"] = "Usuario no encontrado";
                 return RedirectToPage("/Usuarios/Index");
+            }
+
+            // Seguridad: solo un Admin puede modificar a otro Admin
+            if (user.Rol == "Admin" && currentRol != "Admin")
+            {
+                TempData["Error"] = "Solo un administrador puede editar a otro administrador";
+                return RedirectToPage("/Usuarios/Index");
+            }
+
+            if (Input.Rol != user.Rol)
+            {
+                if (currentUser != null && currentUser.Id == user.Id)
+                {
+                    ModelState.AddModelError("Input.Rol", "No puedes cambiar tu propio rol");
+                    return Page();
+                }
+
+                if (Input.Rol == "Admin" && currentRol != "Admin")
+                {
+                    ModelState.AddModelError("Input.Rol", "Solo un administrador puede asignar el rol Admin");
+                    return Page();
+                }
+
+                if (Input.Rol != "Pendiente" && !_context.Roles.Any(r => r.Nombre == Input.Rol))
+                {
+                    ModelState.AddModelError("Input.Rol", "El rol seleccionado no existe");
+                    return Page();
+                }
             }
 
             if (_context.Usuarios.Any(u => u.Username == Input.Username && u.Id != Input.Id))
@@ -131,6 +176,22 @@ namespace Kirkenta.Pages.Usuarios
                 }
             }
 
+            if (user.Activo && !Input.Activo)
+            {
+                if (currentUser != null && currentUser.Id == user.Id)
+                {
+                    ModelState.AddModelError("Input.Activo", "No puedes desactivar tu propio usuario");
+                    return Page();
+                }
+                if (user.Rol == "Admin" && _context.Usuarios.Count(u => u.Rol == "Admin" && u.Activo) <= 1)
+                {
+                    ModelState.AddModelError("Input.Activo", "No puedes desactivar al último administrador del sistema");
+                    return Page();
+                }
+            }
+
+            var antes = (user.Username, user.Email, user.Rol, user.Activo, user.NombreCompleto, user.Telefono);
+
             user.Username = Input.Username;
             user.Email = Input.Email;
             user.NombreCompleto = Input.NombreCompleto;
@@ -149,7 +210,13 @@ namespace Kirkenta.Pages.Usuarios
 
                 if (currentUser != null)
                 {
-                    var detalle = $"Editó al usuario '{user.Username}'";
+                    var detalle = $"Editó al usuario '{user.Username}'. " + CambiosHelper.Describir(
+                        ("Usuario", antes.Username, user.Username),
+                        ("Email", antes.Email, user.Email),
+                        ("Rol", antes.Rol, user.Rol),
+                        ("Activo", antes.Activo, user.Activo),
+                        ("Nombre", antes.NombreCompleto, user.NombreCompleto),
+                        ("Teléfono", antes.Telefono, user.Telefono));
                     if (!string.IsNullOrWhiteSpace(Input.NewPassword))
                         detalle += " (incluyendo contraseña)";
 

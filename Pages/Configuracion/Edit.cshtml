@@ -131,6 +131,18 @@
         <h3 class="form-section-title">Datos fiscales (para facturas)</h3>
 
         <div class="form-field">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input asp-for="Input.FacturacionFiscalActiva" type="checkbox" />
+                <strong>Activar facturación fiscal (CAI)</strong>
+            </label>
+            <small style="color:var(--color-text-muted);">
+                Activa: las facturas usan el CAI y se numeran dentro del rango autorizado (se bloquean si vence o se agota).
+                Desactivada: numeración interna, sin avisos de CAI.
+            </small>
+            <span asp-validation-for="Input.CAI" class="field-error" style="color:var(--color-danger);display:block;"></span>
+        </div>
+
+        <div class="form-field">
             <label asp-for="Input.CAI">CAI</label>
             <input asp-for="Input.CAI" class="form-input" placeholder="XXXXXX-XXXXXX-XXXXXX-XXXXXX" />
         </div>
@@ -149,6 +161,34 @@
         <div class="form-field">
             <label asp-for="Input.FechaLimiteEmision">Fecha límite de emisión</label>
             <input asp-for="Input.FechaLimiteEmision" type="date" class="form-input" />
+        </div>
+
+        <h3 class="form-section-title" style="margin-top:20px;">Notas de crédito fiscales (devoluciones)</h3>
+        <small style="color:var(--color-text-muted);display:block;margin-bottom:8px;">
+            Opcional. Si la facturación fiscal está activa y llenas estos datos, las devoluciones de clientes se numeran
+            con este CAI y rango. Si los dejas vacíos, usan la numeración interna.
+        </small>
+        <span asp-validation-for="Input.NotaCreditoCAI" class="field-error" style="color:var(--color-danger);display:block;"></span>
+
+        <div class="form-field">
+            <label asp-for="Input.NotaCreditoCAI">CAI de notas de crédito</label>
+            <input asp-for="Input.NotaCreditoCAI" class="form-input" placeholder="XXXXXX-XXXXXX-XXXXXX-XXXXXX" />
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label asp-for="Input.NotaCreditoRangoInicial">Rango inicial</label>
+                <input asp-for="Input.NotaCreditoRangoInicial" class="form-input" placeholder="000-001-03-00000001" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.NotaCreditoRangoFinal">Rango final</label>
+                <input asp-for="Input.NotaCreditoRangoFinal" class="form-input" placeholder="000-001-03-00000100" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Input.NotaCreditoFechaLimite">Fecha límite de emisión</label>
+            <input asp-for="Input.NotaCreditoFechaLimite" type="date" class="form-input" />
         </div>
 
         <div class="form-field">

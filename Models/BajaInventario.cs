@@ -20,6 +20,6 @@ namespace Kirkenta.Models
         public DateTime? FechaReversion { get; set; }
         public int? UsuarioRevierteId { get; set; }
         public string? MotivoReversion { get; set; }
-        public int EmpresaId { get; set; } = 1;
+        public int EmpresaId { get; set; } = Kirkenta.Helpers.EmpresaActual.Id;
     }
 }

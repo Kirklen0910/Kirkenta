@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Kirkenta.Data;
 using Kirkenta.Helpers;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -46,8 +47,14 @@ namespace Kirkenta.Pages.Compras
             public string Estado { get; set; } = "";
         }
 
-        public void OnGet()
+        public IActionResult OnGet()
         {
+            if (!(PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Compras", "Index", "ver")))
+            {
+                TempData["Error"] = "No tienes permiso para acceder a esta sección";
+                return RedirectToPage("/Index");
+            }
+
             var hoy = DateTime.Today;
             var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
             var finMes = inicioMes.AddMonths(1);
@@ -153,6 +160,8 @@ namespace Kirkenta.Pages.Compras
                 labels = meses.Select(x => x.Label).ToArray(),
                 data = meses.Select(x => x.Total).ToArray()
             });
+
+            return Page();
         }
     }
 }

@@ -46,6 +46,7 @@
                 Registrar pago
             </a>
         }
+        <partial name="_WhatsAppPdf" model="@(new Kirkenta.Helpers.WhatsAppPdf(string.IsNullOrWhiteSpace(Model.Proveedor.TelefonoContacto) ? Model.Proveedor.Telefono : Model.Proveedor.TelefonoContacto, Kirkenta.Helpers.WhatsAppHelper.MensajeOrdenCompra(Model.Empresa.Nombre, Model.Proveedor.Nombre, Model.Orden.Numero, Model.Orden.Total, Model.Orden.FechaEntregaEstimada), "Orden-compra-" + Model.Orden.Numero + ".pdf"))" />
         <button type="button" class="btn-secondary" onclick="window.print()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                 <polyline points="6 9 6 2 18 2 18 9"/>
@@ -68,7 +69,7 @@
     </div>
 }
 
-<div class="module-card" style="padding: 28px;">
+<div class="module-card" style="padding: 28px;" data-pdf-doc>
 
     <div class="factura-header">
         <div class="factura-empresa">
@@ -102,7 +103,7 @@
     <div class="factura-info-grid">
         <div>
             <h4 class="factura-info-label">Proveedor</h4>
-            <p><strong>@Model.Proveedor.Nombre</strong></p>
+            <p><strong><a asp-page="/Proveedores/Details" asp-route-id="@Model.Proveedor.Id">@Model.Proveedor.Nombre</a></strong></p>
             @if (!string.IsNullOrEmpty(Model.Proveedor.RTN))
             {
                 <p>RTN: @Model.Proveedor.RTN</p>
@@ -160,7 +161,7 @@
                 {
                     var prod = Model.Productos.FirstOrDefault(p => p.Id == item.ProductoId);
                     <tr>
-                        <td>@(prod?.Nombre ?? "—")</td>
+                        <td>@if (prod != null) { <a asp-page="/Productos/Historial" asp-route-id="@prod.Id">@prod.Nombre</a> } else { <text>—</text> }</td>
                         <td style="text-align: right;">@item.Cantidad</td>
                         <td style="text-align: right;">
                             @if (item.CantidadRecibida >= item.Cantidad)
@@ -228,7 +229,7 @@
     }
 
     <!-- Adjuntos -->
-    <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--color-border);">
+    <div class="no-pdf" style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--color-border);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h4 style="font-size: 14px; font-weight: 600;">Documentos adjuntos</h4>
             <form method="post" asp-page-handler="SubirAdjunto" asp-route-id="@Model.Orden.Id" enctype="multipart/form-data" style="display: inline-flex; gap: 8px; align-items: center;">

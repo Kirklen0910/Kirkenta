@@ -1,0 +1,188 @@
+@page
+@model Kirkenta.Pages.RRHH.Deducciones.IndexModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Deducciones de nómina";
+    string F(decimal? v) => v.HasValue ? v.Value.ToString("0.##", CultureInfo.InvariantCulture) : "";
+    var tramosVista = Model.Tramos
+        .Where(x => x != null && (x.Desde.HasValue || x.Hasta.HasValue || x.Porcentaje.HasValue || x.MontoFijo.HasValue))
+        .ToList();
+    for (int k = 0; k < 2; k++) tramosVista.Add(new Kirkenta.Pages.RRHH.Deducciones.IndexModel.TramoInput());
+    var existeAnioActual = Model.Configs.Any(c => c.Anio == Model.AnioActual);
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Configuracion/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a configuración
+        </a>
+        <h2>Deducciones de nómina</h2>
+        <p>IHSS, RAP e ISR por año. Cuando cambien las tasas, topes o tramos oficiales, corrígelos aquí: afecta las nóminas que se calculen desde ese momento.</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">@TempData["Error"]</div>
+}
+
+<div class="module-card">
+    <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+        <strong>Año:</strong>
+        @foreach (var c in Model.Configs)
+        {
+            <a asp-page="/RRHH/Deducciones/Index" asp-route-anio="@c.Anio" class="@(Model.Config?.Id == c.Id ? "btn-sm btn-primary" : "btn-sm btn-secondary")">@c.Anio</a>
+        }
+        @if (Model.PuedeCrear)
+        {
+            var siguiente = Model.Configs.Count == 0 ? Model.AnioActual : Math.Max(Model.Configs.Max(c => c.Anio) + 1, Model.AnioActual);
+            if (!existeAnioActual)
+            {
+                <form method="post" asp-page-handler="NuevoAnio" asp-route-anio="@Model.AnioActual" style="display:inline">
+                    <button type="submit" class="btn-sm btn-primary">Crear @Model.AnioActual (copiando el año anterior)</button>
+                </form>
+            }
+            else
+            {
+                <form method="post" asp-page-handler="NuevoAnio" asp-route-anio="@siguiente" style="display:inline">
+                    <button type="submit" class="btn-sm btn-secondary">+ Crear @siguiente</button>
+                </form>
+            }
+        }
+    </div>
+    @if (!existeAnioActual)
+    {
+        <p class="table-user-sub" style="margin-top:8px;">Todavía no hay configuración para @Model.AnioActual. Si calculas una nómina, el sistema crea una con valores por defecto: es mejor crearla aquí y revisarla antes.</p>
+    }
+</div>
+
+@if (Model.Config == null)
+{
+    <div class="module-card"><div class="empty-state"><h3>No hay configuración de deducciones</h3><p>Crea la del año actual con el botón de arriba.</p></div></div>
+}
+else
+{
+    <div class="module-card form-card">
+        <h3>Año @Model.Config.Anio</h3>
+        <form method="post" asp-page-handler="Guardar" asp-route-id="@Model.Config.Id" class="erp-form">
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="module-alert module-alert-error"><div asp-validation-summary="All"></div></div>
+            }
+
+            <h4>IHSS</h4>
+            <div class="form-field"><label class="form-checkbox"><input asp-for="Input.AplicaIHSS" type="checkbox" /><span>Aplica IHSS</span></label></div>
+            <p class="form-help">Ley 2026: 5% del empleado (2.5% Enfermedad y Maternidad + 2.5% IVM), techo L. 11,903.13.</p>
+            <div class="form-field"><label asp-for="Input.PorcentajeIHSS">Porcentaje del empleado (%)</label>
+                <input asp-for="Input.PorcentajeIHSS" asp-format="{0:0.00}" type="number" step="0.01" min="0" max="100" class="form-input" /></div>
+            <div class="form-field"><label asp-for="Input.TopeIHSS">Techo salarial (L. mensuales)</label>
+                <input asp-for="Input.TopeIHSS" asp-format="{0:0.00}" type="number" step="0.01" min="0" class="form-input" /></div>
+
+            <h4>RAP</h4>
+            <div class="form-field"><label class="form-checkbox"><input asp-for="Input.AplicaRAP" type="checkbox" /><span>Aplica RAP</span></label></div>
+            <p class="form-help">El RAP (1.5%) se cobra solo sobre la parte del salario que excede el techo del IHSS.</p>
+            <div class="form-field"><label asp-for="Input.PorcentajeRAP">Porcentaje del empleado (%)</label>
+                <input asp-for="Input.PorcentajeRAP" asp-format="{0:0.00}" type="number" step="0.01" min="0" max="100" class="form-input" /></div>
+            <div class="form-field"><label asp-for="Input.TopeRAP">Techo salarial (L. mensuales, vacío = sin techo)</label>
+                <input asp-for="Input.TopeRAP" asp-format="{0:0.00}" type="number" step="0.01" min="0" class="form-input" /></div>
+
+            <h4>ISR</h4>
+            <div class="form-field"><label class="form-checkbox"><input asp-for="Input.AplicaISR" type="checkbox" /><span>Aplica ISR</span></label></div>
+            @{
+                var primerHasta = tramosVista.FirstOrDefault()?.Hasta;
+                var exentoMensual = Kirkenta.Pages.RRHH.Deducciones.IndexModel.ExentoMensual(Model.Input.TopeAnualExentoISR);
+            }
+            <div class="form-field"><label asp-for="Input.TopeAnualExentoISR">Exento anual de ISR (L.)</label>
+                <input asp-for="Input.TopeAnualExentoISR" asp-format="{0:0.00}" type="number" step="0.01" min="0" class="form-input" id="kkExentoAnual" />
+                <small class="form-help">El monto anual exento que publica el SAR (2026: L. 228,324.32). Se le suman L. 40,000 de gastos médicos y se divide entre 12: eso es el fin del primer tramo de la tabla (<strong id="kkExentoMensual">L. @exentoMensual.ToString("N2")</strong> mensuales). Al guardar, la tabla se ajusta a este monto.</small></div>
+            @if (Model.Input.AplicaISR && Model.Input.TopeAnualExentoISR > 0 && primerHasta.HasValue && Math.Abs(primerHasta.Value - exentoMensual) > 0.01m)
+            {
+                <div class="module-alert module-alert-error">El exento anual (L. @Model.Input.TopeAnualExentoISR.ToString("N2") = L. @exentoMensual.ToString("N2") mensuales) no coincide con el primer tramo de la tabla (hasta L. @primerHasta.Value.ToString("N2")). Al guardar se usará el exento anual. Si el correcto es el de la tabla, escribe aquí L. @Kirkenta.Pages.RRHH.Deducciones.IndexModel.ExentoAnualDesdeTramo(primerHasta.Value).ToString("N2").</div>
+            }
+            <div class="form-field"><label asp-for="Input.MetodoISR">Método de cálculo</label>
+                <select asp-for="Input.MetodoISR" class="form-input">
+                    <option value="Acumulativo">Acumulativo (el ISR se ajusta con lo ya retenido en el año)</option>
+                    <option value="MensualSimple">Mensual simple (solo el mes)</option>
+                </select></div>
+
+            <h4>Tabla de tramos del ISR (mensual)</h4>
+            <p class="table-user-sub">El primer tramo empieza en 0 y el último queda sin "Hasta". Cada tramo calcula: monto fijo + porcentaje × (salario − "Hasta" del tramo anterior). El monto fijo se calcula solo a partir de los tramos anteriores. Deja vacías las filas que no uses.</p>
+            <div class="table-wrapper">
+                <table class="erp-table" id="kkTablaIsr">
+                    <thead><tr><th>Desde (L.)</th><th>Hasta (L.)</th><th>Porcentaje (%)</th><th>Monto fijo (L.)</th><th>Descripción</th></tr></thead>
+                    <tbody>
+                        @for (int i = 0; i < tramosVista.Count; i++)
+                        {
+                            var t = tramosVista[i];
+                            <tr>
+                                <td><input name="Tramos[@i].Desde" value="@F(t.Desde)" type="number" step="0.01" min="0" class="form-input" /></td>
+                                <td><input name="Tramos[@i].Hasta" value="@F(t.Hasta)" type="number" step="0.01" min="0" class="form-input" placeholder="sin límite" /></td>
+                                <td><input name="Tramos[@i].Porcentaje" value="@F(t.Porcentaje)" type="number" step="0.01" min="0" max="100" class="form-input" /></td>
+                                <td><input name="Tramos[@i].MontoFijo" value="@F(t.MontoFijo)" type="number" step="0.01" min="0" class="form-input" readonly tabindex="-1" title="Se calcula solo" /></td>
+                                <td><input name="Tramos[@i].Descripcion" value="@t.Descripcion" maxlength="200" class="form-input" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="form-field"><label asp-for="Input.Notas">Notas</label>
+                <input asp-for="Input.Notas" class="form-input" maxlength="500" placeholder="Ej: Según acuerdo del SAR 2026" /></div>
+
+            @if (Model.PuedeEditar)
+            {
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Guardar deducciones de @Model.Config.Anio</button>
+                </div>
+            }
+            else
+            {
+                <p class="table-user-sub">Tienes acceso de solo lectura.</p>
+            }
+        </form>
+    </div>
+}
+
+<script>
+    // Mismo cálculo que IndexModel.AjustarTramosISR: el exento anual fija el primer tramo y los montos fijos se encadenan.
+    (function () {
+        var tabla = document.getElementById('kkTablaIsr');
+        var exento = document.getElementById('kkExentoAnual');
+        if (!tabla || !exento) return;
+        var num = function (el) { var v = parseFloat(el.value); return isNaN(v) ? null : v; };
+        var r2 = function (v) { return Math.round(v * 100) / 100; };
+        function filas() {
+            return Array.prototype.map.call(tabla.tBodies[0].rows, function (tr) {
+                var i = tr.querySelectorAll('input');
+                return { desde: i[0], hasta: i[1], pct: i[2], fijo: i[3] };
+            }).filter(function (f) { return f.desde.value !== '' || f.hasta.value !== '' || f.pct.value !== ''; });
+        }
+        function recalcular(desdeExento) {
+            var fs = filas();
+            var anual = num(exento);
+            if (anual !== null && anual > 0) {
+                var mensual = r2((anual + 40000) / 12);
+                document.getElementById('kkExentoMensual').textContent = 'L. ' + mensual.toLocaleString('es-HN', { minimumFractionDigits: 2 });
+                if (desdeExento && fs.length >= 2) { fs[0].hasta.value = mensual.toFixed(2); fs[1].desde.value = (mensual + 0.01).toFixed(2); }
+            }
+            if (!fs.length) return;
+            fs[0].fijo.value = '0';
+            for (var k = 1; k < fs.length; k++) {
+                var ant = fs[k - 1];
+                var inicio = k - 1 === 0 ? 0 : (num(fs[k - 2].hasta) || 0);
+                var ancho = (num(ant.hasta) || 0) - inicio;
+                fs[k].fijo.value = r2((num(ant.fijo) || 0) + ancho * (num(ant.pct) || 0) / 100).toFixed(2);
+            }
+        }
+        exento.addEventListener('input', function () { recalcular(true); });
+        tabla.addEventListener('input', function () { recalcular(false); });
+    })();
+</script>

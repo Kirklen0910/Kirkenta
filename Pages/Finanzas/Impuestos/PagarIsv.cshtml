@@ -1,0 +1,88 @@
+@page
+@model Kirkenta.Pages.Finanzas.Impuestos.PagarIsvModel
+@{
+    ViewData["Title"] = "Pagar ISV a la SAR";
+    var r = Model.Resumen;
+    string L(decimal v) => "L. " + v.ToString("N2");
+    var meses = new[] { "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre" };
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Finanzas/Index" class="back-link">← Volver a Finanzas</a>
+        <h2>Pagar ISV a la SAR</h2>
+        <p>Registra el pago de la declaración de <strong>@Model.NombrePeriodo</strong>. Baja "ISV por pagar" y la cuenta de donde sale; no es un gasto.</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Reportes/DeclaracionISV" asp-route-anio="@Model.Anio" asp-route-mes="@Model.Mes" asp-route-saldofavor="@Model.SaldoFavor" asp-route-retenciones="@Model.Retenciones" class="btn-secondary">Ver declaración</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="module-card">
+    <form method="get" class="module-toolbar" style="gap:12px;flex-wrap:wrap;align-items:flex-end;">
+        <div class="form-field"><label>Mes</label>
+            <select name="Mes" class="form-input">
+                @for (int m = 1; m <= 12; m++) { <option value="@m" selected="@(Model.Mes == m)">@meses[m - 1]</option> }
+            </select></div>
+        <div class="form-field"><label>Año</label><input type="number" name="Anio" class="form-input" value="@Model.Anio" min="2000" max="2100" style="width:100px;" /></div>
+        <div class="form-field"><label>Saldo a favor anterior (L.)</label><input type="number" step="0.01" min="0" name="SaldoFavor" class="form-input" value="@Model.SaldoFavor?.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" /></div>
+        <div class="form-field"><label>Retenciones (L.)</label><input type="number" step="0.01" min="0" name="Retenciones" class="form-input" value="@Model.Retenciones?.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" /></div>
+        <div class="form-field"><button type="submit" class="btn-primary">Calcular</button></div>
+    </form>
+</div>
+
+<div class="kpi-grid" style="margin-bottom:20px;">
+    <div class="kpi-card"><span class="kpi-label">ISV de ventas</span><span class="kpi-value">@L(r.IsvDebito - r.IsvDevoluciones)</span><span class="kpi-trend">neto de devoluciones</span></div>
+    <div class="kpi-card"><span class="kpi-label">ISV de compras (crédito)</span><span class="kpi-value">@L(r.IsvCredito)</span></div>
+    <div class="kpi-card"><span class="kpi-label">@(r.Resultado > 0 ? "ISV a pagar" : "Saldo a favor")</span><span class="kpi-value">@L(Math.Abs(r.Resultado))</span></div>
+    <div class="kpi-card"><span class="kpi-label">Ya pagado del período</span><span class="kpi-value">@L(Model.PagadoPeriodo)</span></div>
+</div>
+
+@if (Model.PagosPrevios.Any())
+{
+    <div class="module-card">
+        <h3 style="margin-top:0;">Pagos registrados de este período</h3>
+        <table class="erp-table">
+            <thead><tr><th>Fecha</th><th>Movimiento</th><th>Referencia</th><th style="text-align:right;">Monto</th></tr></thead>
+            <tbody>
+            @foreach (var p in Model.PagosPrevios)
+            {
+                <tr><td>@p.Fecha.ToString("dd/MM/yyyy")</td><td>@p.Numero</td><td>@p.Referencia</td><td style="text-align:right;">@L(p.Monto)</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+<div class="module-card">
+    <h3 style="margin-top:0;">Registrar pago</h3>
+    <form method="post">
+        <input type="hidden" name="Anio" value="@Model.Anio" />
+        <input type="hidden" name="Mes" value="@Model.Mes" />
+        <input type="hidden" name="SaldoFavor" value="@Model.SaldoFavor?.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" />
+        <input type="hidden" name="Retenciones" value="@Model.Retenciones?.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" />
+        <div asp-validation-summary="All" class="module-alert module-alert-error"></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
+            <div class="form-field"><label>Monto pagado (L.)</label>
+                <input asp-for="Monto" type="number" step="0.01" min="0.01" class="form-input" />
+                <span asp-validation-for="Monto" class="field-error"></span></div>
+            <div class="form-field"><label>Pagado desde</label>
+                <select asp-for="CuentaId" asp-items="Model.Cuentas" class="form-input"><option value="">— Selecciona —</option></select>
+                <span asp-validation-for="CuentaId" class="field-error"></span></div>
+            <div class="form-field"><label>Fecha del pago</label>
+                <input asp-for="FechaPago" type="date" class="form-input" value="@Model.FechaPago.ToString("yyyy-MM-dd")" /></div>
+            <div class="form-field"><label>Referencia / boleta SAR</label>
+                <input asp-for="Referencia" class="form-input" maxlength="100" /></div>
+        </div>
+        @if (Model.PagosPrevios.Any())
+        {
+            <label style="display:flex;gap:8px;align-items:center;margin-top:12px;">
+                <input type="checkbox" asp-for="PagarDeTodosModos" /> Este período ya tiene pagos: registrar otro de todos modos
+            </label>
+        }
+        <div style="margin-top:16px;"><button type="submit" class="btn-primary">Registrar pago de ISV</button></div>
+    </form>
+</div>

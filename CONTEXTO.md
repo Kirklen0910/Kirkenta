@@ -1,948 +1,315 @@
-# KIRKENTA ERP — CONTEXTO MAESTRO
-
-Cómo usar: Pega este archivo completo al inicio de un chat nuevo, JUNTO con los snapshots que correspondan. Di: "Retomamos Kirkenta ERP. Contexto: [pegas esto]". El asistente retomará al instante sin explicaciones adicionales.
-
-================================================================================
-0. SISTEMA DE SNAPSHOTS (4 PARTES)
-================================================================================
-
-El proyecto está dividido en 4 snapshots generados automaticamente por
-.\generar-snapshot.ps1. El script tiene auto-descubrimiento: NO hay que
-editarlo cuando se crean modulos nuevos.
-
-ARCHIVOS GENERADOS:
-- PROYECTO_PARTE_1_Nucleo.md       (~900 KB, ~183 archivos)
-- PROYECTO_PARTE_2_Operaciones.md  (~1.3 MB, ~201 archivos)
-- PROYECTO_PARTE_3_Soporte.md      (~1 MB, ~112 archivos)
-- PROYECTO_PARTE_4_Extras.md       (~10 KB, modulos nuevos)
-
-CONTENIDO DE CADA PARTE:
-- PARTE 1 - Nucleo: Data, Models, Migrations, Helpers base (Actividad,
-  ModulosERP, NumeroDocumento, Permiso, PermisoSeeder, Export, Import),
-  Pages/Auth, Pages/Usuarios, Pages/Configuracion, Pages/Nomenclatura,
-  Pages/Series, Pages/MetodosPago, Pages/Impuestos, Pages/UnidadesMedida,
-  Pages/Shared (_Layout, _ValidationScriptsPartial, _ImportStepIndicator,
-  _ImportUploadForm), Pages raiz (_ViewImports, _ViewStart, Error, Index,
-  Privacy), Program.cs, appsettings.json, Kirkenta.csproj, .gitignore,
-  Properties/, wwwroot/css, wwwroot/js
-- PARTE 2 - Operaciones: Helpers/Finanzas, Pages/POS, Pages/Ventas,
-  Pages/Clientes, Pages/Cotizaciones, Pages/Pedidos, Pages/Facturas,
-  Pages/Devoluciones, Pages/Productos, Pages/Categorias, Pages/Bajas,
-  Pages/Compras, Pages/Proveedores, Pages/OrdenesCompra, Pages/PagosProveedor,
-  Pages/Finanzas, Pages/Shared/_LayoutPOS.cshtml
-- PARTE 3 - Soporte: Helpers/Logistica, Helpers/RRHH, Pages/Logistica,
-  Pages/RRHH, Pages/Reportes
-- PARTE 4 - Extras: Cualquier modulo nuevo (Produccion, Activos,
-  Presupuestos, etc.) + scripts auxiliares en tools/. El script lo detecta
-  automaticamente y avisa.
-
-REGLA DE USO EN CHAT NUEVO:
-- SIEMPRE pega: Parte 1 + CONTEXTO.md
-- Luego pega la parte del modulo que vas a tocar:
-  * Ventas/Compras/Finanzas/Inventario -> Parte 2
-  * Logistica/RRHH/Reportes            -> Parte 3
-  * Modulo nuevo (Produccion, etc.)    -> Parte 4
-  * Si toca todo                       -> las 4 partes
-
-EJEMPLO DE MENSAJE AL INICIAR CHAT:
-
-Retomamos Kirkenta ERP.
-
-Contexto Parte 1:
-[pegas PROYECTO_PARTE_1_Nucleo.md]
-
-Contexto Parte 3:
-[pegas PROYECTO_PARTE_3_Soporte.md]
-
-CONTEXTO.md:
-[pegas CONTEXTO.md]
-
-Vamos a trabajar en: [lo que quieras hacer]
-
-LO QUE NO ESTA EN LOS SNAPSHOTS (a proposito):
-- bin/, obj/, .vs/, .vscode/, node_modules/, .git/ (compilados y sistema)
-- uploads/ (imagenes y PDFs de usuarios)
-- appsettings.Development.json (contiene password real)
-- CONTEXTO.md (lo pegas aparte, es este archivo)
-- generar-snapshot.ps1 (evita recursion)
-- Los propios PROYECTO_PARTE_*.md (evita recursion)
-
-================================================================================
-1. STACK TECNICO
-================================================================================
-
-- Framework: ASP.NET Core Razor Pages
-- .NET: net10.0 (TargetFramework: net10.0)
-- ORM: Entity Framework Core 9.0.0
-- Base de datos: MySQL (Pomelo.EntityFrameworkCore.MySql 9.0.0)
-- Autenticacion: Cookies (esquema "KirkentaAuth", 8 horas, sliding)
-- Sesion: "KirkentaSession" (30 min, para wizard de importacion)
-- Frontend: Bootstrap 5 + CSS custom (wwwroot/css/theme.css)
-- Charts: Chart.js 4.4.0 (CDN jsdelivr)
-- Excel: ClosedXML 0.105.1
-- CSV: CsvHelper 33.1.0
-- Password hashing: BCrypt.Net-Next 4.2.0
-- Git: https://github.com/Kirklen0910/Kirkenta
-- Ruta local: C:\Users\crobe\OneDrive\Kirkenta
-- Puerto local: http://localhost:5114 (HTTP, no HTTPS)
-
-================================================================================
-2. ESTRUCTURA DE CARPETAS
-================================================================================
-
-Kirkenta/
-├── Data/ApplicationDbContext.cs
-├── Helpers/
-│   ├── Export/ (ExcelExporter, CsvExporter, JsonExporter, ExportColumn, ExportColumns)
-│   ├── Import/ (CampoMapeo, ImportWizardConfig, ImportWizardHelper, ParserHelper,
-│   │             ColumnMapper, ImportResult, ImportFile, ExcelImporter, CsvImporter)
-│   ├── Finanzas/ (AperturaHelper, CierreHelper, DistribucionHelper,
-│   │             MovimientoAutomaticoHelper, SaldoHelper, AdjuntoCierreHelper,
-│   │             FinanzasSeeder, CierreContableHelper, ConciliacionHelper,
-│   │             ContabilidadHelper, ISVHelper, PlanCuentasHelper)
-│   ├── RRHH/ (EmpleadoHelper, AdjuntoEmpleadoHelper, NominaHelper, VacacionHelper,
-│   │         TipoDocumentoEmpleadoSeeder, FeriadoSeeder)
-│   ├── Logistica/ (EnvioHelper, RutaHelper, ZonaEnvioSeeder, AlertaEnvioHelper)
-│   ├── ActividadHelper.cs
-│   ├── ModulosERP.cs
-│   ├── NumeroDocumentoHelper.cs
-│   ├── PermisoHelper.cs
-│   └── PermisoSeeder.cs
-├── Migrations/ (desincronizado, ver seccion 10)
-├── Models/ (todos los modelos)
-├── Pages/
-│   ├── Auth/ (Login, Logout, Register)
-│   ├── Usuarios/ (Index, Create, Edit, Delete, Roles, RolesCreate, RolesEdit, RolesDelete, Perfil, CambiarPassword, Actividad)
-│   ├── POS/ (Index)
-│   ├── Ventas/ (Index, Details)
-│   ├── Clientes/ (Index, Create, Edit, Delete, Export, Import, ImportMap)
-│   ├── Cotizaciones/ (Index, Create, Edit, Delete, Details)
-│   ├── Pedidos/ (Index, Create, Edit, Details)
-│   ├── Facturas/ (Index, Details, RegistrarPago, CreateFromVenta)
-│   ├── Devoluciones/ (Index)
-│   ├── Productos/ (Index, Create, Edit, Delete, Export, Import, ImportMap)
-│   ├── Categorias/ (Index, Create, Edit, Delete, Export, Import, ImportMap)
-│   ├── UnidadesMedida/ (Index, Create, Edit, Delete, Export, Import, ImportMap)
-│   ├── Impuestos/ (Index, Create, Edit, Delete, Export, Import, ImportMap)
-│   ├── Bajas/ (Index, Create, Details, Aprobar, Revertir)
-│   ├── Compras/ (Index, HistorialProducto)
-│   ├── Proveedores/ (Index, Create, Edit, Delete, Details, Export, Import, ImportMap)
-│   ├── OrdenesCompra/ (Index, Create, Edit, Delete, Details, Recibir)
-│   ├── PagosProveedor/ (Index, Create, Details)
-│   ├── Finanzas/
-│   │   ├── Index
-│   │   ├── Cuentas/ (Index, Create, Edit, Delete)
-│   │   ├── Categorias/ (Index, Create, Edit, Delete)
-│   │   ├── Movimientos/ (Index, Create, Edit, Anular)
-│   │   ├── Aperturas/ (Index, Create)
-│   │   ├── Cierres/ (Index, Create, Details, Aprobar)
-│   │   ├── CierresContables/ (Index, Create, Reabrir)
-│   │   ├── Conciliacion/ (Index, Create, Details)
-│   │   ├── Contabilidad/ (EstadoResultados, BalanceGeneral)
-│   │   ├── PlanCuentas/ (Index, Create, Edit, Delete)
-│   │   └── Reportes/ (Index)
-│   ├── RRHH/
-│   │   ├── Index
-│   │   ├── Empleados/ (Index, Create, Edit, Delete, Details)
-│   │   ├── Documentos/ (Index)
-│   │   ├── Expedientes/ (Index, Create)
-│   │   ├── Vales/ (Index, Create, Aprobar, Entregar)
-│   │   ├── Vacaciones/ (Index, Create, Aprobar)
-│   │   ├── Permisos/ (Index, Create, Aprobar)
-│   │   ├── Nomina/ (Index, Create, Details, Aprobar, Pagar, PagarEmpleado)
-│   │   ├── Feriados/ (Index, Create, Edit)
-│   │   ├── Alertas/ (Index, Create)
-│   │   └── Reportes/ (Index)
-│   ├── Logistica/  <- EN DESARROLLO
-│   │   ├── Index (Dashboard con alertas)  OK COMPLETADO
-│   │   ├── Envios/
-│   │   │   ├── Index  OK COMPLETADO
-│   │   │   └── Details  OK COMPLETADO
-│   │   ├── Rutas/
-│   │   │   ├── Index  OK COMPLETADO
-│   │   │   ├── Create  OK COMPLETADO
-│   │   │   ├── Details  OK COMPLETADO
-│   │   │   └── Edit  OK COMPLETADO
-│   │   ├── Zonas/
-│   │   │   ├── Index  OK COMPLETADO
-│   │   │   ├── Create  OK COMPLETADO
-│   │   │   ├── Edit  OK COMPLETADO
-│   │   │   └── Delete  OK COMPLETADO
-│   │   ├── Repartidores/
-│   │   │   ├── Index  OK COMPLETADO
-│   │   │   ├── Create  OK COMPLETADO
-│   │   │   ├── Edit  OK COMPLETADO
-│   │   │   └── Delete  OK COMPLETADO
-│   │   ├── Tracking/
-│   │   │   └── Index (publico, AllowAnonymous)  OK COMPLETADO
-│   │   └── Reportes/ (Index)  <- PENDIENTE (ultimo archivo del Bloque 5)
-│   ├── Reportes/ (Index, Ventas, Compras)
-│   ├── Configuracion/ (Index, Edit)
-│   ├── MetodosPago/ (Index, Create, Edit, Delete)
-│   ├── Nomenclatura/ (Index)
-│   ├── Series/ (Index, Create, Edit, Delete)
-│   └── Shared/
-│       ├── _Layout.cshtml  OK ACTUALIZADO (Logistica completa)
-│       ├── _LayoutPOS.cshtml
-│       ├── _ValidationScriptsPartial.cshtml
-│       ├── _ImportStepIndicator.cshtml
-│       └── _ImportUploadForm.cshtml
-├── wwwroot/ (css, js, images, lib, uploads)
-├── Program.cs  ⚠ ACTUALIZAR AllowAnonymousToPage
-├── appsettings.json
-├── CONTEXTO.md
-├── PROYECTO_PARTE_1_Nucleo.md
-├── PROYECTO_PARTE_2_Operaciones.md
-├── PROYECTO_PARTE_3_Soporte.md
-├── PROYECTO_PARTE_4_Extras.md
-└── generar-snapshot.ps1
-
-================================================================================
-3. MODULOS Y SUBMODULOS
-================================================================================
-
-Diccionario en Helpers/ModulosERP.cs:
-
-Usuarios: Index, Create, Edit, Delete, Roles, RolesCreate, RolesEdit, RolesDelete, Perfil, CambiarPassword, Actividad
-Ventas: POS, Index, Create, Edit, Delete, Cotizaciones, Pedidos, Facturas, Clientes, ClientesCreate, ClientesEdit, ClientesDelete, ClientesExport, ClientesImport, Devoluciones
-Inventario: Index, Productos (+Create/Edit/Delete/Export/Import), Categorias, UnidadesMedida, Entradas, Salidas, Bajas
-Compras: Index, Proveedores (+Create/Edit/Delete/Export/Import), Ordenes (+Create/Edit/Delete/Recibir), Pagos (+Create), CuentasPorPagar, Reportes
-Finanzas: Index, Cuentas (+Create/Edit/Delete), Categorias (+Create/Edit/Delete),
-         Movimientos (+Create/Edit/Anular), Aperturas (+Create),
-         Cierres (+Create/Aprobar),
-         CierresContables (+Create/Reabrir),
-         Conciliacion (+Create/Details/Cerrar),
-         PlanCuentas (+Create/Edit/Delete),
-         ContabilidadEstadoResultados, ContabilidadBalanceGeneral,
-         Reportes, FlujoCaja, EstadoResultados, BalanceGeneral, ISV
-RRHH: Index, Empleados (+Create/Edit/Delete), Documentos (+Create/Delete), Expedientes (+Create/Delete), Vacaciones (+Create/Aprobar), Permisos (+Create/Aprobar), Vales (+Create/Aprobar/Entregar), Nomina (+Create/Aprobar/Pagar), Feriados (+Create), Alertas (+Create), Reportes
-Logistica: Index,
-           Envios, EnviosDetails, EnviosAsignar,
-           Rutas, RutasCreate, RutasEdit, RutasDetails, RutasDespachar, RutasCerrar,
-           Zonas, ZonasCreate, ZonasEdit, ZonasDelete,
-           Repartidores, RepartidoresCreate, RepartidoresEdit, RepartidoresDelete,
-           Tracking,
-           Reportes
-Reportes: Index, Ventas, Compras
-Activos: Index, Mantenimiento
-Seguridad: Index, Auditoria
-Configuracion: Index, Empresa, Nomenclatura, Series, MetodosPago
-
-NOTA sobre Import/Export (04/10/2026):
-- Clientes, Productos, Proveedores: ya tenian wizard (refactorizado a generico)
-- Categorias, Impuestos, Unidades de medida: wizard AGREGADO
-- Todos usan ImportWizardHelper + vistas parciales compartidas
-
-NOTA sobre Logistica (sesion 5 - 04/10/2026):
-- Bloque 1 COMPLETADO: AlertaEnvioHelper + Logistica/Index (dashboard con alertas)
-- Bloque 2 COMPLETADO: Envios/Index + Envios/Details
-- Bloque 3 COMPLETADO: Rutas/Index + Rutas/Create + Rutas/Details + Rutas/Edit
-- Bloque 4 COMPLETADO: Zonas (Index/Create/Edit/Delete) + Repartidores (Index/Create/Edit/Delete)
-- Bloque 4 COMPLETADO: _Layout.cshtml con submenu Logistica completo
-- Bloque 5 EN PROGRESO: Tracking/Index OK COMPLETADO
-- Bloque 5 PENDIENTE: Reportes/Index (ultimo archivo)
-
-================================================================================
-4. PERMISOS
-================================================================================
-
-Tabla Permisos: RolId, Modulo, Submodulo (nullable), PuedeVer, PuedeCrear, PuedeEditar, PuedeEliminar
-Indice unico en (RolId, Modulo, Submodulo)
-Submodulo = null -> permiso del modulo padre
-Admin siempre tiene acceso total (bypass en PermisoHelper)
-Pendiente = usuario sin rol
-
-Helpers (PermisoHelper):
-- TienePermiso(context, rol, modulo, submodulo, "ver|crear|editar|eliminar")
-- ModulosVisibles(context, rol) -> modulos con PuedeVer (padre o algun hijo)
-- SubmodulosVisibles(context, rol, modulo) -> submodulos con PuedeVer
-
-PermisoSeeder.MigrarPermisosFaltantes(db):
-- Se ejecuta al arrancar la app (Program.cs)
-- Para cada rol (excepto Admin), crea permisos faltantes copiando del modulo padre
-- Idempotente
-
-Convencion de nombres:
-- Modulos padre: "Clientes", "Productos", "Cuentas", "Movimientos", "Cierres", "Empleados", "Vales", "Nomina", "Logistica", etc.
-- Submodulos (con accion): "ClientesCreate", "ClientesEdit", "ClientesDelete", "CuentasCreate", "CierresAprobar", "ValesEntregar", "NominaPagar", "EnviosDetails", "RutasCreate", "ZonasCreate", "RepartidoresCreate"
-- Genericos: "Index", "Create", "Edit", "Delete"
-
-================================================================================
-5. HELPERS CLAVE
-================================================================================
-
-NumeroDocumentoHelper
-- GenerarSiguiente(context, tipo) -> genera numero y avanza el correlativo
-- PreviewSiguiente(context, tipo) -> solo muestra el proximo
-- SincronizarSerie() -> ajusta el correlativo si detecta desfase con la BD
-- Soporta formato personalizado: {PREFIX}, {SUFFIX}, {SEP}, {NUM}, {YEAR}, {MONTH}, {DAY}
-- Tipos soportados: Cotizacion, Pedido, Venta, Factura, Devolucion, Producto, Baja, Proveedor, OrdenCompra, PagoProveedor, DevolucionProveedor, MovimientoFinanciero, AperturaCaja, CierreCaja, ConciliacionBancaria, Empleado, ValeEmpleado, Vacacion, PermisoEmpleado, Nomina, PagoNomina, Envio, Ruta, Repartidor
-
-ActividadHelper
-- Registrar(context, usuarioId, "accion", "detalle", ipAddress, userAgent)
-- Nunca lanza excepcion (silencioso si falla)
-
-SaldoHelper (Finanzas)
-- Aplicar(context, movimiento) -> ajusta saldo de cuentas
-- Revertir(context, movimiento) -> revierte al anular
-
-MovimientoAutomaticoHelper (Finanzas)
-- RegistrarIngresoVenta / RegistrarEgresoPagoProveedor / RegistrarEgresoNomina
-- Resuelve cuenta y categoria por defecto si no se especifican
-
-AperturaHelper (Finanzas)
-- Abrir / ObtenerAperturaActiva / HayAperturaActiva / Cerrar
-
-CierreHelper (Finanzas)
-- Calcular / Registrar / DeterminarResultado
-- Genera ajuste automatico si hay diferencia
-
-DistribucionHelper (Finanzas)
-- RegistrarDistribuciones / ObtenerDistribuciones
-- Tipos: RetiroBanco, FondoCaja, EntregaAdmin, PagoDirecto, Otro
-
-AdjuntoCierreHelper (Finanzas)
-- Guardar / Eliminar (pdf, jpg, jpeg, png, max 10 MB)
-
-CierreContableHelper (Finanzas)
-- ValidarFecha / Cerrar / Reabrir / ObtenerEstadoAnual / Obtener
-
-ConciliacionHelper (Finanzas)
-- Crear / CargarLineasSistema / MatchingAutomatico / MatchingManual
-- DeshacerMatch / RecalcularTotales / Cerrar / Cancelar
-
-ContabilidadHelper (Finanzas)
-- GenerarEstadoResultados / GenerarBalanceGeneral / ContarSinPlanCuenta
-
-ISVHelper (Finanzas)
-- Calcular / ObtenerTasaProducto / SincronizarItems / RecalcularFactura / ObtenerTasasActivas
-- NO hardcodea tasas: siempre lee del catalogo Impuestos
-- Soporta montoEnvio (el envio se grava con la tasa predeterminada)
-
-PlanCuentasHelper (Finanzas)
-- Seed (81 cuentas estandar Honduras) / ObtenerTodas / ObtenerCuentasMovimiento / RecalcularJerarquia
-
-EmpleadoHelper (RRHH)
-- GenerarCodigo / PreviewCodigo
-- CalcularAniosAntiguedad / CalcularMesesAntiguedad
-- CalcularDiasVacacionesPorAntiguedad (lee ConfiguracionEmpresa.RHTablaVacaciones)
-- ProcesarAcumulacionVacaciones / ProcesarAcumulacionGlobal
-- ObtenerFeriados
-
-AdjuntoEmpleadoHelper (RRHH)
-- Guardar / GuardarFotoPerfil / Eliminar / ActualizarVigencias
-- Extensiones: pdf, jpg, jpeg, png, docx, doc. Max 15 MB (foto 5 MB)
-
-NominaHelper (RRHH)
-- ObtenerConfiguracion (crea config por defecto si no existe)
-- CalcularISRMensual / CalcularISRAcumulativo
-- CalcularIHSS / CalcularRAP
-- CalcularSalarioProporcional
-- CalcularPeriodo / DiasPeriodo
-- ObtenerValesActivos / CalcularDescuentoVales
-- CalcularDetalleEmpleado
-
-VacacionHelper (RRHH)
-- CalcularDias (excluye fines de semana y feriados del pais)
-- Solicitar / Aprobar / Rechazar
-
-EnvioHelper (Logistica)
-- CrearParaVenta(context, venta, direccion, referencia, contactoNombre, contactoTelefono, ciudad, zonaId, monto, usuarioId) -> Envio
-- CrearParaCotizacion / CrearParaPedido / CrearParaFactura (mismos parametros)
-- MarcarEntregado(context, envioId, nombreRecibio, firmaImagen, fotoEntrega, notas, usuarioId) -> (ok, error)
-- MarcarFallido(context, envioId, motivoFallo, usuarioId) -> (ok, error)
-- Reagendar(context, envioId, notas, usuarioId) -> (ok, error)
-- ObtenerPendientesSinRuta(context) -> List<Envio>
-- GenerarTrackingCode() -> string (formato KRT-2026-AB12X9)
-
-RutaHelper (Logistica)
-- Crear(context, envioIds, repartidorId, repartidorNombre, vehiculo, placa, zonaId, descripcion, fechaEntregaEstimada, notas, usuarioId) -> (ruta, error)
-- Despachar(context, rutaId, usuarioId) -> (ok, error)
-- Cerrar(context, rutaId, notas, usuarioId) -> (ok, error)
-- Cancelar(context, rutaId, motivo, usuarioId) -> (ok, error)
-- AgregarEnvio(context, rutaId, envioId) -> (ok, error)
-- QuitarEnvio(context, rutaId, envioId) -> (ok, error)
-- Reordenar(context, rutaId, envioIdsEnOrden) -> (ok, error)
-- ObtenerEnviosDeRuta(context, rutaId) -> List<Envio>
-- RecalcularTotales(context, rutaId)
-
-ZonaEnvioSeeder (Logistica)
-- Seed(context) -> crea 5 zonas tipicas de Honduras
-  (Centro/Casco Urbano L.50, Cercana L.80, Media L.150, Lejana L.300, Envio Gratis L.0)
-- Idempotente
-
-AlertaEnvioHelper (Logistica)
-- CalcularSemaforo(envio) -> "Verde" | "Amarillo" | "Rojo"
-  - Entregado -> Verde
-  - Fallido -> Rojo
-  - Cancelado -> Verde (no alerta)
-  - Pendiente/EnRuta + fecha estimada > hoy -> Verde
-  - Pendiente/EnRuta + fecha estimada == hoy -> Amarillo
-  - Pendiente/EnRuta + fecha estimada < hoy -> Rojo
-- EtiquetaSemaforo(semaforo) -> string con emoji + texto
-- DiasDiferencia(envio) -> int? (positivo = atrasado, negativo = dias por venir)
-- ObtenerEnviosAtrasados(context) -> List<Envio>
-- ObtenerEnviosVencenHoy(context) -> List<Envio>
-- ObtenerEnviosProximosAVencer(context, dias = 2) -> List<Envio>
-- ObtenerEnviosFallidos(context) -> List<Envio>
-- ObtenerEnviosEntregadosHoy(context) -> List<Envio>
-- ObtenerRutasAtrasadas(context) -> List<Ruta> (EnReparto con paradas vencidas)
-- ObtenerRutasDespachadasHoy(context) -> List<Ruta>
-- ObtenerResumenAlertas(context) -> ResumenAlertas { EnviosAtrasados, EnviosVencenHoy, EnviosProximosAVencer, EnviosFallidos, EnviosEntregadosHoy, RutasActivas, RutasAtrasadas, RutasDespachadasHoy, HayAlertas }
-- TODO SE CALCULA EN TIEMPO REAL, no persiste nada
-
-Export
-- ExportColumns.Clientes() / .Productos(cats, imps) / .Proveedores()
-- ExportColumns.Categorias() / .Impuestos() / .UnidadesMedida()
-- ExcelExporter.Export / CsvExporter.Export / JsonExporter.Export
-
-Import (wizard generico) - REFACTORIZADO 04/10/2026
-- ImportWizardHelper.ProcesarArchivo(archivo) -> ResultadoLectura
-- ImportWizardHelper.GuardarEnSesion / RecuperarDeSesion / LimpiarSesion
-- ParserHelper.ParsearBool / ParsearInt / ParsearDecimal
-- CampoMapeo: { Key, Label, Requerido, Ayuda }
-- ImportWizardConfig: { NombrePlural, NombreSingular, ModuloPermiso, SubmoduloPermiso,
-                        SessionKey, UrlIndex, UrlImport, UrlImportMap,
-                        Campos, AliasCampos, CamposRequeridos }
-- Vistas parciales: _ImportStepIndicator, _ImportUploadForm
-- Wizard en uso: Clientes, Productos, Proveedores, Categorias, Impuestos, UnidadesMedida
-- ExcelImporter.Read / CsvImporter.Read -> ImportFile
-- ColumnMapper.Detectar(headers, aliasPorCampo) -> Dictionary<string, string?>
-- Modos de importacion: "upsert" | "crear" | "actualizar"
-
-================================================================================
-6. CONVENCIONES
-================================================================================
-
-Nombres:
-- Modelos y propiedades en espanol (Producto, PrecioVenta)
-- Namespace: Kirkenta.Pages.[Modulo] o Kirkenta.Pages.[Modulo].[Sub]
-- PageModels: IndexModel, CreateModel, EditModel, DeleteModel, DetailsModel
-
-Patron de permisos en code-behind:
-var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
-var currentRol = currentUser?.Rol ?? "Pendiente";
-if (currentRol != "Admin" && !PermisoHelper.TienePermiso(_context, currentRol, "Modulo", "Submodulo", "ver"))
-{
-    TempData["Error"] = "No tienes permiso";
-    return RedirectToPage("/Modulo/Index");
-}
-
-Exponer permisos a la vista:
-public bool PuedeCrear { get; set; }
-public bool PuedeEditar { get; set; }
-public bool PuedeEliminar { get; set; }
-// En OnGet:
-PuedeCrear = currentRol == "Admin" || PermisoHelper.TienePermiso(..., "crear");
-
-TempData:
-- TempData["Success"] -> banner verde
-- TempData["Error"] -> banner rojo
-- TempData["Warning"] -> banner amarillo
-
-Actividad:
-ActividadHelper.Registrar(_context, currentUser?.Id ?? 0, "Verbo + objeto", $"Detalle L. {monto:N2}", HttpContext.Connection.RemoteIpAddress?.ToString());
-
-Estructura tipica de pagina:
-- Vista .cshtml con layout principal (_Layout)
-- POS usa layout propio (_LayoutPOS)
-- Tracking publico usa Layout = null con diseno propio standalone
-- Cabecera con breadcrumb (automatica desde _Layout)
-- `module-header` con titulo + botones de accion
-- Banner TempData Success/Error
-- KPIs en `kpi-grid`
-- Contenido principal en `module-card`
-- Modales con estilo `.pos-modal` reutilizado
-
-Convencion de semaforos (Logistica):
-- Verde -> completado o a tiempo
-- Amarillo -> vence hoy
-- Rojo -> atrasado o fallido
-- Los KPIs clickeables usan `asp-route-filtro="atrasados|vencenHoy|pendientes|enruta|entregados|fallidos|sinRuta"` (envios) o `asp-route-filtro="borrador|enreparto|completadas|atrasadas"` (rutas)
-
-Convencion de modales:
-- Se abren con clase `is-open` (no display: inline)
-- Cierre con funcion JS `cerrarModal(id)` que remueve `is-open`
-- Estructura: `.pos-modal` > `.pos-modal-content` > header/body/footer
-
-Convencion de validacion "no eliminar si tiene dependencias":
-- Zonas: no se puede eliminar si tiene envios asociados (`Envios.ZonaId`)
-- Repartidores: no se puede eliminar si tiene rutas o envios asignados (`Rutas.RepartidorId`, `Envios.RepartidorId`)
-- La vista muestra el bloqueo con opcion "Ir a Editar para desactivar"
-
-================================================================================
-7. REGLAS CRITICAS
-================================================================================
-
-1. SIEMPRE entregar archivos COMPLETOS, nunca fragmentos.
-2. Automatizar pero permitir modo manual (checkbox "Registrar en Finanzas").
-3. Movimientos NO se borran, se ANULAN.
-4. Cierres requieren APROBACION.
-5. Nomenclatura personalizable desde /Nomenclatura -> /Series.
-6. Si import trae SKU/Codigo -> respetar. Si vacio -> autogenerar.
-7. Apertura de caja OBLIGATORIA antes de vender en POS.
-8. Al cerrar -> se cierra la apertura. Al dia siguiente se sugiere saldo del ultimo cierre.
-9. Distribucion del efectivo: suma DEBE igualar efectivo contado.
-10. Cada distribucion genera su movimiento (excepto FondoCaja).
-11. Nomina: flujo Calculada -> Aprobada -> Pagada (con pagos individuales o en lote).
-12. Vales: doble aprobacion (Gerente + RRHH) -> Entregado -> Descontado en nomina.
-13. Vacaciones: calculo excluye fines de semana y feriados del pais configurado.
-14. Salario proporcional: se calcula sobre 30 dias (base mensual estandar).
-15. ISR Honduras: metodo acumulativo anual por defecto (SAR).
-16. Vales: limite del 50% del salario mensual del empleado.
-17. Nomina: no se puede editar si tiene recepciones o pagos. Se anula.
-18. OrdenCompra: no se puede editar si tiene recepciones o pagos. Estados: Borrador -> Enviada -> RecibidaParcial -> Recibida -> Pagada.
-19. Periodo contable cerrado: bloquea movimientos, aperturas, cierres, ventas, pagos, nominas y vales.
-20. Cierre contable reabrible: requiere motivo + contrasena, queda en auditoria.
-21. Conciliacion: solo cuentas tipo "Banco". Matching automatico por monto (+/-0.01) y fecha (+/-3 dias).
-22. Plan de Cuentas: codigo jerarquico con puntos (1, 1.1, 1.1.01). Naturaleza calculada por tipo.
-23. Solo cuentas con EsMovimiento=true aceptan movimientos directos.
-24. Wizard de importacion GENERICO: usar ImportWizardHelper + vistas parciales. NO duplicar logica.
-25. Imports con codigos correlativos: pre-cargar codigos existentes en HashSet<string>, mantener correlativo local en memoria, UN solo SaveChanges al final. NUNCA llamar a NumeroDocumentoHelper.GenerarSiguiente por fila.
-26. EF Core 9 en .NET 10: NUNCA usar string[] con .Contains() dentro de queries EF. Usar HashSet<string> o List<string>. El array rompe el ExpressionTreeFuncletizer (TypeLoadException con ReadOnlySpan).
-27. Truncar campos de texto antes de insertar en importaciones (Nombre->150, SKU->50, Codigo->20, etc.).
-
-REGLAS DE LOGISTICA:
-28. Los envios nacen al facturar una venta con "RequiereEnvio=true". El POS ya llama a EnvioHelper.CrearParaVenta automaticamente.
-29. Los envios NO se borran. Se marcan Entregado/Fallido/Cancelado.
-30. Para marcar Entregado es OBLIGATORIO el nombre de quien recibe.
-31. Para marcar Fallido es OBLIGATORIO el motivo.
-32. Un envio Fallido se puede REAGENDAR (vuelve a Pendiente, sin ruta).
-33. Las rutas agrupan envios Pendientes. Estados: Borrador -> EnReparto -> Completada (o Cancelada).
-34. Solo se pueden editar/quitar envios de rutas en estado Borrador.
-35. Al despachar una ruta, TODOS sus envios pasan a estado EnRuta y se les asigna el repartidor/vehiculo.
-36. Cuando TODAS las paradas de una ruta se resuelven (Entregado o Fallido), la ruta se cierra automaticamente (Completada).
-37. Las alertas de envios/rutas se calculan EN TIEMPO REAL con AlertaEnvioHelper, no se persisten.
-38. El semaforo se calcula: Entregado->Verde, Fallido->Rojo, Cancelado->Verde, Pendiente/EnRuta con fecha>hoy->Verde, ==hoy->Amarillo, <hoy->Rojo.
-39. Una ruta NO se puede quedar sin paradas. Si el usuario quiere vaciarla, debe CANCELARLA (los envios vuelven a Pendiente).
-40. Al cancelar una ruta en Borrador, todos sus envios vuelven a estado Pendiente y se desligan de la ruta.
-41. El tracking code se genera UNA VEZ al crear la ruta (formato KRT-2026-AB12X9), es unico y no cambia.
-42. Las ZONAS no se eliminan si tienen envios asociados. Se recomienda desactivarlas.
-43. Los REPARTIDORES no se eliminan si tienen rutas o envios asignados. Se recomienda desactivarlos.
-44. El filtro de zona en envios usa `Envios.ZonaId`; el nombre se denormaliza en `Envio.ZonaNombre` al crear.
-45. El tracking publico (/Logistica/Tracking/Index) es AllowAnonymous y NO usa _Layout (Layout = null con diseno propio).
-46. En el tracking publico NO se exponen montos, IDs internos, notas privadas ni motivos de fallo internos.
-47. La busqueda de tracking normaliza el codigo (uppercase + trim) para aceptar variaciones.
-
-================================================================================
-8. MODULOS COMPLETADOS
-================================================================================
-
-Core:
-- Auth (Login, Register, Logout) con BCrypt
-- Usuarios + Roles + Permisos (CRUD completo)
-- Perfil, Cambiar contrasena, Actividad (con IP y UserAgent)
-- Permisos con seeder automatico
-- Menu lateral con iconos + permisos dinamicos
-- Breadcrumb automatico desde ruta
-
-Ventas:
-- POS completo (busqueda, carrito, cobro, modal, integracion Finanzas con checkbox)
-- POS crea envio automaticamente si "RequiereEnvio" esta marcado
-- Clientes (CRUD + Import + Export con wizard)
-- Cotizaciones (CRUD + conversion a factura y a POS)
-- Pedidos (CRUD + estados)
-- Facturas (Index, Details, RegistrarPago, CreateFromVenta)
-- Devoluciones (Index)
-
-Inventario:
-- Productos (CRUD + Import + Export con wizard)
-- Categorias (CRUD + Import + Export con wizard)
-- Unidades de medida (CRUD + Import + Export con wizard)
-- Bajas (con aprobacion y reversion + auditoria)
-- Historial de compras por producto
-
-Compras:
-- Proveedores (CRUD + Import + Export con wizard)
-- Ordenes de compra (Create, Edit, Recibir con recepcion parcial)
-- Pagos a proveedores + Cuentas por pagar (con integracion Finanzas)
-- Adjuntos a ordenes de compra (con validacion IDOR)
-- Reportes de compras
-
-Finanzas (100%):
-- Dashboard con graficos
-- Cuentas financieras (Cajas + Bancos)
-- Categorias financieras (Ingreso/Egreso, +PlanCuentaId)
-- Movimientos (Ingresos, Egresos, Transferencias, Anulaciones)
-- Reportes (Flujo de caja, Estado de resultados, Estado de cuenta)
-- Aperturas de caja
-- Cierres con distribucion del efectivo
-- Aprobacion de cierres
-- Adjuntos / comprobantes
-- Movimientos automaticos desde POS, PagosProveedor, Vales, Nomina
-- Plan de Cuentas (81 cuentas Honduras)
-- Estado de Resultados y Balance General
-- Cierres Contables (bloqueo de meses + reapertura)
-- Conciliacion Bancaria (matching automatico y manual)
-- ISV Helper (dinamico por catalogo, soporta monto de envio)
-
-RRHH (100%):
-- Dashboard con KPIs + Cumpleanos + Aniversarios + Feriados + Vacaciones + Alertas
-- Empleados: CRUD + foto + documentos + expediente + hoja de vida con 8 tabs
-- Categorias de documentos con seeder
-- Expedientes (llamados, amonestaciones, suspensiones, meritos)
-- Vacaciones (excluye fines de semana y feriados) + descuento automatico de saldo
-- Permisos y licencias con/sin goce de sueldo
-- Vales con doble aprobacion -> Entregado -> Descontado en nomina
-- Nomina completa: ISR + IHSS + RAP + vales + pago individual o en lote
-- Feriados multi-pais (HN, GT, SV, CR, NI, PA, MX, US)
-- Alertas personalizadas
-- Reportes con Chart.js
-- Integracion con Finanzas (egresos automaticos)
-
-Logistica (EN DESARROLLO - 4.5/5 bloques completados):
-- OK EnvioHelper, RutaHelper, ZonaEnvioSeeder, AlertaEnvioHelper
-- OK Modelos: Envio, Ruta, RutaHistorial, Repartidor, ZonaEnvio
-- OK DbContext con DbSets e indices unicos
-- OK Program.cs ejecuta ZonaEnvioSeeder.Seed
-- OK ModulosERP actualizado con submodulos de Logistica
-- OK _Layout.cshtml con menu Logistica COMPLETO
-- OK POS integrado (crea envio al cobrar con RequiereEnvio=true)
-- OK ISVHelper soporta montoEnvio
-
-Bloque 1 COMPLETADO - Dashboard:
-- Pages/Logistica/Index - Dashboard con:
-  - Banner de alertas criticas (rojo si hay atrasos/fallos/rutas en riesgo)
-  - 4 KPIs de alertas con semaforo (atrasados, vencen hoy, entregados hoy, fallidos)
-  - 4 KPIs generales (total envios, rutas activas, repartidores, zonas)
-  - Accesos rapidos
-  - Panel de envios atrasados (con dias de atraso)
-  - Panel de rutas atrasadas (con progreso)
-  - Panel doble vencen hoy + entregados hoy
-  - Panel de fallidos
-  - Ultimos envios y ultimas rutas
-
-Bloque 2 COMPLETADO - Envios:
-- Pages/Logistica/Envios/Index - Listado con:
-  - 6 KPIs clickeables que aplican filtros por querystring
-  - Filtros: busqueda, estado, zona, rango de fechas
-  - Semaforo visual por fila
-  - Columna de dias de atraso
-  - Muestra ruta + numero de parada
-  - Indicador de filtro activo con link para quitarlo
-- Pages/Logistica/Envios/Details - Detalle con:
-  - Banner rojo si atrasado, amarillo si vence hoy
-  - 4 KPIs (estado, semaforo, monto, ruta)
-  - Info completa de entrega (cliente, contacto, direccion, zona, notas)
-  - Info post-entrega (si Entregado) o motivo (si Fallido)
-  - Panel de acciones segun estado
-  - Historial de eventos (timeline con RutaHistorial)
-
-Bloque 3 COMPLETADO - Rutas:
-- Pages/Logistica/Rutas/Index - Listado con:
-  - 5 KPIs clickeables (borrador, en reparto, atrasadas, completadas, canceladas)
-  - 4 KPIs de paradas activas
-  - Filtros: busqueda, estado, repartidor, zona, rango de fechas
-  - Barra de progreso visual por ruta
-  - Indicador visual
-  - Muestra tracking code
-- Pages/Logistica/Rutas/Create - Crear con:
-  - Formulario: repartidor, zona, vehiculo, placa, fecha estimada, descripcion, notas
-  - Autocompletar vehiculo/placa al elegir repartidor
-  - Tabla de envios disponibles (pendientes sin ruta)
-  - Buscador en vivo
-  - Botones: Seleccionar todos / Limpiar / Contador en vivo
-  - Total seleccionado en footer
-  - Pre-seleccion desde querystring ?envioId=X
-- Pages/Logistica/Rutas/Details - Detalle con:
-  - Banner rojo si hay paradas atrasadas
-  - KPIs: estado, progreso, monto total, paradas atrasadas
-  - Info completa: repartidor, vehiculo, salida/regreso, zona, descripcion, notas
-  - 4 KPIs de paradas
-  - Tabla de paradas ordenada por OrdenParada
-  - Acciones individuales por parada
-  - Historial de eventos
-  - 4 modales: entregar parada, fallar parada, cerrar ruta, cancelar ruta
-  - Botones contextuales
-- Pages/Logistica/Rutas/Edit - Editar con:
-  - Solo permite editar rutas en Borrador
-  - 3 secciones: datos, paradas actuales, envios disponibles
-  - Checkbox "Quitar" en paradas actuales
-  - Checkbox "Agregar" en disponibles
-  - Buscador en vivo
-  - Contador dinamico
-  - Validacion: no permite dejar la ruta sin paradas
-  - Autocompletar vehiculo/placa
-
-Bloque 4 COMPLETADO - Zonas + Repartidores:
-- Pages/Logistica/Zonas/Index - Listado con:
-  - 3 KPIs (zonas activas, inactivas, envios asociados)
-  - Tabla con: orden, color, nombre, descripcion, precio sugerido, conteo de envios, estado
-  - Botones de accion segun permisos
-- Pages/Logistica/Zonas/Create - Crear con:
-  - Nombre, descripcion, precio sugerido, orden, color (con preview), activa
-  - Sugerencia automatica de orden (max + 1)
-  - Validacion de nombre unico
-- Pages/Logistica/Zonas/Edit - Editar con:
-  - Aviso si tiene envios asociados
-  - Validacion de nombre unico
-- Pages/Logistica/Zonas/Delete - Eliminar con:
-  - Bloqueo si tiene envios asociados
-  - Confirmacion con color de la zona
-- Pages/Logistica/Repartidores/Index - Listado con:
-  - 4 KPIs (activos, inactivos, rutas activas, entregas completadas)
-  - Tabla con: codigo, nombre, contacto, vehiculo + placa, rutas activas, entregas, estado
-  - Filtros: busqueda, estado, vehiculo
-- Pages/Logistica/Repartidores/Create - Crear con:
-  - Codigo autogenerado (NumeroDocumentoHelper tipo "Repartidor")
-  - Nombre, telefono, licencia, vehiculo, placa, notas, activo
-  - Validacion de codigo unico si se especifica manualmente
-- Pages/Logistica/Repartidores/Edit - Editar con:
-  - Aviso si tiene rutas activas
-  - Validacion de codigo unico
-- Pages/Logistica/Repartidores/Delete - Eliminar con:
-  - Bloqueo si tiene rutas o envios
-  - Confirmacion
-
-_Layout.cshtml OK ACTUALIZADO:
-- Submenu Logistica reorganizado:
-  - Dashboard (Index)
-  - Envios
-  - Rutas
-  - Zonas de envio
-  - Repartidores
-  - --- (divider)
-  - Tracking publico (sin condicional, AllowAnonymous)
-  - Reportes
-- Diccionario moduleNames ampliado con: Envios, Rutas, Zonas, Repartidores, Tracking
-- Filtrado por permisos con puedeVerSubmodulo("Logistica", "X")
-
-Bloque 5 EN PROGRESO - Tracking + Reportes:
-- Pages/Logistica/Tracking/Index OK COMPLETADO:
-  - Pagina publica con Layout = null y diseno standalone
-  - NO usa _Layout.cshtml
-  - Buscador por codigo de tracking (normaliza uppercase + trim)
-  - Al encontrar ruta: muestra KPIs, progreso, repartidor, vehiculo, paradas y timeline
-  - Semaforos visuales por parada
-  - NO expone datos sensibles
-  - Responsive
-  - Requiere AllowAnonymousToPage("/Logistica/Tracking/Index") en Program.cs
-- Pages/Logistica/Reportes/Index <- PENDIENTE (ultimo archivo del modulo)
-
-Configuracion:
-- Datos de la empresa (con pais, zona horaria, config RRHH, config alertas)
-- Nomenclatura -> Series de documentos
-- Metodos de pago
-- Impuestos (CRUD + Import + Export con wizard)
-
-Reportes:
-- Reportes de ventas (KPIs, graficos, top productos, top clientes)
-- Reportes de compras (KPIs, graficos, detalle por proveedor y producto)
-
-Infraestructura de Import/Export:
-- Wizard generico con vistas parciales reutilizables
-- Aplicado a: Clientes, Productos, Proveedores, Categorias, Impuestos, UnidadesMedida
-
-================================================================================
-9. MODULOS PENDIENTES
-================================================================================
-
-Logistica (ultimo archivo del Bloque 5):
-- Pages/Logistica/Reportes/Index - KPIs por repartidor, zona, tasa de exito,
-  tiempos promedio
-  - KPIs generales: total envios, entregados, fallidos, tasa de exito, tiempo
-    promedio de entrega
-  - Filtros: rango de fechas, zona, repartidor
-  - Graficos con Chart.js:
-    - Envios por zona (bar)
-    - Tasa de exito por repartidor (bar horizontal o doughnut)
-    - Tendencia de entregas por dia/semana (line)
-  - Tabla detallada por repartidor
-  - Tabla detallada por zona
-- Program.cs - Corregir AllowAnonymousToPage de Tracking (ver seccion 10)
-- Actualizar snapshots con .\generar-snapshot.ps1
-- git commit + push
-
-Fase 6 (futuro):
-- Produccion (Ordenes, Calidad)
-- Activos (Inventario, Mantenimiento)
-- Seguridad (Index, Auditoria)
-- Presupuestos por categoria
-- Portal del empleado
-- Evaluaciones de desempeno
-- Capacitaciones / Cursos
-- Reclutamiento / Vacantes
-
-================================================================================
-10. NOTAS IMPORTANTES
-================================================================================
-
-PENDIENTE EN Program.cs (critico para Tracking):
-- Actualmente tiene: options.Conventions.AllowAnonymousToPage("/Tracking/Index");
-- Debe cambiar a: options.Conventions.AllowAnonymousToPage("/Logistica/Tracking/Index");
-- Sin este cambio, la pagina de Tracking publico va a requerir login y
-  redirigir a /Auth/Login
-
-Sobre migraciones:
-- ApplicationDbContextModelSnapshot esta DESINCRONIZADO con la BD
-- Al generar migracion, EF intenta crear TODAS las tablas
-- Solucion actual: SQL manual + INSERT en __EFMigrationsHistory
-- Logistica (Envios, Rutas, Zonas, Repartidores) - verificar si las tablas
-  existen en la BD; si no, crear por SQL manual
-
-Sobre OneDrive:
-- Proyecto en C:\Users\crobe\OneDrive\Kirkenta
-- Archivos son symlinks de OneDrive
-- Recomendado mover a C:\Dev\Kirkenta
-
-Sobre .gitignore:
-- Excluye: bin/, obj/, .vs/, .vscode/, *.lnk, appsettings.Development.json
-- Excluye carpetas del proyecto PHP viejo: app/, config/, public/, storage/,
-  vendor/, includes/, modules/, backups/, logs/, assets/, uploads/
-
-Sobre appsettings.json (NO SUBIR A GIT):
-- ConnectionStrings.DefaultConnection con password real
-- Versionar solo appsettings.json con placeholder
-
-Sobre ConfiguracionEmpresa (campos RRHH):
-- PaisCodigo (string, "HN")
-- ZonaHoraria (string, "America/Tegucigalpa")
-- RHFrecuenciaPagoDefault (string, "Mensual")
-- RHDiaPago1, RHDiaPago2, RHDiaSemanalPago (int)
-- RHAplicaIHSS, RHPorcentajeIHSS, RHTopeIHSS
-- RHAplicaRAP, RHPorcentajeRAP
-- RHAplicaISR, RHMetodoISRDefault
-- RHTablaVacaciones (string, "1:10,2:12,3:15,4:20,5:20")
-- RHAntiguedadMaxTabla (int, 5)
-- RHCargarFeriadosAuto (bool)
-- RHAlertaFeriadosProximos/Dias, RHAlertaVacacionesProximas/Dias,
-  RHAlertaCumpleanios, RHAlertaAniversarios, RHAlertaValesPorVencer,
-  RHAlertaContratosPorVencer/Dias, RHAlertaDocumentosVencidos
-
-Sobre ConfiguracionDeduccion (RRHH nomina):
-- Anio, AplicaIHSS, PorcentajeIHSS, TopeIHSS
-- AplicaRAP, PorcentajeRAP, TopeRAP
-- AplicaISR, TopeAnualExentoISR, MetodoISR ("Acumulativo" | "MensualSimple")
-- Se crea automaticamente con valores por defecto de Honduras 2024
-- TramosISR asociados por ConfiguracionDeduccionId
-
-Sobre tipos de nomina:
-- Semanal -> 7 dias, Catorcenal -> 14, Quincenal -> 15, Mensual -> 30
-- Empleados filtrados por FrecuenciaPago
-
-Sobre el Plan de Cuentas:
-- Seed inicial: 81 cuentas estandar de Honduras
-- Jerarquia por codigo con puntos
-- Tipos: Activo, Pasivo, Patrimonio, Ingreso, Costo, Gasto
-- Naturaleza calculada automaticamente
-- Solo EsMovimiento=true acepta movimientos directos
-
-Sobre __EFMigrationsHistory:
-- Snapshot desincronizado -> no usar dotnet ef migrations
-- Agregar migraciones manualmente por SQL
-
-Sobre puerto:
-- Solo se usa http://localhost:5114
-- NO se usa HTTPS ni el puerto 7060
-
-Sobre el wizard de importacion (04/10/2026):
-- Refactorizado a componente generico: ImportWizardHelper + vistas parciales
-- Clientes, Productos, Proveedores refactorizados
-- Categorias, Impuestos, UnidadesMedida agregados con el mismo patron
-- 6 modulos en total usan el wizard generico
-
-Sobre el bug EF Core 9 (04/10/2026):
-- string[] + .Contains() en queries EF rompe en .NET 10
-- Error: TypeLoadException: GenericArguments[1], 'System.ReadOnlySpan`1[System.String]'
-- Solucion: usar HashSet<string> o List<string>
-
-Sobre el snapshot automatico (04/10/2026):
-- Script: generar-snapshot.ps1 en la raiz
-- Genera 4 archivos: PROYECTO_PARTE_1_Nucleo.md, PROYECTO_PARTE_2_Operaciones.md,
-  PROYECTO_PARTE_3_Soporte.md, PROYECTO_PARTE_4_Extras.md
-- Auto-descubrimiento: si creas Pages/Produccion o Helpers/Presupuestos,
-  van automaticamente a Parte 4 (el script avisa)
-- NO hay que editar el script cuando se crean modulos nuevos
-- Excluye: bin/, obj/, .vs/, .vscode/, node_modules/, .git/, uploads/,
-  wwwroot/lib/
-- Ejecutar: .\generar-snapshot.ps1 en PowerShell
-- Ejemplo de salida: si detecta modulos nuevos, muestra
-  "[!] Modulos NUEVOS detectados (van a Parte 4):"
-
-Sobre Logistica:
-- Modulo activo en desarrollo. Bloques 1-4 completados + Tracking del Bloque 5.
-- 5 modelos: Envio, Ruta, RutaHistorial, Repartidor, ZonaEnvio
-- 4 helpers: EnvioHelper, RutaHelper, ZonaEnvioSeeder, AlertaEnvioHelper
-- Estados de Envio: Pendiente -> EnRuta -> Entregado (o Fallido/Cancelado)
-- Estados de Ruta: Borrador -> EnReparto -> Completada (o Cancelada)
-- Al reagendar un envio fallido, vuelve a Pendiente sin ruta
-- La ruta se cierra automaticamente cuando todas las paradas estan resueltas
-- Las alertas NO se persisten: se calculan en tiempo real con AlertaEnvioHelper
-- Los KPIs del Index de Envios son clickeables y aplican filtros via querystring
-- Los KPIs del Index de Rutas son clickeables y aplican filtros via querystring
-- Los KPIs del Index de Zonas no son clickeables
-- Los KPIs del Index de Repartidores no son clickeables excepto "Rutas activas"
-- El POS ya crea envios automaticamente al cobrar con RequiereEnvio=true
-- El tracking code se genera con formato KRT-2026-AB12X9 (unico por ruta)
-- Los modales usan la clase `is-open` (no display: inline)
-- El _Layout.cshtml tiene el submenu Logistica completo con separadores visuales
-- Las Zonas no se eliminan si tienen envios asociados
-- Los Repartidores no se eliminan si tienen rutas o envios
-- El catalogo de Zonas tiene 5 zonas tipicas de Honduras por seeder
-- El Tracking publico tiene su propio diseno (Layout=null) y NO usa _Layout.cshtml
-- El Tracking publico esta exento de autenticacion con AllowAnonymousToPage
-
-================================================================================
-11. FLUJO DE TRABAJO
-================================================================================
-
-Al iniciar chat nuevo:
-1. Pega SIEMPRE la Parte 1 + CONTEXTO.md
-2. Pega la parte del modulo que vas a tocar:
-   - Ventas/Compras/Finanzas/Inventario -> Parte 2
-   - Logistica/RRHH/Reportes            -> Parte 3
-   - Modulo nuevo (Produccion, etc.)    -> Parte 4
-   - Si toca todo                       -> las 4 partes
-3. Di: "Retomamos Kirkenta ERP"
-4. Dime que modulo vamos a trabajar
-5. Si vamos a tocar un archivo especifico, pasalo (solo ese)
-
-Al terminar sesion:
-1. Actualizar este archivo si hubo cambios importantes
-2. Ejecutar .\generar-snapshot.ps1 (regenera los 4 snapshots)
-3. Guardar
-4. git add . && git commit -m "..." && git push
-
-Al pedir codigo:
-- Archivos COMPLETOS, no fragmentos (regla #1)
-- Nombre del archivo + ruta
-- Un archivo por mensaje (o agrupados si son cortos)
-
-================================================================================
-ULTIMA ACTUALIZACION
-================================================================================
-
-Fecha: 04/10/2026 (sesion 5 - Bloque 5 Tracking completado + sistema de 4 snapshots)
-
-Estado:
-- Modulos operativos: Usuarios, Ventas, POS, Inventario, Compras, Finanzas,
-  RRHH, Reportes, Configuracion.
-- Finanzas 100% (incluye Fase 5: Contabilidad completa).
-- RRHH 100%.
-- Logistica EN DESARROLLO - 4.5/5 bloques completados:
-  - OK Bloque 1: AlertaEnvioHelper + Logistica/Index (dashboard con alertas)
-  - OK Bloque 2: Logistica/Envios/Index + Logistica/Envios/Details
-  - OK Bloque 3: Logistica/Rutas/Index + Create + Details + Edit
-  - OK Bloque 4: Logistica/Zonas + Logistica/Repartidores + _Layout actualizado
-  - OK Bloque 5 (parcial): Logistica/Tracking/Index (publico)
-  - <- Bloque 5 PENDIENTE: Logistica/Reportes/Index (ultimo archivo)
-
-Sistema de snapshots:
-- 4 partes generadas automaticamente
-- Auto-descubrimiento de modulos nuevos
-- Parte 1: 183 archivos (~900 KB)
-- Parte 2: 201 archivos (~1.3 MB)
-- Parte 3: 112 archivos (~1 MB)
-- Parte 4: auto-descubrimiento (actualmente solo tools/generar-proyecto.ps1)
-
-Acciones criticas pendientes:
-1. ACTUALIZAR Program.cs: cambiar AllowAnonymousToPage("/Tracking/Index")
-   por AllowAnonymousToPage("/Logistica/Tracking/Index")
-   Sin esto, el tracking publico va a requerir login.
-2. Crear Logistica/Reportes/Index + .cs
-3. Ejecutar .\generar-snapshot.ps1 (regenerar los 4 snapshots)
-4. git commit + push
-
-Fase 6 (futuro):
-- Produccion, Activos, Seguridad, Presupuestos, Portal del empleado,
-  Evaluaciones, Capacitaciones, Reclutamiento
+# 16. CONTABILIDAD, COSTO DE VENTAS (COGS) Y BALANCE GENERAL
+
+**Fecha de actualización:** 22/10/2026
+**Estado:** ✅ **IMPLEMENTADO Y FUNCIONAL**
+
+## ¿El sistema calcula el costo de los productos al vender?
+**SÍ.** A partir de esta actualización, el sistema maneja la contabilidad de partida doble para las ventas y el inventario.
+Cuando se hace una venta (POS o Facturación):
+1. Se descuenta el `Stock` del producto y se guarda un *snapshot* del costo en `DetalleVenta.CostoUnitarioSnapshot`.
+2. Se crea un `MovimientoFinanciero` de `Ingreso` (cuenta 4.1.01 - Ventas).
+3. Se crea un `MovimientoFinanciero` de `Egreso` por el Costo de Mercadería Vendida (cuenta 5.1.01 - Costos).
+4. El campo `Venta.CostoTotalVendido` refleja la suma exacta de los costos de los productos en esa venta.
+
+**Consecuencia:**
+El Estado de Resultados ahora es contablemente correcto:
+* `Utilidad Bruta = Total Ingresos - Total Costos` (ahora sí resta el costo del producto).
+* `Utilidad Neta = Utilidad Bruta - Gastos Operativos`.
+
+## Fix del Balance General (Activos reales)
+Anteriormente, el `TotalActivos` en el Balance General daba `0` porque los movimientos de Caja/Banco no se asociaban a una cuenta contable de Activo (solo a categorías de ingreso/egreso).
+**Solución implementada:**
+* El `ContabilidadHelper` ahora lee directamente los saldos reales (`SaldoActual`) de la tabla `CuentasFinancieras` (Cajas y Bancos) y los inyecta como líneas de Activos en el Balance General.
+* Se agregó el helper `AperturaCuentaHelper` que genera un `MovimientoFinanciero` de tipo "Apertura" por cada cuenta nueva que tenga `SaldoInicial > 0`. Esto mantiene la consistencia histórica y contable.
+* El seeder corre al arrancar la app (`Program.cs`), asegurando que las cuentas viejas con saldo inicial también tengan su movimiento de apertura.
+
+## Corrección de Signos (Reportes en Positivo)
+Se corrigió la fórmula en `ContabilidadHelper` para que respete la naturaleza contable:
+* Cuentas Acreedoras (Ingresos, Pasivos, Patrimonio): se muestran en **positivo** (suman).
+* Cuentas Deudoras (Activos, Costos, Gastos): se muestran en **positivo** para ser restados de los ingresos en los reportes.
+* Los reportes de **Estado de Resultados** y **Balance General** ya no muestran los ingresos con signos negativos (ej. `-L. 25,847.00`), sino positivos (`L. 25,847.00`).
+
+## Configuración requerida (Nuevas Categorías Contables)
+Para que el sistema funcione al 100% con la nueva contabilidad, las categorías financieras deben estar mapeadas a su cuenta del Plan de Cuentas.
+El `FinanzasSeeder` (al arrancar) asocia automáticamente:
+* Categoría de Ingreso **"Ventas al contado"** → Plan `4.1.01` (Ventas de Mercadería)
+* Categoría de Egreso **"Costo de mercadería vendida"** → Plan `5.1.01` (Costo de Mercadería Vendida)
+* Categoría de Ingreso **"Apertura de cuenta"** → Plan `1.1.01.001` (Caja General)
+* Otras categorías (Alquiler, Energía, etc.) se asocian a sus respectivos gastos (6.1, 6.2, 6.3).
+
+## Notas sobre migraciones (Base de datos)
+* Se agregó la migración `AddCogsToVentaYDetalle` que añade las columnas `CostoRegistrado`, `CostoTotalVendido`, `MovimientoCostoId`, `CostoUnitarioSnapshot` y `CostoTotalLinea`.
+* Se corrigió el historial de `__EFMigrationsHistory` para que no chocara con columnas que ya existían (ej. `EsCredito`).
+* Si se agregan nuevas ventas, los reportes de contabilidad reflejarán los costos automáticamente sin necesidad de ajustes manuales.
+
+---
+
+# 17. FASES 1-4: FACTURACIÓN FISCAL, KARDEX, DEVOLUCIONES, ANULACIONES, REPORTES
+
+**Fecha de actualización:** 24/10/2026
+**Estado:** ✅ Implementado. Requiere migración (`dotnet ef migrations add ...` + `database update`).
+
+## Facturación fiscal (CAI)
+* `ConfiguracionEmpresa.FacturacionFiscalActiva` (checkbox en Configuración → Editar). Si está apagada, se usa la serie interna "Factura" y no hay avisos de CAI.
+* Encendida: `FacturacionFiscalHelper` (Previsualizar/Reservar/AsignarNumero/ValidarConfiguracion) numera dentro del rango `000-001-01-00000001`, bloquea si el CAI venció o el rango se agotó y avisa a 15 días / 20 números. La factura guarda un snapshot de CAI, rango y fecha límite. El contador (`SiguienteNumeroFiscal`) se reinicia si cambia el CAI o el rango.
+* Aplica en: Facturas/CreateFromVenta, conversión de Cotización a factura (Index y Details) y Pedidos → Facturar.
+* **Nota de crédito fiscal**: CAI, rango y fecha límite propios (`NotaCreditoCAI`, `NotaCreditoRangoInicial/Final`, `NotaCreditoFechaLimite`, `SiguienteNumeroNotaCredito`). `NotaCreditoFiscalHelper.Reservar` se usa en `DevolucionVentaHelper.Crear`. Si la facturación fiscal está activa pero no se llenó el rango de NC, la devolución usa la serie interna "Devolucion". La `Devolucion` guarda el snapshot (CAI, RangoInicial, RangoFinal, FechaLimiteEmision).
+
+## Kardex e inventario
+* `MovimientoInventario` (Cantidad con signo, StockAnterior/Posterior, Origen, DocumentoNumero, CostoUnitario, UsuarioId).
+* `InventarioHelper.Registrar/Ajustar/CostoPromedio` es la ÚNICA vía autorizada para cambiar stock (no hace SaveChanges).
+* Orígenes: Venta, Compra, Baja, ReversionBaja, FacturaCotizacion, FacturaPedido, StockInicial, AjusteManual, Importacion, Devolucion, AnulacionVenta, DevolucionProveedor.
+* Costo promedio ponderado al recibir órdenes de compra (casilla "RecalcularCosto").
+* Pantallas: Productos → Kardex y Productos → Ajuste.
+
+## Devoluciones y anulaciones
+* `DevolucionVentaHelper.Crear`: prorratea el descuento global; la parte a crédito baja `Venta.SaldoPendiente` y `Factura.Saldo`; el resto se reembolsa (Egreso real en categoría "Devoluciones en ventas", plan 4.1.03). Reversa del COGS = Egreso negativo "solo contable" (`[SOLO-CONTABLE]`).
+* `AnulacionVentaHelper.Anular`: restaura stock con kardex, anula movimientos financieros de la venta, cancela el envío (bloqueado si ya va en ruta/entregado), marca Factura y Venta "Anulada" (el número fiscal queda consumido). Bloqueada si el periodo está cerrado o la venta tiene devoluciones. Permiso: Ventas → Delete.
+* `DevolucionProveedorHelper.Crear`: baja stock, reduce `OrdenCompra.Saldo`; si la orden ya estaba pagada deja `MontoPorRecuperar`. Módulo Compras → DevolucionesProveedor.
+* Ventas a crédito: el ingreso se reconoce al cobrar; los pagos de facturas de ventas a crédito se redirigen a Finanzas → Cobros. Límite de crédito validado en `VentaService`.
+
+## Pedidos
+* Pedidos/Details: cambios de estado (Pendiente → En preparacion → Enviado → Entregado, o Cancelado) y botón "Facturar pedido" (factura con numeración fiscal, descuenta inventario con origen FacturaPedido, guarda `Pedido.FacturaId`).
+
+## Impresión y reportes
+* Factura: botón "Ticket 80 mm" (`Facturas/Ticket`) y "PDF / Carta" (`Facturas/Carta`, tamaño carta; usar Imprimir → Guardar como PDF).
+* Estado de cuenta del cliente (`Clientes/EstadoCuenta`).
+* Reportes (con exportación CSV): Antigüedad de saldos de clientes, Cuentas por pagar (proveedores), Libro de ISV, Valoración de inventario.
+* Paginación y filtros del lado del servidor (50 por página, parámetro `p`, partial `_Pager`) en Ventas, Facturas, Clientes, Productos y Cotizaciones.
+
+## Operación
+* Logs de advertencia/error en `logs/kirkenta-yyyyMMdd.log` (`FileLoggerProvider`).
+* Respaldo de BD: `tools/respaldo-bd.ps1` (mysqldump + zip + rotación 30 días). Agregar `respaldos/` al .gitignore.
+* Pruebas: `dotnet test tests\Kirkenta.Tests` (xUnit + EF InMemory; las de BD usan `[Collection("BD")]`).
+
+## Facturas sin venta (de cotización o de pedido)
+* Pago (Facturas → Registrar pago): genera un Ingreso real en Finanzas (`RegistrarIngresoPagoFactura`, origen "Factura"; efectivo a la caja activa, otros métodos al primer banco activo; categoría "Cobros de facturas", plan 4.1.01). Si Finanzas falla, se revierte todo el pago.
+* Costo de ventas: al emitirse la factura se registra el COGS contable (`RegistrarCostoFactura`, origen "Factura", solo contable, idempotente).
+* Anulación (`AnulacionFacturaHelper`, permiso Ventas → Facturas → eliminar): devuelve stock con kardex ("AnulacionFactura"), anula los movimientos de Finanzas de la factura, reabre la cotización (vuelve a "Aceptada") o libera el pedido, y marca la factura "Anulada" (el número fiscal queda consumido). Las facturas de una venta se anulan desde la venta.
+* El estado de cuenta de una cuenta en Finanzas → Reportes ignora los movimientos "solo contables" (costo de ventas y su reversa) al calcular saldos.
+
+## Dashboard dinámico por permisos
+* `Pages/Index` arma el dashboard según los permisos del rol, leídos en cada visita (si se cambia un rol, cambia de inmediato). Cada bloque exige su permiso "ver": Ventas/Index (ventas hoy/mes, gráfico 7 días, top productos, últimas ventas), Ventas/Clientes, Ventas/Cotizaciones, Ventas/Pedidos, Inventario/Productos (productos y stock bajo), Ventas/Facturas o Finanzas/Cobros (por cobrar), Compras/CuentasPorPagar o Ordenes (por pagar), Finanzas/Index (caja y bancos, flujo del mes), Logistica/Envios (envíos pendientes). Las alertas (CxC/CxP vencidas, CAI por vencer) y los accesos rápidos también se filtran por permiso. Si el rol no tiene nada, se muestra un mensaje.
+* Para agregar un indicador nuevo: añadir un bloque `if (Puede("Modulo","Sub")) Kpis.Add(...)` en `IndexModel.OnGet`.
+
+## Flujo de caja = efectivo real
+* `FlujoCajaHelper` excluye los movimientos solo contables (costo de ventas 5.1.01 y su reversa) en Finanzas/Index y Finanzas/Reportes. El costo de ventas solo aparece en el Estado de Resultados.
+
+## Auditoría de módulos (2026-10-25)
+* `LineasDocumentoHelper.Validar` valida en servidor las líneas de Cotización/Pedido (cantidad > 0, precio/descuento >= 0, impuesto 0-100, producto activo).
+* Pedidos/Edit ya NO cambia el estado (solo desde Pedidos/Details). Cotizaciones/Edit bloquea "Convertida" y estados no manuales.
+* Crear Cotización/Pedido y PagosProveedor/Create van en transacción; el pago se revierte si falla el egreso financiero.
+* Todo cambio de stock pasa por `InventarioHelper` (Bajas aprobar/revertir, OrdenesCompra/Recibir, Productos/Edit → AjusteManual). Bajas no aprueba con stock insuficiente.
+* `NumeroDocumentoHelper.GenerarSiguiente` reclama el correlativo con UPDATE atómico (ExecuteUpdate) en MySQL; InMemory usa la ruta vieja.
+* Borrados protegidos: Usuarios con historial (se desactivan), Series que ya emitieron, Unidades en uso, Cotizaciones con factura.
+* Paginación/filtros en servidor (50 por página, partial _Pager): Finanzas/Movimientos, OrdenesCompra, Bajas (KPIs agregados en la BD; pérdidas de Bajas = solo Aprobadas no revertidas).
+* Transacciones añadidas en: RRHH/Nomina/Pagar y PagarEmpleado, RRHH/Vales/Entregar, Finanzas/Movimientos Create y Edit (movimiento + saldo + documento origen todo o nada).
+* Auditados sin hallazgos graves: borrados de Finanzas, Logística y RRHH (ya validan referencias).
+* Proveedores también paginado/filtrado en servidor.
+* OrdenesCompra Create/Edit: estado validado (Create: Borrador/Enviada; Edit: Borrador/Enviada/Cancelada), líneas validadas, proveedor existente, Create en transacción.
+* Productos/ImportMap: el stock ya no se pisa; ajuste "Importacion" y "StockInicial" pasan por el kardex.
+* RRHH/Nomina/Create: bloquea traslape de período del mismo tipo (anular la anterior para recalcular) y va en transacción.
+* VentaService/POS revisado: valida precio vigente, stock, límite de crédito y reintenta concurrencia (sin hallazgos).
+* Pendiente: probar con un rol limitado; tests de integración con MySQL real para la reserva atómica de correlativos.
+
+## Pendiente / notas
+* La reversa de COGS es un Egreso negativo "solo contable"; el Estado de Resultados y el Balance lo manejan bien.
+* Permisos nuevos que hay que asignar a roles no Admin: Compras → DevolucionesProveedor / DevolucionesProveedorCreate; Ventas → Devoluciones.
+
+
+### Auditoría de módulos — continuación (2026-10-25)
+- Logística: tracking público sin datos personales (nombres enmascarados, dirección protegida), código de tracking criptográfico (KRT-AAAA-XXXXXXXXXX), entregado/fallido solo desde Pendiente/EnRuta.
+- RRHH: Nómina bloquea períodos traslapados del mismo tipo; Vales: la 2ª aprobación debe ser de otra persona (Admin exento); Permisos: tipo válido, empleado activo, máx. 90 días y sin traslapes; Vacaciones: no permite empleados de baja y descuenta solicitudes pendientes del saldo; Empleados: bonos no negativos, estado válido, usuario vinculado existente y único.
+- Pendiente de auditar: Reportes, Finanzas (Cierres/Conciliación/Cobros/Contabilidad), Facturas, Devoluciones, Configuración (catch vacío al borrar logo).
+
+
+### Mapa del sistema y estado de auditoría (2026-10-25)
+Módulos (Pages/): Auth, Usuarios, Configuracion, Series, Nomenclatura, Impuestos, MetodosPago, UnidadesMedida | Productos (Kardex, Ajuste, Importación), Categorias, Bajas | Clientes, Cotizaciones, Pedidos, Ventas, POS, Facturas, Devoluciones | Proveedores, OrdenesCompra, Compras, PagosProveedor, DevolucionesProveedor | Finanzas (Cuentas, Movimientos, Cierres de caja, Aperturas, Cobros, Conciliación, PlanCuentas, Contabilidad, CierresContables, Reportes) | Reportes (Ventas, Compras, Inventario, CxC, CxP, Libro ISV) | RRHH (Empleados, Vacaciones, Permisos, Vales, Nómina, Documentos, Feriados) | Logística (Envíos, Rutas, Repartidores, Zonas, Tracking público).
+Helpers clave: InventarioHelper (único punto de cambios de stock/kardex), NumeroDocumentoHelper (correlativos atómicos), LineasDocumentoHelper (validación de líneas), SaldoHelper, CierreContableHelper, MovimientoAutomaticoHelper, PermisoHelper.
+Auditado y corregido: todos los módulos de ventas, compras, inventario, logística, RRHH, Reportes (Ventas/Compras), Cobros, Cierres de caja y contables, Facturas/RegistrarPago, Configuración, Clientes y Productos (validaciones de montos negativos, estados, duplicados, transacciones).
+Revisado sin hallazgos: CxC, CxP, Inventario, Libro ISV, Devoluciones, Conciliación, Movimientos/Anular.
+Pendiente: vistas .cshtml y JS (no auditadas), Contabilidad (asientos) a fondo, pruebas con MySQL real. El archivo backup_kirkenta_2026-10-23.sql pesa 0 bytes: regenerar el respaldo.
+
+## Cambios recientes (2026-10-25)
+
+- **Teléfonos por país**: `Helpers/TelefonoHelper.cs` (29 países, atributo `[Telefono]`) + `wwwroot/js/telefono.js` (selector de país con código y máscara; se activa solo por el `name` del input). Guarda "+504 9999-9999".
+- **RTN / Identidad (Honduras)**: `Helpers/DocumentoHonduras.cs` (`[Rtn]` 14 dígitos, `[Identidad]` 13 dígitos, formato con guiones) + `wwwroot/js/documentos.js`. Campos opcionales. Valores viejos con largo incorrecto bloquean el guardado hasta corregirse.
+- **Decimales en formularios**: inputs de dinero con `asp-format="{0:0.00}"` (cantidades `{0:0.##}`) porque la BD guarda decimal(18,4). Días de vacaciones/permisos se muestran con `.ToString("0.##")`.
+- **Caché de CSS/íconos**: `asp-append-version="true"` en lugar de `?v=@DateTime.Now.Ticks` (causaba el "logo grande" al navegar). Logo del menú con width/height fijos.
+- **XSS**: `window.escHtml` global en `_Layout`; usado al armar innerHTML en POS, OrdenesCompra Create/Edit, Cotizaciones Create/Edit y Pedidos Create.
+- **POS**: al marcar envío con cliente elegido se prellena la dirección/contacto del cliente.
+- **Historial de producto**: nueva `Pages/Productos/Historial` (ventas con factura/cliente/costo/precio/utilidad, devoluciones netas; compras con orden/proveedor/costo/recepción). El ícono de gráfica en Productos/Index apunta a ella. `Compras/HistorialProducto` se conserva por su gráfico de precios.
+- **Reporte de rentabilidad**: `Pages/Reportes/Rentabilidad` (utilidad y margen por producto, sin ventas, capital sin movimiento, margen bajo; CSV).
+- **Estado de Resultados**: si Desde > Hasta se invierten.
+- **Impuesto por producto / desglose fiscal** (25/10): formularios de Productos (Crear/Editar) ahora tienen selector de Impuesto (antes Editar lo borraba a null en cada guardado). `ImpuestoSeeder` asegura ISV 15% (predeterminado), 18% y Exento 0%. Regla única: producto sin impuesto = predeterminado del sistema (POS, Cotizaciones y Pedidos ya coinciden con el servidor). `ISVHelper.DesglosarFactura` arma el desglose con los porcentajes guardados en la factura; se imprime en Carta y Ticket (exonerado, exento, gravado e ISV por tasa) y en Detalles. El POS calcula en pantalla igual que el servidor (descuento general antes del ISV, envío con tasa predeterminada).
+- **Permisos de devoluciones**: `PermisoSeeder.AplicarPermisosPredeterminados` (una sola vez, solo si nadie ha configurado la pantalla).
+
+### Pendiente conocido
+- **Balance General**: corregido (25/10). Para fechas de corte pasadas, Caja/Banco se calculan como saldo inicial + movimientos hasta la fecha (`CalcularSaldosAFecha`, mismas reglas que `SaldoHelper`); para hoy se usa `SaldoActual`. Falta probarlo con datos reales.
+- `GenerarEstadoResultados`/`GenerarBalanceGeneral` usan subconsultas correlacionadas por movimiento (lento con muchos movimientos): precargar categorías y plan de cuentas en diccionarios.
+- Respaldo `backup_kirkenta_2026-10-23.sql` está en 0 bytes: regenerar.
+- Cambiar contraseña de MySQL al final del proyecto (decisión del usuario).
+- Nada de lo anterior fue compilado desde el asistente: correr `dotnet build` y `dotnet test tests\Kirkenta.Tests`.
+
+## Revisión de lógica (2026-10-25, 2ª pasada)
+- **Pagos a proveedor** (`PagosProveedor/Create`): el pago toma moneda y tipo de cambio de la orden; el egreso en Finanzas se registra convertido a moneda local (antes salía sin convertir).
+- **Recepción de compras** (`OrdenesCompra/Recibir`): "Recalcular costo" usa costo promedio ponderado (`InventarioHelper.CostoPromedio`) en vez de pisar con el último precio.
+- **Cierre de caja** (`CierreHelper`): solo cierra aperturas ACTIVAS (no se puede cerrar dos veces la misma); el efectivo esperado cuenta desde la hora de apertura (no desde medianoche) y excluye movimientos de apertura; cierre + cierre de apertura + ajuste van en una transacción.
+- **Facturar venta a crédito** (`Facturas/CreateFromVenta`): la factura nace con el saldo real de la venta (si ya hubo cobros/devoluciones) y estado Emitida/PagadaParcial/Pagada; los cobros previos se ligan a la factura.
+- Revisados sin hallazgos: VentaService, Anulación de venta/factura, Devolución de venta, MovimientoAutomaticoHelper, SaldoHelper, Cobrar, RegistrarPago, cobertura de permisos en todas las páginas, validación de período cerrado en todo creador de movimientos.
+- Riesgo conocido (no corregido): doble envío simultáneo de un cobro podría pasar la validación de saldo (no hay bloqueo de fila); aceptable en operación de una sola caja.
+
+## Revisión de módulos restantes (2026-10-25, 3ª pasada)
+- **Nómina/Create**: ya no se pisan las fechas elegidas con las del mes actual al generar (solo se sugieren en el GET).
+- **Nómina/Pagar**: paga solo a quienes faltan (descuenta los pagados individualmente: antes pagaba doble y descontaba vales dos veces); FormaPago Efectivo si la cuenta es Caja. **PagarEmpleado** ignora empleados ya pagados.
+- **NominaHelper**: ISR acumulativo ignora nóminas anuladas y cuenta solo meses realmente pagados; nóminas no mensuales usan equivalente mensual prorrateado; los vales no descuentan más de lo disponible tras IHSS/RAP/ISR.
+- **ConciliacionHelper**: el saldo del sistema y las líneas excluyen movimientos de Apertura y solo contables (COGS), que nunca movieron el saldo del banco.
+- **EnvioHelper**: envío de venta sin cliente usa ClienteId 1 (consumidor final) en vez de 0.
+- Revisados sin hallazgos: Vales/Entregar, Nómina/Aprobar, Productos/Ajuste, EnvioHelper (entregas/fallos/reagendar), ContabilidadHelper (consistente con SaldoHelper).
+- **Importadores** (Productos, Clientes, Proveedores): una fila nueva con SKU/código (o código de barras en productos) repetido dentro del mismo archivo ya no tumba toda la importación; se ignora con advertencia.
+- Revisados sin hallazgos: Vacaciones (VacacionHelper), Permisos de RRHH.
+
+## Módulos nuevos (Seguridad, Activos, Producción, Caja chica, Inventario avanzado, Contabilidad)
+
+**Tablas nuevas** (11): ActivosFijos, DepreciacionesActivo, MantenimientosActivo, OrdenesProduccion, DetallesOrdenProduccion, InspeccionesCalidad, GastosCajaChica, TomasFisicas, DetallesTomaFisica, AsientosContables, DetallesAsiento. Modelos en `Models/ModulosAdicionales.cs` (sin navegaciones/FK). NO hay migración de EF: `Helpers/EsquemaModulosNuevos.cs` (se llama en Program.cs antes de DiagnosticoEsquema) usa `Database.GenerateCreateScript()` y ejecuta solo los CREATE TABLE/INDEX de estas tablas si faltan. Si algún día se corre `dotnet ef migrations add`, esa migración incluirá estas tablas: quitar los CreateTable (ya existen) o borrar las tablas antes.
+
+**Seguridad** (`Pages/Seguridad`): Index (KPIs, roles, usuarios bloqueados/pendientes, desbloquear) y Auditoria (filtros, paginación, CSV, resalta logins fallidos). Sin tablas nuevas (usa Usuarios/Roles/ActividadUsuario).
+
+**Activos fijos** (`Pages/Activos`): Index, Edit (crea y edita), Details (baja con motivo), Depreciacion (línea recta mensual; un movimiento Egreso "solo contable" categoría 'Depreciación de activos fijos' enlazada a 6.2.08), Mantenimiento (programar, completar con pago opcional → egreso 'Mantenimiento y reparaciones' 6.2.06, cancelar). Un activo depreciado no permite cambiar costo/residual/vida/fecha. Serie de documento: ActivoFijo.
+
+**Producción** (`Pages/Produccion`): Index, Edit, Details y Calidad. Planificada → Iniciar (descuenta insumos con InventarioHelper, origen 'Produccion') → Terminar (ingresa producto terminado con costo promedio) o Cancelar (devuelve insumos si estaba en proceso). Costo de insumos = PrecioCompra del producto al iniciar.
+
+**Caja chica** (`Pages/Finanzas/CajaChica`): fondo = cuenta financiera activa con código CAJA-CHICA (o subtipo 'Chica'). Gasto Pendiente → Aprobar (crea Egreso real y descuenta el fondo; exige saldo) / Rechazar (motivo). Reponer fondo = Transferencia desde otra cuenta. Helper común `Helpers/Finanzas/MovimientoManualHelper.cs` (crea movimiento + SaldoHelper; el llamador abre la transacción).
+
+**Inventario avanzado** (`Pages/InventarioAvanzado`): Kardex por producto, Valoración (a costo y a precio, por categoría, bajo mínimo, sin movimiento 90 días) y TomaFisica (Index/Details: congela stock del sistema, captura conteos, Aplicar ajusta con InventarioHelper.Ajustar origen 'TomaFisica'; solo una toma en conteo a la vez). No hay multi-bodega: el stock sigue siendo único por producto.
+
+**Contabilidad** (`Pages/Finanzas/Asientos` y `Pages/Finanzas/Contabilidad`): asientos manuales en partida doble (valida cuadre, cuentas de movimiento, período cerrado), Details con anulación, Libro diario, Libro mayor (saldo corrido por naturaleza) y Balanza de comprobación. Estos libros usan SOLO asientos manuales; el Estado de Resultados y el Balance General siguen saliendo de los movimientos financieros.
+
+**Permisos/menú**: nuevos submódulos en `ModulosERP` (Inventario: TomaFisica, Kardex, Valoracion; Finanzas: Asientos, LibroDiario, LibroMayor, Balanza, CajaChica; Activos: Depreciacion) y enlaces en `_Layout.cshtml`; PermisoSeeder crea las filas (solo Admin al inicio; asignar a otros roles en Usuarios → Roles). Tipos de documento nuevos: TomaFisica, AsientoContable, GastoCajaChica, ActivoFijo, OrdenProduccion.
+
+**Pendiente de verificar por el usuario**: `dotnet build`, `dotnet test tests\Kirkenta.Tests`, y en el log de arranque `[Arranque] EsquemaModulosNuevos OK` y `[Arranque] Esquema de base de datos completo.`.
+
+## Revisión general (2026-10-25)
+- Rutas (RutaHelper): cerrar ruta cancelada bloqueado; envíos EnRuta/Pendiente sin resolver vuelven a Pendiente al cerrar; AgregarEnvio/QuitarEnvio guardan antes de recalcular totales (antes quedaban totales desfasados).
+- RRHH: tabla de vacaciones se parsea con cultura invariante (evita fallo con coma decimal).
+- Revisados sin cambios: ISVHelper, FacturacionFiscalHelper, NotaCreditoFiscalHelper, CierreContableHelper, DevolucionProveedorHelper, AperturaCuentaHelper, PermisoHelper, AlertaEnvioHelper.
+- Pendiente de revisar a fondo: páginas de Logística/Finanzas/RRHH antiguas; DistribucionHelper sin transacción propia ni validación de cierre contable.
+
+## Mejoras (2026-10-25)
+- DistribucionHelper: transacción única + validación de cierre contable.
+- Helpers/EsquemaIndices.cs: 15 índices de rendimiento creados al arrancar (idempotente; nombre IX_perf_*).
+- tests/Kirkenta.Tests/ImpuestosCierresTests.cs: pruebas de ISV, cierre contable y antigüedad.
+- tools/migrar-bd.ps1: migración completa (respaldo -> borra tablas nuevas vacías -> dotnet ef migrations add ModulosNuevos -> revisión -> database update).
+- Numeración de series ya era atómica (UPDATE condicional con reintentos). Login ya tiene IntentosFallidos.
+- Pendiente a propósito (rediseño grande, hacerlo con build verde): asiento de partida doble por documento, auditoría con valor anterior/nuevo, separar empresa/sucursal (EmpresaId=1 fijo), mover lógica de páginas a servicios.
+
+## Revisión de páginas y auditoría (2026-10-25, 2da tanda)
+- BUG corregido: Movimientos/Anular no revertía el saldo de la cuenta (SaldoHelper.Revertir exige Estado != Activo; ahora se marca Anulado antes y va en transacción).
+- BUG corregido: Movimientos/Edit contaba doble el saldo (mismo motivo); ahora marca temporalmente Anulado, revierte lo viejo y reactiva. Valida monto > 0, concepto y cuenta activa.
+- Conciliación: Eliminar línea banco / matching auto / manual / deshacer ya no funcionan sobre conciliaciones cerradas o canceladas.
+- Nómina/Aprobar: rechazar exige motivo.
+- Helpers/CambiosHelper.cs: arma "Campo: antes → después". Usado en Productos/Edit y Usuarios/Edit (bitácora de Actividad con valor anterior y nuevo).
+- tests/Kirkenta.Tests/SaldoMovimientosTests.cs: pruebas de SaldoHelper (aplicar, revertir, transferencia, apertura).
+- Ya existían: alertas en el inicio (CxC/CxP vencidas, CAI, stock bajo), registro público desactivado desde Program.cs, bloqueo de login por intentos.
+
+## Asientos automáticos (2026-10-25, 3ra tanda)
+- Helpers/Finanzas/AsientoAutomaticoHelper.cs: genera asientos de partida doble desde MovimientoFinanciero (Referencia "MOV:{id}", Numero "AUT-0000123").
+  Ingreso: Debe cuenta financiera / Haber categoría. Egreso: Debe categoría / Haber cuenta financiera. Transferencia: Debe destino / Haber origen. Apertura: Debe cuenta / Haber 3.1.01. Solo-contable (5.1.01): contrapartida 1.1.03.001.
+  Cuenta financiera -> plan: CuentaFinanciera.CuentaContable, o 1.1.01.001 (Caja) / 1.1.01.004 (Banco) / 1.1.02.001 (CxC). Categoría -> PlanCuentaId, o 4.2.02 / 6.3.02.
+  Idempotente: si el movimiento cambia monto/fecha reemplaza el asiento; si se anula, anula el asiento.
+- Se ejecuta: al arrancar (tarea AsientosAutomaticos), al abrir Libro diario/Mayor/Balanza (máx. 1 vez por minuto) y con el botón "Generar asientos automáticos" en Finanzas > Asientos.
+- tests/Kirkenta.Tests/AsientoAutomaticoTests.cs.
+- Ya existían (no se rehicieron): importación masiva (Productos/Clientes/Proveedores/Categorías/Impuestos/Unidades) y exportaciones CSV/Excel.
+- (Resuelto en la 4ta tanda: EmpresaActual y primer servicio. Ver abajo.)
+
+## Cuarta tanda (2026-10-25): empresa, paginación, seguridad, servicios
+- Helpers/EmpresaActual.cs: UN solo punto para el EmpresaId (claim "EmpresaId" -> variable KIRKENTA_EMPRESA_ID -> 1). Reemplaza los ~48 `EmpresaId = 1` fijos y los 24 defaults de modelos. Middleware en Program.cs lo fija por petición. Sigue siendo UNA empresa: para multi-empresa real faltaría la tabla Empresa/Sucursal, el claim al iniciar sesión y filtrar consultas por EmpresaId (no hecho).
+- Paginación (PagerInfo + _Pager, 50 por página) y totales/KPIs en la base de datos en: Pedidos (filtro del lado del servidor), Devoluciones, Devoluciones proveedor, Pagos proveedor (filtro Q y proveedor), Logística Envíos (KPIs con GroupBy/Count), Finanzas Cierres y Aperturas. Cobros ya no carga todas las facturas/clientes.
+- Búsqueda global: Pages/Buscar (clientes, productos, proveedores, facturas, ventas, pedidos; respeta permisos). Caja en la barra superior y atajo Ctrl+K.
+- POS: F2 buscar producto, F4 cliente, F9 cobrar, Esc cierra el cobro; Enter en el buscador agrega si hay una sola coincidencia o código/SKU exacto (lector de barras). Ahora también busca por código de barras.
+- Auditoría con antes/después: Roles (permisos modificados), Configuración de empresa (CAI, rangos, RTN...), Plan de cuentas, Impuestos.
+- Plan de cuentas blindado (Helpers/Finanzas/PlanCuentaProteccion.cs): no se cambia código/tipo ni se borra una cuenta que el sistema usa, que tiene asientos, hijos o está ligada a caja/banco/categorías.
+- Impuestos: no se borra ni desactiva el predeterminado (el ISV saldría en 0); porcentaje 0-100. Métodos de pago: no se borran si tienen pagos a proveedor. Productos: no se borran con kardex/producción/calidad/toma física. Usuarios: no se borran con movimientos, pagos o cierres/aperturas.
+- Helpers/PasswordPolicy.cs: contraseñas nuevas >= 8, letra + número, no común, no igual al usuario (Crear/Editar usuario y Cambiar contraseña).
+- Rate limit del seguimiento público /Logistica/Tracking: 30 consultas por minuto por IP.
+- tools/respaldo-bd.ps1 ahora VERIFICA el volcado (tamaño, "Dump completed", >=5 tablas, zip no vacío) y acepta -ArchivoOpciones (.cnf). tools/programar-respaldo.ps1 crea la tarea diaria de Windows (guarda usuario/clave en C:\Kirkenta-secretos, fuera del proyecto).
+- Servicios: Services/PagoProveedorService.cs (primer flujo sacado de la página: valida, descuenta el saldo con UPDATE atómico, genera el egreso, todo en una transacción). Pages/PagosProveedor/Create solo valida permisos y muestra el resultado. Los demás flujos de dinero ya vivían en Helpers/ (Anulación, Devoluciones, Cierres, Distribución, MovimientoManual...); el resto de páginas se pasan a servicio de a poco con el mismo patrón.
+- Depreciación: Helpers/Finanzas/DepreciacionHelper.cs (cálculo testeado).
+- Nómina/Details: ya no se cae si hubiera dos pagos del mismo detalle.
+- Pruebas nuevas: InventarioKardexTests, DepreciacionTests, SeguridadYProteccionTests (PasswordPolicy + PlanCuentaProteccion), PagoProveedorServiceTests.
+- Controles de concurrencia: Producto ya tenía RowVersion; el saldo de la orden de compra ahora se descuenta con UPDATE condicional. Saldos de cuentas financieras siguen dentro de transacción sin token (agregar un RowVersion requiere migración).
+
+## Quinta tanda: tema claro/oscuro y pulido minimalista
+- Todo usuario (cualquier rol) elige tema en Configuración > Apariencia (Pages/Configuracion/Apariencia.cshtml) o con el botón sol/luna de la barra superior. Opciones: claro (por defecto), oscuro, igual que mi equipo.
+- Preferencia guardada por cookie `kk_tema_u{userId}` (+ `kk_tema_last` para Login/Tracking). Es por navegador/dispositivo; para sincronizar entre equipos haría falta una columna en BD (migración).
+- Helpers/TemaHelper.cs (Uid, Preferencia, Resuelto). Parciales Shared/_TemaHead (script temprano anti-parpadeo) y Shared/_TemaScripts (para el layout POS).
+- `<html data-pref data-theme data-bs-theme>` en _Layout, _LayoutPOS, Login, Register y Tracking. JS: `window.kkTema.guardar(pref)` y `window.kkCss(nombre)` (lee variables CSS para Chart.js). Si hay gráficas, la página recarga al cambiar de tema.
+- wwwroot/css/theme.css: tokens (`--color-*`, `--shadow-*`) en `:root` y override en `:root[data-theme="dark"]`. No usar colores hex fijos en vistas; usar `var(--color-...)`. Bloque final "PULIDO MINIMALISTA + TEMA": tablas aireadas, badges tipo pill, toasts, scrollbars, focus.
+- Alertas de éxito se convierten en toasts que se cierran solos.
+- Se arregló una línea suelta `using Kirkenta.Helpers;` al inicio de _Layout que se mostraba como texto.
+- Facturas/Carta y Facturas/Ticket quedan siempre claros (documentos de impresión).
+- tools/migrar-bd.ps1 reutiliza una migración ya creada en vez de fallar.
+
+## WhatsApp (enlaces wa.me)
+- Helpers/WhatsAppHelper.cs: Normalizar(telefono), Enlace(telefono, mensaje) y mensajes (factura, cotización, pedido, envío, cobranza, general). Usa los teléfonos ya guardados como "+504 9999-9999"; sin migración ni cuenta de Meta.
+- Parcial Shared/_WhatsAppBtn (record WhatsAppBtn). Botones en: Facturas/Details, Cotizaciones/Details, Pedidos/Details, Clientes/Index, Clientes/EstadoCuenta (cobranza), Reportes/CuentasPorCobrar (columna), Logistica/Envios/Details (teléfono de contacto del envío).
+- Si el teléfono no es válido el botón sale deshabilitado. Estilos `.btn-whatsapp` en theme.css (claro/oscuro).
+- Pendiente opcional: WhatsApp Business Cloud API (envío automático) requiere cuenta Meta, plantillas aprobadas y migración para token/bitácora.
+- Pruebas: tests/Kirkenta.Tests/WhatsAppHelperTests.cs.
+
+## Asistente del sistema (chat flotante)
+- Botón flotante en todas las pantallas (menos POS/Login) y pantalla /Asistente con el catálogo. Entiende español con un motor de reglas gratis y offline (Services/Asistente/AsistenteMotor.cs): normaliza texto, detecta fechas (hoy, ayer, esta semana, mes pasado, dd/mm/aaaa...), montos y la acción por frases con comodín (`vend*`).
+- Catálogo único: Services/Asistente/AsistenteCatalogo.cs. Para agregar una acción basta con añadir un AccionDef (frases, permiso, Ejecutar). Cubre Ventas, Inventario, Compras, Finanzas, RRHH, Logística, Seguridad y "abre <pantalla>" para navegar a cualquier módulo.
+- Permisos: cada acción valida con PermisoHelper (consultas: acceso al submódulo; operaciones: permiso crear/eliminar). 
+- Operaciones que cambian datos (cerrar caja, anular factura) piden datos que falten, muestran resumen y exigen contraseña (propia o de otro usuario con permiso, ej. admin). Token firmado con DataProtection, vence en 5 min, un solo uso; 5 intentos fallidos bloquean 10 min (Usuario.IntentosFallidos/BloqueadoHasta). Usan los helpers existentes (CierreHelper, DistribucionHelper, AnulacionFacturaHelper). Información sensible (nómina) también pide contraseña. Todo queda en ActividadUsuario.
+- Reportes salen en tabla con botones Imprimir/PDF (ventana de impresión del navegador) y CSV; sin dependencias externas.
+- IA OPCIONAL (apagada por defecto): Services/Asistente/AsistenteIA.cs usa cualquier endpoint compatible con OpenAI/Ollama. Se configura (solo Admin) en Configuración > Asistente con IA (Pages/Configuracion/AsistenteIA): presets Ollama/OpenAI/Groq/OpenRouter, botón Probar conexión. La config se guarda en App_Data/asistente-ia.json (clave de API protegida con DataProtection; NO subir a git, agregar App_Data/ al .gitignore) vía AsistenteIAConfigStore (singleton). Respaldo: claves `Asistente:IA:Url/Modelo/ApiKey` de configuración. Solo recibe el texto del usuario y la lista de acciones (nunca datos); se usa solo cuando las reglas no entienden.
+- Sin migración. Pruebas: tests/Kirkenta.Tests/AsistenteMotorTests.cs (incluye una que verifica que cada ejemplo del catálogo lleve a su propia acción).
+- Acciones extra en Services/Asistente/AsistenteCatalogoExtra.cs (partial del catálogo): estado de rutas, envíos entregados/fallidos, estado de un envío, repartidores, mejores clientes, cotizaciones por vencer, devoluciones, bajas, órdenes de compra por recibir, permisos por aprobar, usuarios bloqueados y "qué tengo pendiente" (panorama de todos los módulos).
+- Informe por método de pago (Helpers/Finanzas/InformeMetodosPagoHelper.cs + Pages/Finanzas/Cierres/Informe): cobros reales (tabla Pagos) agrupados por método (efectivo, tarjeta, transferencia y cualquier MetodoPago activo), ventas contado vs crédito, saldo de crédito por cobrar y salidas (egresos) por forma de pago. Filtros tipo chip (Todos / cada método / Crédito) y vista en tarjetas con detalle imprimible. Se abre desde Cierres/Details (rango apertura→cierre) y Cierres/Index (cualquier período). Asistente: acción `informe_metodos` ("ventas en efectivo de hoy", "cobros por transferencia de la semana"); al cerrar caja desde el asistente se ofrece el enlace al informe.
+- Flexibilidad del asistente: el motor tolera 1 letra de error en las palabras clave (AsistenteMotor.TokenCoincide/Distancia) y hay más sinónimos. IA: catálogo compacto (id: título) y respuesta JSON corta para modelos locales en CPU; diagnóstico del último intento en Configuración > Asistente con IA.
+- IMPORTANTE (.NET 10 + EF Core): en consultas LINQ a BD NO usar `new[] {..}.Contains(x)` (se enlaza a ReadOnlySpan y revienta); usar `List<string>`.
+- Informe por método de pago DINÁMICO: parcial Pages/Shared/_InformeMetodos + wwwroot/js/informe-metodos.js (+ css/informe-metodos.css). Pestañas Todo / cada método activo / Crédito que recalculan tarjetas, salidas y detalle sin recargar (todo con textContent). Se usa en Cierres/Informe, Cierres/Details, Cierres/Aprobar y como informe PREVIO dentro de Cierres/Create (handler `?handler=Previo`, calcula desde la apertura activa hasta ahora).
+- Cierres/Create: conteo opcional de vouchers/comprobantes por método (se guarda como texto en Notas, sin migración, límite 380 caracteres) y opción "Cerrar sin contar" que exige usuario+contraseña de un Admin (Helpers/AutorizacionHelper.VerificarAdmin, bloqueo tras 5 intentos); toma el efectivo esperado, omite distribuciones y deja la marca "[CIERRE SIN CONTEO FÍSICO, autorizado por X]" en las notas y en la bitácora.
+- Asistente abierto: decir solo la palabra de un tema lista datos (productos, clientes, proveedores, empleados con nombres, usuarios, categorías, facturas; ver Services/Asistente/AsistenteCatalogoListados.cs) y se puede filtrar agregando un nombre ("productos de limpieza"). Decir solo un módulo ("ventas", "finanzas", "rrhh", "inventario", "compras", "logística", "seguridad", "qué puedo hacer en ventas") muestra sus opciones + enlaces a sus pantallas (AsistenteMotor.ModuloMencionado + AsistenteService.MenuModulo). Si no entiende, ofrece los módulos como botones.
+
+## Mejoras de gestión (2026-10-25, noche)
+- **Recordatorios de cobro por WhatsApp**: `Pages/Finanzas/Cobros/Recordatorios` (un renglón por cliente, mensaje formal `WhatsAppHelper.MensajeCobranza`, botón "Enviar al siguiente cliente"). Cada envío queda en `ActividadUsuario` con Accion "Recordatorio de cobro" y Detalle `cli:{id}|{nombre}|L. saldo` (de ahí sale "último aviso"; sin tablas nuevas). Usa el permiso Finanzas/Cobros. Botón desde Cobros/Index y acceso rápido en el inicio.
+- **Respaldo**: `Helpers/RespaldoEstado` lee `respaldos/*.zip` (>=512 bytes) y avisa si el último tiene más de 36 h (danger a 3+ días). Alerta en el inicio y tarjeta en `Seguridad/Index` (solo con permiso Seguridad). `tools/probar-restauracion.ps1` restaura el último zip en la BD temporal `kirkenta_prueba_restore`, compara tablas y filas clave contra la real y la borra.
+- **Sugerencia de compras**: `Helpers/SugerenciaComprasHelper` (sugerido = venta diaria × días a cubrir + mínimo − stock − en camino; proveedor y costo de la última OC) y página `Pages/Compras/Sugerencias` (permiso Compras/Ordenes).
+- **Panel del dueño**: `Pages/Reportes/PanelDueno` (permiso Reportes/Index): mes vs mes pasado al mismo día, utilidad bruta (DetalleVenta.Subtotal − CostoTotalLinea), ticket, por cobrar, inventario parado 60 días.
+- **Resumen diario por correo**: `Services/ResumenDiarioService` (HostedService, apagado hasta configurar). Config por variables de entorno o user-secrets (NO appsettings): `Correo__Host`, `Correo__Puerto` (587), `Correo__Ssl`, `Correo__Usuario`, `Correo__Clave`, `Correo__Desde`, `Correo__Destinatarios` (coma), `Correo__HoraResumen` (20:00). Contenido en `Helpers/ResumenNegocioHelper`.
+- **Asistente**: nuevas acciones en `AsistenteCatalogoNegocio.cs`: recordatorios_cobro, respaldo_estado, sugerencia_compras, panel_dueno y aprobaciones con contraseña (aprobar_vacaciones, aprobar_permiso, aprobar_vale; el vale respeta la doble aprobación de personas distintas). Seguimiento: si el mensaje no pide nada nuevo pero trae otra fecha ("¿y ayer?") o empieza con "y/solo" repite la última consulta (`ContextoCliente.UltimaAccion/UltimaParams`, `RespuestaAsistente.Seguimiento`, `ContinuarConsulta`). Al abrir el chat (una vez por sesión) avisa si hay pendientes; `pendientes` ahora incluye vacaciones, vales y respaldo.
+- **Motor**: la tolerancia a errores de escritura ahora exige prefijos de 6+ letras (con 5 "pendientes" coincidía con "vendi*") y una coincidencia exacta gana sobre una aproximada (`PuntuarDetalle`). Arregla empates de "vales pendientes", "vacaciones pendientes", "abre conciliación bancaria", "repartidores", "cuántos empleados hay".
+- **Ya existía y no se tocó**: CAI/SAR completo (FacturacionFiscalHelper, NC propia, alertas), auditoría con antes/después (CambiosHelper) y Seguridad/Auditoria, respaldo programado con verificación, Producto.RowVersion.
+- **No se hizo (requiere migración y compilar en tu máquina)**: RowVersion en el resto de tablas, conteo por método de pago del cierre en tabla propia, multi-sucursal.
+- **Respaldo completo del sistema** (tools/): `respaldo-completo.ps1` (BD verificada + wwwroot/uploads + App_Data + storage + imágenes + código + MANIFEST.json con SHA256, verifica el zip y copia a `-CopiaExterna` con rotación; appsettings solo con `-IncluirConfiguracion`), `restaurar-sistema.ps1` (revisa sin tocar; restaura código/archivos/BD; no pisa una BD con tablas salvo `-Reemplazar` + escribir RESTAURAR), `programar-respaldo-completo.ps1` (tarea semanal) y `LEEME-RECUPERACION.md` (pasos de recuperación en equipo nuevo). Scripts sin probar en la máquina real todavía.
+
+- **Respaldo/restauración dentro del sistema** (Admin): `Services/RespaldoSistemaService` crea un .zip (`manifest.json` + `data/<tabla>.jsonl` con tipos + `archivos/` de wwwroot/uploads, wwwroot/images y App_Data) en `respaldos/` (nombre `kirkenta-datos_*.zip`); verifica el zip. Restaurar: valida versión de migración, crea antes un respaldo `previo-restauracion`, borra e inserta todas las tablas en UNA transacción con FK desactivadas, compara conteos y revierte si algo no cuadra; si la BD está vacía ejecuta MigrateAsync. Página `Pages/Configuracion/Respaldos` (contraseña + escribir RESTAURAR, subir .zip, descargar). `RespaldoAutomaticoService`: diario 02:00, conserva 14 (`Respaldo:Automatico/Hora/Conservar/CopiaExterna`). Sin probar en la máquina real.
+- **Conteo por método en tabla propia**: `Models/CierreCajaConteo` (tabla `ConteosCierreCaja`, creada al arrancar por `EsquemaModulosNuevos`; si usas `dotnet ef migrations add` recuerda que la tabla ya existe). `Cierres/Create` guarda una fila por método (Efectivo + lo contado en pantalla: sistema, contado, diferencia) y `Cierres/Details` la muestra. Ya no se mete en Notas.
+- **Restaurar por módulo**: `RespaldoSistemaService.Grupos` (Clientes, Productos e inventario, Ventas, Compras, Finanzas, RRHH, Logística, Activos/producción, Usuarios/config) → `RestaurarAsync(ruta, soloTablas, archivos)`. Misma contraseña + escribir RESTAURAR; también hace respaldo previo.
+- **Aviso de fallo del respaldo**: `RespaldoEstado.RegistrarError/LimpiarError/LeerError/Avisar` (archivo `respaldos/ultimo-error-respaldo.txt`, se borra con el siguiente respaldo exitoso). Se muestra en el panel de inicio, Seguridad, página de Respaldos y asistente ("pendientes", "respaldo"); si `Correo:*` está configurado también manda correo (`RespaldoAutomaticoService`).
+- **Etiquetas de código de barras** (Inventario): `Helpers/CodigoBarrasHelper` (Code 128 propio → SVG, sin librerías; EAN-13 interno `CodigoInterno(id)` = "2"+Id(11 díg)+verificador), `Helpers/EtiquetasHelper` (formatos: rollos 50x25, 40x30, 60x40, 30x20 y hojas A4 de 21/24/65), páginas `Productos/Etiquetas` (elegir productos/cantidades, botón "Asignar códigos internos" a los que no tienen) y `Productos/EtiquetasImprimir` (hoja sin menús lista para imprimir). Si el producto no tiene CodigoBarras se usa el SKU. Link en menú Inventario y en Productos.
+- **Escáner con cámara en el POS**: `wwwroot/js/escaner-camara.js` (BarcodeDetector nativo; Chrome/Edge/Android; requiere https o localhost) + botón 📷 en el buscador del POS; reutiliza el Enter del buscador (igual que la pistola USB), escaneo continuo con pitido.
+- **Asistente de configuración inicial** (solo Admin): `Pages/Configuracion/Inicio` (5 pasos: empresa → SAR → caja/banco → categorías/unidades → lista de pendientes), `Helpers/ConfiguracionInicialHelper` (estado, parseo). Aviso en el inicio mientras falte empresa/caja/catálogo y link en Configuración. Impuestos y métodos de pago ya los siembran los seeders.
+
+- **Declaración mensual de ISV** (Reportes): `Helpers/DeclaracionISVHelper` (débito de ventas, crédito de compras recibidas, saldo a favor, retenciones), `Pages/Reportes/DeclaracionISV` (CSV incluido) y `LibroCompras`. Asistente: acción `isv_mes`.
+- **POS sin internet**: `wwwroot/sw.js` (service worker: caché de estáticos y de /POS y /Movil; no toca POST; borra páginas guardadas al cerrar sesión), `wwwroot/js/kirkenta-offline.js` (cola en IndexedDB `kirkenta-offline`, sincroniza al volver la red, aviso flotante con panel de pendientes/rechazadas), `wwwroot/offline.html`. El POS manda siempre un `offlineId` (GUID); el handler `RegistrarVenta` lo guarda en la tabla `VentasOffline` y si llega repetido devuelve la misma venta (sin duplicar). Requiere https o localhost.
+- **Panel móvil / app instalable**: `Pages/Movil/Index` (resumen del dueño, respeta permisos; Layout=null), `wwwroot/manifest.webmanifest` + `wwwroot/images/pwa/icon-*.png`; el manifiesto y el theme-color se enlazan desde `_Layout` y `_LayoutPOS`.
+- **Catálogo en línea**: página pública `/Catalogo` (AllowAnonymous en Program.cs; `wwwroot/js/catalogo.js`; solo existe si el Admin lo activa en Configuración → Catálogo en línea `Pages/Configuracion/Catalogo`). El pedido se guarda en `PedidosWeb` (precios recalculados en servidor con `CatalogoWebHelper`, antispam: campo trampa + máx. 5 pedidos/10 min por IP) y abre WhatsApp. Bandeja: `Pages/PedidosWeb/Index` (permiso Ventas/Pedidos). Tablas nuevas: `VentasOffline`, `CatalogoWebConfig`, `PedidosWeb` (creadas al arrancar por EsquemaModulosNuevos y incluidas en el respaldo).
+
+- **Foto de factura → orden de compra con IA**: se sube la foto de la factura del proveedor, la IA (Claude o Gemini; Groq es solo texto y no lee imágenes) extrae proveedor, productos, cantidades y costos y arma la orden de compra para revisar antes de guardar.
+- **Proveedores de IA** (`Pages/Configuracion/AsistenteIA`, `Services/Asistente/AsistenteIA.cs`, config en `App_Data/asistente-ia.json`, clave protegida con Data Protection): presets Anthropic, Gemini, Groq, OpenAI/OpenRouter. Botón "Ver modelos disponibles" (`ListarModelosAsync`, GET /models) para elegir un modelo que la clave sí pueda usar (un 404 `model_not_found` es permiso de la cuenta). "Probar conexión" recarga la página y vacía el campo de clave: pegar la clave y pulsar Guardar directo. Guardar exige clave si el proveedor es en la nube. La clave NUNCA se pega en el chat. `RespuestaAsistente.Origen` ("ia" | "ia-sin-respuesta" | "ia-apagada") → insignias en el chat (`asistente.js`).
+- **Pedidos web → POS**: en `Pages/PedidosWeb/Index` el botón "🛒 Cobrar en POS" aparece para todo pedido no Cancelado y no cobrado (las Notas contienen "Cobrado en POS" cuando ya se cobró, entonces muestra "✅ Ya cobrado"). `Pages/POS/Index.cshtml.cs` carga el pedido, y al vender lo marca Atendido (si no lo estaba) y lo marca cobrado.
+- **Asistente robusto** (`Services/Asistente/AsistenteLenguaje.cs`): antes de las reglas normaliza lenguaje coloquial (plata/pisto/lana→dinero, "al día", "cuánto llevamos", "qué se está acabando", "quién me debe", "a quién le debo", "pendientes"...). Además charla (saludos), "módulos" (`MenuModulos`) y sugerencias (máx. 3) cuando no entiende (`NoEntendi`). Orden: reglas → IA (solo si las reglas no entienden) → sugerencias. `asistente.js` colapsa los chips según el tamaño del panel (3/5/8) con "Ver N más ▾". Pruebas: `tests/Kirkenta.Tests/AsistenteLenguajeTests.cs`; verificación de acciones con `verifica_asistente.py` (scratchpad).
+- **Alerta de rango SAR**: `FacturacionFiscalHelper.AlertaRango` (peligro ≤10 números o agotado, aviso ≤50); se muestra en el inicio (`Pages/Index.cshtml.cs`) y en el panel móvil.
+- **Respaldo automático configurable**: `Services/RespaldoConfigStore` (`App_Data/respaldo-config.json`: Automatico, Hora, Conservar, CopiaExterna; estado de la última copia en `respaldo-copia-estado.json`; si no existe usa `Respaldo:*` de appsettings). `RespaldoAutomaticoService` lee la config en cada vuelta, evita repetir el respaldo del día, copia a la carpeta externa (USB/red, conserva los N últimos, nunca lanza) y avisa por correo si falla la copia. UI en `Configuracion/Respaldos` (tarjeta "⏰ Respaldo automático" + probar carpeta). Pruebas: `RespaldoConfigTests`.
+- **Impresión térmica ESC/POS + gaveta**: `Services/ImpresoraConfigStore` (`App_Data/impresora.json`: Modo ninguna|red|windows, Host/Puerto 9100, Impresora, Columnas 32/42/48, AbrirGaveta, Auto ninguno|venta|factura, Copias, Pie), `Helpers/TicketTermico.cs` (`EscPosBuilder`, CP858, limpia caracteres de control), `Services/ImpresoraTermicaService` (TCP 9100 con timeout 3 s o RAW de Windows vía winspool; prueba, gaveta, factura, venta, auto). Página `Configuracion/Impresora` (solo Admin), endpoint `Impresion/Directa` (POST Factura/Venta/Gaveta, JSON), `wwwroot/js/kirkenta-impresion.js` (`[data-imprimir-directo]`), botón "🖨️ Imprimir directo" en `Facturas/Details`. Impresión automática al cobrar en el POS y al emitir factura desde venta. Sin hardware probado aún. Pruebas: `ImpresoraTermicaTests`.
+- **Servidor local / HTTPS / arranque** (`tools/`, guía `tools/LEEME-SERVIDOR-LOCAL.md`): `https-local.ps1` (admin; certificado autofirmado con SAN, `certs/kirkenta-local.pfx/.cer`, `appsettings.Production.json` con Kestrel http://localhost:5114 y https://0.0.0.0:5115, regla de firewall), `instalar-arranque-automatico.ps1` (tarea programada "Kirkenta-Servidor" al iniciar sesión, `-Quitar` la elimina), `iniciar-servidor.cmd` (Production, log en `logs/servidor.log`). HTTPS es necesario porque `Seguridad:CookieSoloHttps=true` y para el POS offline/cámara desde otros equipos de la LAN; en cada equipo cliente hay que instalar el `.cer`.
+- **Pendiente / no implementado**: sincronización multi-sucursal offline, tablero del dueño ampliado, alertas sonoras internas. Nada de lo de esta sección se compiló en el entorno de desarrollo (sin dotnet): compilar y correr `dotnet test tests\Kirkenta.Tests`.
+
+- **Licencias de uso (sin internet)** (`Services/Licencia/`): `LicenciaFormato` (licencia `KRK1-<datos>.<firma>`, ECDSA P-256; compartido con la herramienta del emisor), `LicenciaClavePublica` (clave pública; VACÍA = licencias desactivadas, modo desarrollo), `LicenciaService` (singleton: carga/activa, `Evaluar` pura y probada, latido cada minuto, estado firmado con HMAC guardado en 4 lugares: `App_Data/licencia.dat`, ProgramData, LocalAppData y tabla `LicenciaEstado` en la BD) y `LicenciaMiddleware` (sin licencia válida todo redirige a `/Licencia`; peticiones no GET reciben 402). Reglas: licencia ligada al código de la PC (`XXXX-XXXX-XXXX-XXXX`, MachineGuid o `App_Data/instalacion.id` en contenedor) o `*`; la vigencia cuenta desde la activación (o desde `Inicio` si viene fijo); se guarda la fecha más avanzada vista y un retroceso de reloj >15 min bloquea hasta una licencia nueva; cada licencia trae `ActivarAntes` (demo 3 días, normal 30). Pantalla `Pages/Licencia/Index` (anónima solo si está bloqueado; con licencia solo ve/cambia el Admin), aviso de ≤7 días en `_Layout`, menú Configuración → 🔑 Licencia. Emisor: `tools/Licenciador` (+ `tools/licenciador.cmd`, guarda llave privada y licencias en `%USERPROFILE%\KirkentaLicencias`, fuera del proyecto). Planes: demo7/15/30, 6m, 1a, 3a, 5a, perpetua. Pruebas: `LicenciaTests`. Guía: `tools/LEEME-DOCKER-Y-LICENCIAS.md`.
+- **Instalación limpia**: al arrancar, si la BD está vacía `EnsureCreated()` crea las tablas del modelo y `InstalacionInicialHelper` crea el admin inicial (`Inicial:AdminUsuario/AdminClave`; si no hay clave se genera y queda en `App_Data/primer-acceso.txt`). Se puede apagar con `Mantenimiento:CrearEsquemaSiVacia=false`.
+- **Entrega sin código fuente**: `Dockerfile` (multi-stage; falla si falta la clave pública de licencias; vacía la cadena de conexión de appsettings; zona horaria America/Tegucigalpa; volúmenes App_Data, logs, respaldos, wwwroot/uploads), `docker-compose.yml` (MySQL 8 + sistema + perfil `https` con Caddy), `.env.example`, `Caddyfile`, `.dockerignore`; ejecutable Windows con `tools/publicar-ejecutable.ps1`. `Kirkenta.csproj` excluye `tools\**` de la compilación.
+- **Instalador Setup.exe (Windows)**: `instalador/kirkenta.iss` (Inno Setup 6) + `instalador/scripts/` (`instalar.ps1`: MySQL portable propio como servicio `KirkentaMySQL` puerto 3307 con claves aleatorias, crea BD/usuario, escribe `appsettings.Production.json`, tarea programada `Kirkenta-Servicio` como SYSTEM con `Iniciar-Servicio.cmd` que reinicia si se cae, regla de firewall 5114; `desinstalar.ps1` conserva los datos). Se genera con `tools/crear-instalador.ps1 -MySqlZip <zip> -Version x.y.z` (requiere Inno Setup, ZIP de MySQL 8.0 y opcional `vc_redist.x64.exe` en `instalador/recursos`). Sin probar en Windows al momento de escribirlo.
+- **Licencias cortas**: `LicenciaDatos.Minutos` (30 min, 1 h, 3 h, 12 h; llevan `Dias=1` para que una versión vieja nunca las tome como ilimitadas). Planes del licenciador: min30, hora1, horas3, horas12 (o `--minutos N`). Tolerancia de retroceso de reloj: 5 min.

@@ -21,9 +21,9 @@ namespace Kirkenta.Pages.Series
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Series", "eliminar"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para eliminar aquí";
                 return RedirectToPage("/Series/Index");
             }
 
@@ -42,9 +42,9 @@ namespace Kirkenta.Pages.Series
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Series", "eliminar"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para eliminar aquí";
                 return RedirectToPage("/Series/Index");
             }
 
@@ -52,6 +52,12 @@ namespace Kirkenta.Pages.Series
             if (serie == null)
             {
                 TempData["Error"] = "Serie no encontrada";
+                return RedirectToPage("/Series/Index");
+            }
+
+            if (serie.SiguienteNumero > 1)
+            {
+                TempData["Error"] = $"No se puede eliminar la serie '{serie.Nombre}': ya emitió documentos. Desactívala en su lugar.";
                 return RedirectToPage("/Series/Index");
             }
 

@@ -14,47 +14,237 @@
             Volver a ventas
         </a>
         <h2>Generar factura</h2>
-        <p>Número: <strong>@Model.NumeroPreview</strong></p>
+        <p>Número: <strong>@Model.NumeroPreview</strong>@if (Model.FiscalActiva) { <span style="margin-left:8px;font-size:12px;color:var(--color-success-text);background:var(--color-success-bg);border:1px solid var(--color-success-border);border-radius:10px;padding:2px 8px;">Fiscal (CAI)</span> }</p>
     </div>
 </div>
 
-<div class="module-card form-card">
+@if (!string.IsNullOrEmpty(Model.FiscalError))
+{
+    <div class="module-alert module-alert-error">@Model.FiscalError</div>
+}
+@if (!string.IsNullOrEmpty(Model.FiscalAdvertencia))
+{
+    <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">@Model.FiscalAdvertencia</div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        @TempData["Error"]
+    </div>
+}
+
+<div class="module-card form-card-wide">
     <form method="post" class="erp-form">
         <input type="hidden" asp-for="Input.VentaId" />
 
-        <div class="module-alert" style="background: var(--color-primary-soft); border: 1px solid #c7d2fe; color: var(--color-primary); margin: 0;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="16" x2="12" y2="12"/>
-                <line x1="12" y1="8" x2="12.01" y2="8"/>
+        <!-- ============================================ -->
+        <!-- AVISO PRINCIPAL                              -->
+        <!-- ============================================ -->
+        <div class="module-alert" style="background: var(--color-primary-soft); border: 1px solid var(--color-primary-border); color: var(--color-primary); margin: 0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; flex-shrink: 0;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
             </svg>
-            Se generará una factura a partir de la venta <strong>@Model.Venta.Numero</strong> por un total de <strong>L. @Model.Venta.Total.ToString("N2")</strong>
+            <div>
+                <strong>Vas a generar la factura de la venta @Model.Venta.Numero</strong>
+                <p style="margin: 4px 0 0 0; font-size: 12.5px;">
+                    La factura se creará con estado <strong>PAGADA</strong> (ya que fue cobrada en el POS) y se registrarán
+                    los movimientos financieros correspondientes.
+                </p>
+            </div>
         </div>
 
-        <div class="form-field">
-            <label>Cliente</label>
-            <input type="text" class="form-input" value="@(Model.Cliente?.Nombre ?? "Consumidor final")" readonly />
+        <!-- ============================================ -->
+        <!-- INFO DE LA VENTA                             -->
+        <!-- ============================================ -->
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Datos de la venta</h3>
+
+        <div class="form-row" style="margin-top: 12px;">
+            <div>
+                <label class="empresa-info-label">Número de venta</label>
+                <p><strong style="font-family: monospace;">@Model.Venta.Numero</strong></p>
+            </div>
+            <div>
+                <label class="empresa-info-label">Fecha de venta</label>
+                <p>@Model.Venta.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
+            </div>
         </div>
 
-        <div class="form-field">
-            <label>Fecha de vencimiento</label>
-            <input asp-for="Input.FechaVencimiento" type="date" class="form-input" value="@DateTime.Now.AddDays(30).ToString("yyyy-MM-dd")" />
+        <div class="form-row" style="margin-top: 12px;">
+            <div>
+                <label class="empresa-info-label">Cliente</label>
+                <p><strong>@(Model.Cliente?.Nombre ?? "Consumidor final")</strong></p>
+                @if (!string.IsNullOrEmpty(Model.Cliente?.RTN))
+                {
+                    <p class="table-user-sub">RTN: @Model.Cliente.RTN</p>
+                }
+            </div>
+            <div>
+                <label class="empresa-info-label">Estado</label>
+                <p>
+                    @if (Model.Venta.Estado == "Completada")
+                    {
+                        <span class="badge badge-success">Completada</span>
+                    }
+                    else
+                    {
+                        <span class="badge">@Model.Venta.Estado</span>
+                    }
+                </p>
+            </div>
         </div>
 
-        <div class="form-field">
-            <label class="form-checkbox">
-                <input asp-for="Input.AnularVenta" type="checkbox" />
-                <span>Anular la venta original (recomendado si es el mismo documento)</span>
-            </label>
+        <!-- ============================================ -->
+        <!-- INFO DEL PAGO                                -->
+        <!-- ============================================ -->
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Información del pago</h3>
+
+        @if (Model.PagoVenta != null)
+        {
+            <div class="kpi-grid" style="margin: 12px 0 0 0;">
+                <div class="kpi-card">
+                    <span class="kpi-label">Método de pago</span>
+                    <span class="kpi-value" style="font-size: 18px;">
+                        @(Model.MetodoPagoVenta?.Nombre ?? "—")
+                    </span>
+                    @if (!string.IsNullOrEmpty(Model.MetodoPagoVenta?.Tipo))
+                    {
+                        <span class="kpi-trend">@Model.MetodoPagoVenta.Tipo</span>
+                    }
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">Monto total</span>
+                    <span class="kpi-value" style="font-size: 18px;">L. @Model.Venta.Total.ToString("N2")</span>
+                </div>
+                @if (Model.EsEfectivo)
+                {
+                    <div class="kpi-card">
+                        <span class="kpi-label">Monto recibido</span>
+                        <span class="kpi-value" style="font-size: 18px;">L. @Model.MontoRecibido.ToString("N2")</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">Cambio</span>
+                        <span class="kpi-value" style="font-size: 18px; color: @(Model.Cambio > 0 ? "var(--color-success)" : "var(--color-muted)");">
+                            L. @Model.Cambio.ToString("N2")
+                        </span>
+                    </div>
+                }
+                else
+                {
+                    <div class="kpi-card">
+                        <span class="kpi-label">Cobro en caja</span>
+                        <span class="kpi-value" style="font-size: 16px; color: var(--color-muted);">
+                            Sin movimiento de efectivo
+                        </span>
+                    </div>
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.PagoVenta.Referencia))
+            {
+                <div style="margin-top: 12px;">
+                    <label class="empresa-info-label">Referencia</label>
+                    <p style="font-family: monospace;">@Model.PagoVenta.Referencia</p>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="module-alert" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <strong>No se encontró un pago registrado para esta venta</strong>
+            </div>
+        }
+
+        <!-- ============================================ -->
+        <!-- RESUMEN DE MOVIMIENTOS A GENERAR             -->
+        <!-- ============================================ -->
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Movimientos financieros a registrar</h3>
+        <p class="form-section-desc">Estos movimientos se crearán automáticamente al confirmar la factura.</p>
+
+        <div class="totales-panel" style="max-width: 100%; margin-top: 12px;">
+            <div class="totales-row">
+                <span>Ingreso (entrada a caja):</span>
+                <strong style="color: var(--color-success);">
+                    + L. @((Model.EsEfectivo ? Model.MontoRecibido : Model.Venta.Total).ToString("N2"))
+                </strong>
+            </div>
+            @if (Model.EsEfectivo && Model.Cambio > 0)
+            {
+                <div class="totales-row">
+                    <span>Egreso por cambio (salida de caja):</span>
+                    <strong style="color: var(--color-danger);">
+                        - L. @Model.Cambio.ToString("N2")
+                    </strong>
+                </div>
+                <div class="totales-row" style="border-top: 1px solid var(--color-border); padding-top: 8px; margin-top: 8px;">
+                    <span style="font-weight: 700;">Efecto neto en caja:</span>
+                    <strong>L. @((Model.MontoRecibido - Model.Cambio).ToString("N2"))</strong>
+                </div>
+            }
+            else if (!Model.EsEfectivo)
+            {
+                <div class="totales-row">
+                    <span>Egreso por cambio:</span>
+                    <strong class="table-user-sub">No aplica (pago sin efectivo)</strong>
+                </div>
+            }
+        </div>
+
+        <!-- ============================================ -->
+        <!-- FECHA DE VENCIMIENTO                         -->
+        <!-- ============================================ -->
+        <div class="form-divider"></div>
+        <h3 class="form-section-title">Datos de la factura</h3>
+
+        <div class="form-field" style="margin-top: 12px;">
+            <label asp-for="Input.FechaVencimiento">Fecha de vencimiento</label>
+            <input asp-for="Input.FechaVencimiento" type="date" class="form-input" />
+            <small class="form-help">Opcional. Para facturas a crédito.</small>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- ADVERTENCIA FINAL                            -->
+        <!-- ============================================ -->
+        <div class="module-alert" style="background: var(--color-success-bg); border: 1px solid var(--color-success-border); color: var(--color-success-text); margin: 20px 0 0 0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <div>
+                <strong>Al confirmar:</strong>
+                <ul style="margin: 6px 0 0 16px; padding: 0; font-size: 12.5px;">
+                    <li>Se creará la factura con estado <strong>PAGADA</strong> y saldo L. 0.00</li>
+                    <li>Se ligará el pago de la venta a la factura</li>
+                    <li>Se registrará el <strong>ingreso</strong> en Finanzas</li>
+                    @if (Model.EsEfectivo && Model.Cambio > 0)
+                    {
+                        <li>Se registrará el <strong>egreso por cambio</strong> en Finanzas</li>
+                    }
+                    <li>La venta quedará marcada como "Registrada en Finanzas"</li>
+                </ul>
+            </div>
         </div>
 
         <div class="form-actions">
-            <a asp-page="/Ventas/Index" class="btn-secondary">Cancelar</a>
-            <button type="submit" class="btn-primary">
+            <a asp-page="/POS/Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary" style="background: var(--color-success);" disabled="@(!string.IsNullOrEmpty(Model.FiscalError))">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                     <polyline points="20 6 9 17 4 12"/>
                 </svg>
-                Generar factura
+                Confirmar facturación
             </button>
         </div>
     </form>

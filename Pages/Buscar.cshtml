@@ -1,0 +1,63 @@
+@page
+@model Kirkenta.Pages.BuscarModel
+@{
+    ViewData["Title"] = "Buscar";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Búsqueda</h2>
+        <p>Clientes, productos, proveedores, facturas, ventas y pedidos en un solo lugar</p>
+    </div>
+</div>
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" name="Q" value="@Model.Q" placeholder="Nombre, RTN, teléfono, SKU, código de barras o número de documento..." autofocus />
+        </div>
+        <div class="filter-group">
+            <button type="submit" class="btn-primary">Buscar</button>
+        </div>
+    </form>
+
+    @if (Model.BusquedaMuyCorta)
+    {
+        <div class="empty-state"><h3>Escribe al menos 2 letras</h3></div>
+    }
+    else if (string.IsNullOrWhiteSpace(Model.Q))
+    {
+        <div class="empty-state"><h3>¿Qué buscas?</h3><p>Tip: en cualquier pantalla presiona Ctrl+K para venir aquí</p></div>
+    }
+    else if (Model.Grupos.Count == 0)
+    {
+        <div class="empty-state"><h3>Sin resultados para "@Model.Q"</h3></div>
+    }
+    else
+    {
+        foreach (var g in Model.Grupos)
+        {
+            <div style="padding: 14px 16px 4px; display:flex; justify-content:space-between; align-items:center;">
+                <strong>@g.Nombre</strong>
+                <a href="@g.UrlVerTodos" class="btn-secondary">Ver todos</a>
+            </div>
+            <div class="table-wrapper">
+                <table class="erp-table">
+                    <tbody>
+                        @foreach (var r in g.Items)
+                        {
+                            <tr>
+                                <td><a href="@r.Url"><strong>@r.Titulo</strong></a></td>
+                                <td style="color: var(--color-text-muted);">@r.Detalle</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+</div>

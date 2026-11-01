@@ -170,6 +170,28 @@ namespace Kirkenta.Pages.OrdenesCompra
                 return Page();
             }
 
+            var estadosPermitidos = new List<string> { "Borrador", "Enviada", "Cancelada" };
+            if (!estadosPermitidos.Contains(Input.Estado ?? ""))
+            {
+                ModelState.AddModelError(string.Empty, "Estado no válido");
+                return Page();
+            }
+
+            if (!_context.Proveedores.Any(p => p.Id == Input.ProveedorId))
+            {
+                ModelState.AddModelError(string.Empty, "El proveedor no existe");
+                return Page();
+            }
+
+            var errLineas = LineasDocumentoHelper.Validar(_context, items
+                .Select(i => new LineasDocumentoHelper.Linea(i.ProductoId, i.Cantidad, i.PrecioUnitario, i.Descuento, i.ImpuestoPorcentaje))
+                .ToList(), soloActivos: false);
+            if (errLineas != null)
+            {
+                ModelState.AddModelError(string.Empty, errLineas);
+                return Page();
+            }
+
             _context.DetalleOrdenesCompra.RemoveRange(detallesViejos);
 
             decimal subtotal = 0, descuentoTotal = 0, impuestos = 0, total = 0;
@@ -207,7 +229,7 @@ namespace Kirkenta.Pages.OrdenesCompra
             orden.MonedaId = Input.MonedaId;
             orden.TipoCambio = moneda?.TipoCambio ?? 1;
             orden.FechaEntregaEstimada = Input.FechaEntregaEstimada;
-            orden.Estado = Input.Estado;
+            orden.Estado = Input.Estado ?? "Borrador";
             orden.Notas = Input.Notas;
             orden.Subtotal = subtotal;
             orden.Descuento = descuentoTotal;

@@ -89,12 +89,12 @@
     </div>
     <div class="kpi-card">
         <span class="kpi-label">Entregados</span>
-        <span class="kpi-value" style="color: #10b981;">@Model.TotalEntregados</span>
+        <span class="kpi-value" style="color: var(--color-success);">@Model.TotalEntregados</span>
         <span class="kpi-trend up">Tasa de éxito: @Model.TasaExito.ToString("N1")%</span>
     </div>
     <div class="kpi-card">
         <span class="kpi-label">Fallidos</span>
-        <span class="kpi-value" style="color: #ef4444;">@Model.TotalFallidos</span>
+        <span class="kpi-value" style="color: var(--color-danger);">@Model.TotalFallidos</span>
         <span class="kpi-trend down">Tasa de fallo: @Model.TasaFallo.ToString("N1")%</span>
     </div>
     <div class="kpi-card">
@@ -241,12 +241,12 @@
                             </td>
                             <td style="text-align: right;"><strong>@r.TotalEnvios</strong></td>
                             <td style="text-align: right;">
-                                <span style="color: #10b981; font-weight: 600;">@r.Entregados</span>
+                                <span style="color: var(--color-success); font-weight: 600;">@r.Entregados</span>
                             </td>
                             <td style="text-align: right;">
                                 @if (r.Fallidos > 0)
                                 {
-                                    <span style="color: #ef4444; font-weight: 600;">@r.Fallidos</span>
+                                    <span style="color: var(--color-danger); font-weight: 600;">@r.Fallidos</span>
                                 }
                                 else
                                 {
@@ -339,12 +339,12 @@
                             <td><strong>@z.Nombre</strong></td>
                             <td style="text-align: right;"><strong>@z.TotalEnvios</strong></td>
                             <td style="text-align: right;">
-                                <span style="color: #10b981; font-weight: 600;">@z.Entregados</span>
+                                <span style="color: var(--color-success); font-weight: 600;">@z.Entregados</span>
                             </td>
                             <td style="text-align: right;">
                                 @if (z.Fallidos > 0)
                                 {
-                                    <span style="color: #ef4444; font-weight: 600;">@z.Fallidos</span>
+                                    <span style="color: var(--color-danger); font-weight: 600;">@z.Fallidos</span>
                                 }
                                 else
                                 {
@@ -425,12 +425,12 @@
                             <td>@r.Fecha.ToString("dd/MM/yyyy")</td>
                             <td style="text-align: right;">@r.TotalParadas</td>
                             <td style="text-align: right;">
-                                <span style="color: #10b981; font-weight: 600;">@r.Entregadas</span>
+                                <span style="color: var(--color-success); font-weight: 600;">@r.Entregadas</span>
                             </td>
                             <td style="text-align: right;">
                                 @if (r.Fallidas > 0)
                                 {
-                                    <span style="color: #ef4444; font-weight: 600;">@r.Fallidas</span>
+                                    <span style="color: var(--color-danger); font-weight: 600;">@r.Fallidas</span>
                                 }
                                 else
                                 {
@@ -453,13 +453,13 @@
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="/lib/chartjs/chart.umd.min.js"></script>
     <script>
         (function () {
             // Configuración global de Chart.js
             Chart.defaults.font.family = "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
             Chart.defaults.font.size = 12;
-            Chart.defaults.color = '#6b7280';
+            Chart.defaults.color = kkCss('--color-muted');
 
             // ============================================
             // Gráfico 1: Envíos por zona (doughnut)
@@ -469,6 +469,7 @@
                 var dataZona = @Html.Raw(Model.EnviosPorZonaJson);
 
                 if (dataZona && dataZona.labels && dataZona.labels.length > 0) {
+                    if (window.Chart) { Chart.defaults.color = kkCss('--color-muted'); Chart.defaults.borderColor = kkCss('--color-border'); }
                     new Chart(canvasZona, {
                         type: 'doughnut',
                         data: {
@@ -477,7 +478,7 @@
                                 data: dataZona.data,
                                 backgroundColor: dataZona.colors,
                                 borderWidth: 2,
-                                borderColor: '#ffffff'
+                                borderColor: kkCss('--color-surface')
                             }]
                         },
                         options: {
@@ -553,7 +554,7 @@
                                     stacked: true,
                                     beginAtZero: true,
                                     ticks: { precision: 0 },
-                                    grid: { color: '#f3f4f6' }
+                                    grid: { color: kkCss('--color-border') }
                                 },
                                 y: {
                                     stacked: true,

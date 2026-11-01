@@ -1,5 +1,6 @@
 using Kirkenta.Data;
 using Kirkenta.Helpers;
+using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -120,11 +121,23 @@ namespace Kirkenta.Pages.Finanzas.Cuentas
                 Activa = Input.Activa,
                 FechaCreacion = DateTime.Now,
                 UsuarioCreoId = currentUser?.Id,
-                EmpresaId = 1
+                EmpresaId = EmpresaActual.Id
             };
 
             _context.CuentasFinancieras.Add(cuenta);
             _context.SaveChanges();
+
+            // ✅ NUEVO: registrar movimiento de apertura si hay saldo inicial
+            if (cuenta.SaldoInicial > 0 && cuenta.Subtipo != "CuentasPorCobrar")
+            {
+                var (mov, aperturaError) = AperturaCuentaHelper.RegistrarApertura(
+                    _context, cuenta.Id, currentUser?.Id ?? 1);
+
+                if (aperturaError != null)
+                {
+                    TempData["Warning"] = $"Cuenta creada, pero no se pudo registrar la apertura contable: {aperturaError}";
+                }
+            }
 
             ActividadHelper.Registrar(
                 _context,

@@ -104,6 +104,11 @@ namespace Kirkenta.Pages.RRHH.Vales
                 }
                 else if (vale.Estado == "AprobadoGerente")
                 {
+                    if (currentRol != "Admin" && vale.AprobadoPorGerenteId == currentUser?.Id)
+                    {
+                        TempData["Error"] = "La segunda aprobación debe hacerla otra persona distinta a quien dio la primera";
+                        return RedirectToPage("/RRHH/Vales/Index");
+                    }
                     vale.Estado = "AprobadoRRHH";
                     vale.AprobadoPorRRHHId = currentUser?.Id;
                     vale.FechaAprobacionRRHH = DateTime.Now;

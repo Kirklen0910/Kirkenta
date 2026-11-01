@@ -1,0 +1,109 @@
+@page
+@model Kirkenta.Pages.Reportes.ProductosVendidosModel
+@{
+    ViewData["Title"] = "Productos vendidos";
+    string D(DateTime? d) => d?.ToString("yyyy-MM-dd") ?? "";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Reportes/Index" class="back-link">← Volver a reportes</a>
+        <h2>Productos más y menos vendidos</h2>
+        <p>Del @Model.Desde?.ToString("dd/MM/yyyy") al @Model.Hasta?.ToString("dd/MM/yyyy"). Ingresos sin ISV ni envío. Haz clic en un producto para ver todas sus ventas, clientes y facturas.</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Reportes/ProductosVendidos" asp-page-handler="Csv"
+           asp-route-desde="@D(Model.Desde)" asp-route-hasta="@D(Model.Hasta)" asp-route-categoriaId="@Model.CategoriaId"
+           asp-route-buscar="@Model.Buscar" asp-route-orden="@Model.Orden" asp-route-incluirSinVentas="@Model.IncluirSinVentas"
+           class="btn-secondary">Exportar CSV</a>
+        <button type="button" class="btn-secondary" onclick="window.print()">Imprimir</button>
+    </div>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">@TempData["Error"]</div>
+}
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card"><span class="kpi-label">Productos vendidos</span><span class="kpi-value">@Model.ProductosConVentas</span></div>
+    <div class="kpi-card"><span class="kpi-label">Unidades</span><span class="kpi-value">@Model.TotalUnidades.ToString("0.##")</span></div>
+    <div class="kpi-card"><span class="kpi-label">Ingresos</span><span class="kpi-value">L. @Model.TotalIngresos.ToString("N2")</span></div>
+    <div class="kpi-card"><span class="kpi-label">Descuentos</span><span class="kpi-value">L. @Model.TotalDescuentos.ToString("N2")</span></div>
+    <div class="kpi-card"><span class="kpi-label">Utilidad</span>
+        <span class="kpi-value" style="color:@(Model.TotalUtilidad >= 0 ? "#065f46" : "#b91c1c");">L. @Model.TotalUtilidad.ToString("N2")</span></div>
+</div>
+
+<div class="module-card">
+    <form method="get" class="module-toolbar" style="gap:12px;flex-wrap:wrap;">
+        <div class="form-field"><label>Desde</label>
+            <input type="date" name="Desde" class="form-input" value="@D(Model.Desde)" /></div>
+        <div class="form-field"><label>Hasta</label>
+            <input type="date" name="Hasta" class="form-input" value="@D(Model.Hasta)" /></div>
+        <div class="form-field"><label>Categoría</label>
+            <select name="CategoriaId" class="form-input">
+                <option value="">Todas</option>
+                @foreach (var c in Model.Categorias)
+                {
+                    <option value="@c.Value" selected="@(Model.CategoriaId.ToString() == c.Value)">@c.Text</option>
+                }
+            </select></div>
+        <div class="form-field"><label>Producto / SKU</label>
+            <input type="text" name="Buscar" class="form-input" value="@Model.Buscar" /></div>
+        <div class="form-field"><label>Ordenar por</label>
+            <select name="Orden" class="form-input">
+                <option value="mas" selected="@(Model.Orden == "mas")">Más vendidos (unidades)</option>
+                <option value="menos" selected="@(Model.Orden == "menos")">Menos vendidos (unidades)</option>
+                <option value="ingresos" selected="@(Model.Orden == "ingresos")">Más ingresos</option>
+                <option value="utilidad" selected="@(Model.Orden == "utilidad")">Más utilidad</option>
+                <option value="descuentos" selected="@(Model.Orden == "descuentos")">Más descuentos</option>
+            </select></div>
+        <div class="form-field" style="align-self:flex-end;">
+            <label style="display:flex;gap:6px;align-items:center;">
+                <input type="checkbox" name="IncluirSinVentas" value="true" checked="@Model.IncluirSinVentas" /> Incluir sin ventas
+            </label>
+        </div>
+        <div class="form-field" style="align-self:flex-end;"><button type="submit" class="btn-primary">Filtrar</button></div>
+    </form>
+
+    <div class="table-wrapper">
+        <table class="erp-table">
+            <thead><tr>
+                <th>#</th><th>SKU</th><th>Producto</th><th>Categoría</th>
+                <th style="text-align:right;">Unidades</th><th style="text-align:right;">Ventas</th>
+                <th style="text-align:right;">Ingresos</th><th style="text-align:right;">% total</th>
+                <th style="text-align:right;">Descuentos</th><th style="text-align:right;">Costo</th>
+                <th style="text-align:right;">Utilidad</th><th style="text-align:right;">Margen</th>
+                <th style="text-align:right;">Devueltas</th><th>Última venta</th>
+            </tr></thead>
+            <tbody>
+            @if (!Model.Filas.Any())
+            {
+                <tr><td colspan="14" style="text-align:center;padding:24px;">Sin ventas de productos en este período</td></tr>
+            }
+            @{ var n = 0; }
+            @foreach (var f in Model.Filas)
+            {
+                n++;
+                <tr>
+                    <td>@n</td>
+                    <td>@f.SKU</td>
+                    <td><a asp-page="/Productos/Historial" asp-route-id="@f.ProductoId"
+                           asp-route-desde="@D(Model.Desde)" asp-route-hasta="@D(Model.Hasta)">@f.Nombre</a></td>
+                    <td>@f.Categoria</td>
+                    <td style="text-align:right;">@f.Unidades.ToString("0.##")</td>
+                    <td style="text-align:right;">@f.Ventas</td>
+                    <td style="text-align:right;">L. @f.Ingresos.ToString("N2")</td>
+                    <td style="text-align:right;">@f.PorcentajeIngresos.ToString("0.#")%</td>
+                    <td style="text-align:right;">@(f.Descuentos > 0 ? "L. " + f.Descuentos.ToString("N2") : "—")</td>
+                    <td style="text-align:right;">L. @f.Costo.ToString("N2")</td>
+                    <td style="text-align:right;color:@(f.Utilidad < 0 ? "#b91c1c" : "#065f46");">L. @f.Utilidad.ToString("N2")</td>
+                    <td style="text-align:right;">@(f.MargenPct.HasValue ? f.MargenPct.Value.ToString("0.#") + "%" : "—")</td>
+                    <td style="text-align:right;">@(f.Devueltas > 0 ? f.Devueltas.ToString("0.##") : "—")</td>
+                    <td>@(f.UltimaVenta.HasValue ? f.UltimaVenta.Value.ToString("dd/MM/yyyy") : "Nunca")</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

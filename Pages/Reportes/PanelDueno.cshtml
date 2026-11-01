@@ -1,0 +1,131 @@
+@page
+@model Kirkenta.Pages.Reportes.PanelDuenoModel
+@{
+    ViewData["Title"] = "Panel del dueño";
+    var sube = Model.VariacionPct >= 0;
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Panel del dueño</h2>
+        <p>Cómo va el negocio en @Model.MesActualTexto frente al mes pasado, al mismo día del mes.</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Reportes/Rentabilidad" class="btn-secondary">Rentabilidad por producto</a>
+        <a asp-page="/Compras/Sugerencias" class="btn-primary">Qué comprar</a>
+    </div>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Ventas del mes</span>
+        <span class="kpi-value">L. @Model.VentasMes.ToString("N2")</span>
+        <span class="kpi-trend @(sube ? "up" : "down")">@(sube ? "↑" : "↓") @Math.Abs(Model.VariacionPct)% vs mes pasado (L. @Model.VentasMesAnteriorMismoPeriodo.ToString("N2"))</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Utilidad bruta</span>
+        <span class="kpi-value" style="color: var(--color-primary);">L. @Model.UtilidadBruta.ToString("N2")</span>
+        <span class="kpi-trend">Margen @Model.MargenPct%</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Ticket promedio</span>
+        <span class="kpi-value">L. @Model.TicketPromedio.ToString("N2")</span>
+        <span class="kpi-trend">@Model.TransaccionesMes ventas</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Por cobrar</span>
+        <span class="kpi-value">L. @Model.PorCobrar.ToString("N2")</span>
+        <span class="kpi-trend down">@(Model.PorCobrarVencido > 0 ? "L. " + Model.PorCobrarVencido.ToString("N2") + " vencido" : "Nada vencido")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Inventario a costo</span>
+        <span class="kpi-value">L. @Model.ValorInventario.ToString("N2")</span>
+        <span class="kpi-trend down">L. @Model.CapitalParado.ToString("N2") parado (@Model.ProductosParados productos sin venta en 60 días)</span>
+    </div>
+</div>
+
+<div class="module-card" style="margin-bottom: 20px;">
+    <h3 style="margin-top:0;">Ventas acumuladas del mes</h3>
+    <div style="height: 300px;"><canvas id="chartAcumulado"></canvas></div>
+</div>
+
+<div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); align-items: start;">
+    <div class="module-card">
+        <h3 style="margin-top:0;">Productos que más dejan (utilidad)</h3>
+        @if (Model.TopUtilidad.Count == 0) { <p class="table-user-sub">Sin ventas este mes.</p> }
+        else
+        {
+            <table class="erp-table">
+                <thead><tr><th>Producto</th><th style="text-align:right;">Vendido</th><th style="text-align:right;">Utilidad</th></tr></thead>
+                <tbody>
+                @foreach (var f in Model.TopUtilidad)
+                {
+                    <tr><td>@f.Nombre</td><td style="text-align:right;">L. @f.Extra.ToString("N2")</td><td style="text-align:right;"><strong>L. @f.Valor.ToString("N2")</strong></td></tr>
+                }
+                </tbody>
+            </table>
+        }
+    </div>
+    <div class="module-card">
+        <h3 style="margin-top:0;">Mejores clientes del mes</h3>
+        @if (Model.TopClientes.Count == 0) { <p class="table-user-sub">Sin ventas a clientes registrados.</p> }
+        else
+        {
+            <table class="erp-table">
+                <thead><tr><th>Cliente</th><th style="text-align:right;">Compras</th><th style="text-align:right;">Total</th></tr></thead>
+                <tbody>
+                @foreach (var f in Model.TopClientes)
+                {
+                    <tr><td>@f.Nombre</td><td style="text-align:right;">@f.Extra.ToString("N0")</td><td style="text-align:right;"><strong>L. @f.Valor.ToString("N2")</strong></td></tr>
+                }
+                </tbody>
+            </table>
+        }
+    </div>
+    <div class="module-card">
+        <h3 style="margin-top:0;">Dinero parado en inventario</h3>
+        @if (Model.Parados.Count == 0) { <p class="table-user-sub">Todo el inventario con existencia tuvo ventas en los últimos 60 días. ✅</p> }
+        else
+        {
+            <table class="erp-table">
+                <thead><tr><th>Producto</th><th style="text-align:right;">Existencia</th><th style="text-align:right;">Costo</th></tr></thead>
+                <tbody>
+                @foreach (var f in Model.Parados)
+                {
+                    <tr><td>@f.Nombre</td><td style="text-align:right;">@f.Extra.ToString("N2")</td><td style="text-align:right;"><strong>L. @f.Valor.ToString("N2")</strong></td></tr>
+                }
+                </tbody>
+            </table>
+            <p class="table-user-sub" style="margin-top:8px;">Considera promoción o devolución al proveedor.</p>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script src="/lib/chartjs/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            var d = @Html.Raw(Model.GraficoJson);
+            var ctx = document.getElementById('chartAcumulado');
+            if (!ctx || !window.Chart) return;
+            Chart.defaults.color = kkCss('--color-muted');
+            Chart.defaults.borderColor = kkCss('--color-border');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: d.labels,
+                    datasets: [
+                        { label: 'Este mes', data: d.actual, borderColor: 'rgba(79,70,229,1)', backgroundColor: 'rgba(79,70,229,.12)', fill: true, tension: .25, pointRadius: 0, spanGaps: false },
+                        { label: 'Mes pasado', data: d.anterior, borderColor: 'rgba(148,163,184,1)', borderDash: [6, 4], tension: .25, pointRadius: 0, fill: false }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': L. ' + (c.parsed.y || 0).toLocaleString('es-HN', { minimumFractionDigits: 2 }); } } } },
+                    scales: { y: { beginAtZero: true, ticks: { callback: function (v) { return 'L. ' + v.toLocaleString(); } } } }
+                }
+            });
+        })();
+    </script>
+}

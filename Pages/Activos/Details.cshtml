@@ -1,0 +1,139 @@
+@page "{id:int}"
+@model Kirkenta.Pages.Activos.DetailsModel
+@{
+    ViewData["Title"] = $"Activo {Model.Activo.Codigo}";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Activos/Index" class="back-link">← Volver a activos</a>
+        <h2>@Model.Activo.Codigo — @Model.Activo.Nombre</h2>
+        <p>@Model.Activo.Categoria · adquirido el @Model.Activo.FechaAdquisicion.ToString("dd/MM/yyyy")</p>
+    </div>
+    <div class="module-header-right">
+        @if (Model.PuedeEditar && Model.Activo.Estado == "Activo")
+        {
+            <a asp-page="/Activos/Edit" asp-route-id="@Model.Activo.Id" class="btn-secondary">Editar</a>
+        }
+        <a asp-page="/Activos/Mantenimiento" asp-route-ActivoId="@Model.Activo.Id" class="btn-secondary">Mantenimiento</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Costo de adquisición</span>
+        <span class="kpi-value">L. @Model.Activo.CostoAdquisicion.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Depreciación acumulada</span>
+        <span class="kpi-value" style="color: var(--color-warning);">L. @Model.Activo.DepreciacionAcumulada.ToString("N2")</span>
+        <span class="kpi-trend">@Model.MesesDepreciados de @Model.Activo.VidaUtilMeses meses</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Valor en libros</span>
+        <span class="kpi-value" style="color: var(--color-success);">L. @Model.Activo.ValorEnLibros.ToString("N2")</span>
+        <span class="kpi-trend">Residual: L. @Model.Activo.ValorResidual.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Depreciación mensual</span>
+        <span class="kpi-value">L. @Model.Activo.DepreciacionMensual.ToString("N2")</span>
+        <span class="kpi-trend">Línea recta</span>
+    </div>
+</div>
+
+<div class="module-card" style="padding: 24px; margin-bottom: 20px;">
+    <h3 class="form-section-title">Datos del activo</h3>
+    <div class="form-row" style="margin-top: 12px;">
+        <div><label class="empresa-info-label">Estado</label>
+            <p><span class="badge @(Model.Activo.Estado == "Activo" ? "badge-success" : "badge-danger")">@(Model.Activo.Estado == "Activo" ? "Activo" : "Dado de baja")</span></p></div>
+        <div><label class="empresa-info-label">Ubicación</label><p>@(Model.Activo.Ubicacion ?? "—")</p></div>
+    </div>
+    <div class="form-row" style="margin-top: 12px;">
+        <div><label class="empresa-info-label">Responsable</label><p>@(Model.Activo.Responsable ?? "—")</p></div>
+        <div><label class="empresa-info-label">Número de serie</label><p>@(Model.Activo.NumeroSerie ?? "—")</p></div>
+    </div>
+    @if (!string.IsNullOrEmpty(Model.Activo.Descripcion))
+    {
+        <div style="margin-top: 12px;"><label class="empresa-info-label">Descripción</label><p>@Model.Activo.Descripcion</p></div>
+    }
+    @if (Model.Activo.Estado == "Baja")
+    {
+        <div class="module-alert module-alert-warning" style="margin-top: 16px;">
+            Dado de baja el @Model.Activo.FechaBaja?.ToString("dd/MM/yyyy"): @Model.Activo.MotivoBaja
+        </div>
+    }
+</div>
+
+@if (Model.PuedeDarBaja && Model.Activo.Estado == "Activo")
+{
+    <div class="module-card" style="padding: 24px; margin-bottom: 20px;">
+        <h3 class="form-section-title">Dar de baja</h3>
+        <form method="post" asp-page-handler="Baja" asp-route-id="@Model.Activo.Id" class="erp-form"
+              onsubmit="return confirm('¿Dar de baja este activo? Dejará de depreciarse.');">
+            <div class="form-field">
+                <label>Motivo *</label>
+                <input name="MotivoBaja" class="form-input" maxlength="300" placeholder="Obsoleto, vendido, dañado, robado..." required />
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn-primary" style="background: var(--color-danger);">Dar de baja</button>
+            </div>
+        </form>
+    </div>
+}
+
+<div class="module-card" style="margin-bottom: 20px;">
+    <div style="padding: 16px 20px; font-weight: 600;">Historial de depreciación</div>
+    @if (Model.Depreciaciones.Count == 0)
+    {
+        <div class="empty-state"><h3>Sin depreciaciones registradas</h3></div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Período</th><th style="text-align:right;">Monto</th><th>Registrada</th></tr></thead>
+                <tbody>
+                    @foreach (var d in Model.Depreciaciones)
+                    {
+                        <tr>
+                            <td>@d.Mes.ToString("D2")/@d.Anio</td>
+                            <td style="text-align:right;">L. @d.Monto.ToString("N2")</td>
+                            <td>@d.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="module-card">
+    <div style="padding: 16px 20px; font-weight: 600;">Mantenimientos</div>
+    @if (Model.Mantenimientos.Count == 0)
+    {
+        <div class="empty-state"><h3>Sin mantenimientos registrados</h3></div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th style="text-align:right;">Costo</th><th>Estado</th></tr></thead>
+                <tbody>
+                    @foreach (var m in Model.Mantenimientos)
+                    {
+                        <tr>
+                            <td>@m.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@m.Tipo</td>
+                            <td>@m.Descripcion</td>
+                            <td style="text-align:right;">L. @m.Costo.ToString("N2")</td>
+                            <td>@m.Estado</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

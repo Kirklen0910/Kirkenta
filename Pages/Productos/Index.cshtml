@@ -1,4 +1,4 @@
-@page
+﻿@page
 @model Kirkenta.Pages.Productos.IndexModel
 @{
     ViewData["Title"] = "Productos";
@@ -42,6 +42,8 @@
                 Exportar
             </button>
         }
+        <a asp-page="/Productos/Kardex" class="btn-secondary">Kardex</a>
+        <a asp-page="/Productos/Etiquetas" class="btn-secondary">🏷️ Etiquetas</a>
         <a asp-page="/Categorias/Index" class="btn-secondary">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
                 <rect x="3" y="3" width="7" height="7"/>
@@ -55,35 +57,35 @@
 </div>
 
 <div class="module-card">
-    <div class="module-toolbar">
+    <form method="get" class="module-toolbar">
         <div class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input type="text" id="searchInput" placeholder="Buscar por nombre, SKU o código de barras..." />
+            <input type="text" id="searchInput" data-escaner="enviar" name="Q" value="@Model.Q" placeholder="Buscar por nombre, SKU o código de barras..." />
         </div>
         <div class="filter-group">
-            <select id="filterCategoria" class="filter-select">
+            <select id="filterCategoria" name="CategoriaId" class="filter-select" onchange="this.form.submit()">
                 <option value="">Todas las categorías</option>
                 @foreach (var cat in Model.Categorias)
                 {
-                    <option value="@cat.Id">@cat.Nombre</option>
+                    <option value="@cat.Id" selected="@(Model.CategoriaId == cat.Id)">@cat.Nombre</option>
                 }
             </select>
-            <select id="filterStock" class="filter-select">
+            <select id="filterStock" name="Stock" class="filter-select" onchange="this.form.submit()">
                 <option value="">Todo el stock</option>
-                <option value="bajo">Stock bajo</option>
-                <option value="agotado">Agotados</option>
-                <option value="disponible">Disponibles</option>
+                <option value="bajo" selected="@(Model.Stock == "bajo")">Stock bajo</option>
+                <option value="agotado" selected="@(Model.Stock == "agotado")">Agotados</option>
+                <option value="disponible" selected="@(Model.Stock == "disponible")">Disponibles</option>
             </select>
-            <select id="filterEstado" class="filter-select">
+            <select id="filterEstado" name="Estado" class="filter-select" onchange="this.form.submit()">
                 <option value="">Todos</option>
-                <option value="activo">Activos</option>
-                <option value="inactivo">Inactivos</option>
+                <option value="activo" selected="@(Model.Estado == "activo")">Activos</option>
+                <option value="inactivo" selected="@(Model.Estado == "inactivo")">Inactivos</option>
             </select>
         </div>
-    </div>
+    </form>
 
     @if (TempData["Success"] != null)
     {
@@ -108,7 +110,7 @@
         </div>
     }
 
-    @if (Model.Productos.Count == 0)
+    @if (Model.Pager.Total == 0)
     {
         <div class="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -171,6 +173,8 @@
                                 @if (p.PrecioCompra > 0)
                                 {
                                     <span class="table-user-sub">Costo: L. @p.PrecioCompra.ToString("N2")</span>
+                                    var gananciaPct = (p.PrecioVenta - p.PrecioCompra) / p.PrecioCompra * 100;
+                                    <span class="table-user-sub @(gananciaPct < 0 ? "text-danger" : "")" title="Ganancia sobre el costo">Ganancia: @gananciaPct.ToString("0.#")% (L. @((p.PrecioVenta - p.PrecioCompra).ToString("N2")))</span>
                                 }
                             </td>
                             <td>
@@ -208,7 +212,7 @@
                                             </svg>
                                         </a>
                                     }
-                                    <a asp-page="/Compras/HistorialProducto" asp-route-productoId="@p.Id" class="btn-icon-action" title="Historial de compras" style="color: var(--color-success);">
+                                    <a asp-page="/Productos/Historial" asp-route-id="@p.Id" class="btn-icon-action" title="Historial de compras y ventas" style="color: var(--color-success);">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M3 3v18h18"/>
                                             <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
@@ -232,6 +236,7 @@
                 </tbody>
             </table>
         </div>
+        <partial name="_Pager" model="Model.Pager" />
     }
 </div>
 
@@ -258,7 +263,7 @@
                 </label>
             </div>
         </div>
-        <div style="padding:16px 24px; background:#f9fafb; border-top:1px solid var(--color-border); display:flex; gap:12px; justify-content:flex-end;">
+        <div style="padding:16px 24px; background:var(--color-surface-2); border-top:1px solid var(--color-border); display:flex; gap:12px; justify-content:flex-end;">
             <button type="button" class="btn-secondary" onclick="cerrarModalExport()">Cancelar</button>
             <a id="btnDescargarExport" href="#" class="btn-primary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
@@ -274,44 +279,6 @@
 
 @section Scripts {
     <script>
-        (function () {
-            var searchInput = document.getElementById('searchInput');
-            var filterCategoria = document.getElementById('filterCategoria');
-            var filterStock = document.getElementById('filterStock');
-            var filterEstado = document.getElementById('filterEstado');
-            var table = document.getElementById('productosTable');
-            if (table) {
-                var rows = table.querySelectorAll('tbody tr');
-
-                function filterRows() {
-                    var search = (searchInput?.value || '').toLowerCase().trim();
-                    var cat = filterCategoria?.value || '';
-                    var stock = filterStock?.value || '';
-                    var estado = filterEstado?.value || '';
-
-                    rows.forEach(function (row) {
-                        var nombre = row.dataset.nombre || '';
-                        var sku = row.dataset.sku || '';
-                        var barras = row.dataset.barras || '';
-                        var rowCat = row.dataset.categoria || '';
-                        var rowStock = row.dataset.stock || '';
-                        var rowEstado = row.dataset.estado || '';
-
-                        var matchSearch = !search || nombre.includes(search) || sku.includes(search) || barras.includes(search);
-                        var matchCat = !cat || rowCat === cat;
-                        var matchStock = !stock || rowStock === stock;
-                        var matchEstado = !estado || rowEstado === estado;
-
-                        row.style.display = (matchSearch && matchCat && matchStock && matchEstado) ? '' : 'none';
-                    });
-                }
-
-                searchInput?.addEventListener('input', filterRows);
-                filterCategoria?.addEventListener('change', filterRows);
-                filterStock?.addEventListener('change', filterRows);
-                filterEstado?.addEventListener('change', filterRows);
-            }
-        })();
 
         function mostrarOpcionesExport() {
             document.getElementById('modalExport').style.display = 'flex';

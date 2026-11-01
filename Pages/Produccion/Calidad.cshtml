@@ -1,0 +1,136 @@
+@page
+@model Kirkenta.Pages.Produccion.CalidadModel
+@{
+    ViewData["Title"] = "Control de calidad";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Produccion/Index" class="back-link">← Volver a producción</a>
+        <h2>Control de calidad</h2>
+        <p>Inspecciones de producto terminado y porcentaje de defectos</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card"><span class="kpi-label">Inspecciones</span><span class="kpi-value">@Model.TotalInspecciones</span></div>
+    <div class="kpi-card"><span class="kpi-label">% de defectos</span><span class="kpi-value" style="color: var(--color-warning);">@Model.PorcentajeDefectos.ToString("0.##")%</span></div>
+    <div class="kpi-card"><span class="kpi-label">Lotes rechazados</span><span class="kpi-value" style="color: var(--color-danger);">@Model.Rechazadas</span></div>
+</div>
+
+@if (Model.PuedeCrear)
+{
+    <div class="module-card" style="padding: 24px; margin-bottom: 20px;">
+        <h3 class="form-section-title">Registrar inspección</h3>
+        <form method="post" asp-page-handler="Registrar" class="erp-form">
+            <div asp-validation-summary="All" class="module-alert module-alert-error"></div>
+            <div class="form-row">
+                <div class="form-field">
+                    <label>Orden de producción (opcional)</label>
+                    <select asp-for="Nueva.OrdenProduccionId" class="form-input">
+                        <option value="">— Sin orden —</option>
+                        @foreach (var o in Model.Ordenes)
+                        {
+                            <option value="@o.Id">@o.Numero (@o.Estado)</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>Producto *</label>
+                    <select asp-for="Nueva.ProductoId" class="form-input">
+                        <option value="0">— Selecciona —</option>
+                        @foreach (var p in Model.Productos)
+                        {
+                            <option value="@p.Id">@p.Nombre</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-field">
+                    <label>Cantidad inspeccionada *</label>
+                    <input asp-for="Nueva.CantidadInspeccionada" type="number" step="0.0001" min="0" class="form-input" />
+                </div>
+                <div class="form-field">
+                    <label>Cantidad defectuosa</label>
+                    <input asp-for="Nueva.CantidadDefectuosa" type="number" step="0.0001" min="0" class="form-input" />
+                </div>
+                <div class="form-field">
+                    <label>Resultado *</label>
+                    <select asp-for="Nueva.Resultado" class="form-input">
+                        <option value="Aprobado">Aprobado</option>
+                        <option value="Condicional">Condicional</option>
+                        <option value="Rechazado">Rechazado</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-field">
+                    <label>Inspector</label>
+                    <input asp-for="Nueva.Inspector" class="form-input" />
+                </div>
+                <div class="form-field">
+                    <label>Observaciones</label>
+                    <input asp-for="Nueva.Observaciones" class="form-input" />
+                </div>
+            </div>
+            <div class="form-actions"><button type="submit" class="btn-primary">Registrar inspección</button></div>
+        </form>
+    </div>
+}
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="filter-group">
+            <select name="OrdenId" class="filter-select">
+                <option value="">Todas las órdenes</option>
+                @foreach (var o in Model.Ordenes)
+                {
+                    <option value="@o.Id" selected="@(Model.OrdenId == o.Id)">@o.Numero</option>
+                }
+            </select>
+            <select name="Resultado" class="filter-select">
+                <option value="">Todos los resultados</option>
+                <option value="Aprobado" selected="@(Model.Resultado == "Aprobado")">Aprobado</option>
+                <option value="Condicional" selected="@(Model.Resultado == "Condicional")">Condicional</option>
+                <option value="Rechazado" selected="@(Model.Resultado == "Rechazado")">Rechazado</option>
+            </select>
+            <button type="submit" class="btn-secondary">Filtrar</button>
+            <a asp-page="/Produccion/Calidad" class="btn-secondary">Limpiar</a>
+        </div>
+    </form>
+
+    @if (Model.Inspecciones.Count == 0)
+    {
+        <div class="empty-state"><h3>No hay inspecciones registradas</h3></div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr><th>Fecha</th><th>Orden</th><th>Producto</th><th style="text-align:right;">Inspeccionadas</th><th style="text-align:right;">Defectuosas</th><th>Resultado</th><th>Inspector</th><th>Observaciones</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var q in Model.Inspecciones)
+                    {
+                        <tr>
+                            <td>@q.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>@(q.OrdenProduccionId.HasValue && Model.NumerosOrden.TryGetValue(q.OrdenProduccionId.Value, out var no) ? no : "—")</td>
+                            <td>@(Model.NombresProducto.TryGetValue(q.ProductoId, out var np) ? np : "—")</td>
+                            <td style="text-align:right;">@q.CantidadInspeccionada.ToString("0.##")</td>
+                            <td style="text-align:right;">@q.CantidadDefectuosa.ToString("0.##")</td>
+                            <td><span class="badge @(q.Resultado == "Aprobado" ? "badge-success" : q.Resultado == "Rechazado" ? "badge-danger" : "badge-warning")">@q.Resultado</span></td>
+                            <td>@q.Inspector</td>
+                            <td>@q.Observaciones</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+    }
+</div>

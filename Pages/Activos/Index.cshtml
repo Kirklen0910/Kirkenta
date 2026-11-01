@@ -1,0 +1,117 @@
+@page
+@model Kirkenta.Pages.Activos.IndexModel
+@{
+    ViewData["Title"] = "Activos fijos";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Activos fijos</h2>
+        <p>Inventario de bienes de la empresa con su depreciación y valor en libros</p>
+    </div>
+    <div class="module-header-right">
+        <a asp-page="/Activos/Depreciacion" class="btn-secondary">Depreciación mensual</a>
+        @if (Model.PuedeCrear)
+        {
+            <a asp-page="/Activos/Edit" class="btn-primary">Nuevo activo</a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="kpi-grid" style="margin-bottom: 20px;">
+    <div class="kpi-card">
+        <span class="kpi-label">Activos vigentes</span>
+        <span class="kpi-value">@Model.TotalActivos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Costo de adquisición</span>
+        <span class="kpi-value">L. @Model.CostoTotal.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Depreciación acumulada</span>
+        <span class="kpi-value" style="color: var(--color-warning);">L. @Model.DepreciacionTotal.ToString("N2")</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-label">Valor en libros</span>
+        <span class="kpi-value" style="color: var(--color-success);">L. @Model.ValorLibros.ToString("N2")</span>
+    </div>
+</div>
+
+<div class="module-card">
+    <form method="get" class="module-toolbar">
+        <div class="search-box">
+            <input type="text" name="Q" value="@Model.Q" placeholder="Buscar por código, nombre, serie o responsable..." />
+        </div>
+        <div class="filter-group">
+            <select name="Categoria" class="filter-select">
+                <option value="">Todas las categorías</option>
+                @foreach (var c in Kirkenta.Pages.Activos.IndexModel.Categorias)
+                {
+                    <option value="@c" selected="@(Model.Categoria == c)">@c</option>
+                }
+            </select>
+            <select name="Estado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="Activo" selected="@(Model.Estado == "Activo")">Activo</option>
+                <option value="Baja" selected="@(Model.Estado == "Baja")">Dado de baja</option>
+            </select>
+            <button type="submit" class="btn-secondary">Filtrar</button>
+            <a asp-page="/Activos/Index" class="btn-secondary">Limpiar</a>
+        </div>
+    </form>
+
+    @if (Model.Activos.Count == 0)
+    {
+        <div class="empty-state">
+            <h3>No hay activos registrados</h3>
+            <p>Registra mobiliario, equipo, vehículos o maquinaria para controlar su depreciación</p>
+            @if (Model.PuedeCrear)
+            {
+                <a asp-page="/Activos/Edit" class="btn-primary">Registrar activo</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Código</th><th>Nombre</th><th>Categoría</th><th>Adquisición</th>
+                        <th style="text-align:right;">Costo</th><th style="text-align:right;">Dep. acumulada</th>
+                        <th style="text-align:right;">Valor en libros</th><th>Estado</th>
+                        <th style="text-align:right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in Model.Activos)
+                    {
+                        <tr>
+                            <td><strong>@a.Codigo</strong></td>
+                            <td>@a.Nombre<br /><small>@a.Ubicacion</small></td>
+                            <td>@a.Categoria</td>
+                            <td>@a.FechaAdquisicion.ToString("dd/MM/yyyy")</td>
+                            <td style="text-align:right;">L. @a.CostoAdquisicion.ToString("N2")</td>
+                            <td style="text-align:right;">L. @a.DepreciacionAcumulada.ToString("N2")</td>
+                            <td style="text-align:right;"><strong>L. @a.ValorEnLibros.ToString("N2")</strong></td>
+                            <td>
+                                <span class="badge @(a.Estado == "Activo" ? "badge-success" : "badge-danger")">@(a.Estado == "Activo" ? "Activo" : "Dado de baja")</span>
+                            </td>
+                            <td style="text-align:right;">
+                                <a asp-page="/Activos/Details" asp-route-id="@a.Id" class="btn-secondary">Ver</a>
+                                @if (Model.PuedeEditar && a.Estado == "Activo")
+                                {
+                                    <a asp-page="/Activos/Edit" asp-route-id="@a.Id" class="btn-secondary">Editar</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+    }
+</div>

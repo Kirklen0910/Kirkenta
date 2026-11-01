@@ -118,12 +118,13 @@
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="/lib/chartjs/chart.umd.min.js"></script>
     <script>
         (function () {
             var data = @Html.Raw(Model.PreciosJson);
             var ctx = document.getElementById('chartPrecios');
             if (ctx && data.labels && data.labels.length > 0) {
+                if (window.Chart) { Chart.defaults.color = kkCss('--color-muted'); Chart.defaults.borderColor = kkCss('--color-border'); }
                 new Chart(ctx, {
                     type: 'line',
                     data: {

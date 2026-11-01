@@ -1,3 +1,4 @@
+using Kirkenta.Helpers;
 using Kirkenta.Data;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -15,14 +16,17 @@ namespace Kirkenta.Pages.Configuracion
         }
 
         public ConfiguracionEmpresa Empresa { get; set; } = new();
+        public bool PuedeEditar { get; set; }
+
 
         public IActionResult OnGet()
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
-            if (currentRol != "Admin")
+            PuedeEditar = PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Empresa", "editar");
+            if (!PermisoHelper.TienePermiso(_context, currentRol, "Configuracion", "Empresa", "ver"))
             {
-                TempData["Error"] = "Solo administradores";
+                TempData["Error"] = "No tienes permiso para ver esta sección";
                 return RedirectToPage("/Index");
             }
 

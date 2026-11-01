@@ -53,6 +53,34 @@ namespace Kirkenta.Models
 
         public DateTime? FechaLimiteEmision { get; set; }
 
+        /// <summary>
+        /// Si está activa, las facturas se numeran con el rango autorizado por el SAR
+        /// (CAI + rango + fecha límite) y se bloquean al vencer o agotarse el rango.
+        /// Si está inactiva, se usa la numeración interna (series de documentos).
+        /// </summary>
+        public bool FacturacionFiscalActiva { get; set; } = false;
+
+        /// <summary>
+        /// Próximo correlativo fiscal a emitir (solo la parte numérica final del rango).
+        /// 0 = aún no inicializado (se toma del rango inicial).
+        /// </summary>
+        public long SiguienteNumeroFiscal { get; set; } = 0;
+
+        // ===== Nota de crédito fiscal (rango y CAI propios, tipo de documento 03) =====
+        [StringLength(50)]
+        public string? NotaCreditoCAI { get; set; }
+
+        [StringLength(30)]
+        public string? NotaCreditoRangoInicial { get; set; }
+
+        [StringLength(30)]
+        public string? NotaCreditoRangoFinal { get; set; }
+
+        public DateTime? NotaCreditoFechaLimite { get; set; }
+
+        /// <summary>Próximo correlativo de nota de crédito (0 = tomar del rango inicial).</summary>
+        public long SiguienteNumeroNotaCredito { get; set; } = 0;
+
         public string? NotasFactura { get; set; }
 
         public DateTime FechaActualizacion { get; set; } = DateTime.Now;

@@ -26,6 +26,18 @@ namespace Kirkenta.Models
         // ===== LOGÍSTICA =====
         public bool RequiereEnvio { get; set; } = false;
         public decimal MontoEnvio { get; set; } = 0;
+
+        // ===== EXONERACIÓN DE ISV (se guarda copia de los datos del cliente al emitir) =====
+        public bool EsExonerada { get; set; } = false;
+
+        [System.ComponentModel.DataAnnotations.StringLength(50)]
+        public string? ExoneradoConstancia { get; set; }
+
+        [System.ComponentModel.DataAnnotations.StringLength(50)]
+        public string? ExoneradoOrdenCompraExenta { get; set; }
+
+        [System.ComponentModel.DataAnnotations.StringLength(50)]
+        public string? ExoneradoRegistroSag { get; set; }
     }
 
     public class DetalleFactura

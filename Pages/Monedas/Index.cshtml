@@ -1,0 +1,135 @@
+@page
+@model Kirkenta.Pages.Monedas.IndexModel
+@{
+    ViewData["Title"] = "Monedas";
+    var editando = Model.Input.Id != 0;
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <a asp-page="/Configuracion/Index" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a configuración
+        </a>
+        <h2>Monedas</h2>
+        <p>Monedas que se pueden usar en proveedores, compras y cuentas. El tipo de cambio es cuántas unidades de la moneda predeterminada vale una unidad de esta.</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="module-alert module-alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="module-alert module-alert-error">@TempData["Error"]</div>
+}
+
+@if ((Model.PuedeCrear && !editando) || (Model.PuedeEditar && editando))
+{
+    <div class="module-card form-card">
+        <h3>@(editando ? "Editar moneda" : "Nueva moneda")</h3>
+        <form method="post" asp-page-handler="Guardar" class="erp-form">
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="module-alert module-alert-error">
+                    <div asp-validation-summary="All"></div>
+                </div>
+            }
+            <input type="hidden" asp-for="Input.Id" />
+
+            <div class="form-field">
+                <label asp-for="Input.Codigo">Código (3 letras) *</label>
+                <input asp-for="Input.Codigo" class="form-input" maxlength="3" placeholder="USD" style="text-transform:uppercase" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Nombre">Nombre *</label>
+                <input asp-for="Input.Nombre" class="form-input" placeholder="Dólar estadounidense" required />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.Simbolo">Símbolo</label>
+                <input asp-for="Input.Simbolo" class="form-input" maxlength="5" placeholder="$" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Input.TipoCambio">Tipo de cambio</label>
+                <input asp-for="Input.TipoCambio" asp-format="{0:0.0000}" type="number" step="0.0001" min="0.0001" class="form-input" />
+            </div>
+            <div class="form-field">
+                <label class="form-checkbox">
+                    <input asp-for="Input.EsPredeterminada" type="checkbox" />
+                    <span>Es la moneda predeterminada (su tipo de cambio queda en 1)</span>
+                </label>
+            </div>
+            <div class="form-field">
+                <label class="form-checkbox">
+                    <input asp-for="Input.Activa" type="checkbox" />
+                    <span>Activa</span>
+                </label>
+            </div>
+            <div class="form-actions">
+                @if (editando)
+                {
+                    <a asp-page="/Monedas/Index" class="btn-secondary">Cancelar</a>
+                }
+                <button type="submit" class="btn-primary">@(editando ? "Guardar cambios" : "Crear moneda")</button>
+            </div>
+        </form>
+    </div>
+}
+
+<div class="module-card">
+    @if (Model.Monedas.Count == 0)
+    {
+        <div class="empty-state"><h3>No hay monedas</h3><p>Crea la primera moneda (por ejemplo HNL, Lempira).</p></div>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Nombre</th>
+                        <th>Símbolo</th>
+                        <th>Tipo de cambio</th>
+                        <th>Estado</th>
+                        <th style="width: 260px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var m in Model.Monedas)
+                    {
+                        <tr>
+                            <td><strong>@m.Codigo</strong> @if (m.EsPredeterminada) { <span class="badge badge-info">Predeterminada</span> }</td>
+                            <td>@m.Nombre</td>
+                            <td>@m.Simbolo</td>
+                            <td>@m.TipoCambio.ToString("N4")</td>
+                            <td>@if (m.Activa) { <span class="badge badge-success">Activa</span> } else { <span class="badge badge-warning">Inactiva</span> }</td>
+                            <td style="text-align:right; white-space:nowrap;">
+                                @if (Model.PuedeEditar)
+                                {
+                                    <a asp-page="/Monedas/Index" asp-route-editar="@m.Id" class="btn-sm btn-secondary">Editar</a>
+                                    @if (!m.EsPredeterminada)
+                                    {
+                                        <form method="post" asp-page-handler="Estado" asp-route-id="@m.Id" style="display:inline">
+                                            <button type="submit" class="btn-sm btn-secondary">@(m.Activa ? "Desactivar" : "Activar")</button>
+                                        </form>
+                                    }
+                                }
+                                @if (Model.PuedeEliminar && !m.EsPredeterminada && !Model.EnUso.Contains(m.Id))
+                                {
+                                    <form method="post" asp-page-handler="Eliminar" asp-route-id="@m.Id" style="display:inline" onsubmit="return confirm('¿Eliminar la moneda @m.Codigo?');">
+                                        <button type="submit" class="btn-sm btn-danger">Eliminar</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

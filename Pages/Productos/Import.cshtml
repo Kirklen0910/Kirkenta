@@ -14,12 +14,12 @@
             Volver a productos
         </a>
         <h2>Importar productos</h2>
-        <p>Sube un archivo Excel o CSV con los productos a importar</p>
+        <p>Sube un archivo (Excel, CSV, TSV/TXT o JSON) con los productos a importar</p>
     </div>
 </div>
 
 <div style="display:flex; gap:8px; margin-bottom:20px; align-items:center;">
-    <span style="background:var(--color-primary); color:#fff; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">1</span>
+    <span style="background:var(--color-primary); color:var(--color-on-primary); width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">1</span>
     <span style="font-size:13px; font-weight:600; color:var(--color-primary);">Subir archivo</span>
     <span style="width:40px; height:2px; background:var(--color-border);"></span>
     <span style="background:var(--color-border); color:var(--color-muted); width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">2</span>
@@ -44,7 +44,7 @@
 <div class="module-card form-card-wide">
     <form method="post" enctype="multipart/form-data" class="erp-form">
 
-        <div style="padding: 40px 20px; border: 2px dashed var(--color-border); border-radius: var(--radius-md); text-align: center; background: #f9fafb;">
+        <div style="padding: 40px 20px; border: 2px dashed var(--color-border); border-radius: var(--radius-md); text-align: center; background: var(--color-surface-2);">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px; height:48px; color:var(--color-muted); opacity:0.5; margin-bottom:12px;">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="17 8 12 3 7 8"/>
@@ -52,13 +52,17 @@
             </svg>
             <h3 style="font-size:15px; font-weight:600; margin-bottom:6px;">Selecciona tu archivo</h3>
             <p style="font-size:13px; color:var(--color-muted); margin-bottom:16px;">
-                Excel (.xlsx) o CSV (.csv) — Máximo 5,000 filas y 20 MB
+                @Kirkenta.Helpers.Import.ImportWizardHelper.FormatosTexto<br />
+                Máximo 5,000 filas y 20 MB. La primera fila debe tener los nombres de las columnas.
             </p>
-            <input type="file" asp-for="Archivo" accept=".xlsx,.csv" required
+            <p style="font-size:13px; margin-bottom:16px;">
+                <a href="/Productos/ImportMap?handler=Plantilla" style="color:var(--color-primary); font-weight:600;">⬇ Descargar plantilla (Excel con las columnas)</a>
+            </p>
+            <input type="file" asp-for="Archivo" accept="@Kirkenta.Helpers.Import.ImportWizardHelper.ExtensionesAceptadas" required
                    style="display:block; margin:0 auto; font-size:13px;" />
         </div>
 
-        <div class="module-alert" style="background: #eef2ff; border: 1px solid #c7d2fe; color: var(--color-primary); margin: 16px 0 0 0;">
+        <div class="module-alert" style="background: var(--color-primary-soft); border: 1px solid var(--color-primary-border); color: var(--color-primary); margin: 16px 0 0 0;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="12" y1="16" x2="12" y2="12"/>
