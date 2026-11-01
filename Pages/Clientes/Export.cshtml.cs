@@ -33,7 +33,7 @@ namespace Kirkenta.Pages.Clientes
 
             if (plantilla)
             {
-                var archivoVacio = GenerarArchivo(new List<Cliente>(), columns, formato, esPlantilla: true);
+                var archivoVacio = GenerarArchivo(new List<Cliente>(), columns.Where(c => !c.Header.StartsWith("Fecha ")).ToList(), formato, esPlantilla: true);
                 return File(archivoVacio, ContentType(formato), NombreArchivo("plantilla_clientes", formato));
             }
 

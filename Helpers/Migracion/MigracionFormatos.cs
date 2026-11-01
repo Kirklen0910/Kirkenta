@@ -80,6 +80,31 @@ namespace Kirkenta.Helpers.Migracion
             return res;
         }
 
+        /// <summary>
+        /// Para importaciones (sin saber qué campo es cada columna): solo corrige las columnas que son
+        /// claramente numéricas y usan coma decimal, donde «1.234» es de miles. Códigos y textos no se tocan.
+        /// </summary>
+        public static void NormalizarNumerosAmbiguos(List<string> headers, List<Dictionary<string, string>> rows)
+        {
+            var t = new TablaOrigen { Headers = headers, Rows = rows };
+            foreach (var col in headers)
+            {
+                int total = 0, numericos = 0;
+                foreach (var f in rows)
+                {
+                    if (!f.TryGetValue(col, out var v) || string.IsNullOrWhiteSpace(v)) continue;
+                    total++;
+                    if (Regex.IsMatch(v.Trim(), @"^[-(]?\s*(L\.?|Lps\.?|HNL|\$)?\s*\d{1,3}([.,]\d{3})*([.,]\d+)?\)?$|^-?\d+([.,]\d+)?$", RegexOptions.IgnoreCase)) numericos++;
+                }
+                if (total == 0 || numericos < total * 0.95) continue;
+                var f2 = Numero(t, col);
+                if (f2 == null || f2.Ambiguo || f2.Formato != ",") continue;
+                foreach (var f in rows)
+                    if (f.TryGetValue(col, out var v) && !string.IsNullOrWhiteSpace(v) && NumeroClaro(v.Trim(), ",") is string nuevo)
+                        f[col] = nuevo;
+            }
+        }
+
         // ---------- fechas ----------
         private static FormatoColumna? Fecha(TablaOrigen t, string col)
         {

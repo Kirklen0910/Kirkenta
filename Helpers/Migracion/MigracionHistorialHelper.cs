@@ -107,7 +107,8 @@ namespace Kirkenta.Helpers.Migracion
         /// <summary>Líneas de las ventas (solo para el historial de ventas; tabla aparte).</summary>
         public static List<CampoDef> CamposDetalle() => new()
         {
-            new() { Key = "Documento", Label = "N.º de documento (para unirla)", Requerido = true, Alias = new[] { "documento", "factura", "numero", "nodocumento", "numerofactura", "folio", "ticket", "venta", "idventa", "doc", "compra", "idcompra", "ordencompra", "cotizacion", "idcotizacion", "presupuesto" } },
+            new() { Key = "Documento", Label = "N.º de documento (para unirla)", Requerido = true, Alias = new[] { "documento", "factura", "numero", "nodocumento", "numerofactura", "folio", "ticket", "venta", "idventa", "doc", "compra", "idcompra", "ordencompra", "cotizacion", "idcotizacion", "presupuesto",
+                "ventaid", "compraid", "cotizacionid", "facturaid", "documentoid", "ordenid", "pedidoid" } },
             new() { Key = "ProductoCodigo", Label = "Código / SKU del producto", Alias = new[] { "sku", "codigo", "codigoproducto", "codigoarticulo", "code", "cod", "barras" } },
             new() { Key = "ProductoNombre", Label = "Nombre del producto", Alias = new[] { "producto", "nombreproducto", "articulo", "descripcion", "nombre", "detalle" } },
             new() { Key = "Cantidad", Label = "Cantidad", Requerido = true, Alias = new[] { "cantidad", "qty", "unidades" } },
@@ -138,7 +139,7 @@ namespace Kirkenta.Helpers.Migracion
             {
                 if (i == indicePrincipal) continue;
                 var mapa = Detectar(tablas[i].Headers, campos);
-                bool doc = mapa["Documento"] != null, cant = mapa["Cantidad"] != null, precio = mapa["Precio"] != null;
+                bool doc = mapa["Documento"] != null, cant = mapa["Cantidad"] != null, precio = mapa["Precio"] != null || mapa["Costo"] != null;
                 if (!(doc && cant && precio)) continue;
                 var nombre = ColumnMapper.Normalizar(tablas[i].Nombre);
                 if (otras.Any(nombre.Contains) && !pistas.Any(nombre.Contains)) continue;   // líneas de otro tipo de documento

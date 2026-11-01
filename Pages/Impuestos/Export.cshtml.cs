@@ -25,7 +25,7 @@ namespace Kirkenta.Pages.Impuestos
 
             if (plantilla)
             {
-                var vacio = GenerarArchivo(new List<Impuesto>(), columns, formato, esPlantilla: true);
+                var vacio = GenerarArchivo(new List<Impuesto>(), columns.Where(c => !c.Header.StartsWith("Fecha ")).ToList(), formato, esPlantilla: true);
                 return File(vacio, ContentType(formato), NombreArchivo("plantilla_impuestos", formato));
             }
 

@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Kirkenta.Pages.Proveedores
 {
+    [DisableRequestSizeLimit]
+    [RequestFormLimits(MultipartBodyLengthLimit = long.MaxValue)]
     public class ImportModel : PageModel
     {
         private readonly ApplicationDbContext _context;

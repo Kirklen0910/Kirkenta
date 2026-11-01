@@ -33,7 +33,7 @@ namespace Kirkenta.Pages.Proveedores
 
             if (plantilla)
             {
-                var archivoVacio = GenerarArchivo(new List<Proveedor>(), columns, formato, esPlantilla: true);
+                var archivoVacio = GenerarArchivo(new List<Proveedor>(), columns.Where(c => !c.Header.StartsWith("Fecha ")).ToList(), formato, esPlantilla: true);
                 return File(archivoVacio, ContentType(formato), NombreArchivo("plantilla_proveedores", formato));
             }
 

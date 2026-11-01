@@ -6,6 +6,10 @@ namespace Kirkenta.Helpers.Migracion
         public string Nombre { get; set; } = "";
         public List<string> Headers { get; set; } = new();
         public List<Dictionary<string, string>> Rows { get; set; } = new();
+        /// <summary>Qué se hizo con la tabla al adaptar la base («su número se copió a ventas»…).</summary>
+        public string? Nota { get; set; }
+        /// <summary>Sus datos ya se pasaron a otra tabla: no se migra sola.</summary>
+        public bool Unida { get; set; }
     }
 
     public class ResultadoMigracionLectura

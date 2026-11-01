@@ -48,10 +48,19 @@ namespace Kirkenta.Helpers.Import
                 return result;
             }
 
-            var headers = ImportFile.HacerHeadersUnicos(registros[0]);
+            // Títulos o notas encima de la tabla («Reporte de productos», fecha…): el encabezado es la
+            // primera fila con el mismo número de columnas que tiene la mayoría de las filas
+            int inicio = InicioTabla(registros);
+            if (registros.Count - inicio < 2)
+            {
+                result.Error = "El archivo debe tener al menos un encabezado y una fila de datos";
+                return result;
+            }
+
+            var headers = ImportFile.HacerHeadersUnicos(registros[inicio]);
             result.Headers = headers;
 
-            for (int i = 1; i < registros.Count; i++)
+            for (int i = inicio + 1; i < registros.Count; i++)
             {
                 var valores = registros[i];
                 var rowDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -65,6 +74,17 @@ namespace Kirkenta.Helpers.Import
             }
 
             return result;
+        }
+
+        private static int InicioTabla(List<List<string>> registros)
+        {
+            int Llenas(List<string> r) => r.Count(c => !string.IsNullOrWhiteSpace(c));
+            var muestra = registros.Take(50).ToList();
+            var habitual = muestra.GroupBy(Llenas).OrderByDescending(g => g.Count()).ThenByDescending(g => g.Key).First().Key;
+            if (habitual < 2) return 0;
+            for (int i = 0; i < Math.Min(10, registros.Count); i++)
+                if (Llenas(registros[i]) >= habitual) return i;
+            return 0;
         }
 
         public static string Decodificar(byte[] bytes)
@@ -82,8 +102,9 @@ namespace Kirkenta.Helpers.Import
             }
             catch (DecoderFallbackException)
             {
-                // No es UTF-8 válido: casi seguro viene de Excel en Windows (ANSI)
-                return Encoding.Latin1.GetString(bytes);
+                // No es UTF-8 válido: casi seguro viene de Excel en Windows (ANSI = Windows-1252, que trae € “ ” – …)
+                Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+                return Encoding.GetEncoding(1252).GetString(bytes);
             }
         }
 

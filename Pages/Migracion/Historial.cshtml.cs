@@ -94,7 +94,17 @@ namespace Kirkenta.Pages.Migracion
                 TerceroNoExiste = TerceroNoExiste == "sin" ? "sin" : "crear"
             };
 
-            Res = MigracionHistorialHelper.Procesar(_context, Principal, op, aplicar, Usuario()?.Id);
+            try
+            {
+                Res = MigracionHistorialHelper.Procesar(_context, Principal, op, aplicar, Usuario()?.Id);
+            }
+            catch (Exception ex)
+            {
+                // nunca una pantalla de error: se informa y no queda nada a medias
+                _context.ChangeTracker.Clear();
+                TempData["Error"] = "No se guardó nada: " + (ex.InnerException?.Message ?? ex.Message);
+                return Page();
+            }
 
             if (aplicar && Res.Aplicado)
             {

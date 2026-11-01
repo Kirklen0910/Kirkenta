@@ -58,7 +58,7 @@ namespace Kirkenta.Helpers.Migracion
                 new() { Key = "SKU", Label = "SKU / código", Alias = new[] { "sku", "codigo", "code", "cod", "clave", "codigoproducto", "codigoarticulo", "referencia", "itemcode" } },
                 new() { Key = "CodigoBarras", Label = "Código de barras", Alias = new[] { "codigobarras", "barras", "barcode", "ean", "upc", "codbarra" } },
                 new() { Key = "Nombre", Label = "Nombre", Requerido = true, Alias = new[] { "nombre", "name", "producto", "articulo", "descripcion", "item", "nombreproducto" } },
-                new() { Key = "Descripcion", Label = "Descripción", Alias = new[] { "detalle", "observaciones", "descripcionlarga" } },
+                new() { Key = "Descripcion", Label = "Descripción", Alias = new[] { "detalle", "observaciones", "descripcionlarga", "marca", "brand" } },
                 new() { Key = "Categoria", Label = "Categoría", Alias = new[] { "categoria", "category", "rubro", "familia", "linea", "grupo", "departamento" } },
                 new() { Key = "Impuesto", Label = "Impuesto", Alias = new[] { "impuesto", "tax", "iva", "isv" } },
                 new() { Key = "UnidadMedida", Label = "Unidad de medida", Alias = new[] { "unidadmedida", "unidad", "um", "unit", "medida", "presentacion", "uom" } },

@@ -200,8 +200,9 @@ namespace Kirkenta.Helpers.Migracion
             }
 
             // «inventario» contiene «venta»: para esa palabra se busca sin «inventario»
-            var sinInventario = nombreNorm.Replace("inventario", "~");
-            var hist = Historiales.FirstOrDefault(f => f.Claves.Any(c => (c == "venta" ? sinInventario : nombreNorm).Contains(c)));
+            // «inventario» contiene «venta» y «sucursales» contiene «sales»
+            var sinFalsos = nombreNorm.Replace("inventario", "~").Replace("sucursal", "~");
+            var hist = Historiales.FirstOrDefault(f => f.Claves.Any(c => (c is "venta" or "sales" ? sinFalsos : nombreNorm).Contains(c)));
             if (hist.Texto != null)
             {
                 det.PosibleFuturo = hist.Texto;

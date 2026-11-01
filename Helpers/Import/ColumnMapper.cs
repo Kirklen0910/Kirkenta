@@ -117,6 +117,8 @@ namespace Kirkenta.Helpers.Import
             else { corto = alias; largo = header; }
 
             if (corto.Length < LargoMinimoParcial) return 0;
+            // «categoria_id» o «idcliente» guardan un número de otra tabla: no son «categoría» ni «cliente»
+            if (EsId(header) && !alias.Contains("id")) return 0;
             if (!largo.Contains(corto, StringComparison.Ordinal)) return 0;
 
             // Más parecidos en largo = mejor puntaje (60..70)
@@ -126,6 +128,8 @@ namespace Kirkenta.Helpers.Import
         /// <summary>
         /// Normaliza un texto: sin acentos, sin espacios, sin símbolos, minúsculas.
         /// </summary>
+        private static bool EsId(string h) => h.Length > 3 && (h.EndsWith("id") || h.StartsWith("id"));
+
         public static string Normalizar(string? texto)
         {
             if (string.IsNullOrWhiteSpace(texto)) return "";

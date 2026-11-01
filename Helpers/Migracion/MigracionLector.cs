@@ -21,7 +21,7 @@ namespace Kirkenta.Helpers.Migracion
         public static ResultadoMigracionLectura Leer(string nombreArchivo, Stream stream)
         {
             var r = new ResultadoMigracionLectura();
-            try { LeerInterno(nombreArchivo, stream, r, 0); }
+            try { LeerInterno(nombreArchivo, stream, r, 0); MigracionAplanar.Aplicar(r.Tablas); }
             catch (Exception ex)
             {
                 r.Avisos.Add($"No se pudo leer «{Path.GetFileName(nombreArchivo)}»: {ex.Message}");

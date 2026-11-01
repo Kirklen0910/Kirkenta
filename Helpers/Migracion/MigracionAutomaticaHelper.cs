@@ -125,6 +125,7 @@ namespace Kirkenta.Helpers.Migracion
         public static List<PasoMigracion> Planificar(List<TablaOrigen> tablas, Dictionary<int, string>? elegidos = null)
         {
             var pasos = new List<PasoMigracion>();
+            MigracionAplanar.Aplicar(tablas);      // bases relacionales: ids → nombres, número y existencias en su tabla
             var detecciones = MigracionAnalizador.Analizar(tablas);
 
             // 1) destino sugerido por tabla
@@ -135,6 +136,12 @@ namespace Kirkenta.Helpers.Migracion
             {
                 var d = detecciones[i];
                 confianza[i] = d.Confianza;
+                if (tablas[i].Unida && (elegidos == null || !elegidos.ContainsKey(i)))
+                {
+                    destino[i] = "";
+                    motivo[i] = tablas[i].Nota;
+                    continue;
+                }
                 if (elegidos != null && elegidos.TryGetValue(i, out var e))
                 {
                     destino[i] = e ?? "";
@@ -147,7 +154,7 @@ namespace Kirkenta.Helpers.Migracion
                 {
                     destino[i] = "";
                     motivo[i] = d.Entidad != null ? $"Parece «{d.Entidad.Nombre}» pero con poca seguridad: elige el destino si quieres migrarla."
-                        : d.PosibleFuturo ?? "No se reconoció qué contiene.";
+                        : d.PosibleFuturo ?? tablas[i].Nota ?? "No se reconoció qué contiene.";
                 }
             }
 
@@ -190,6 +197,13 @@ namespace Kirkenta.Helpers.Migracion
                         ? MigracionOperacionesHelper.Detectar(tablas[i].Headers, tipo)
                         : MigracionHistorialHelper.Detectar(tablas[i].Headers, Campos(tipo))
                             .Where(x => x.Value != null).ToDictionary(x => x.Key, x => x.Value!);
+                    // documento sin número propio: su id es el número (así se unen también sus líneas)
+                    if (Campos(tipo).Any(c => c.Key == "Documento") && !p.Mapa.ContainsKey("Documento")
+                        && MigracionAplanar.ColumnaId(tablas[i]) is string colId)
+                    {
+                        p.Mapa["Documento"] = colId;
+                        p.Relaciones.Add($"Sin número de documento: se usa su id («{colId}»)");
+                    }
                     var falta = Faltan(p);
 
                     if (ConLineas.Contains(destino[i]) && detalleDe.TryGetValue(i, out var di))
@@ -197,6 +211,9 @@ namespace Kirkenta.Helpers.Migracion
                         p.DetalleIndice = di;
                         p.MapaDetalle = MigracionHistorialHelper.Detectar(tablas[di].Headers, CamposDetalle())
                             .Where(x => x.Value != null).ToDictionary(x => x.Key, x => x.Value!);
+                        // en las compras el «costo» de la línea es su precio
+                        if (!p.MapaDetalle.ContainsKey("Precio") && p.MapaDetalle.TryGetValue("Costo", out var colCosto))
+                            p.MapaDetalle["Precio"] = colCosto;
                     }
 
                     if (falta.Count > 0) p.Motivo = SinColumna + string.Join(", ", falta) + ".";
@@ -216,6 +233,7 @@ namespace Kirkenta.Helpers.Migracion
 
             // 5) tablas unidas por su id interno (cliente_id, producto_id, venta_id…)
             MigracionRelaciones.Resolver(tablas, pasos);
+            foreach (var p in pasos.Where(p => ConLineas.Contains(p.Destino))) TotalDesdeLineas(tablas, p);
             foreach (var p in pasos.Where(p => !p.Incluir && p.Motivo?.StartsWith(SinColumna) == true && Faltan(p).Count == 0))
             { p.Incluir = true; p.Motivo = null; }
 
@@ -284,6 +302,39 @@ namespace Kirkenta.Helpers.Migracion
         }
 
         private const string SinColumna = "No se encontró la columna: ";
+
+        /// <summary>Documento sin columna de total: se calcula sumando sus líneas (cantidad × precio − descuento).</summary>
+        private static void TotalDesdeLineas(List<TablaOrigen> tablas, PasoMigracion p)
+        {
+            if (p.Mapa.ContainsKey("Total") || p.DetalleIndice == null || !p.Mapa.TryGetValue("Documento", out var colDoc)) return;
+            var md = p.MapaDetalle;
+            if (!md.ContainsKey("Documento") || !md.ContainsKey("Cantidad") || !md.ContainsKey("Precio")) return;
+            var suma = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+            foreach (var f in tablas[p.DetalleIndice.Value].Rows)
+            {
+                var doc = Valor(f, md, "Documento");
+                if (doc == null) continue;
+                decimal linea;
+                if (ParserHelper.ParsearDecimal(Valor(f, md, "TotalLinea")) is decimal tl) linea = tl;
+                else
+                {
+                    var cant = ParserHelper.ParsearDecimal(Valor(f, md, "Cantidad"));
+                    var precio = ParserHelper.ParsearDecimal(Valor(f, md, "Precio"));
+                    if (cant == null || precio == null || cant <= 0) continue;
+                    linea = Math.Round(cant.Value * precio.Value, 2) - (ParserHelper.ParsearDecimal(Valor(f, md, "Descuento")) ?? 0);
+                }
+                suma[doc] = suma.GetValueOrDefault(doc) + linea;
+            }
+            if (suma.Count == 0) return;
+            var tabla = tablas[p.TablaIndice];
+            const string col = "total (suma de sus líneas)";
+            if (!tabla.Headers.Contains(col)) tabla.Headers.Add(col);
+            foreach (var f in tabla.Rows)
+                f[col] = f.TryGetValue(colDoc, out var d) && d != null && suma.TryGetValue(d.Trim(), out var t)
+                    ? t.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) : "";
+            p.Mapa["Total"] = col;
+            p.Relaciones.Add("Total calculado sumando sus líneas");
+        }
 
         private static List<string> Faltan(PasoMigracion p)
         {

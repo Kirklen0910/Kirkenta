@@ -156,9 +156,23 @@ namespace Kirkenta.Pages.Migracion
                     return RedirectToPage(new { continuar = 1 });
                 }
                 var usuario = _context.Usuarios.FirstOrDefault(x => x.Username == User.Identity!.Name);
-                using var tx = _context.Database.BeginTransaction();
-                var r = MigracionCatalogosHelper.Procesar(_context, t, ent.Key, mapa, usuario?.Id, true);
-                tx.Commit();
+                MigracionHistorialHelper.Resultado r;
+                using (var tx = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
+                        r = MigracionCatalogosHelper.Procesar(_context, t, ent.Key, mapa, usuario?.Id, true);
+                        tx.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        // todo o nada: nunca una pantalla de error ni datos a medias
+                        tx.Rollback();
+                        _context.ChangeTracker.Clear();
+                        TempData["Error"] = $"{ent.Nombre}: no se guardó nada. {ex.InnerException?.Message ?? ex.Message}";
+                        return RedirectToPage(new { continuar = 1 });
+                    }
+                }
                 TempData["Success"] = $"{ent.Nombre}: {r.Creados} creado(s), {r.YaImportados} ya existían, {r.DescartadasTotal} fila(s) descartadas."
                     + (r.Advertencias.Count > 0 ? " " + string.Join(" ", r.Advertencias.Take(3)) : "");
                 return RedirectToPage(new { continuar = 1 });

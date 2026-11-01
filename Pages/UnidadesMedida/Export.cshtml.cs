@@ -25,7 +25,7 @@ namespace Kirkenta.Pages.UnidadesMedida
 
             if (plantilla)
             {
-                var vacio = GenerarArchivo(new List<UnidadMedida>(), columns, formato, esPlantilla: true);
+                var vacio = GenerarArchivo(new List<UnidadMedida>(), columns.Where(c => !c.Header.StartsWith("Fecha ")).ToList(), formato, esPlantilla: true);
                 return File(vacio, ContentType(formato), NombreArchivo("plantilla_unidades", formato));
             }
 

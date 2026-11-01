@@ -41,7 +41,7 @@ namespace Kirkenta.Pages.Productos
 
             if (plantilla)
             {
-                var archivoVacio = GenerarArchivo(new List<Producto>(), columns, formato, esPlantilla: true);
+                var archivoVacio = GenerarArchivo(new List<Producto>(), columns.Where(c => !c.Header.StartsWith("Fecha ")).ToList(), formato, esPlantilla: true);
                 return File(archivoVacio, ContentType(formato), NombreArchivo("plantilla_productos", formato));
             }
 

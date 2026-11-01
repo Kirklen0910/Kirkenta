@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Kirkenta.Pages.Productos
 {
+    [DisableRequestSizeLimit]
+    [RequestFormLimits(MultipartBodyLengthLimit = long.MaxValue)]
     public class ImportModel : PageModel
     {
         private readonly ApplicationDbContext _context;
@@ -31,8 +33,7 @@ namespace Kirkenta.Pages.Productos
                 return RedirectToPage("/Productos/Index");
             }
 
-            HttpContext.Session.Remove("ImportProductos_Headers");
-            HttpContext.Session.Remove("ImportProductos_Rows");
+            Helpers.Import.ImportWizardHelper.LimpiarSesion(HttpContext.Session, new Helpers.Import.ImportWizardConfig { SessionKey = "Productos" });
 
             return Page();
         }
@@ -56,10 +57,8 @@ namespace Kirkenta.Pages.Productos
                 return Page();
             }
 
-            HttpContext.Session.SetString("ImportProductos_Headers",
-                System.Text.Json.JsonSerializer.Serialize(lectura.Headers));
-            HttpContext.Session.SetString("ImportProductos_Rows",
-                System.Text.Json.JsonSerializer.Serialize(lectura.Rows));
+            Helpers.Import.ImportWizardHelper.GuardarEnSesion(HttpContext.Session,
+                new Helpers.Import.ImportWizardConfig { SessionKey = "Productos" }, lectura.Headers, lectura.Rows);
 
             return RedirectToPage("/Productos/ImportMap");
         }

@@ -9,17 +9,18 @@ namespace Kirkenta.Helpers.Import
     /// </summary>
     public static class ImportWizardHelper
     {
-        public const long TamanoMaximoBytes = 20 * 1024 * 1024; // 20 MB
-        public const int MaxFilas = 5000;
+        // Sin topes de tamaño ni de filas: las filas se guardan en disco, no en la sesión
+        public const long TamanoMaximoBytes = long.MaxValue;
+        public const int MaxFilas = int.MaxValue;
 
         /// <summary>Formatos aceptados al subir el archivo.</summary>
-        public static readonly string[] ExtensionesPermitidas = { ".xlsx", ".csv", ".tsv", ".txt", ".json" };
+        public static readonly string[] ExtensionesPermitidas = { ".xlsx", ".xls", ".csv", ".tsv", ".txt", ".json" };
 
         /// <summary>Valor para el atributo accept del input file.</summary>
         public static string ExtensionesAceptadas => string.Join(",", ExtensionesPermitidas);
 
         /// <summary>Texto para mostrar al usuario.</summary>
-        public const string FormatosTexto = "Excel (.xlsx), CSV, TSV/TXT (texto separado) o JSON";
+        public const string FormatosTexto = "Excel (.xlsx o .xls), CSV, TSV/TXT (texto separado) o JSON";
 
         /// <summary>
         /// Resultado de procesar un archivo subido.
@@ -43,21 +44,7 @@ namespace Kirkenta.Helpers.Import
                 return new ResultadoLectura { Ok = false, Error = "Debes seleccionar un archivo" };
             }
 
-            if (archivo.Length > TamanoMaximoBytes)
-            {
-                return new ResultadoLectura { Ok = false, Error = "El archivo no puede pesar más de 20 MB" };
-            }
-
             var extension = Path.GetExtension(archivo.FileName).ToLowerInvariant();
-
-            if (extension == ".xls")
-            {
-                return new ResultadoLectura
-                {
-                    Ok = false,
-                    Error = "El formato antiguo de Excel (.xls) no es compatible. Ábrelo en Excel y usa Guardar como → Libro de Excel (.xlsx) o CSV."
-                };
-            }
 
             if (!ExtensionesPermitidas.Contains(extension))
             {
@@ -75,9 +62,12 @@ namespace Kirkenta.Helpers.Import
                 archivoLeido = extension switch
                 {
                     ".xlsx" => ExcelImporter.Read(stream),
+                    ".xls" => LeerXls(stream),
                     ".json" => JsonImporter.Read(stream),
                     _ => CsvImporter.Read(stream) // .csv, .tsv, .txt
                 };
+                // «1.234» en una columna que usa coma decimal es mil doscientos treinta y cuatro, no 1.234
+                Kirkenta.Helpers.Migracion.MigracionFormatos.NormalizarNumerosAmbiguos(archivoLeido.Headers, archivoLeido.Rows);
             }
             catch (Exception)
             {
@@ -115,14 +105,60 @@ namespace Kirkenta.Helpers.Import
             };
         }
 
+        /// <summary>Excel 97-2003: la primera hoja con datos.</summary>
+        private static ImportFile LeerXls(Stream stream)
+        {
+            using var ms = new MemoryStream();
+            stream.CopyTo(ms);
+            ms.Position = 0;
+            var r = new Kirkenta.Helpers.Migracion.ResultadoMigracionLectura();
+            Kirkenta.Helpers.Migracion.MigracionBasesDatos.LeerXls(ms, r);
+            var hoja = r.Tablas.FirstOrDefault();
+            if (hoja == null) return new ImportFile { Error = r.Avisos.FirstOrDefault() ?? "El archivo no tiene hojas con datos" };
+            return new ImportFile { Headers = hoja.Headers, Rows = hoja.Rows };
+        }
+
+        private const string MarcaArchivo = "@archivo:";
+
+        private static string CarpetaTemporal()
+        {
+            var c = Path.Combine(Path.GetTempPath(), "kirkenta-importacion");
+            Directory.CreateDirectory(c);
+            return c;
+        }
+
         /// <summary>
-        /// Guarda headers y filas en la sesión (como JSON).
+        /// Guarda headers y filas: los encabezados en la sesión y las filas en un temporal en disco
+        /// (la sesión vive en memoria y no está hecha para archivos grandes).
         /// </summary>
         public static void GuardarEnSesion(ISession session, ImportWizardConfig config,
             List<string> headers, List<Dictionary<string, string>> rows)
         {
+            BorrarTemporal(session.GetString(config.SessionRowsKey));
+            try
+            {
+                foreach (var f in Directory.GetFiles(CarpetaTemporal(), "*.json"))
+                    if (File.GetLastWriteTimeUtc(f) < DateTime.UtcNow.AddHours(-12)) File.Delete(f);
+            }
+            catch { /* limpieza best-effort */ }
+            var token = Guid.NewGuid().ToString("N");
+            using (var fs = File.Create(Path.Combine(CarpetaTemporal(), token + ".json")))
+                JsonSerializer.Serialize(fs, rows);
             session.SetString(config.SessionHeadersKey, JsonSerializer.Serialize(headers));
-            session.SetString(config.SessionRowsKey, JsonSerializer.Serialize(rows));
+            session.SetString(config.SessionRowsKey, MarcaArchivo + token);
+        }
+
+        private static string? RutaTemporal(string? valor)
+        {
+            if (valor == null || !valor.StartsWith(MarcaArchivo)) return null;
+            var token = valor.Substring(MarcaArchivo.Length);
+            return Guid.TryParseExact(token, "N", out _) ? Path.Combine(CarpetaTemporal(), token + ".json") : null;
+        }
+
+        private static void BorrarTemporal(string? valor)
+        {
+            var ruta = RutaTemporal(valor);
+            if (ruta != null) try { File.Delete(ruta); } catch { /* ignorar */ }
         }
 
         /// <summary>
@@ -141,7 +177,15 @@ namespace Kirkenta.Helpers.Import
             try
             {
                 var headers = JsonSerializer.Deserialize<List<string>>(jsonHeaders) ?? new();
-                var rows = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(jsonRows) ?? new();
+                List<Dictionary<string, string>> rows;
+                if (jsonRows.StartsWith(MarcaArchivo))
+                {
+                    var ruta = RutaTemporal(jsonRows);
+                    if (ruta == null || !File.Exists(ruta)) return null;
+                    using var fs = File.OpenRead(ruta);
+                    rows = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(fs) ?? new();
+                }
+                else rows = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(jsonRows) ?? new();
                 return (headers, rows);
             }
             catch
@@ -155,6 +199,7 @@ namespace Kirkenta.Helpers.Import
         /// </summary>
         public static void LimpiarSesion(ISession session, ImportWizardConfig config)
         {
+            BorrarTemporal(session.GetString(config.SessionRowsKey));
             session.Remove(config.SessionHeadersKey);
             session.Remove(config.SessionRowsKey);
         }

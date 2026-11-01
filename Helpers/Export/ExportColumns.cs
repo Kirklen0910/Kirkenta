@@ -78,6 +78,7 @@ namespace Kirkenta.Helpers.Export
                 new("Límite crédito", p => p.LimiteCredito, format: "#,##0.00", width: 16),
                 new("Banco", p => p.Banco ?? "", width: 20),
                 new("Cuenta bancaria", p => p.CuentaBancaria ?? "", width: 20),
+                new("Notas", p => p.Notas ?? "", width: 30),
                 new("Activo", p => p.Activo, width: 10),
                 new("Fecha creación", p => p.FechaCreacion, format: "dd/MM/yyyy HH:mm", width: 20),
             };

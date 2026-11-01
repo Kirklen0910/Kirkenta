@@ -58,7 +58,6 @@ namespace Kirkenta.Helpers.Migracion
                 var colId = ColumnaId(tPadre.Headers, def.Raices);
                 if (colId == null) continue;
                 pasoPadre.Mapa.TryGetValue(def.CampoClave, out var colClave);
-                if (colClave == colId) continue;      // el id ya es el código que se migra: se unen solos
                 var colValor = colClave ?? pasoPadre.Mapa.GetValueOrDefault(def.CampoNombre);
                 if (colValor == null) continue;
 

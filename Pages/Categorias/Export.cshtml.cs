@@ -31,7 +31,7 @@ namespace Kirkenta.Pages.Categorias
 
             if (plantilla)
             {
-                var archivoVacio = GenerarArchivo(new List<Categoria>(), columns, formato, esPlantilla: true);
+                var archivoVacio = GenerarArchivo(new List<Categoria>(), columns.Where(c => !c.Header.StartsWith("Fecha ")).ToList(), formato, esPlantilla: true);
                 return File(archivoVacio, ContentType(formato), NombreArchivo("plantilla_categorias", formato));
             }
 

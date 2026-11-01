@@ -450,6 +450,15 @@ namespace Kirkenta.Helpers.Migracion
             return "Mensual";
         }
 
+        /// <summary>«EMP-0007» → «EMP-0008» (respeta los ceros a la izquierda).</summary>
+        internal static string SiguienteCodigo(string codigo)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(codigo, @"^(.*?)(\d+)$");
+            if (!m.Success) return codigo + "-2";
+            var num = (long.Parse(m.Groups[2].Value) + 1).ToString().PadLeft(m.Groups[2].Value.Length, '0');
+            return m.Groups[1].Value + num;
+        }
+
         private static void Empleados(ApplicationDbContext ctx, TablaOrigen tabla, Dictionary<string, string> mapa, Resultado r, int? usuarioId, string lote)
         {
             var existentes = ctx.Empleados.AsNoTracking().Select(e => new { e.Codigo, e.Cedula, e.Nombres, e.Apellidos }).ToList();
@@ -466,7 +475,7 @@ namespace Kirkenta.Helpers.Migracion
                 var nombres = V(fila, mapa, "Nombres");
                 var apellidos = V(fila, mapa, "Apellidos");
                 if (nombres == null) { r.Omitidos++; r.Error(nf, "sin nombre."); continue; }
-                if (apellidos == null && mapa.TryGetValue("Nombres", out var colN) && mapa.TryGetValue("NombreCompleto", out var colC) && colN == colC)
+                if (apellidos == null && !mapa.ContainsKey("Apellidos"))
                 {
                     // Nombre completo en una sola columna: dos primeras palabras = nombres, el resto = apellidos
                     var partes = nombres.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -483,7 +492,12 @@ namespace Kirkenta.Helpers.Migracion
                 if (digCed.Length >= 6) porCedula.Add(digCed);
                 porNombre.Add(Norm(nombres + " " + apellidos));
 
-                if (codigo == null || codigo.Length > 20 || porCodigo.Contains(codigo)) codigo = EmpleadoHelper.GenerarCodigo(ctx);
+                if (codigo == null || codigo.Length > 20 || porCodigo.Contains(codigo))
+                {
+                    // el correlativo sale de la base y los de este lote aún no están guardados: se salta lo ya usado
+                    codigo = EmpleadoHelper.GenerarCodigo(ctx);
+                    while (porCodigo.Contains(codigo)) codigo = SiguienteCodigo(codigo);
+                }
                 porCodigo.Add(codigo);
 
                 var ingreso = ParsearFecha(V(fila, mapa, "FechaIngreso"));
@@ -754,6 +768,7 @@ namespace Kirkenta.Helpers.Migracion
             var categorias = ctx.CategoriasFinancieras.ToList();
             var moneda = ctx.Monedas.AsNoTracking().FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1;
             var nuevos = new List<MovimientoFinanciero>();
+            var numerosLote = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             int Categoria(string tipo, string? nombre)
             {
@@ -796,9 +811,11 @@ namespace Kirkenta.Helpers.Migracion
                 var cuenta = nomCuenta == null ? cuentaDefecto
                     : cuentas.FirstOrDefault(c => Norm(c.Nombre) == Norm(nomCuenta) || string.Equals(c.Codigo, nomCuenta, StringComparison.OrdinalIgnoreCase)) ?? cuentaDefecto;
 
+                var numero = NumeroDocumentoHelper.GenerarSiguiente(ctx, "MovimientoFinanciero");
+                while (!numerosLote.Add(numero)) numero = SiguienteCodigo(numero);   // los del lote aún no están guardados
                 var mov = new MovimientoFinanciero
                 {
-                    Numero = NumeroDocumentoHelper.GenerarSiguiente(ctx, "MovimientoFinanciero"),
+                    Numero = numero,
                     Tipo = tipo, Fecha = fecha.Value, CuentaId = cuenta.Id, CategoriaId = Categoria(tipo, V(fila, op.Mapa, "Categoria")),
                     Monto = monto, MonedaId = moneda, TipoCambio = 1, Concepto = Recortar(concepto, 200),
                     Referencia = R(fila, op.Mapa, "Referencia", 100), FormaPago = R(fila, op.Mapa, "FormaPago", 50),

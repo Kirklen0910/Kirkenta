@@ -11,6 +11,8 @@ namespace Kirkenta.Pages.Productos
 {
     public class ImportMapModel : PageModel
     {
+        private static readonly ImportWizardConfig Sesion = new() { SessionKey = "Productos" };
+
         private readonly ApplicationDbContext _context;
         private readonly List<(Producto, decimal)> _stockInicialPendiente = new();
         private int? _usuarioImportId;
@@ -92,17 +94,15 @@ namespace Kirkenta.Pages.Productos
                 return RedirectToPage("/Productos/Index");
             }
 
-            var jsonHeaders = HttpContext.Session.GetString("ImportProductos_Headers");
-            var jsonRows = HttpContext.Session.GetString("ImportProductos_Rows");
-
-            if (string.IsNullOrEmpty(jsonHeaders) || string.IsNullOrEmpty(jsonRows))
+            var datos = ImportWizardHelper.RecuperarDeSesion(HttpContext.Session, Sesion);
+            if (datos == null)
             {
                 TempData["Error"] = "La sesión expiró. Vuelve a subir el archivo.";
                 return RedirectToPage("/Productos/Import");
             }
 
-            HeadersArchivo = JsonSerializer.Deserialize<List<string>>(jsonHeaders) ?? new();
-            FilasArchivo = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(jsonRows) ?? new();
+            HeadersArchivo = datos.Value.Headers;
+            FilasArchivo = datos.Value.Rows;
 
             MapaSugerido = ColumnMapper.Detectar(HeadersArchivo, AliasCampos);
 
@@ -135,17 +135,15 @@ namespace Kirkenta.Pages.Productos
                 return RedirectToPage("/Productos/Index");
             }
 
-            var jsonHeaders = HttpContext.Session.GetString("ImportProductos_Headers");
-            var jsonRows = HttpContext.Session.GetString("ImportProductos_Rows");
-
-            if (string.IsNullOrEmpty(jsonHeaders) || string.IsNullOrEmpty(jsonRows))
+            var datos = ImportWizardHelper.RecuperarDeSesion(HttpContext.Session, Sesion);
+            if (datos == null)
             {
                 TempData["Error"] = "La sesión expiró. Vuelve a subir el archivo.";
                 return RedirectToPage("/Productos/Import");
             }
 
-            var filas = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(jsonRows) ?? new();
-            HeadersArchivo = JsonSerializer.Deserialize<List<string>>(jsonHeaders) ?? new();
+            var filas = datos.Value.Rows;
+            HeadersArchivo = datos.Value.Headers;
 
             if (string.IsNullOrEmpty(Mapeo.GetValueOrDefault("Nombre")))
             {
@@ -169,8 +167,7 @@ namespace Kirkenta.Pages.Productos
                 $"Importó productos: {resultado.Resumen()}",
                 HttpContext.Connection.RemoteIpAddress?.ToString());
 
-            HttpContext.Session.Remove("ImportProductos_Headers");
-            HttpContext.Session.Remove("ImportProductos_Rows");
+            ImportWizardHelper.LimpiarSesion(HttpContext.Session, Sesion);
 
             // Éxito limpio => mensaje y listado. Con errores/advertencias => pantalla de resultado
             // con el motivo de cada fila y CSV descargable para corregir y reintentar.
