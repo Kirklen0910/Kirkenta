@@ -231,7 +231,12 @@ namespace Kirkenta.Helpers.Migracion
 
         private static bool FechaPlausible(DateTime f) => f.Year >= 1990 && f <= DateTime.Today.AddYears(1);
 
-        internal static string Recortar(string s, int max) => s.Length <= max ? s : s.Substring(0, max);
+        internal static string Recortar(string s, int max)
+        {
+            if (s.Length <= max) return s;
+            MigracionCorrida.Recorte("Texto", s, max);      // se informa: nunca se recorta en silencio
+            return s.Substring(0, max);
+        }
 
         public static string NuevoLote() => "MIG-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
 
@@ -526,6 +531,7 @@ namespace Kirkenta.Helpers.Migracion
                 const int lote500 = 200;
                 for (int i = 0; i < plan.Count; i += lote500)
                 {
+                    MigracionCorrida.Avance(i, plan.Count);
                     var tanda = plan.Skip(i).Take(lote500).ToList();
 
                     if (esCxP)
@@ -734,6 +740,7 @@ namespace Kirkenta.Helpers.Migracion
             int n = 0;
             foreach (var fila in tabla.Rows)
             {
+                MigracionCorrida.Fila(tabla.Rows.Count);
                 n++; int nf = n + 1;
                 var pid = productos.Buscar(Valor(fila, op.Mapa, "ProductoCodigo"), Valor(fila, op.Mapa, "ProductoNombre"));
                 if (pid == null) { r.Omitidos++; r.Aviso(nf, "el producto no existe en el catálogo: se omite (importa primero los productos)."); continue; }

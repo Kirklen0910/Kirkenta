@@ -13,8 +13,9 @@ namespace Kirkenta.Helpers.Migracion
     /// </summary>
     public static class MigracionLector
     {
-        public const long MaxEntradaBytes = 200L * 1024 * 1024;
-        public const int MaxFilasPorTabla = 300_000;
+        // Sin límite de tamaño ni de filas: el único tope es la memoria del equipo.
+        public const long MaxEntradaBytes = long.MaxValue;
+        public const int MaxFilasPorTabla = int.MaxValue;
         private const int MaxEntradasZip = 500;
 
         public static ResultadoMigracionLectura Leer(string nombreArchivo, Stream stream)
@@ -105,6 +106,20 @@ namespace Kirkenta.Helpers.Migracion
             using var ms = new MemoryStream();
             stream.CopyTo(ms);
             return CsvImporter.Decodificar(ms.ToArray());
+        }
+
+        /// <summary>Codificación de un archivo grande según su inicio (BOM, UTF-8 válido o Latin-1 de sistemas viejos).</summary>
+        private static System.Text.Encoding CodificacionDe(Stream stream)
+        {
+            var buf = new byte[4 * 1024 * 1024];
+            int n = stream.Read(buf, 0, buf.Length);
+            stream.Position = 0;
+            if (n >= 3 && buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF) return new System.Text.UTF8Encoding(false);
+            if (n >= 2 && buf[0] == 0xFF && buf[1] == 0xFE) return System.Text.Encoding.Unicode;
+            if (n >= 2 && buf[0] == 0xFE && buf[1] == 0xFF) return System.Text.Encoding.BigEndianUnicode;
+            // se descartan los últimos bytes por si cortan un carácter a la mitad
+            try { new System.Text.UTF8Encoding(false, true).GetString(buf, 0, Math.Max(0, n - 4)); return new System.Text.UTF8Encoding(false); }
+            catch { return System.Text.Encoding.Latin1; }
         }
 
         // ---------- ZIP ----------
@@ -291,9 +306,12 @@ namespace Kirkenta.Helpers.Migracion
         // ---------- SQL ----------
         private static void LeerSql(Stream stream, ResultadoMigracionLectura r)
         {
-            var texto = LeerTexto(stream);
             int antes = r.Tablas.Count;
-            foreach (var t in SqlDumpParser.Parse(texto, r.Avisos))
+            // Los volcados grandes se leen por bloques, sin armar un solo texto gigante
+            var tablas = stream.CanSeek && stream.Length > 128L * 1024 * 1024
+                ? SqlDumpParser.Parse(new StreamReader(stream, CodificacionDe(stream), false, 1 << 20), r.Avisos)
+                : SqlDumpParser.Parse(LeerTexto(stream), r.Avisos);
+            foreach (var t in tablas)
                 r.Agregar(t.Nombre, t.Headers, t.Rows);
             if (r.Tablas.Count == antes)
                 r.Avisos.Add("El archivo .sql no contiene sentencias INSERT/COPY con datos.");

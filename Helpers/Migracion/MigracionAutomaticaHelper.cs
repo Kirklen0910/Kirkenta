@@ -23,6 +23,8 @@ namespace Kirkenta.Helpers.Migracion
         public Dictionary<string, string> MapaDetalle { get; set; } = new();
         public bool EsHistorial => Destino.StartsWith("@");
         public string Tipo => Destino.TrimStart('@');
+        /// <summary>Uniones por id interno que se hicieron (cliente_id → clientes…).</summary>
+        public List<string> Relaciones { get; } = new();
     }
 
     public class ResultadoPaso
@@ -45,6 +47,8 @@ namespace Kirkenta.Helpers.Migracion
         public string? Concepto { get; set; }
         public decimal? MontoOrigen { get; set; }
         public decimal? MontoMigrado { get; set; }
+        /// <summary>Textos que venían más largos de lo que admite Kirkenta.</summary>
+        public int Recortados { get; set; }
         public decimal Diferencia => (MontoOrigen ?? 0) - (MontoMigrado ?? 0);
         public bool FilasCuadran => FilasOrigen == Creados + YaExistian + Descartados;
         public bool MontoCuadra => MontoOrigen == null || Math.Abs(Diferencia) <= 0.05m;
@@ -72,6 +76,10 @@ namespace Kirkenta.Helpers.Migracion
         /// <summary>Revisión de integridad corrida sobre el sistema ya migrado (vacía = todo cuadra).</summary>
         public List<HallazgoPosMigracion> Integridad { get; } = new();
         public int RevisionesIntegridad { get; set; }
+        /// <summary>Comparación registro por registro de lo guardado contra el origen.</summary>
+        public List<LineaVerificacion> Verificacion { get; } = new();
+        /// <summary>Formato de fechas y números que se usó en cada columna.</summary>
+        public List<FormatoColumna> Formatos { get; set; } = new();
         public bool Aplicado { get; set; }
         public bool SoloRevision { get; set; }
         public string? ErrorFatal { get; set; }
@@ -177,21 +185,12 @@ namespace Kirkenta.Helpers.Migracion
                 if (p.EsHistorial)
                 {
                     var tipo = p.Tipo;
-                    var campos = Campos(tipo);
-                    p.Mapa = MigracionHistorialHelper.Detectar(tablas[i].Headers, campos)
-                        .Where(x => x.Value != null).ToDictionary(x => x.Key, x => x.Value!);
-                    var falta = campos.Where(c => c.Requerido && !p.Mapa.ContainsKey(c.Key)).Select(c => c.Label).ToList();
-                    if (tipo is TipoCxC or TipoCxP && !new[] { "Cliente", "ClienteCodigo", "ClienteRTN", "Proveedor", "ProveedorCodigo", "ProveedorRTN" }.Any(p.Mapa.ContainsKey))
-                        falta.Add("cliente/proveedor");
-                    if (tipo == TipoKardex && !p.Mapa.ContainsKey("ProductoCodigo") && !p.Mapa.ContainsKey("ProductoNombre"))
-                        falta.Add("producto");
-
-                    if (MigracionOperacionesHelper.EsHistorial(tipo))
-                    {
-                        // compras, cotizaciones, movimientos: sus propias columnas y reglas
-                        p.Mapa = MigracionOperacionesHelper.Detectar(tablas[i].Headers, tipo);
-                        falta = MigracionOperacionesHelper.Faltantes(tipo, p.Mapa);
-                    }
+                    // compras, cotizaciones, movimientos: sus propias columnas y reglas
+                    p.Mapa = MigracionOperacionesHelper.EsHistorial(tipo)
+                        ? MigracionOperacionesHelper.Detectar(tablas[i].Headers, tipo)
+                        : MigracionHistorialHelper.Detectar(tablas[i].Headers, Campos(tipo))
+                            .Where(x => x.Value != null).ToDictionary(x => x.Key, x => x.Value!);
+                    var falta = Faltan(p);
 
                     if (ConLineas.Contains(destino[i]) && detalleDe.TryGetValue(i, out var di))
                     {
@@ -200,7 +199,7 @@ namespace Kirkenta.Helpers.Migracion
                             .Where(x => x.Value != null).ToDictionary(x => x.Key, x => x.Value!);
                     }
 
-                    if (falta.Count > 0) p.Motivo = "No se encontró la columna: " + string.Join(", ", falta) + ".";
+                    if (falta.Count > 0) p.Motivo = SinColumna + string.Join(", ", falta) + ".";
                     else if (tipo == TipoCxC && ventasConSaldo)
                         p.Motivo = "Los saldos pendientes ya vienen en la tabla de ventas; esta se omite para no duplicar.";
                     else p.Incluir = true;
@@ -208,12 +207,17 @@ namespace Kirkenta.Helpers.Migracion
                 else
                 {
                     p.Mapa = MigracionCatalogosHelper.Detectar(tablas[i].Headers, destino[i]);
-                    var falta = MigracionCatalogosHelper.Faltantes(destino[i], p.Mapa);
-                    if (falta.Count > 0) p.Motivo = "No se encontró la columna: " + string.Join(", ", falta) + ".";
+                    var falta = Faltan(p);
+                    if (falta.Count > 0) p.Motivo = SinColumna + string.Join(", ", falta) + ".";
                     else p.Incluir = true;
                 }
                 pasos.Add(p);
             }
+
+            // 5) tablas unidas por su id interno (cliente_id, producto_id, venta_id…)
+            MigracionRelaciones.Resolver(tablas, pasos);
+            foreach (var p in pasos.Where(p => !p.Incluir && p.Motivo?.StartsWith(SinColumna) == true && Faltan(p).Count == 0))
+            { p.Incluir = true; p.Motivo = null; }
 
             return pasos.OrderBy(p => p.Orden).ThenBy(p => p.TablaIndice).ToList();
         }
@@ -279,8 +283,24 @@ namespace Kirkenta.Helpers.Migracion
             ctx.ChangeTracker.Clear();
         }
 
+        private const string SinColumna = "No se encontró la columna: ";
+
+        private static List<string> Faltan(PasoMigracion p)
+        {
+            if (!p.EsHistorial) return MigracionCatalogosHelper.Faltantes(p.Destino, p.Mapa);
+            var tipo = p.Tipo;
+            if (MigracionOperacionesHelper.EsHistorial(tipo)) return MigracionOperacionesHelper.Faltantes(tipo, p.Mapa);
+            var falta = Campos(tipo).Where(c => c.Requerido && !p.Mapa.ContainsKey(c.Key)).Select(c => c.Label).ToList();
+            if (tipo is TipoCxC or TipoCxP && !new[] { "Cliente", "ClienteCodigo", "ClienteRTN", "Proveedor", "ProveedorCodigo", "ProveedorRTN" }.Any(p.Mapa.ContainsKey))
+                falta.Add("cliente/proveedor");
+            if (tipo == TipoKardex && !p.Mapa.ContainsKey("ProductoCodigo") && !p.Mapa.ContainsKey("ProductoNombre"))
+                falta.Add("producto");
+            return falta;
+        }
+
         public static ResultadoAutomatico Ejecutar(ApplicationDbContext ctx, List<TablaOrigen> tablas,
-            List<PasoMigracion> plan, int? usuarioId, bool aplicar)
+            List<PasoMigracion> plan, int? usuarioId, bool aplicar,
+            Action<int, string>? progreso = null, string formatoFecha = "dmy")
         {
             var res = new ResultadoAutomatico { SoloRevision = !aplicar };
 
@@ -290,16 +310,31 @@ namespace Kirkenta.Helpers.Migracion
                 return res;
             }
 
+            // Fechas y números: un solo formato por columna, decidido con todos sus valores
+            res.Formatos = MigracionFormatos.Normalizar(tablas, plan, formatoFecha);
+
+            var pasos = plan.Where(p => p.Incluir).OrderBy(p => p.Orden).ThenBy(p => p.TablaIndice).ToList();
+            double totalFilas = Math.Max(1, pasos.Sum(p => (double)p.Filas + (p.DetalleIndice.HasValue ? tablas[p.DetalleIndice.Value].Rows.Count : 0)));
+            double hechas = 0, peso = 0;
+            string etapa = "";
+            int Pct(double filas) => (int)Math.Min(95, filas / totalFilas * 95);
+            MigracionCorrida.Iniciar(progreso == null ? null : frac => progreso(Pct(hechas + frac * peso), etapa));
+
             var propia = ctx.Database.CurrentTransaction == null;
             using var tx = propia ? ctx.Database.BeginTransaction() : null;
             PasoMigracion? actual = null;
             try
             {
-                foreach (var paso in plan.Where(p => p.Incluir).OrderBy(p => p.Orden).ThenBy(p => p.TablaIndice))
+                foreach (var paso in pasos)
                 {
                     actual = paso;
                     var tabla = tablas[paso.TablaIndice];
                     var rp = new ResultadoPaso { Paso = paso };
+                    peso = paso.Filas + (paso.DetalleIndice.HasValue ? tablas[paso.DetalleIndice.Value].Rows.Count : 0);
+                    etapa = $"{paso.Titulo} ({paso.TablaNombre})";
+                    MigracionCorrida.NuevoPaso();
+                    progreso?.Invoke(Pct(hechas), etapa);
+                    var marca = MigracionVerificacion.Marcar(ctx, paso);
 
                     if (paso.EsHistorial)
                     {
@@ -324,12 +359,34 @@ namespace Kirkenta.Helpers.Migracion
                         rp.Res = MigracionCatalogosHelper.Procesar(ctx, tabla, paso.Destino, paso.Mapa, usuarioId, true);
                     }
                     res.Pasos.Add(rp);
-                    if (rp.Res != null) res.Conciliacion.Add(Conciliar(paso, tabla, rp.Res));
                     ctx.ChangeTracker.Clear();
+
+                    // Nada se recorta en silencio; y lo guardado se vuelve a leer y se compara con el origen
+                    var recortes = MigracionCorrida.TomarRecortes();
+                    if (rp.Res != null)
+                    {
+                        var c = Conciliar(paso, tabla, rp.Res);
+                        c.Recortados = recortes.Count;
+                        res.Conciliacion.Add(c);
+                        if (recortes.Count > 0)
+                            rp.Res.Advertencias.Insert(0, $"{recortes.Count} texto(s) eran más largos de lo que admite Kirkenta y se recortaron (detalle en la verificación).");
+                    }
+                    var ver = MigracionVerificacion.Verificar(ctx, tabla, paso, marca)
+                              ?? (recortes.Count > 0 ? new LineaVerificacion { Titulo = paso.Titulo, Tabla = paso.TablaNombre } : null);
+                    if (ver != null)
+                    {
+                        ver.Recortados = recortes.Count;
+                        foreach (var (campo, texto) in recortes.Take(20))
+                            ver.Diferencias.Add($"Texto recortado en {campo}: «{texto}»");
+                        res.Verificacion.Add(ver);
+                    }
+                    hechas += peso;
                 }
 
                 // Integridad del sistema ya migrado (dentro de la misma transacción: en la revisión también se ve)
+                progreso?.Invoke(96, "Revisión de integridad");
                 RevisarIntegridad(ctx, res);
+                progreso?.Invoke(99, aplicar ? "Guardando" : "Deshaciendo la revisión");
 
                 if (aplicar) { tx?.Commit(); res.Aplicado = true; }
                 else tx?.Rollback();
@@ -341,6 +398,7 @@ namespace Kirkenta.Helpers.Migracion
                 res.Aplicado = false;
                 res.ErrorFatal = $"Se canceló todo y NO se guardó nada. Falló el paso «{actual?.Titulo} ({actual?.TablaNombre})»: {ex.InnerException?.Message ?? ex.Message}";
             }
+            finally { MigracionCorrida.Terminar(); }
             ctx.ChangeTracker.Clear();
             return res;
         }

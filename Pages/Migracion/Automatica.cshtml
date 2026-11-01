@@ -17,6 +17,36 @@
 
 @if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
 
+@if (Model.EnCurso != null)
+{
+    var t = Model.EnCurso;
+    <div class="module-card" style="padding:18px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;gap:12px;font-size:14px">
+            <strong>@(t.Aplicar ? "Migrando…" : "Revisando… (no se guarda nada)")</strong>
+            <strong id="mig-pct">@t.Porcentaje %</strong>
+        </div>
+        <div style="height:8px;background:var(--color-surface-2);border-radius:99px;overflow:hidden;margin:10px 0 8px">
+            <div id="mig-barra" style="height:100%;width:@(t.Porcentaje)%;background:var(--color-primary);border-radius:99px;transition:width .4s"></div>
+        </div>
+        <div id="mig-etapa" style="font-size:13px;color:var(--color-muted)">@t.Etapa</div>
+    </div>
+    <script>
+        (function () {
+            var url = '?handler=Estado&Tarea=@t.Id';
+            var fin = '?Token=@Model.Token&Tarea=@t.Id';
+            function ver() {
+                fetch(url, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (e) {
+                    document.getElementById('mig-pct').textContent = e.p + ' %';
+                    document.getElementById('mig-barra').style.width = e.p + '%';
+                    document.getElementById('mig-etapa').textContent = e.etapa;
+                    if (e.listo) location.href = fin; else setTimeout(ver, 800);
+                }).catch(function () { setTimeout(ver, 2000); });
+            }
+            setTimeout(ver, 500);
+        })();
+    </script>
+}
+
 @if (Model.Resultado != null)
 {
     var res = Model.Resultado;
@@ -101,7 +131,53 @@
                             <td style="font-size:12px">@(c.Concepto ?? "—")</td>
                             <td style="text-align:right;white-space:nowrap">@(c.MontoOrigen.HasValue ? "L. " + c.MontoOrigen.Value.ToString("N2") : "—")</td>
                             <td style="text-align:right;white-space:nowrap">@(c.MontoMigrado.HasValue ? "L. " + c.MontoMigrado.Value.ToString("N2") : "—")</td>
-                            <td style="font-size:12px"><span class="badge @(c.Cuadra ? "badge-success" : "badge-danger")">@(c.Cuadra ? "Cuadra" : "Revisar")</span> @c.Explicacion</td>
+                            <td style="font-size:12px"><span class="badge @(c.Cuadra ? "badge-success" : "badge-danger")">@(c.Cuadra ? "Cuadra" : "Revisar")</span> @c.Explicacion@(c.Recortados > 0 ? $" {c.Recortados} texto(s) recortado(s)." : "")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        @if (res.Verificacion.Count > 0)
+        {
+            var revisados = res.Verificacion.Sum(v => v.Revisados);
+            var difs = res.Verificacion.Sum(v => v.TotalDiferencias);
+            var recortes = res.Verificacion.Sum(v => v.Recortados);
+            <h3 style="margin:18px 0 6px;font-size:15px">Verificación registro por registro</h3>
+            <p style="font-size:13px;margin:0 0 8px">
+                @if (difs == 0 && recortes == 0)
+                {
+                    <span>✅ @revisados.ToString("N0") registros comparados campo por campo contra el origen: todos iguales.</span>
+                }
+                else
+                {
+                    <span>⚠️ @revisados.ToString("N0") registros comparados: @difs.ToString("N0") diferencia(s)@(recortes > 0 ? $" y {recortes:N0} texto(s) recortado(s)" : "").</span>
+                }
+            </p>
+            <div class="table-wrapper">
+                <table class="erp-table">
+                    <thead><tr><th>Paso</th><th style="text-align:right">Comparados</th><th style="text-align:right">Diferencias</th><th>Resultado</th></tr></thead>
+                    <tbody>
+                    @foreach (var v in res.Verificacion)
+                    {
+                        <tr>
+                            <td><strong>@v.Titulo</strong><div style="font-size:12px;color:var(--color-muted)">@v.Tabla</div></td>
+                            <td style="text-align:right">@v.Revisados.ToString("N0")</td>
+                            <td style="text-align:right">@((v.TotalDiferencias + v.Recortados).ToString("N0"))</td>
+                            <td style="font-size:12px">
+                                @if (v.Exacto) { <span class="badge badge-success">Idéntico</span> }
+                                else
+                                {
+                                    <details>
+                                        <summary style="cursor:pointer"><span class="badge badge-danger">Revisar</span> ver qué cambió</summary>
+                                        <ul style="margin:6px 0 0 16px">
+                                            @foreach (var d in v.Diferencias) { <li>@d</li> }
+                                            @if (v.TotalDiferencias > 50) { <li>…y @((v.TotalDiferencias - 50).ToString("N0")) más.</li> }
+                                        </ul>
+                                    </details>
+                                }
+                            </td>
                         </tr>
                     }
                     </tbody>
@@ -143,7 +219,7 @@
     </div>
 }
 
-@if (Model.Resultado == null || !Model.Resultado.Aplicado)
+@if (Model.EnCurso == null && (Model.Resultado == null || !Model.Resultado.Aplicado))
 {
     <form method="post" class="module-card" style="padding:16px">
         <input type="hidden" name="Token" value="@Model.Token" />
@@ -188,12 +264,26 @@
                             @etiqueta
                             @if (p.Motivo != null) { <div style="color:var(--color-muted)">@p.Motivo</div> }
                             @if (p.Incluir && p.DetalleIndice.HasValue) { <div style="color:var(--color-muted)">con líneas de «@Model.Tablas[p.DetalleIndice.Value].Nombre»</div> }
+                            @foreach (var rel in p.Relaciones) { <div style="color:var(--color-muted)">↪ @rel</div> }
                         </td>
                     </tr>
                 }
                 </tbody>
             </table>
         </div>
+
+        @{ var ambiguas = Model.Formatos.Where(f => f.EsFecha && f.Ambiguo).ToList(); }
+        @if (ambiguas.Count > 0)
+        {
+            <div class="module-alert" style="margin-top:14px;font-size:13px">
+                <strong>¿Cómo vienen las fechas?</strong>
+                En @string.Join(", ", ambiguas.Select(a => $"{a.Tabla}.{a.Columna}")) ningún valor lo aclara (por ejemplo «@ambiguas[0].Ejemplo»).
+                <div style="margin-top:6px;display:flex;gap:16px;flex-wrap:wrap">
+                    <label><input type="radio" name="FormatoFecha" value="dmy" checked="@(Model.FormatoFecha != "mdy")" /> Día/mes/año</label>
+                    <label><input type="radio" name="FormatoFecha" value="mdy" checked="@(Model.FormatoFecha == "mdy")" /> Mes/día/año</label>
+                </div>
+            </div>
+        }
 
         <div style="margin-top:14px;font-size:13px">
             <label style="display:flex;gap:8px;align-items:flex-start">

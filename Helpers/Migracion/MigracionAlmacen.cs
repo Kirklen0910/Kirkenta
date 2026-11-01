@@ -26,7 +26,7 @@ namespace Kirkenta.Helpers.Migracion
         {
             LimpiarViejos();
             var token = Guid.NewGuid().ToString("N");
-            File.WriteAllText(Ruta(token), JsonSerializer.Serialize(tablas));
+            using (var fs = File.Create(Ruta(token))) JsonSerializer.Serialize(fs, tablas);
             return token;
         }
 
@@ -35,7 +35,7 @@ namespace Kirkenta.Helpers.Migracion
             if (!TokenValido(token)) return null;
             var ruta = Ruta(token!);
             if (!File.Exists(ruta)) return null;
-            try { return JsonSerializer.Deserialize<List<TablaOrigen>>(File.ReadAllText(ruta)); }
+            try { using var fs = File.OpenRead(ruta); return JsonSerializer.Deserialize<List<TablaOrigen>>(fs); }
             catch { return null; }
         }
 

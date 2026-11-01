@@ -258,6 +258,7 @@ namespace Kirkenta.Helpers.Migracion
             int n = 0;
             foreach (var fila in tabla.Rows)
             {
+                MigracionCorrida.Fila(tabla.Rows.Count);
                 n++; int nf = n + 1;
                 var codigo = V(fila, mapa, "Codigo");
                 var nombre = V(fila, mapa, "Nombre");
@@ -340,6 +341,7 @@ namespace Kirkenta.Helpers.Migracion
             int n = 0;
             foreach (var fila in tabla.Rows)
             {
+                MigracionCorrida.Fila(tabla.Rows.Count);
                 n++; int nf = n + 1;
                 var nombre = V(fila, mapa, "Nombre");
                 if (nombre == null) { r.Omitidos++; r.Error(nf, "sin nombre."); continue; }
@@ -369,6 +371,7 @@ namespace Kirkenta.Helpers.Migracion
             int n = 0;
             foreach (var fila in tabla.Rows)
             {
+                MigracionCorrida.Fila(tabla.Rows.Count);
                 n++; int nf = n + 1;
                 var nombre = V(fila, mapa, "Nombre");
                 if (nombre == null) { r.Omitidos++; r.Error(nf, "sin nombre."); continue; }
@@ -458,6 +461,7 @@ namespace Kirkenta.Helpers.Migracion
             int n = 0;
             foreach (var fila in tabla.Rows)
             {
+                MigracionCorrida.Fila(tabla.Rows.Count);
                 n++; int nf = n + 1;
                 var nombres = V(fila, mapa, "Nombres");
                 var apellidos = V(fila, mapa, "Apellidos");
@@ -618,6 +622,7 @@ namespace Kirkenta.Helpers.Migracion
             int n = 0;
             foreach (var fila in tabla.Rows)
             {
+                MigracionCorrida.Fila(tabla.Rows.Count);
                 n++; int nf = n + 1;
                 var doc = V(fila, op.Mapa, "Documento");
                 var fecha = ParsearFecha(V(fila, op.Mapa, "Fecha"));
@@ -679,6 +684,7 @@ namespace Kirkenta.Helpers.Migracion
             int n = 0;
             foreach (var fila in tabla.Rows)
             {
+                MigracionCorrida.Fila(tabla.Rows.Count);
                 n++; int nf = n + 1;
                 var doc = V(fila, op.Mapa, "Documento");
                 var fecha = ParsearFecha(V(fila, op.Mapa, "Fecha"));
@@ -763,6 +769,7 @@ namespace Kirkenta.Helpers.Migracion
             int n = 0;
             foreach (var fila in tabla.Rows)
             {
+                MigracionCorrida.Fila(tabla.Rows.Count);
                 n++; int nf = n + 1;
                 var fecha = ParsearFecha(V(fila, op.Mapa, "Fecha"));
                 var concepto = V(fila, op.Mapa, "Concepto");
@@ -822,6 +829,7 @@ namespace Kirkenta.Helpers.Migracion
             int n = 0;
             foreach (var fila in tabla.Rows)
             {
+                MigracionCorrida.Fila(tabla.Rows.Count);
                 n++; int nf = n + 1;
                 var codigo = V(fila, op.Mapa, "Codigo")?.Trim();
                 if (codigo == null) { r.Omitidos++; r.Error(nf, "sin código de cuenta."); continue; }

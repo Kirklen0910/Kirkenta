@@ -7,8 +7,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Kirkenta.Pages.Migracion
 {
-    [RequestSizeLimit(200_000_000)]
-    [RequestFormLimits(MultipartBodyLengthLimit = 200_000_000)]
+    [DisableRequestSizeLimit]
+    [RequestFormLimits(MultipartBodyLengthLimit = long.MaxValue, ValueLengthLimit = int.MaxValue)]
     public class IndexModel : PageModel
     {
         private readonly ApplicationDbContext _context;
@@ -57,18 +57,14 @@ namespace Kirkenta.Pages.Migracion
                 TempData["Error"] = "Selecciona el archivo del sistema anterior.";
                 return RedirectToPage();
             }
-            if (Archivo.Length > 200_000_000)
-            {
-                TempData["Error"] = "El archivo supera 200 MB. Expórtalo por partes (por ejemplo una tabla por archivo).";
-                return RedirectToPage();
-            }
-
+            // Sin límite de tamaño: el archivo se pasa a un temporal en disco (no a la memoria) y se lee de ahí
             ResultadoMigracionLectura lectura;
-            using (var ms = new MemoryStream())
+            var temporal = Path.Combine(Path.GetTempPath(), "kirkenta-subida-" + Guid.NewGuid().ToString("N"));
+            using (var fs = new FileStream(temporal, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1 << 20, FileOptions.DeleteOnClose))
             {
-                Archivo.CopyTo(ms);
-                ms.Position = 0;
-                lectura = MigracionLector.Leer(Archivo.FileName, ms);
+                Archivo.CopyTo(fs);
+                fs.Position = 0;
+                lectura = MigracionLector.Leer(Archivo.FileName, fs);
             }
 
             return Analizar(lectura, Path.GetFileName(Archivo.FileName));

@@ -181,6 +181,7 @@ namespace Kirkenta.Helpers.Migracion
             int n = 0;
             foreach (var fila in tabla.Rows)
             {
+                MigracionCorrida.Fila(tabla.Rows.Count);
                 n++; int nf = n + 1;
                 var pctTxt = V(fila, mapa, "Porcentaje");
                 var pct = ParserHelper.ParsearDecimal(pctTxt);
@@ -220,6 +221,7 @@ namespace Kirkenta.Helpers.Migracion
             int n = 0;
             foreach (var fila in tabla.Rows)
             {
+                MigracionCorrida.Fila(tabla.Rows.Count);
                 n++; int nf = n + 1;
                 var nombre = V(fila, mapa, "Nombre");
                 if (nombre == null) { r.Omitidos++; r.Error(nf, "sin nombre."); continue; }
@@ -243,6 +245,7 @@ namespace Kirkenta.Helpers.Migracion
             int n = 0;
             foreach (var fila in tabla.Rows)
             {
+                MigracionCorrida.Fila(tabla.Rows.Count);
                 n++; int nf = n + 1;
                 var nombre = V(fila, mapa, "Nombre");
                 if (nombre == null) { r.Omitidos++; r.Error(nf, "sin nombre."); continue; }
@@ -336,6 +339,7 @@ namespace Kirkenta.Helpers.Migracion
             int n = 0;
             foreach (var fila in tabla.Rows)
             {
+                MigracionCorrida.Fila(tabla.Rows.Count);
                 n++; int nf = n + 1;
                 var nombre = V(fila, mapa, "Nombre");
                 if (nombre == null) { r.Omitidos++; r.Error(nf, "producto sin nombre."); continue; }
@@ -410,6 +414,7 @@ namespace Kirkenta.Helpers.Migracion
             int n = 0;
             foreach (var fila in tabla.Rows)
             {
+                MigracionCorrida.Fila(tabla.Rows.Count);
                 n++; int nf = n + 1;
                 var nombre = V(fila, mapa, "Nombre") ?? V(fila, mapa, "RazonSocial");
                 if (nombre == null) { r.Omitidos++; r.Error(nf, "sin nombre."); continue; }

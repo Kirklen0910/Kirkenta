@@ -126,6 +126,7 @@ namespace Kirkenta.Data
         // seguridad (UltimoAcceso, IntentosFallidos, etc.) NO vacían el cache.
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
+            Kirkenta.Helpers.Migracion.MigracionCorrida.AjustarTextos(this);
             var invalidarCache = HayCambiosDeSeguridad();
             var resultado = base.SaveChanges(acceptAllChangesOnSuccess);
 

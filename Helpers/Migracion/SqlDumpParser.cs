@@ -18,14 +18,75 @@ namespace Kirkenta.Helpers.Migracion
             "PRIMARY", "KEY", "UNIQUE", "CONSTRAINT", "INDEX", "FOREIGN", "FULLTEXT", "CHECK", "SPATIAL", "PERIOD", "EXCLUDE"
         };
 
-        public const long MaxFilasTotales = 600_000;
+        /// <summary>Sin límite: el único tope es la memoria del equipo.</summary>
+        public const long MaxFilasTotales = long.MaxValue;
 
         public static List<TablaOrigen> Parse(string sql, List<string>? avisos = null)
         {
-            var columnasCreate = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-            var tablas = new Dictionary<string, TablaOrigen>(StringComparer.OrdinalIgnoreCase);
-            var orden = new List<string>();
-            long total = 0;
+            var e = new Estado();
+            e.Procesar(sql, avisos);
+            return e.Tablas();
+        }
+
+        private static readonly Regex InicioCopy = new(@"^\s*COPY\s.+\bFROM\s+stdin", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// Lee un volcado de cualquier tamaño por bloques (de ~32 MB, cortando siempre al final de una sentencia),
+        /// sin cargar el archivo entero en memoria como un solo texto.
+        /// </summary>
+        public static List<TablaOrigen> Parse(TextReader lector, List<string>? avisos = null, int bloque = 32 * 1024 * 1024)
+        {
+            var e = new Estado();
+            var sb = new StringBuilder();
+            bool enCopy = false, enCadena = false;
+            string? linea;
+            while ((linea = lector.ReadLine()) != null)
+            {
+                sb.Append(linea).Append('\n');
+                if (enCopy) { if (linea.TrimEnd('\r') == "\\.") enCopy = false; continue; }
+                if (!enCadena && InicioCopy.IsMatch(linea)) { enCopy = true; continue; }
+                var t = linea.TrimStart();
+                if (!enCadena && (t.StartsWith("--") || t.StartsWith("#"))) continue;
+                enCadena = DentroDeCadena(linea, enCadena);
+                if (!enCadena && sb.Length >= bloque && linea.TrimEnd().EndsWith(";"))
+                {
+                    e.Procesar(sb.ToString(), avisos);
+                    sb.Clear();
+                }
+            }
+            if (sb.Length > 0) e.Procesar(sb.ToString(), avisos);
+            return e.Tablas();
+        }
+
+        /// <summary>¿La línea termina dentro de un texto entre comillas simples? (respeta \' y '').</summary>
+        private static bool DentroDeCadena(string linea, bool dentro)
+        {
+            for (int i = 0; i < linea.Length; i++)
+            {
+                var c = linea[i];
+                if (!dentro) { if (c == '\'') dentro = true; continue; }
+                if (c == '\\') { i++; continue; }
+                if (c == '\'')
+                {
+                    if (i + 1 < linea.Length && linea[i + 1] == '\'') { i++; continue; }
+                    dentro = false;
+                }
+            }
+            return dentro;
+        }
+
+        /// <summary>Lo leído hasta ahora: sigue entre bloques (columnas de los CREATE, tablas y filas).</summary>
+        private class Estado
+        {
+            private readonly Dictionary<string, List<string>> columnasCreate = new(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, TablaOrigen> tablas = new(StringComparer.OrdinalIgnoreCase);
+            private readonly List<string> orden = new();
+            private long total;
+
+            public List<TablaOrigen> Tablas() => orden.Select(n => tablas[n]).Where(t => t.Rows.Count > 0).ToList();
+
+        public void Procesar(string sql, List<string>? avisos)
+        {
             int pos = 0;
 
             while (pos < sql.Length)
@@ -125,8 +186,9 @@ namespace Kirkenta.Helpers.Migracion
                 }
             }
 
-            return orden.Select(n => tablas[n]).Where(t => t.Rows.Count > 0).ToList();
         }
+        }
+
 
         // ---------- utilidades ----------
         private static TablaOrigen ObtenerTabla(Dictionary<string, TablaOrigen> tablas, List<string> orden, string nombre)
