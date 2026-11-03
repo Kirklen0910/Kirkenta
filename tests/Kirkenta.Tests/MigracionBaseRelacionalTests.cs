@@ -87,6 +87,17 @@ INSERT INTO auditoria VALUES (1,'productos','INSERT'),(2,'ventas','UPDATE');
             Assert.Equal(2820.00m, ctx.OrdenesCompra.Sum(o => o.Total));
             Assert.Equal(3, ctx.Empleados.Select(e => e.Codigo).Distinct().Count());   // códigos sin repetir
             Assert.Equal("Diaz", ctx.Empleados.Single(e => e.Nombres == "Ana").Apellidos);
+
+            // «Así se ve tu negocio»: los números que el dueño reconoce
+            var n = res.Negocio!;
+            Assert.Equal(3, n.Facturas);
+            Assert.Equal(188.25m, n.TotalVendido);
+            Assert.Equal("Taladro", n.TopProductos.First().Nombre);
+            Assert.Equal(95.00m, n.TopProductos.First().Monto);
+            Assert.Equal(4700.00m, n.InventarioCosto);
+            Assert.Equal(5, n.Productos);
+            Assert.Equal(3, n.Clientes);
+            Assert.Single(n.VentasPorMes);
         }
     }
 }

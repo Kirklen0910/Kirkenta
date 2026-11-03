@@ -30,6 +30,7 @@ namespace Kirkenta.Pages.Migracion
         public ResultadoAutomatico? Resultado { get; set; }
         public int RegistrosExistentes { get; set; }
         public List<FormatoColumna> Formatos { get; set; } = new();
+        public string EmpresaNombre => _context.ConfiguracionEmpresa.Select(e => e.Nombre).FirstOrDefault() ?? "";
         /// <summary>Revisión o migración corriendo en segundo plano (se muestra la barra de avance).</summary>
         public TareaMigracion? EnCurso { get; set; }
 

@@ -80,6 +80,8 @@ namespace Kirkenta.Helpers.Migracion
         public List<LineaVerificacion> Verificacion { get; } = new();
         /// <summary>Formato de fechas y números que se usó en cada columna.</summary>
         public List<FormatoColumna> Formatos { get; set; } = new();
+        /// <summary>Los números del negocio con lo migrado (ventas por mes, más vendidos, quién debe…).</summary>
+        public ResumenNegocio? Negocio { get; set; }
         public bool Aplicado { get; set; }
         public bool SoloRevision { get; set; }
         public string? ErrorFatal { get; set; }
@@ -376,6 +378,7 @@ namespace Kirkenta.Helpers.Migracion
             PasoMigracion? actual = null;
             try
             {
+                var marcas = MigracionResumen.Marcar(ctx);
                 foreach (var paso in pasos)
                 {
                     actual = paso;
@@ -433,6 +436,9 @@ namespace Kirkenta.Helpers.Migracion
                     }
                     hechas += peso;
                 }
+
+                progreso?.Invoke(95, "Resumen del negocio");
+                res.Negocio = MigracionResumen.Calcular(ctx, marcas);
 
                 // Integridad del sistema ya migrado (dentro de la misma transacción: en la revisión también se ve)
                 progreso?.Invoke(96, "Revisión de integridad");

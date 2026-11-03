@@ -34,6 +34,8 @@ namespace Kirkenta.Helpers
             bool productos = db.Productos.Any();
             bool clientes = db.Clientes.Any();
             bool usuarios = db.Usuarios.Count(u => u.Activo) > 1;
+            bool venta = db.Ventas.Any(v => v.LoteMigracion == null);
+            bool migrado = db.RegistrosMigracion.Any() || db.Ventas.Any(v => v.LoteMigracion != null) || db.OrdenesCompra.Any(o => o.LoteMigracion != null);
             var respaldos = RespaldoEstado.Leer();
 
             return new List<PasoConfiguracion>
@@ -46,7 +48,10 @@ namespace Kirkenta.Helpers
                 new("clientes", "Cargar tus clientes", "Opcional: así puedes facturar a crédito y cobrar con recordatorios.", clientes, true, "/Clientes/Index"),
                 new("usuarios", "Crear los usuarios del negocio", "Un usuario para cada cajero o vendedor, con el rol que les toca.", usuarios, true, "/Usuarios/Index"),
                 new("respaldo", "Hacer tu primer respaldo", "Con un clic queda guardada toda la información del negocio.", respaldos.Ultimo != null, false, "/Configuracion/Respaldos"),
-            };
+                new("venta", "Hacer tu primera venta", "Una venta real (o de prueba) en el punto de venta para ver el ticket, la caja y el inventario moverse.", venta, false, "/POS/Index"),
+            }.Concat(migrado
+                ? new[] { new PasoConfiguracion("migracion", "Revisar lo que trajiste del sistema anterior", "Lotes migrados, su conciliación y, si algo no cuadra, deshacerlo.", false, true, "/Migracion/Index?continuar=1") }
+                : Array.Empty<PasoConfiguracion>()).ToList();
         }
 
         /// <summary>true si falta algo obligatorio.</summary>

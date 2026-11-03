@@ -1,4 +1,5 @@
 ﻿using Kirkenta.Data;
+using Microsoft.EntityFrameworkCore;
 using Kirkenta.Helpers;
 using Kirkenta.Helpers.Finanzas;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -68,6 +69,9 @@ namespace Kirkenta.Pages
         public List<Kpi> Kpis { get; set; } = new();
         public List<Acceso> Accesos { get; set; } = new();
         public List<Alerta> Alertas { get; set; } = new();
+        /// <summary>Lista de arranque (solo administradores, hasta completarla u ocultarla).</summary>
+        public List<PasoConfiguracion>? Arranque { get; set; }
+        public const string AccionOcultarArranque = "Ocultó la lista de arranque";
 
         public bool MostrarVentas { get; set; }
         public bool MostrarStockBajo { get; set; }
@@ -336,8 +340,33 @@ namespace Kirkenta.Pages
             {
                 var nombreUsuario = User.Identity?.Name;
                 var esAdminInicio = !string.IsNullOrEmpty(nombreUsuario) && _context.Usuarios.Any(x => x.Username == nombreUsuario && x.Rol == "Admin");
-                if (esAdminInicio && ConfiguracionInicialHelper.FaltaConfigurar(_context))
-                    Alertas.Add(new Alerta { Texto = "Falta terminar la configuración inicial del negocio (empresa, caja o catálogo). El asistente te guía paso a paso.", Nivel = "warning", Pagina = "/Configuracion/Inicio" });
+                if (esAdminInicio)
+                {
+                    var pasos = ConfiguracionInicialHelper.Estado(_context);
+                    bool oculta = _context.Actividades.Any(a => a.Accion == AccionOcultarArranque);
+                    if (!oculta && pasos.Any(p => !p.Completo && !p.Opcional)) Arranque = pasos;
+                }
+            }
+            catch { /* el aviso nunca debe romper el inicio */ }
+
+            // ===== COBROS: clientes con saldo vencido (el sistema recuerda que hay plata por recuperar) =====
+            try
+            {
+                if (Puede("Finanzas", "Cobros"))
+                {
+                    var hoyCobro = DateTime.Today;
+                    var vencidos = _context.Ventas.AsNoTracking()
+                        .Where(v => v.EsCredito && v.SaldoPendiente > 0 && v.Estado != "Anulada" && v.ClienteId != null
+                                    && (v.FechaVencimientoCredito ?? v.Fecha) < hoyCobro)
+                        .GroupBy(v => v.ClienteId)
+                        .Select(g => g.Sum(v => v.SaldoPendiente)).ToList();
+                    if (vencidos.Count > 0)
+                        Alertas.Add(new Alerta
+                        {
+                            Texto = $"{vencidos.Count} cliente(s) te deben L. {vencidos.Sum():N2} ya vencidos. Recuérdales por WhatsApp con su estado de cuenta.",
+                            Nivel = "warning", Pagina = "/Finanzas/Cobros/Recordatorios"
+                        });
+                }
             }
             catch { /* el aviso nunca debe romper el inicio */ }
 
@@ -365,6 +394,15 @@ namespace Kirkenta.Pages
             Add(Puede("Reportes", "Index"), "/Reportes/Index", "📊", "Reportes");
             Add(Puede("Reportes", "PanelDueno"), "/Reportes/PanelDueno", "🧭", "Panel del dueño");
             Add(Puede("Finanzas", "Cobros"), "/Finanzas/Cobros/Recordatorios", "💬", "Recordatorios de cobro");
+        }
+
+        /// <summary>El administrador oculta la lista de arranque (queda en la bitácora; el asistente sigue en Configuración).</summary>
+        public Microsoft.AspNetCore.Mvc.IActionResult OnPostOcultarArranque()
+        {
+            var u = _context.Usuarios.AsNoTracking().FirstOrDefault(x => x.Username == User.Identity!.Name);
+            if (u?.Rol == "Admin")
+                ActividadHelper.Registrar(_context, u.Id, AccionOcultarArranque, "", HttpContext.Connection.RemoteIpAddress?.ToString());
+            return RedirectToPage();
         }
     }
 }

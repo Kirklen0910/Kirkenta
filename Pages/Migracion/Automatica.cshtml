@@ -50,7 +50,22 @@
 @if (Model.Resultado != null)
 {
     var res = Model.Resultado;
-    <div class="module-card" style="padding:16px;margin-bottom:12px">
+    @if (res.Ok)
+    {
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+            <button type="button" class="btn-secondary" id="kkInformePdf">⬇ Descargar informe (PDF)</button>
+            <small id="kkInformeAviso" style="margin-left:8px;align-self:center;color:var(--color-muted)"></small>
+        </div>
+    }
+    <div class="module-card" style="padding:16px;margin-bottom:12px" data-pdf-doc>
+        <div class="pdf-only" style="display:none;margin-bottom:12px">
+            <h2 style="margin:0">Informe de migración — @Model.EmpresaNombre</h2>
+            <p style="margin:2px 0 0;font-size:12px">@(res.SoloRevision ? "Revisión (sin guardar)" : "Migración aplicada") · @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</p>
+        </div>
+        @if (res.Ok && res.Negocio?.HayDatos == true)
+        {
+            <div style="margin-bottom:18px"><partial name="_ResumenNegocio" model="res.Negocio" /></div>
+        }
         @if (!res.Ok)
         {
             <div class="module-alert module-alert-error"><strong>❌ @res.ErrorFatal</strong></div>
@@ -298,3 +313,19 @@
         </div>
     </form>
 }
+
+<script src="~/js/whatsapp-pdf.js" asp-append-version="true"></script>
+<script>
+    (function () {
+        var b = document.getElementById('kkInformePdf');
+        if (!b) return;
+        b.addEventListener('click', function () {
+            var aviso = document.getElementById('kkInformeAviso');
+            b.disabled = true; aviso.textContent = 'Generando…';
+            kkPdf.generar(document.querySelector('[data-pdf-doc]'), 'Informe-de-migracion.pdf')
+                .then(function (pdf) { kkPdf.descargar(pdf); aviso.textContent = 'Listo: ' + pdf.nombre; })
+                .catch(function (e) { aviso.textContent = 'No se pudo generar: ' + (e && e.message ? e.message : e); })
+                .then(function () { b.disabled = false; });
+        });
+    })();
+</script>

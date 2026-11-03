@@ -51,6 +51,21 @@ namespace Kirkenta.Pages.Configuracion
             return u != null && PermisoHelper.UsuarioTieneAcceso(_db, u.Username, "Configuracion", "Respaldos") ? u : null;
         }
 
+        /// <summary>«Llévate todos tus datos»: un .zip con un CSV por tabla, para abrir en Excel o usar en cualquier sistema.</summary>
+        public async Task<IActionResult> OnGetExportarDatosAsync()
+        {
+            var u = await AdminAsync();
+            if (u == null) return Forbid();
+            var temporal = Path.Combine(Path.GetTempPath(), "kirkenta-datos-" + Guid.NewGuid().ToString("N") + ".zip");
+            var fs = new FileStream(temporal, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1 << 16, FileOptions.DeleteOnClose);
+            var tablas = Kirkenta.Helpers.Export.ExportarTodoHelper.Generar(_db, fs);
+            fs.Position = 0;
+            ActividadHelper.Registrar(_db, u.Id, "Exportó todos los datos",
+                $"{tablas.Count} tablas, {tablas.Sum(t => t.Filas):N0} filas", HttpContext.Connection.RemoteIpAddress?.ToString());
+            var empresa = string.Concat((_db.ConfiguracionEmpresa.Select(e => e.Nombre).FirstOrDefault() ?? "negocio").Split(Path.GetInvalidFileNameChars())).Trim();
+            return File(fs, "application/zip", $"datos-{empresa}-{DateTime.Now:yyyyMMdd-HHmm}.zip");
+        }
+
         private void Cargar()
         {
             Carpeta = _svc.Carpeta;

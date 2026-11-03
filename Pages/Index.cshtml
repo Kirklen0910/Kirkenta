@@ -18,6 +18,34 @@
     }
     else
     {
+        if (Model.Arranque != null)
+        {
+            var hechos = Model.Arranque.Count(p => p.Completo);
+            var total = Model.Arranque.Count;
+            <div class="module-card" style="padding:16px 18px;margin-bottom:14px">
+                <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+                    <strong>🚀 Tu arranque en Kirkenta: @hechos de @total</strong>
+                    <form method="post" asp-page-handler="OcultarArranque" style="margin:0">
+                        <button type="submit" class="btn-secondary btn-sm" title="El asistente sigue en Configuración → Configuración inicial">Ocultar</button>
+                    </form>
+                </div>
+                <div style="height:6px;background:var(--color-surface-2);border-radius:99px;overflow:hidden;margin:10px 0 12px">
+                    <div style="height:100%;width:@(total == 0 ? 0 : hechos * 100 / total)%;background:var(--color-primary)"></div>
+                </div>
+                <ul style="list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px 18px;font-size:13px">
+                    @foreach (var p in Model.Arranque)
+                    {
+                        <li style="@(p.Completo ? "color:var(--color-muted)" : "")">
+                            @(p.Completo ? "✅" : "⬜")
+                            @if (p.Completo) { <span style="text-decoration:line-through">@p.Titulo</span> }
+                            else { <a href="@p.Pagina" style="text-decoration:underline">@p.Titulo</a> }
+                            @if (p.Opcional && !p.Completo) { <small style="color:var(--color-muted)">(opcional)</small> }
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+
         if (Model.Alertas.Any())
         {
             <div class="section">

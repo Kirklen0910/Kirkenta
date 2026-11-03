@@ -1,0 +1,101 @@
+@model Kirkenta.Helpers.Migracion.ResumenNegocio
+@{
+    var n = Model;
+    string L(decimal v) => "L. " + v.ToString("N2");
+    var meses = new[] { "", "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic" };
+}
+<style>
+    .rn-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 10px 0 16px; }
+    .rn-kpi { border: 1px solid var(--color-border); border-radius: 10px; padding: 12px; background: var(--color-surface); }
+    .rn-kpi small { display: block; color: var(--color-muted); font-size: 12px; }
+    .rn-kpi strong { display: block; font-size: 18px; margin-top: 2px; }
+    .rn-kpi span { font-size: 12px; color: var(--color-muted); }
+    .rn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+    .rn-bloque h4 { font-size: 13px; margin: 0 0 8px; }
+    .rn-barra { display: grid; grid-template-columns: 56px 1fr 92px; gap: 8px; align-items: center; font-size: 12px; margin-bottom: 4px; }
+    .rn-barra div { height: 10px; border-radius: 99px; background: var(--color-surface-2); overflow: hidden; }
+    .rn-barra div i { display: block; height: 100%; background: var(--color-primary); border-radius: 99px; }
+    .rn-barra b { text-align: right; font-weight: 600; }
+    .rn-lista { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+    .rn-lista li { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--color-border); }
+    .rn-lista li small { color: var(--color-muted); display: block; font-size: 11px; }
+    .rn-lista li b { white-space: nowrap; }
+</style>
+
+<h3 style="margin:0 0 2px;font-size:16px">📊 Así se ve tu negocio en Kirkenta</h3>
+<p style="font-size:13px;color:var(--color-muted);margin:0">
+    Calculado con tus datos reales@(n.Desde != null ? $", del {n.Desde:dd/MM/yyyy} al {n.Hasta:dd/MM/yyyy}" : "").
+</p>
+
+<div class="rn-kpis">
+    @if (n.Facturas > 0)
+    {
+        <div class="rn-kpi"><small>Total vendido</small><strong>@L(n.TotalVendido)</strong><span>@n.Facturas.ToString("N0") facturas</span></div>
+        <div class="rn-kpi"><small>Ticket promedio</small><strong>@L(n.TicketPromedio)</strong><span>por factura</span></div>
+    }
+    @if (n.PorCobrar > 0)
+    {
+        <div class="rn-kpi"><small>Te deben</small><strong>@L(n.PorCobrar)</strong><span>@(n.PorCobrarVencido > 0 ? L(n.PorCobrarVencido) + " vencido" : "todo al día")</span></div>
+    }
+    @if (n.PorPagar > 0)
+    {
+        <div class="rn-kpi"><small>Debes a proveedores</small><strong>@L(n.PorPagar)</strong><span>saldo pendiente</span></div>
+    }
+    @if (n.Productos > 0)
+    {
+        <div class="rn-kpi"><small>Inventario al costo</small><strong>@L(n.InventarioCosto)</strong><span>@n.Productos.ToString("N0") productos@(n.SinExistencia > 0 ? $" · {n.SinExistencia:N0} sin existencia" : "")</span></div>
+        @if (n.InventarioVenta > n.InventarioCosto)
+        {
+            <div class="rn-kpi"><small>Ganancia en tu bodega</small><strong>@L(n.InventarioVenta - n.InventarioCosto)</strong><span>si vendes todo a precio de lista</span></div>
+        }
+    }
+    @if (n.Clientes > 0 || n.Proveedores > 0)
+    {
+        <div class="rn-kpi"><small>Contactos</small><strong>@n.Clientes.ToString("N0") clientes</strong><span>@n.Proveedores.ToString("N0") proveedores</span></div>
+    }
+</div>
+
+<div class="rn-grid">
+    @if (n.VentasPorMes.Count > 0)
+    {
+        <div class="rn-bloque">
+            <h4>Ventas por mes</h4>
+            @foreach (var m in n.VentasPorMes)
+            {
+                var ancho = n.MesMayor == 0 ? 0 : (int)Math.Round(m.Total / n.MesMayor * 100);
+                <div class="rn-barra" title="@m.Facturas factura(s) · ISV @L(m.Isv)">
+                    <span>@meses[m.Inicio.Month] @m.Inicio.ToString("yy")</span>
+                    <div><i style="width:@(ancho)%"></i></div>
+                    <b>@L(m.Total)</b>
+                </div>
+            }
+        </div>
+    }
+    @if (n.TopProductos.Count > 0)
+    {
+        <div class="rn-bloque">
+            <h4>Lo que más vendes</h4>
+            <ul class="rn-lista">
+                @foreach (var p in n.TopProductos) { <li><span>@p.Nombre<small>@p.Detalle</small></span><b>@L(p.Monto)</b></li> }
+            </ul>
+        </div>
+    }
+    @if (n.TopClientes.Count > 0)
+    {
+        <div class="rn-bloque">
+            <h4>Tus mejores clientes</h4>
+            <ul class="rn-lista">
+                @foreach (var c in n.TopClientes) { <li><span>@c.Nombre<small>@c.Detalle</small></span><b>@L(c.Monto)</b></li> }
+            </ul>
+        </div>
+    }
+    @if (n.Deudores.Count > 0)
+    {
+        <div class="rn-bloque">
+            <h4>Quién te debe más</h4>
+            <ul class="rn-lista">
+                @foreach (var d in n.Deudores) { <li><span>@d.Nombre<small>@d.Detalle</small></span><b>@L(d.Monto)</b></li> }
+            </ul>
+        </div>
+    }
+</div>

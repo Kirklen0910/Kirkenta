@@ -76,10 +76,24 @@
 
     function generarPdf(btn) {
         var docUrl = btn.dataset.docUrl;
-        var nombre = btn.dataset.archivo || 'Documento.pdf';
         var seccion = docUrl ? null : document.querySelector('[data-pdf-doc]');
         if (!docUrl && !seccion) return Promise.reject(new Error('Esta página no tiene un documento para convertir.'));
-        return (docUrl ? cargarIframe(docUrl) : hojaConDocumento(seccion)).then(function (f) {
+        return pdfDe(docUrl || seccion, btn.dataset.archivo || 'Documento.pdf');
+    }
+
+    /// origen: dirección de una página (con [data-pdf-doc] o window.kkGenerarPdf) o un elemento de esta página
+    function pdfDe(origen, nombre) {
+        var hoja = typeof origen === 'string'
+            // otra página: si no genera su propio PDF, su documento se pasa a una hoja limpia (tema claro, sin menú)
+            ? cargarIframe(origen).then(function (f) {
+                var w = f.contentWindow, el = w.document.querySelector('[data-pdf-doc]');
+                if (typeof w.kkGenerarPdf === 'function' || !el) return f;
+                var copia = document.importNode(el, true);
+                f.remove();
+                return hojaConDocumento(copia);
+            })
+            : hojaConDocumento(origen);
+        return hoja.then(function (f) {
             var w = f.contentWindow;
             var p = typeof w.kkGenerarPdf === 'function'
                 ? w.kkGenerarPdf().then(function (blob) { nombre = w.kkNombrePdf || nombre; return blob; })
@@ -103,6 +117,9 @@
         var largo = parseInt(btn.dataset.paisLargo || '8', 10);
         return d.length === largo ? (btn.dataset.paisCodigo || '504') + d : d;
     }
+
+    // Para otras páginas: kkPdf.generar(urlOElemento, 'Nombre.pdf').then(kkPdf.descargar)
+    window.kkPdf = { generar: pdfDe, descargar: descargar };
 
     document.addEventListener('click', function (e) {
         var btn = e.target.closest && e.target.closest('.wa-pdf-btn');

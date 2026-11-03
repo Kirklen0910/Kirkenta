@@ -47,6 +47,9 @@
             <option value="31" selected="@(Model.DiasMinimos == 31)">Más de 30 días</option>
             <option value="61" selected="@(Model.DiasMinimos == 61)">Más de 60 días</option>
         </select>
+        <label style="display:flex;gap:6px;align-items:center;font-size:13px">
+            <input type="checkbox" id="chkPdf" checked /> Adjuntar estado de cuenta (PDF)
+        </label>
         <button type="button" class="btn-primary" id="btnSiguiente" @(Model.Filas.Any(f => f.Enlace != null) ? "" : "disabled")>
             Enviar al siguiente cliente
         </button>
@@ -80,7 +83,7 @@
                 <tbody>
                     @foreach (var f in Model.Filas)
                     {
-                        <tr data-cliente="@f.ClienteId" data-url="@f.Enlace">
+                        <tr data-cliente="@f.ClienteId" data-url="@f.Enlace" data-nombre="@f.Nombre">
                             <td><strong>@f.Nombre</strong></td>
                             <td>@(string.IsNullOrWhiteSpace(f.Telefono) ? "—" : f.Telefono)</td>
                             <td style="text-align:right;">@f.Documentos</td>
@@ -114,21 +117,36 @@
             </table>
         </div>
         <p class="table-user-sub" style="margin-top:12px;">
-            Al presionar el botón se abre WhatsApp con el mensaje escrito; tú solo das enviar. El sistema deja constancia del aviso.
+            Al presionar el botón se abre WhatsApp con el mensaje escrito; tú solo das enviar. Si marcas el PDF, el estado de cuenta se descarga para adjuntarlo con el clip 📎. El sistema deja constancia del aviso.
         </p>
     }
 </div>
 
 @section Scripts {
+    <script src="~/js/whatsapp-pdf.js" asp-append-version="true"></script>
     <script>
         (function () {
             var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
             var filas = Array.prototype.slice.call(document.querySelectorAll('#tablaRecordatorios tbody tr'));
 
+            function abrirChat(tr, url) {
+                var chk = document.getElementById('chkPdf');
+                if (!chk || !chk.checked || !window.kkPdf) { window.open(url, '_blank', 'noopener'); return; }
+                // la pestaña se abre dentro del clic (si no, el navegador la bloquea) y se dirige al chat cuando el PDF está listo
+                var chat = window.open('', '_blank');
+                var b = tr.querySelector('.btn-enviar');
+                if (b) b.textContent = 'Generando PDF…';
+                var nombre = 'Estado-de-cuenta-' + (tr.dataset.nombre || 'cliente').replace(/[\/:*?"<>|]/g, '') + '.pdf';
+                kkPdf.generar('/Clientes/EstadoCuenta/' + encodeURIComponent(tr.dataset.cliente), nombre)
+                    .then(function (pdf) { kkPdf.descargar(pdf); })
+                    .catch(function () { /* sin PDF igual se manda el mensaje */ })
+                    .then(function () { if (chat) { chat.opener = null; chat.location.href = url; } else window.open(url, '_blank', 'noopener'); });
+            }
+
             function marcar(tr) {
                 var url = tr.dataset.url;
                 if (!url) return;
-                window.open(url, '_blank', 'noopener');
+                abrirChat(tr, url);
                 fetch('?handler=Registrar&clienteId=' + encodeURIComponent(tr.dataset.cliente), {
                     method: 'POST',
                     headers: { 'RequestVerificationToken': token }

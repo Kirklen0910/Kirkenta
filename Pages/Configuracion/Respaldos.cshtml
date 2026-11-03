@@ -14,6 +14,14 @@
     </form>
 </div>
 
+<div class="module-card" style="padding:14px 16px;margin-bottom:14px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+    <div style="font-size:13px;max-width:640px">
+        <strong>📦 Llévate todos tus datos</strong>
+        <div style="color:var(--color-muted)">Tus datos son tuyos. Descarga todo el negocio en hojas que abren en Excel (una por tabla), para guardarlo o usarlo en cualquier otro sistema. No incluye contraseñas.</div>
+    </div>
+    <a asp-page-handler="ExportarDatos" class="btn-secondary">⬇ Descargar mis datos (Excel/CSV)</a>
+</div>
+
 @{ var errorRespaldo = Kirkenta.Helpers.RespaldoEstado.LeerError(Model.Carpeta); }
 @if (errorRespaldo != null)
 {
