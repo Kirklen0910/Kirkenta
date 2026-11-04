@@ -554,6 +554,21 @@ ul { list-style: none; }
     color: var(--color-muted);
     font-size: 14px;
 }
+.dashboard-header .dashboard-fecha {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--color-primary);
+    margin-bottom: 6px;
+}
+
+/* Toda la tarjeta lleva al detalle */
+a.kpi-card.kpi-link { text-decoration: none; color: inherit; }
+a.kpi-card.kpi-link:hover { border-color: var(--color-primary-border, var(--color-primary)); text-decoration: none; }
+.kpi-label { display: flex; justify-content: space-between; gap: 8px; }
+.kpi-ir { opacity: 0; transform: translateX(-4px); transition: opacity .15s ease, transform .15s ease; color: var(--color-primary); }
+a.kpi-card.kpi-link:hover .kpi-ir { opacity: 1; transform: none; }
 
 .kpi-grid {
     display: grid;
@@ -640,7 +655,14 @@ ul { list-style: none; }
     text-decoration: none;
 }
 
-.quick-icon { font-size: 22px; line-height: 1; }
+.quick-icon {
+    font-size: 20px; line-height: 1;
+    width: 44px; height: 44px; border-radius: 12px;
+    display: grid; place-items: center;
+    background: var(--color-primary-soft);
+    transition: transform .18s ease;
+}
+.quick-action:hover .quick-icon { transform: scale(1.06); }
 
 .panel-grid {
     display: grid;
@@ -816,8 +838,9 @@ ul { list-style: none; }
 .auth-alert-error {
     background: var(--color-danger-bg);
     border: 1px solid var(--color-danger-border);
-    color: var(--color-danger);
+    color: var(--color-danger-text);
 }
+.auth-alert-error .auth-alert-icon { color: var(--color-danger); }
 
 .auth-alert-icon {
     width: 18px !important;
@@ -855,6 +878,42 @@ ul { list-style: none; }
 .auth-footer a {
     font-weight: 600;
     color: var(--color-primary);
+}
+
+/* Inicio de sesión en dos columnas: la marca a la izquierda, el formulario a la derecha */
+.auth-body.auth-split { padding: 0; align-items: stretch; justify-content: flex-start; }
+.auth-split .auth-wrapper { margin: auto; padding: 24px; }
+.auth-hero {
+    flex: 0 0 44%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 40px 48px;
+    color: #fff;
+    background:
+        radial-gradient(circle at 15% 10%, rgba(255, 255, 255, .16), transparent 45%),
+        radial-gradient(circle at 90% 85%, rgba(255, 255, 255, .10), transparent 40%),
+        linear-gradient(150deg, #4f46e5 0%, #6d28d9 55%, #312e81 100%);
+}
+.auth-hero-marca { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.01em; }
+.auth-hero-marca img { width: 38px; height: 38px; object-fit: contain; background: #fff; border-radius: 10px; padding: 4px; }
+.auth-hero-cuerpo h2 { font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -.03em; margin: 0 0 22px; max-width: 420px; color: #fff; }
+.auth-hero-cuerpo ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.auth-hero-cuerpo li { position: relative; padding-left: 30px; font-size: 14.5px; line-height: 1.4; color: rgba(255, 255, 255, .92); }
+.auth-hero-cuerpo li::before {
+    content: "✓";
+    position: absolute; left: 0; top: 0;
+    width: 20px; height: 20px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 12px; font-weight: 700;
+    background: rgba(255, 255, 255, .18);
+}
+.auth-hero-pie { margin: 0; font-size: 12.5px; color: rgba(255, 255, 255, .7); }
+.auth-seguro { margin: 16px 0 0; text-align: center; font-size: 11.5px; color: var(--color-muted); }
+@media (max-width: 900px) {
+    .auth-hero { display: none; }
+    .auth-body.auth-split { justify-content: center; }
 }
 
 /* ============================================
@@ -1224,10 +1283,34 @@ ul { list-style: none; }
 .module-alert-error {
     background: var(--color-danger-bg);
     border: 1px solid var(--color-danger-border);
-    color: var(--color-danger);
+    color: var(--color-danger-text);       /* texto oscuro: se lee bien; el ícono queda en rojo vivo */
+}
+.module-alert-error svg { color: var(--color-danger); }
+
+.module-alert-warning {
+    background: var(--color-warning-bg);
+    border: 1px solid var(--color-warning-border);
+    color: var(--color-warning-text);
+}
+
+.module-alert-info {
+    background: var(--color-info-bg);
+    border: 1px solid var(--color-border);
+    color: var(--color-info-text);
 }
 
 .module-alert ul { list-style: none; padding: 0; margin: 0; }
+
+/* Mensajes de un formulario que no se pudo guardar (Shared/_MensajesValidacion) */
+.kk-mensajes { flex: 1; min-width: 0; line-height: 1.45; }
+.kk-mensajes ul { list-style: disc; padding-left: 18px; margin: 0; }
+.kk-mensajes li + li { margin-top: 2px; }
+/* El resumen de errores sin errores no se muestra (si no, queda una caja roja vacía) */
+.validation-summary-valid { display: none !important; }
+/* Error junto a cada campo */
+.field-error, .field-validation-error { display: block; margin-top: 4px; font-size: 12px; font-weight: 500; color: var(--color-danger); }
+.field-validation-valid { display: none; }
+.input-validation-error { border-color: var(--color-danger) !important; }
 
 .empty-state {
     display: flex;

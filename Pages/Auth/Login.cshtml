@@ -17,7 +17,23 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
 </head>
-<body class="auth-body">
+<body class="auth-body auth-split">
+    <aside class="auth-hero" aria-hidden="true">
+        <div class="auth-hero-marca">
+            <img src="~/images/logo.png" alt="" />
+            <span>Kirkenta ERP</span>
+        </div>
+        <div class="auth-hero-cuerpo">
+            <h2>Tu negocio en orden, en un solo lugar.</h2>
+            <ul>
+                <li>Facturación con CAI del SAR y libro de ISV listo</li>
+                <li>Inventario, compras y kardex siempre al día</li>
+                <li>Cobros por WhatsApp con estado de cuenta en PDF</li>
+                <li>Contabilidad, nómina con IHSS y RAP, y cierres de caja</li>
+            </ul>
+        </div>
+        <p class="auth-hero-pie">En la nube o en tu propia red · también desde el celular</p>
+    </aside>
     <div class="auth-wrapper">
         <div class="auth-card">
             <div class="auth-brand">
@@ -34,7 +50,7 @@
                         <line x1="12" y1="8" x2="12" y2="12"/>
                         <line x1="12" y1="16" x2="12.01" y2="16"/>
                     </svg>
-                    <span asp-validation-summary="ModelOnly"></span>
+                    <partial name="_MensajesValidacion" />
                 </div>
             }
 
@@ -76,6 +92,7 @@
 
                 <button type="submit" class="btn-auth">Iniciar sesión</button>
             </form>
+            <p class="auth-seguro">🔒 Conexión protegida · la cuenta se bloquea tras varios intentos fallidos</p>
 
             @if (Model.MostrarRegistro)
             {

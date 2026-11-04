@@ -6,8 +6,9 @@
 
 <div class="dashboard">
     <div class="dashboard-header">
-        <h1>Hola, @User.Identity?.Name 👋</h1>
-        <p>Este es el resumen de tu operación según los permisos de tu rol</p>
+        <p class="dashboard-fecha">@Model.Hoy</p>
+        <h1>@Model.Saludo 👋</h1>
+        <p>Así va tu negocio hoy.</p>
     </div>
 
     @if (Model.SinAcceso)
@@ -67,15 +68,22 @@
             <div class="kpi-grid">
                 @foreach (var k in Model.Kpis)
                 {
-                    <div class="kpi-card">
-                        <span class="kpi-label">@k.Etiqueta</span>
-                        <span class="kpi-value">@k.Valor</span>
-                        <span class="kpi-trend @k.Clase">@k.Detalle</span>
-                        @if (!string.IsNullOrEmpty(k.Pagina))
-                        {
-                            <a asp-page="@k.Pagina" style="font-size:12px;margin-top:6px;display:inline-block;">Ver detalle →</a>
-                        }
-                    </div>
+                    @if (!string.IsNullOrEmpty(k.Pagina))
+                    {
+                        <a asp-page="@k.Pagina" class="kpi-card kpi-link" title="Ver detalle">
+                            <span class="kpi-label">@k.Etiqueta <span class="kpi-ir" aria-hidden="true">→</span></span>
+                            <span class="kpi-value">@k.Valor</span>
+                            <span class="kpi-trend @k.Clase">@k.Detalle</span>
+                        </a>
+                    }
+                    else
+                    {
+                        <div class="kpi-card">
+                            <span class="kpi-label">@k.Etiqueta</span>
+                            <span class="kpi-value">@k.Valor</span>
+                            <span class="kpi-trend @k.Clase">@k.Detalle</span>
+                        </div>
+                    }
                 }
             </div>
         }

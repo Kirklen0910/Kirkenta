@@ -177,6 +177,11 @@ namespace Kirkenta.Services.Asistente
                     var detalle = Recortar(ia.Detalle);
                     _log.LogWarning("Lectura de factura con IA respondió {Codigo}: {Detalle}", ia.Status, detalle);
                     _store.Diagnostico($"Lectura de factura: el servidor respondió {ia.Status}. Detalle: {detalle}");
+                    // El modelo configurado solo entiende texto (Groq, la mayoría de modelos locales…)
+                    if (ia.Status == 400 && (detalle.Contains("must be a string") || detalle.Contains("image", StringComparison.OrdinalIgnoreCase)))
+                        return new FacturaLeida { Error = "El modelo de IA configurado solo entiende texto y no puede leer fotos. En Configuración → Asistente con IA elige uno que lea imágenes: Gemini (gratis), Claude o GPT-4o." };
+                    if (ia.Status == 401)
+                        return new FacturaLeida { Error = "La clave de la IA no es válida o venció. Revísala en Configuración → Asistente con IA." };
                     return new FacturaLeida { Error = $"El servidor de IA respondió {ia.Status}. Detalle: {detalle} — Revisa que el modelo configurado entienda imágenes (claude, llava, qwen2.5-vl, gpt-4o…)." };
                 }
                 var contenido = ia.Texto;

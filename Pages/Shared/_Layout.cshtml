@@ -635,6 +635,15 @@
                     @TempData["Error"]
                 </div>
             }
+            @* Avisos de éxito y advertencia que dejó la página anterior (si la página también los pinta, se quita el repetido) *@
+            @if (TempData["Warning"] != null)
+            {
+                <div class="module-alert module-alert-warning">@TempData["Warning"]</div>
+            }
+            @if (TempData["Success"] != null)
+            {
+                <div class="module-alert module-alert-success">@TempData["Success"]</div>
+            }
 
             @{ var licVista = Context.Items["LicenciaVista"] as Kirkenta.Services.Licencia.LicenciaVista; }
             @if (licVista != null && licVista.Aplica && licVista.Permitido && licVista.DiasRestantes is int licDias && licDias <= 7)
@@ -761,6 +770,15 @@
                 var onChange = function () { if (window.kkTema.actual() === 'sistema') aplicar('sistema', true); };
                 if (mq.addEventListener) mq.addEventListener('change', onChange);
             }
+
+            // Un mismo aviso no se muestra dos veces (lo pintan el diseño general y la página)
+            var vistos = {};
+            document.querySelectorAll('.module-alert').forEach(function (a) {
+                var t = (a.textContent || '').replace(/\s+/g, ' ').trim();
+                if (!t) return;
+                var c = (a.className.match(/module-alert-(error|success|warning|info)/) || [''])[0];
+                if (vistos[c + '|' + t]) a.remove(); else vistos[c + '|' + t] = true;
+            });
 
             // Los avisos de éxito pasan a una notificación flotante que se quita sola
             var avisos = document.querySelectorAll('.module-alert-success');

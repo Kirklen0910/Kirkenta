@@ -1,0 +1,30 @@
+@* Mensajes de un formulario que no se pudo guardar: primero los generales, después los de cada campo,
+   siempre en español y nunca una caja vacía. *@
+@{
+    var estado = ViewContext.ViewData.ModelState;
+    var mensajes = new List<string>();
+    if (estado.TryGetValue(string.Empty, out var generales))
+        mensajes.AddRange(generales.Errors.Select(e => Kirkenta.Helpers.MensajesValidacion.Traducir(e.ErrorMessage, null)));
+    foreach (var (clave, entrada) in estado)
+    {
+        if (clave.Length == 0) continue;
+        mensajes.AddRange(entrada.Errors.Select(e => Kirkenta.Helpers.MensajesValidacion.Traducir(e.ErrorMessage, clave)));
+    }
+    mensajes = mensajes.Where(m => m.Length > 0).Distinct().ToList();
+    // «Falta «Proveedor»» sobra si otro mensaje ya habla del proveedor
+    mensajes = mensajes.Where(m => !(m.StartsWith("Falta «") && mensajes.Any(o => o != m
+        && o.Contains(m[7..m.IndexOf('»')], StringComparison.OrdinalIgnoreCase)))).ToList();
+    if (mensajes.Count == 0) mensajes.Add("No se pudo guardar. Revisa los datos e intenta de nuevo.");
+}
+<div class="kk-mensajes" role="alert">
+    @if (mensajes.Count == 1)
+    {
+        <span>@mensajes[0]</span>
+    }
+    else
+    {
+        <ul>
+            @foreach (var m in mensajes) { <li>@m</li> }
+        </ul>
+    }
+</div>

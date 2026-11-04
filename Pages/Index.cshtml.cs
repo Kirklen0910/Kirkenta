@@ -94,8 +94,24 @@ namespace Kirkenta.Pages
             return ($"{flecha} {pct}% {contra}", actual >= anterior ? "up" : "down");
         }
 
+        /// <summary>«Buenos días, Carlos» y la fecha de hoy.</summary>
+        public string Saludo { get; set; } = "Hola";
+        public string Hoy { get; set; } = "";
+
         public void OnGet()
         {
+            try
+            {
+                var nombre = _context.Usuarios.AsNoTracking().Where(u => u.Username == User.Identity!.Name)
+                    .Select(u => u.NombreCompleto).FirstOrDefault();
+                var primero = (string.IsNullOrWhiteSpace(nombre) ? User.Identity?.Name : nombre)?.Trim().Split(' ')[0] ?? "";
+                var h = DateTime.Now.Hour;
+                Saludo = (h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches") + (primero.Length > 0 ? ", " + primero : "");
+                var fecha = DateTime.Today.ToString("dddd d 'de' MMMM", new System.Globalization.CultureInfo("es-HN"));
+                Hoy = char.ToUpper(fecha[0]) + fecha[1..];
+            }
+            catch { /* el saludo nunca debe romper el inicio */ }
+
             var hoy = DateTime.Today;
             var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
             var finMes = inicioMes.AddMonths(1);
