@@ -3257,16 +3257,74 @@ textarea.form-input {
     margin-bottom: 3px;
 }
 
+/* ============================================
+   IMPRESIÓN / PDF DE INFORMES Y REPORTES
+   Hoja carta con márgenes, letra de documento, tablas que caben en el ancho,
+   filas que no se parten entre hojas y encabezados de tabla repetidos.
+   (Ticket, factura carta y etiquetas tienen su propio formato y no usan esta hoja.)
+   ============================================ */
+@page { size: letter; margin: 14mm 12mm 16mm 12mm; }
+
 @media print {
-    .erp-sidebar,
-    .erp-topbar,
-    .module-header,
-    .module-alert,
-    .erp-footer { display: none !important; }
+    /* siempre en claro, aunque se imprima desde el tema oscuro */
+    :root, :root[data-theme="dark"] {
+        color-scheme: light;
+        --color-bg: #fff; --color-surface: #fff; --color-surface-2: #f5f6f8; --color-surface-3: #eceef2;
+        --color-text: #111; --color-muted: #555; --color-faint: #777;
+        --color-border: #d9dce1; --color-border-strong: #b9bec7;
+        --color-primary: #3730a3; --color-primary-soft: #eef0fb; --color-primary-border: #c7cbe9; --color-on-primary: #fff;
+        --color-success: #047857; --color-success-bg: #eefaf4; --color-success-border: #b7e4cc; --color-success-text: #065f46;
+        --color-danger: #b91c1c; --color-danger-bg: #fdf0f0; --color-danger-border: #f2c4c4; --color-danger-text: #991b1b;
+        --color-warning: #b45309; --color-warning-bg: #fdf7ea; --color-warning-border: #f1dca6; --color-warning-text: #92400e;
+        --color-info-bg: #eef3fd; --color-info-text: #1e40af;
+    }
+    html, body { background: #fff !important; color: #111 !important; }
+    body { font-size: 11px; line-height: 1.35; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-shadow: none !important; text-shadow: none !important; }
+
+    /* fuera lo que no es el documento */
+    .erp-sidebar, .erp-topbar, .erp-footer, .module-alert, .toast-stack,
+    .module-header-right, .back-link, .no-print, .no-pdf,
+    .btn-primary, .btn-secondary, .btn-danger, .btn-success, .btn, .btn-sm,
+    .filter-bar, .filters, .kk-inf-periodo, .kk-inf-tabs, .pagination,
+    input[type="file"], .erp-menu-btn, .erp-sidebar-backdrop, .kk-as-fab, .kk-as-panel { display: none !important; }
 
     .erp-main-wrapper { margin-left: 0 !important; }
-    .erp-main { padding: 0 !important; max-width: 100% !important; }
-    .module-card { box-shadow: none; border: none; padding: 0 !important; }
+    .erp-main { padding: 0 !important; max-width: 100% !important; overflow: visible !important; }
+    .dashboard, .section { gap: 10px !important; }
+
+    /* título del informe: se conserva (empresa, período), sin botones */
+    .module-header { display: block !important; margin: 0 0 10px !important; padding: 0 0 8px !important; border-bottom: 1.5px solid #111; }
+    .module-header h1, .module-header h2 { font-size: 17px !important; margin: 0 0 2px !important; }
+    .module-header p { font-size: 11px !important; color: #444 !important; margin: 0 !important; }
+    h1 { font-size: 17px !important; } h2 { font-size: 15px !important; } h3 { font-size: 13px !important; } h4 { font-size: 12px !important; }
+    h1, h2, h3, h4, .panel-title, .section-title, .form-section-title { break-after: avoid; page-break-after: avoid; margin-top: 10px !important; margin-bottom: 6px !important; }
+
+    /* tarjetas y paneles: sobrios */
+    .module-card, .panel, .kpi-card { border: 1px solid #d9dce1 !important; border-radius: 6px !important; padding: 8px 10px !important; margin: 0 0 8px !important; background: #fff !important; }
+    .module-card { border: 0 !important; padding: 0 !important; }
+    .kpi-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 6px !important; }
+    .kpi-card { break-inside: avoid; transform: none !important; }
+    .kpi-value { font-size: 14px !important; }
+    .kpi-label, .kpi-trend { font-size: 9.5px !important; }
+    .panel-grid, .balance-grid { gap: 8px !important; }
+    .badge { border: 1px solid currentColor; padding: 0 5px !important; font-size: 9.5px !important; }
+
+    /* tablas: caben en la hoja, filas enteras, encabezado en cada página */
+    .table-wrapper { overflow: visible !important; }
+    table { width: 100% !important; border-collapse: collapse !important; font-size: 10px !important; }
+    thead { display: table-header-group; }
+    tfoot { display: table-row-group; }
+    tr, img, canvas, svg, .kk-inf-box, .kk-inf-hero { break-inside: avoid; page-break-inside: avoid; }
+    th, td { padding: 4px 6px !important; white-space: normal !important; word-break: normal; overflow-wrap: anywhere; }
+    th { font-size: 9px !important; letter-spacing: .03em !important; background: #f2f3f5 !important; color: #333 !important; border-bottom: 1px solid #b9bec7 !important; }
+    td { border-bottom: 1px solid #e3e5e9 !important; }
+    .erp-table tbody tr:hover { background: transparent !important; }
+    td.text-right, th.text-right, .n { white-space: nowrap !important; }
+
+    /* gráficos: al ancho de la hoja */
+    canvas { max-width: 100% !important; height: auto !important; }
+    a { color: inherit !important; text-decoration: none !important; }
 }
 
 /* ============================================

@@ -108,12 +108,3 @@ h3.kk-inf-h { display: block; }
     .kk-det-tabla tfoot { display: table-row-group; }
     .kk-det-gran { background: #eef2ff !important; }
 }
-
-/* Encabezado que solo sale al imprimir (el del sistema se oculta en la impresión) */
-.kk-imp-cab { display: none; }
-@media print {
-    .kk-imp-cab { display: block; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #111; }
-    .kk-imp-cab strong { font-size: 13px; }
-    .kk-imp-cab h1 { font-size: 20px; margin: 2px 0; }
-    .kk-imp-cab p { font-size: 12px; margin: 0; color: #444; }
-}
