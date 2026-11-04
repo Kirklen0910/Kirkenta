@@ -49,6 +49,9 @@ namespace Kirkenta.Pages.Finanzas.Cierres
 
             public decimal? MontoFondoCaja { get; set; }
 
+            /// <summary>Efectivo que se deposita después (el banco ya cerró): sale de la caja a «Efectivo por depositar».</summary>
+            public decimal? MontoPorDepositar { get; set; }
+
             public decimal? MontoEntregaAdmin { get; set; }
             public int? UsuarioRecibeEntregaId { get; set; }
             public string? NombreRecibeEntrega { get; set; }
@@ -164,8 +167,8 @@ namespace Kirkenta.Pages.Finanzas.Cierres
                     ModelState.AddModelError(string.Empty, calc.Error);
                     return Page();
                 }
+                // Sin conteo se toma el esperado, pero el efectivo igual se reparte (depósito, fondo, entrega)
                 Input.EfectivoContado = calc.EfectivoEsperado;
-                Input.MontoRetiroBanco = null; Input.MontoFondoCaja = null; Input.MontoEntregaAdmin = null;
             }
 
             // Notas: marca de cierre sin conteo + conteo por método (límite de la columna: 500)
@@ -190,10 +193,30 @@ namespace Kirkenta.Pages.Finanzas.Cierres
                 return Page();
             }
 
-            // Validar distribuciones
-            var totalDistribuido = (Input.MontoRetiroBanco ?? 0) + (Input.MontoFondoCaja ?? 0) + (Input.MontoEntregaAdmin ?? 0);
+            // Validar distribuciones. Si no se reparte nada, todo el efectivo se queda en la caja como fondo.
+            if ((Input.MontoRetiroBanco ?? 0) == 0 && (Input.MontoFondoCaja ?? 0) == 0 && (Input.MontoEntregaAdmin ?? 0) == 0 && (Input.MontoPorDepositar ?? 0) == 0)
+                Input.MontoFondoCaja = Input.EfectivoContado;
 
-            if (!Input.SinConteo && Math.Abs(totalDistribuido - Input.EfectivoContado) > 0.01m)
+            if ((Input.MontoRetiroBanco ?? 0) > 0 && !Input.CuentaBancoDestinoId.HasValue)
+            {
+                ModelState.AddModelError(string.Empty, "Elige la cuenta del banco a la que se deposita el efectivo.");
+                return Page();
+            }
+            if ((Input.MontoRetiroBanco ?? 0) > 0 && !_context.CuentasFinancieras.Any(c => c.Id == Input.CuentaBancoDestinoId && c.Activa && c.Tipo == "Banco"))
+            {
+                ModelState.AddModelError(string.Empty, "La cuenta del depósito debe ser una cuenta de banco activa.");
+                return Page();
+            }
+
+            if ((Input.MontoPorDepositar ?? 0) < 0)
+            {
+                ModelState.AddModelError(string.Empty, "El monto por depositar no puede ser negativo");
+                return Page();
+            }
+
+            var totalDistribuido = (Input.MontoRetiroBanco ?? 0) + (Input.MontoFondoCaja ?? 0) + (Input.MontoEntregaAdmin ?? 0) + (Input.MontoPorDepositar ?? 0);
+
+            if (Math.Abs(totalDistribuido - Input.EfectivoContado) > 0.01m)
             {
                 ModelState.AddModelError(string.Empty,
                     $"La suma de las distribuciones (L. {totalDistribuido:N2}) no coincide con el efectivo contado (L. {Input.EfectivoContado:N2})");
@@ -219,6 +242,16 @@ namespace Kirkenta.Pages.Finanzas.Cierres
                     Monto = Input.MontoRetiroBanco.Value,
                     CuentaDestinoId = Input.CuentaBancoDestinoId,
                     Referencia = Input.ReferenciaRetiro
+                });
+            }
+
+            if (Input.MontoPorDepositar.HasValue && Input.MontoPorDepositar > 0)
+            {
+                distribuciones.Add(new DistribucionInput
+                {
+                    Tipo = EfectivoPorDepositarHelper.Tipo,
+                    Monto = Input.MontoPorDepositar.Value,
+                    DestinoDescripcion = "Efectivo por depositar"
                 });
             }
 

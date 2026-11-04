@@ -41,6 +41,13 @@
     </form>
 }
 
+<div class="kk-imp-cab">
+    <strong>@Model.Empresa</strong>
+    <h1>@Model.Titulo</h1>
+    <p>@Model.PeriodoTexto · impreso el @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</p>
+</div>
+
 <partial name="_InformeMetodos" model="Model.Informe" />
+<partial name="_InformeDetalleVentas" model="Model.Informe.Secciones" />
 <partial name="_InformeDescuentos" model="Model.Informe.Descuentos" />
 <partial name="_InformeSaldoFavor" model="Model.Informe.SaldoFavor" />

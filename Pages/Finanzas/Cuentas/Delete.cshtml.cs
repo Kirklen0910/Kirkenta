@@ -31,6 +31,11 @@ namespace Kirkenta.Pages.Finanzas.Cuentas
             }
 
             var c = _context.CuentasFinancieras.FirstOrDefault(x => x.Id == id);
+            if (c?.Codigo == Kirkenta.Helpers.Finanzas.EfectivoPorDepositarHelper.CodigoCuenta)
+            {
+                TempData["Error"] = "«Efectivo por depositar» la maneja el sistema con los cierres de caja: no se edita ni se elimina a mano.";
+                return RedirectToPage("/Finanzas/Cuentas/Index");
+            }
             if (c == null)
             {
                 TempData["Error"] = "Cuenta no encontrada";
@@ -62,6 +67,11 @@ namespace Kirkenta.Pages.Finanzas.Cuentas
             }
 
             var c = _context.CuentasFinancieras.FirstOrDefault(x => x.Id == id);
+            if (c?.Codigo == Kirkenta.Helpers.Finanzas.EfectivoPorDepositarHelper.CodigoCuenta)
+            {
+                TempData["Error"] = "«Efectivo por depositar» la maneja el sistema con los cierres de caja: no se edita ni se elimina a mano.";
+                return RedirectToPage("/Finanzas/Cuentas/Index");
+            }
             if (c == null)
             {
                 TempData["Error"] = "Cuenta no encontrada";

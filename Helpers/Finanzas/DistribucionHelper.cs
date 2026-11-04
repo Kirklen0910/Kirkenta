@@ -166,6 +166,14 @@ namespace Kirkenta.Helpers.Finanzas
                                 dist.Referencia, cierreId, usuarioId, monedaDefecto);
                             break;
 
+                        case EfectivoPorDepositarHelper.Tipo:
+                            // sale de la caja hacia la cuenta puente; el depósito (boleta) se registra después
+                            mov = GenerarTransferencia(
+                                context, cuentaOrigenId, EfectivoPorDepositarHelper.Cuenta(context).Id,
+                                dist.Monto, $"Efectivo por depositar del cierre #{cierreId}",
+                                null, cierreId, usuarioId, monedaDefecto);
+                            break;
+
                         case "EntregaAdmin":
                             mov = GenerarEgreso(
                                 context, cuentaOrigenId, dist.Monto,

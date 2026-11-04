@@ -21,6 +21,8 @@ namespace Kirkenta.Pages.Finanzas.Aperturas
         public InputModel Input { get; set; } = new();
 
         public List<CuentaFinanciera> Cuentas { get; set; } = new();
+        /// <summary>Cuentas de donde puede salir fondo extra para abrir (otras cajas y bancos).</summary>
+        public List<CuentaFinanciera> CuentasOrigen { get; set; } = new();
 
         public class InputModel
         {
@@ -33,6 +35,9 @@ namespace Kirkenta.Pages.Finanzas.Aperturas
 
             [StringLength(500)]
             public string? Notas { get; set; }
+
+            /// <summary>Si se abre con más de lo que dice el sistema: de qué cuenta sale la diferencia (null = sobrante).</summary>
+            public int? CuentaOrigenFondoId { get; set; }
         }
 
         public IActionResult OnGet()
@@ -79,7 +84,8 @@ namespace Kirkenta.Pages.Finanzas.Aperturas
                 Input.CuentaId,
                 Input.SaldoInicial,
                 Input.Notas,
-                currentUser!.Id
+                currentUser!.Id,
+                Input.CuentaOrigenFondoId
             );
 
             if (error != null)
@@ -102,8 +108,12 @@ namespace Kirkenta.Pages.Finanzas.Aperturas
         private void CargarDatos()
         {
             Cuentas = _context.CuentasFinancieras
-                .Where(c => c.Tipo == "Caja" && c.Activa)
+                .Where(c => c.Tipo == "Caja" && c.Activa && c.Subtipo != "CuentasPorCobrar")
                 .OrderBy(c => c.Nombre)
+                .ToList();
+            CuentasOrigen = _context.CuentasFinancieras
+                .Where(c => c.Activa && (c.Tipo == "Caja" || c.Tipo == "Banco") && c.Subtipo != "CuentasPorCobrar")
+                .OrderBy(c => c.Tipo).ThenBy(c => c.Nombre)
                 .ToList();
         }
     }

@@ -176,6 +176,39 @@
     <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--color-border);">
         <h3 class="panel-title" style="margin-bottom: 16px;">🏦 Distribución del efectivo contado</h3>
 
+        @foreach (var p in Model.PorDepositar)
+        {
+            <div class="module-alert module-alert-warning" style="margin:0 0 16px;flex-direction:column;align-items:stretch;gap:10px">
+                <div><strong>🕒 L. @p.Monto.ToString("N2") por depositar.</strong> Cuando lo lleves al banco, registra aquí la boleta: el dinero pasa al banco.</div>
+                @if (Model.Bancos.Count == 0)
+                {
+                    <div>Primero crea tu cuenta de banco. <a href="/Finanzas/Cuentas/Create" style="text-decoration:underline">Crear cuenta de banco</a></div>
+                }
+                else if (Model.PuedeSubirAdjunto)
+                {
+                    <form method="post" asp-page-handler="RegistrarDeposito" asp-route-id="@Model.Cierre.Id" enctype="multipart/form-data"
+                          style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;align-items:end">
+                        <input type="hidden" name="distribucionId" value="@p.DistribucionId" />
+                        <label style="font-size:12px">Banco
+                            <select name="bancoId" class="form-input" required>
+                                @foreach (var b in Model.Bancos) { <option value="@b.Id">@b.Nombre</option> }
+                            </select>
+                        </label>
+                        <label style="font-size:12px">Fecha del depósito
+                            <input type="date" name="fecha" class="form-input" value="@DateTime.Today.ToString("yyyy-MM-dd")" max="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+                        </label>
+                        <label style="font-size:12px">N.º de boleta
+                            <input name="referencia" class="form-input" placeholder="Ej: 12345678" maxlength="100" required />
+                        </label>
+                        <label style="font-size:12px">Foto de la boleta (opcional)
+                            <input type="file" name="archivo" accept=".pdf,.jpg,.jpeg,.png" class="form-input" />
+                        </label>
+                        <button type="submit" class="btn-primary">Registrar depósito</button>
+                    </form>
+                }
+            </div>
+        }
+
         @if (Model.Distribuciones.Count == 0)
         {
             <p style="text-align: center; padding: 30px; color: var(--color-muted); font-size: 13px;">
@@ -203,6 +236,11 @@
                                     @if (d.Tipo == "RetiroBanco")
                                     {
                                         <span class="badge badge-info">🏦 Retiro a banco</span>
+                                    }
+                                    else if (d.Tipo == Kirkenta.Helpers.Finanzas.EfectivoPorDepositarHelper.Tipo)
+                                    {
+                                        var pendiente = Model.PorDepositar.Any(p => p.DistribucionId == d.Id);
+                                        <span class="badge @(pendiente ? "badge-warning" : "badge-success")">@(pendiente ? "🕒 Por depositar" : "🏦 Depositado")</span>
                                     }
                                     else if (d.Tipo == "FondoCaja")
                                     {

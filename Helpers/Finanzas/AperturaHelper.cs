@@ -37,7 +37,8 @@ namespace Kirkenta.Helpers.Finanzas
             int cuentaId,
             decimal saldoInicial,
             string? notas,
-            int usuarioId)
+            int usuarioId,
+            int? cuentaOrigenFondoId = null)
         {
             try
             {
@@ -64,6 +65,17 @@ namespace Kirkenta.Helpers.Finanzas
                         : $"Ya hay otra caja abierta ({existente.Numero}). Ciérrala antes de abrir una nueva: el POS trabaja con una sola caja a la vez.");
                 }
 
+                // El saldo de la cuenta tiene que tener su movimiento antes de compararlo con lo contado
+                AperturaCuentaHelper.RegistrarAperturaCuenta(context, cuentaId, usuarioId);
+                var saldoSistema = Math.Round(context.CuentasFinancieras.AsNoTracking().Where(c => c.Id == cuentaId).Select(c => c.SaldoActual).First(), 2);
+                var diferencia = saldoInicial - saldoSistema;
+                if (cuentaOrigenFondoId.HasValue && diferencia > 0)
+                {
+                    var origen = context.CuentasFinancieras.AsNoTracking().FirstOrDefault(c => c.Id == cuentaOrigenFondoId.Value);
+                    if (origen == null || !origen.Activa || origen.Id == cuentaId || origen.Subtipo == "CuentasPorCobrar")
+                        return (null, "Elige una cuenta activa (otra caja o un banco) de donde sale el fondo.");
+                }
+
                 var numero = NumeroDocumentoHelper.GenerarSiguiente(context, "AperturaCaja");
 
                 var apertura = new AperturaCaja
@@ -82,11 +94,11 @@ namespace Kirkenta.Helpers.Finanzas
                 context.AperturasCaja.Add(apertura);
                 context.SaveChanges();
 
-                // Aseguramos que el saldo inicial de la cuenta tenga su
-                // movimiento contable (para que el Balance refleje el Activo).
-                // Si ya existe (porque se creó la cuenta con saldo inicial),
-                // el helper es idempotente y no duplica.
-                AperturaCuentaHelper.RegistrarAperturaCuenta(context, cuentaId, usuarioId);
+                // La caja abre con lo que de verdad tiene: si lo contado no es lo que dice el sistema
+                // (lo que dejó el último cierre), la diferencia se registra ANTES de la apertura, para que
+                // el saldo de la caja y el esperado del próximo cierre sean el mismo número.
+                if (Math.Abs(diferencia) >= 0.01m)
+                    RegistrarDiferencia(context, cuentaId, apertura, saldoSistema, diferencia, cuentaOrigenFondoId, usuarioId);
 
                 return (apertura, null);
             }
@@ -99,6 +111,56 @@ namespace Kirkenta.Helpers.Finanzas
             {
                 if (Monitor.IsEntered(_candadoApertura)) Monitor.Exit(_candadoApertura);
             }
+        }
+
+        /// <summary>
+        /// Diferencia entre lo contado al abrir y lo que dice el sistema:
+        /// fondo traído de otra cuenta (transferencia) o, si no se indica de dónde, sobrante/faltante de caja.
+        /// Se fecha un segundo antes de la apertura: entra al saldo de la caja pero no al arqueo del turno.
+        /// </summary>
+        private static void RegistrarDiferencia(ApplicationDbContext context, int cuentaId, AperturaCaja apertura,
+            decimal saldoSistema, decimal diferencia, int? cuentaOrigenFondoId, int usuarioId)
+        {
+            var moneda = context.Monedas.FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1;
+            var mov = new MovimientoFinanciero
+            {
+                Numero = NumeroDocumentoHelper.GenerarSiguiente(context, "MovimientoFinanciero"),
+                Fecha = apertura.FechaApertura.AddSeconds(-1),
+                Monto = Math.Abs(diferencia),
+                MonedaId = moneda,
+                TipoCambio = 1,
+                FormaPago = "Efectivo",
+                Referencia = apertura.Numero,
+                Origen = "AperturaCaja",
+                OrigenId = apertura.Id,
+                EsAutomatico = true,
+                Estado = "Activo",
+                FechaCreacion = DateTime.Now,
+                UsuarioCreoId = usuarioId,
+                EmpresaId = EmpresaActual.Id
+            };
+            if (diferencia > 0 && cuentaOrigenFondoId.HasValue)
+            {
+                mov.Tipo = "Transferencia";
+                mov.CuentaId = cuentaOrigenFondoId.Value;
+                mov.CuentaDestinoId = cuentaId;
+                mov.Concepto = $"Fondo para la apertura {apertura.Numero}";
+            }
+            else
+            {
+                var sobrante = diferencia > 0;
+                var categoria = sobrante
+                    ? MovimientoManualHelper.ObtenerOCrearCategoria(context, "Ingreso", "Sobrante de caja", "4.2.02", "#f59e0b")
+                    : MovimientoManualHelper.ObtenerOCrearCategoria(context, "Egreso", "Faltante de caja", "6.3.02", "#f59e0b");
+                mov.Tipo = sobrante ? "Ingreso" : "Egreso";
+                mov.CuentaId = cuentaId;
+                mov.CategoriaId = categoria.Id;
+                mov.Concepto = $"{(sobrante ? "Sobrante" : "Faltante")} al abrir {apertura.Numero}: el sistema tenía L. {saldoSistema:N2} y se contaron L. {apertura.SaldoInicial:N2}";
+            }
+            context.MovimientosFinancieros.Add(mov);
+            context.SaveChanges();
+            SaldoHelper.Aplicar(context, mov);
+            context.SaveChanges();
         }
 
         /// <summary>

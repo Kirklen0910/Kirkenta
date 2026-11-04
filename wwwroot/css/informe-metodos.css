@@ -83,3 +83,37 @@ h3.kk-inf-h { display: block; }
 .kk-inf-periodo-rapido a:hover { border-color: var(--color-primary); color: var(--color-primary); }
 @media print { .kk-inf-periodo { display: none; } }
 .kk-inf-periodo-rapido a.is-on { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-primary); }
+
+
+/* ── Detalle por método de pago (cada venta en la sección de su método) ── */
+.kk-det { margin-top: 22px; }
+.kk-det-titulo { font-size: 15px; font-weight: 700; margin: 0 0 10px; letter-spacing: -.01em; }
+.kk-det-seccion { border: 1px solid var(--color-border); border-radius: var(--radius-md, 10px); background: var(--color-surface); margin-bottom: 14px; overflow: hidden; }
+.kk-det-cab { display: flex; justify-content: space-between; gap: 10px; padding: 10px 14px; background: var(--color-surface-2); border-bottom: 1px solid var(--color-border); font-size: 14px; }
+.kk-det-cab span { color: var(--color-muted); font-size: 13px; }
+.kk-det-tabla { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.kk-det-tabla th { text-align: left; font-weight: 600; color: var(--color-muted); font-size: 11.5px; padding: 8px 14px; border-bottom: 1px solid var(--color-border); }
+.kk-det-tabla td { padding: 7px 14px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+.kk-det-tabla tbody tr:last-child td { border-bottom: 0; }
+.kk-det-tabla tfoot td { font-weight: 700; border-top: 2px solid var(--color-border); border-bottom: 0; background: var(--color-surface-2); }
+.kk-det-tabla .n { text-align: right; white-space: nowrap; }
+.kk-det-tabla .nw { white-space: nowrap; }
+.kk-det-sub { font-size: 11px; color: var(--color-muted); }
+.kk-det-gran { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: var(--radius-md, 10px); background: var(--color-primary-soft); font-size: 13.5px; }
+@media print {
+    .kk-det-seccion { break-inside: auto; border-color: #ccc; }
+    .kk-det-cab { break-after: avoid; background: #f3f4f6 !important; }
+    .kk-det-tabla tr { break-inside: avoid; }
+    .kk-det-tabla thead { display: table-header-group; }
+    .kk-det-tabla tfoot { display: table-row-group; }
+    .kk-det-gran { background: #eef2ff !important; }
+}
+
+/* Encabezado que solo sale al imprimir (el del sistema se oculta en la impresión) */
+.kk-imp-cab { display: none; }
+@media print {
+    .kk-imp-cab { display: block; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #111; }
+    .kk-imp-cab strong { font-size: 13px; }
+    .kk-imp-cab h1 { font-size: 20px; margin: 2px 0; }
+    .kk-imp-cab p { font-size: 12px; margin: 0; color: #444; }
+}

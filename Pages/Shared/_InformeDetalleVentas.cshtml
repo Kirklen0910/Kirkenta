@@ -1,0 +1,67 @@
+@model List<Kirkenta.Helpers.Finanzas.SeccionMetodo>
+@{
+    string L(decimal v) => "L. " + v.ToString("N2");
+}
+@if (Model.Count > 0)
+{
+    <section class="kk-det">
+        <h3 class="kk-det-titulo">Detalle por método de pago</h3>
+        @foreach (var s in Model)
+        {
+            <div class="kk-det-seccion">
+                <div class="kk-det-cab">
+                    <strong>@s.Nombre</strong>
+                    <span>@s.Filas.Count venta(s) · @L(s.Total)</span>
+                </div>
+                <div class="table-wrapper">
+                    <table class="kk-det-tabla">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th><th>Venta / factura</th><th>Cliente</th>
+                                <th class="n">Subtotal</th><th class="n">Descuento</th><th class="n">ISV</th><th class="n">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var f in s.Filas)
+                            {
+                                <tr>
+                                    <td class="nw">@f.Fecha.ToString("dd/MM HH:mm")</td>
+                                    <td>
+                                        <span class="nw">@f.Venta</span>
+                                        @if (f.Factura != null) { <div class="kk-det-sub">Factura @f.Factura</div> }
+                                        @if (!string.IsNullOrWhiteSpace(f.Referencia)) { <div class="kk-det-sub">Ref. @f.Referencia</div> }
+                                    </td>
+                                    <td>@f.Cliente</td>
+                                    <td class="n">@L(f.Subtotal)</td>
+                                    <td class="n">@(f.Descuento > 0 ? L(f.Descuento) : "—")</td>
+                                    <td class="n">@L(f.Isv)</td>
+                                    <td class="n">
+                                        <strong>@L(f.Total)</strong>
+                                        @if (f.TotalDocumento.HasValue) { <div class="kk-det-sub">parte de @L(f.TotalDocumento.Value)</div> }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3">Total @s.Nombre.ToLowerInvariant()</td>
+                                <td class="n">@L(s.Subtotal)</td>
+                                <td class="n">@(s.Descuento > 0 ? L(s.Descuento) : "—")</td>
+                                <td class="n">@L(s.Isv)</td>
+                                <td class="n">@L(s.Total)</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        }
+        @{ var cobrado = Model.Where(s => !s.EsCredito).ToList(); }
+        @if (cobrado.Count > 1)
+        {
+            <div class="kk-det-gran">
+                <span>Total cobrado (todos los métodos)</span>
+                <span>Subtotal @L(cobrado.Sum(s => s.Subtotal)) · ISV @L(cobrado.Sum(s => s.Isv)) · <strong>@L(cobrado.Sum(s => s.Total))</strong></span>
+            </div>
+        }
+    </section>
+}

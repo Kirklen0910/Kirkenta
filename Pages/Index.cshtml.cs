@@ -386,6 +386,23 @@ namespace Kirkenta.Pages
             }
             catch { /* el aviso nunca debe romper el inicio */ }
 
+            // ===== EFECTIVO DE CIERRES QUE TODAVÍA NO SE DEPOSITA =====
+            try
+            {
+                if (Puede("Finanzas", "Cierres"))
+                {
+                    var porDepositar = EfectivoPorDepositarHelper.Pendientes(_context);
+                    if (porDepositar.Count > 0)
+                        Alertas.Add(new Alerta
+                        {
+                            Texto = $"Tienes L. {porDepositar.Sum(p => p.Monto):N2} de {porDepositar.Count} cierre(s) por depositar en el banco. Registra la boleta en el cierre cuando lo deposites.",
+                            Nivel = "warning",
+                            Pagina = porDepositar.Count == 1 ? $"/Finanzas/Cierres/Details/{porDepositar[0].CierreId}" : "/Finanzas/Cierres/Index"
+                        });
+                }
+            }
+            catch { /* el aviso nunca debe romper el inicio */ }
+
             // ===== ALERTA DE RESPALDO (solo quien administra la seguridad) =====
             if (Puede("Seguridad", "Index"))
             {

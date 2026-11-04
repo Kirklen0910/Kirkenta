@@ -74,6 +74,11 @@ namespace Kirkenta.Pages.Finanzas.Cuentas
             Monedas = _context.Monedas.Where(m => m.Activa).OrderBy(m => m.Codigo).ToList();
 
             var c = _context.CuentasFinancieras.FirstOrDefault(x => x.Id == id);
+            if (c?.Codigo == Kirkenta.Helpers.Finanzas.EfectivoPorDepositarHelper.CodigoCuenta)
+            {
+                TempData["Error"] = "«Efectivo por depositar» la maneja el sistema con los cierres de caja: no se edita ni se elimina a mano.";
+                return RedirectToPage("/Finanzas/Cuentas/Index");
+            }
             if (c == null)
             {
                 TempData["Error"] = "Cuenta no encontrada";
@@ -116,6 +121,11 @@ namespace Kirkenta.Pages.Finanzas.Cuentas
             if (!ModelState.IsValid) return Page();
 
             var c = _context.CuentasFinancieras.FirstOrDefault(x => x.Id == Input.Id);
+            if (c?.Codigo == Kirkenta.Helpers.Finanzas.EfectivoPorDepositarHelper.CodigoCuenta)
+            {
+                TempData["Error"] = "«Efectivo por depositar» la maneja el sistema con los cierres de caja: no se edita ni se elimina a mano.";
+                return RedirectToPage("/Finanzas/Cuentas/Index");
+            }
             if (c == null)
             {
                 TempData["Error"] = "Cuenta no encontrada";

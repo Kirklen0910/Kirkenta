@@ -26,6 +26,34 @@ namespace Kirkenta.Helpers.Finanzas
         public string Tipo { get; set; } = "cobro"; // cobro | credito
     }
 
+    /// <summary>Una venta (o factura) dentro de la sección de su método de pago.</summary>
+    public class FilaDetalleVenta
+    {
+        public DateTime Fecha { get; set; }
+        public string Venta { get; set; } = "";
+        public string? Factura { get; set; }
+        public string Cliente { get; set; } = "";
+        public string? Referencia { get; set; }
+        public decimal Subtotal { get; set; }
+        public decimal Descuento { get; set; }
+        public decimal Isv { get; set; }
+        public decimal Total { get; set; }
+        /// <summary>Total del documento cuando se pagó con varios métodos (esta fila es solo una parte).</summary>
+        public decimal? TotalDocumento { get; set; }
+    }
+
+    /// <summary>Todas las ventas cobradas con un método (o las ventas a crédito), con sus totales.</summary>
+    public class SeccionMetodo
+    {
+        public string Nombre { get; set; } = "";
+        public bool EsCredito { get; set; }
+        public List<FilaDetalleVenta> Filas { get; set; } = new();
+        public decimal Subtotal => Filas.Sum(f => f.Subtotal);
+        public decimal Descuento => Filas.Sum(f => f.Descuento);
+        public decimal Isv => Filas.Sum(f => f.Isv);
+        public decimal Total => Filas.Sum(f => f.Total);
+    }
+
     public class EfectivoCaja
     {
         public decimal SaldoInicial { get; set; }
@@ -58,6 +86,7 @@ namespace Kirkenta.Helpers.Finanzas
         public SaldoFavorInforme SaldoFavor { get; set; } = new();       // referencia: saldo a favor acreditado / aplicado
         public DescuentosInforme Descuentos { get; set; } = new();       // descuentos otorgados en el período
         public List<TransaccionInforme> Detalle { get; set; } = new();  // según el filtro
+        public List<SeccionMetodo> Secciones { get; set; } = new();     // para imprimir: cada venta en la sección de su método
         public decimal TotalDetalle { get; set; }
     }
 
@@ -184,6 +213,66 @@ namespace Kirkenta.Helpers.Finanzas
                 });
             }
             inf.Todas = inf.Todas.OrderBy(x => x.Fecha).ToList();
+
+            // ── Detalle por método (para imprimir): cada venta con su factura, subtotal, descuento, ISV y total ──
+            {
+                var idsVentas = pagos.Where(p => p.VentaId.HasValue).Select(p => p.VentaId!.Value)
+                    .Concat(cred.Select(v => v.Id)).Distinct().ToList();
+                var facturaDeVenta = db.Facturas.AsNoTracking()
+                    .Where(x => x.VentaId.HasValue && idsVentas.Contains(x.VentaId.Value) && x.Estado != "Anulada")
+                    .Select(x => new { VentaId = x.VentaId!.Value, x.Numero }).ToList()
+                    .GroupBy(x => x.VentaId).ToDictionary(g => g.Key, g => g.First().Numero);
+
+                // El POS guarda el descuento en cada línea y deja el del encabezado en 0: se toma de las líneas
+                var descuentoLineas = db.DetalleVentas.AsNoTracking().Where(d => idsVentas.Contains(d.VentaId) && d.Descuento > 0)
+                    .GroupBy(d => d.VentaId).Select(g => new { g.Key, D = g.Sum(x => x.Descuento) }).ToDictionary(x => x.Key, x => x.D);
+                decimal DescuentoDe(Venta v) => v.Descuento > 0 ? v.Descuento : descuentoLineas.GetValueOrDefault(v.Id);
+
+                FilaDetalleVenta Fila(DateTime fecha, string venta, string? factura, string cliente, string? referencia,
+                                      decimal subtotal, decimal descuento, decimal isv, decimal total, decimal cobrado)
+                {
+                    // pagado con varios métodos: a esta sección le toca su parte, en proporción
+                    var factor = total > 0 && Math.Abs(cobrado - total) > 0.005m ? cobrado / total : 1m;
+                    return new FilaDetalleVenta
+                    {
+                        Fecha = fecha, Venta = venta, Factura = factura, Cliente = cliente, Referencia = referencia,
+                        Subtotal = Math.Round(subtotal * factor, 2), Descuento = Math.Round(descuento * factor, 2),
+                        Isv = Math.Round(isv * factor, 2), Total = factor == 1m ? total : cobrado,
+                        TotalDocumento = factor == 1m ? null : total
+                    };
+                }
+
+                foreach (var g in pagos.GroupBy(p => p.MetodoPagoId))
+                {
+                    metodosId.TryGetValue(g.Key, out var mp);
+                    var sec = new SeccionMetodo { Nombre = mp?.Nombre ?? "Otro" };
+                    foreach (var p in g.OrderBy(p => p.Fecha))
+                    {
+                        var cliente = clientes.TryGetValue(p.ClienteId, out var cn) ? cn : "Consumidor final";
+                        if (p.VentaId.HasValue && ventas.TryGetValue(p.VentaId.Value, out var v))
+                            sec.Filas.Add(Fila(p.Fecha, v.Numero, facturaDeVenta.GetValueOrDefault(v.Id), cliente, p.Referencia,
+                                v.Subtotal, DescuentoDe(v), v.Impuestos, v.Total, p.Monto));
+                        else if (p.FacturaId.HasValue && facturas.TryGetValue(p.FacturaId.Value, out var fa))
+                            sec.Filas.Add(Fila(p.Fecha, "—", fa.Numero, cliente, p.Referencia,
+                                fa.Subtotal, fa.Descuento, fa.Impuestos, fa.Total, p.Monto));
+                    }
+                    if (sec.Filas.Count > 0) inf.Secciones.Add(sec);
+                }
+                // efectivo primero, después los demás por monto
+                inf.Secciones = inf.Secciones.OrderBy(s => Norm(s.Nombre).Contains("efectivo") ? 0 : 1).ThenByDescending(s => s.Total).ToList();
+
+                if (cred.Count > 0)
+                    inf.Secciones.Add(new SeccionMetodo
+                    {
+                        Nombre = "Crédito (por cobrar)", EsCredito = true,
+                        Filas = cred.OrderBy(v => v.Fecha).Select(v => new FilaDetalleVenta
+                        {
+                            Fecha = v.Fecha, Venta = v.Numero, Factura = facturaDeVenta.GetValueOrDefault(v.Id),
+                            Cliente = v.ClienteId.HasValue && credNombres.TryGetValue(v.ClienteId.Value, out var cc) ? cc : "Consumidor final",
+                            Subtotal = v.Subtotal, Descuento = DescuentoDe(v), Isv = v.Impuestos, Total = v.Total
+                        }).ToList()
+                    });
+            }
 
             // ── Detalle según filtro ──
             if (f == "credito" || f == "a credito")
