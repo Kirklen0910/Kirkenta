@@ -229,7 +229,6 @@
                         @if (puedeVerSubmodulo("Ventas", "Clientes")) { <a asp-page="/Clientes/Index">👥 Clientes</a> }
                         @if (puedeVerSubmodulo("Ventas", "Cotizaciones")) { <a asp-page="/Cotizaciones/Index">📝 Cotizaciones</a> }
                         @if (puedeVerSubmodulo("Ventas", "Devoluciones")) { <a asp-page="/Devoluciones/Index">↩️ Devoluciones</a> }
-                        @if (puedeVerSubmodulo("Ventas", "Index")) { <a asp-page="/EntregasBodega/Index">🚚 Entregas en bodega</a> }
                         @if (puedeVerSubmodulo("Ventas", "Facturas")) { <a asp-page="/Facturas/Index">🧾 Facturas</a> }
                         @if (puedeVerSubmodulo("Ventas", "Pedidos")) { <a asp-page="/Pedidos/Index">📦 Pedidos</a> }
                         @if (puedeVerSubmodulo("Ventas", "Pedidos")) { <a asp-page="/PedidosWeb/Index">🌐 Pedidos web</a> }
@@ -260,6 +259,7 @@
                         @if (puedeVerSubmodulo("Inventario", "Bajas")) { <a asp-page="/Bajas/Index">🗑️ Bajas de inventario</a> }
                         @if (puedeVerSubmodulo("Inventario", "Categorias")) { <a asp-page="/Categorias/Index">🏷️ Categorías</a> }
                         @if (puedeVerSubmodulo("Inventario", "Bajas")) { <a asp-page="/Conversiones/Index">🔀 Conversiones (fraccionar)</a> }
+                        @if (puedeVerSubmodulo("Inventario", "EntregasBodega")) { <a asp-page="/EntregasBodega/Index">🚚 Entregas en bodega</a> }
                         @if (puedeVerSubmodulo("Inventario", "Productos")) { <a asp-page="/Productos/Etiquetas">🏷️ Etiquetas de código de barras</a> }
                         @if (puedeVerSubmodulo("Inventario", "Kardex")) { <a asp-page="/InventarioAvanzado/Kardex">📚 Kardex</a> }
                         @if (puedeVerSubmodulo("Inventario", "Productos")) { <a asp-page="/Productos/Index">📦 Productos</a> }
@@ -541,6 +541,7 @@
                         <a asp-page="/Movil/Index">📱 Panel móvil</a>
                         @if (puedeVerSubmodulo("Configuracion", "Respaldos")) { <a asp-page="/Configuracion/Respaldos">💾 Respaldos del sistema</a> }
                         @if (puedeVerSubmodulo("Configuracion", "Series")) { <a asp-page="/Series/Index">📑 Series de documentos</a> }
+                        @if (puedeVerSubmodulo("Configuracion", "Celular")) { <a asp-page="/Configuracion/Celular">📲 Usar desde el celular</a> }
                         @if (puedeVerSubmodulo("Configuracion", "TiposDocumento")) { <a asp-page="/RRHH/TiposDocumento/Index">📂 Tipos de documento (empleados)</a> }
                     </div>
                 </div>

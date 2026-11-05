@@ -35,8 +35,7 @@ namespace Kirkenta.Pages.EntregasBodega
         }
 
         private bool PuedeVer()
-            => PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Index", "ver")
-            || PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "Salidas", "ver");
+            => PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "EntregasBodega", "ver");
 
         public IActionResult OnGet(int id)
         {
@@ -55,8 +54,7 @@ namespace Kirkenta.Pages.EntregasBodega
 
         public IActionResult OnPostAnular(int id, string? motivo)
         {
-            var puede = PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Delete", "eliminar")
-                     || PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "Salidas", "eliminar");
+            var puede = PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "EntregasBodega", "eliminar");
             if (!puede)
             {
                 TempData["Error"] = "No tienes permiso para anular comprobantes";
@@ -85,8 +83,7 @@ namespace Kirkenta.Pages.EntregasBodega
                 .Where(f => f.VentaId == Venta.Id && f.Estado != "Anulada")
                 .OrderByDescending(f => f.Id).FirstOrDefault();
             Usuario = e.UsuarioId.HasValue ? _context.Usuarios.AsNoTracking().Where(u => u.Id == e.UsuarioId.Value).Select(u => u.Username).FirstOrDefault() : null;
-            PuedeAnular = PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Delete", "eliminar")
-                       || PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "Salidas", "eliminar");
+            PuedeAnular = PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "EntregasBodega", "eliminar");
 
             var lineas = EntregaBodegaHelper.Lineas(_context, e.VentaId);
             var detalles = _context.DetallesEntregaBodega.AsNoTracking().Where(d => d.EntregaBodegaId == id).ToList();

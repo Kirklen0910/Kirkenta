@@ -350,6 +350,7 @@ using (var scope = app.Services.CreateScope())
 
     EjecutarTarea("PermisoSeeder", () => PermisoSeeder.MigrarPermisosFaltantes(db));
     EjecutarTarea("PermisosPredeterminados", () => PermisoSeeder.AplicarPermisosPredeterminados(db));
+    EjecutarTarea("PermisosEntregasBodega", () => PermisoSeeder.MigrarEntregasBodega(db));
     EjecutarTarea("PlanCuentasHelper", () => PlanCuentasHelper.Seed(db));
     EjecutarTarea("FinanzasSeeder", () => FinanzasSeeder.Seed(db));
 

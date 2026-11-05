@@ -1,0 +1,89 @@
+@page
+@model Kirkenta.Pages.Configuracion.CelularModel
+@{
+    ViewData["Title"] = "Usar desde el celular";
+    var e = Model.Estado;
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Usar desde el celular</h2>
+        <p>Entra al sistema desde cualquier celular, tablet o computadora conectada a la misma red (Wi-Fi) de este negocio.</p>
+    </div>
+</div>
+
+@if (e.SoloEstaComputadora)
+{
+    <div class="module-alert module-alert-warning">
+        Ahora el sistema solo acepta conexiones de esta computadora, así que el celular no puede entrar.
+        Con el instalador de Kirkenta esto no pasa: reinicia la computadora o vuelve a correr el instalador.
+    </div>
+}
+else if (e.Direcciones.Count == 0)
+{
+    <div class="module-alert module-alert-warning">
+        Esta computadora no está conectada a ninguna red. Conéctala al Wi-Fi o al cable del negocio y vuelve a abrir esta página.
+    </div>
+}
+else
+{
+    <div class="module-card cel-card">
+        <span class="cel-et">Escribe esta dirección en el navegador del celular</span>
+        @foreach (var d in e.Direcciones)
+        {
+            <div class="cel-dir">
+                <code>@d.Url</code>
+                <button type="button" class="btn-sm btn-secondary" data-copiar="@d.Url">Copiar</button>
+            </div>
+        }
+        @if (e.Direcciones.Count > 1)
+        {
+            <p class="cel-nota">Esta computadora está en más de una red: usa la que empiece igual que la del celular (por ejemplo 192.168.1.…).</p>
+        }
+    </div>
+
+    <div class="module-card">
+        <h3 class="form-section-title">Pasos</h3>
+        <ol class="cel-pasos">
+            <li>Conecta el celular <strong>al mismo Wi-Fi</strong> que esta computadora (no con datos móviles).</li>
+            <li>Abre el navegador (Chrome o Safari) y escribe la dirección de arriba.</li>
+            @if (e.EsHttps)
+            {
+                <li>La primera vez el celular avisa que «la conexión no es privada»: toca <strong>Configuración avanzada → Continuar</strong>. Es el certificado propio de tu sistema y los datos viajan cifrados.</li>
+            }
+            <li>Entra con tu usuario y contraseña de siempre.</li>
+            <li>Para tenerlo como app: en el menú del navegador toca <strong>«Agregar a pantalla de inicio»</strong>.</li>
+        </ol>
+    </div>
+
+    <div class="module-card">
+        <h3 class="form-section-title">Si no abre</h3>
+        <ul class="cel-pasos">
+            <li>Revisa que el celular esté en el mismo Wi-Fi y que esta computadora esté encendida.</li>
+            <li>Escribe la dirección completa, con los dos puntos antes del número: <code>:@e.Puerto</code>.</li>
+            <li>Si el router se reinicia, la dirección puede cambiar: vuelve a esta página para ver la nueva. Para que no cambie, pide a tu técnico una <strong>IP fija</strong> para esta computadora.</li>
+        </ul>
+    </div>
+}
+
+<style>
+    .cel-card { display: flex; flex-direction: column; gap: 10px; }
+    .cel-et { font-size: 13px; color: var(--color-muted); }
+    .cel-dir { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .cel-dir code { font-size: clamp(20px, 5vw, 28px); font-weight: 700; color: var(--color-text); background: var(--color-surface-2); padding: 8px 14px; border-radius: var(--radius-md); word-break: break-all; }
+    .cel-nota { margin: 0; font-size: 13px; color: var(--color-muted); }
+    .cel-pasos { margin: 6px 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+</style>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('[data-copiar]').forEach(function (b) {
+            b.addEventListener('click', function () {
+                var t = b.dataset.copiar;
+                (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () {
+                    b.textContent = 'Copiado'; setTimeout(function () { b.textContent = 'Copiar'; }, 1500);
+                }).catch(function () { window.prompt('Copia la dirección:', t); });
+            });
+        });
+    </script>
+}

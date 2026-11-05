@@ -40,15 +40,13 @@ namespace Kirkenta.Pages.EntregasBodega
         public IActionResult OnGet()
         {
             var u = User.Identity?.Name;
-            var puedeVer = PermisoHelper.UsuarioTienePermiso(_context, u, "Ventas", "Index", "ver")
-                        || PermisoHelper.UsuarioTienePermiso(_context, u, "Inventario", "Salidas", "ver");
+            var puedeVer = PermisoHelper.UsuarioTienePermiso(_context, u, "Inventario", "EntregasBodega", "ver");
             if (!puedeVer)
             {
                 TempData["Error"] = "No tienes permiso para ver entregas";
                 return RedirectToPage("/Index");
             }
-            PuedeCrear = PermisoHelper.UsuarioTienePermiso(_context, u, "Ventas", "Create", "crear")
-                      || PermisoHelper.UsuarioTienePermiso(_context, u, "Inventario", "Salidas", "crear");
+            PuedeCrear = PermisoHelper.UsuarioTienePermiso(_context, u, "Inventario", "EntregasBodega", "crear");
 
             var ventas = _context.Ventas.AsNoTracking()
                 .Where(v => v.ControlEntrega && v.Estado != "Anulada")

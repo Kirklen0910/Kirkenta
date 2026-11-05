@@ -18,7 +18,7 @@ namespace Kirkenta.Helpers
                 "Index",
                 "Productos", "ProductosExport", "ProductosImport",
                 "Categorias", "UnidadesMedida",
-                "Salidas", "Bajas",
+                "Salidas", "Bajas", "EntregasBodega",
                 "TomaFisica", "Kardex", "Valoracion"
             } },
             { "Compras", new List<string> {
@@ -78,7 +78,7 @@ namespace Kirkenta.Helpers
             { "Configuracion", new List<string> {
                 "Index", "Empresa", "Nomenclatura", "Series", "MetodosPago", "Impuestos",
                 "Licencia", "AsistenteIA", "Impresora", "Respaldos", "Catalogo", "Inicio",
-                "Monedas", "TiposDocumento", "Deducciones", "Actualizaciones"
+                "Monedas", "TiposDocumento", "Deducciones", "Actualizaciones", "Celular"
             } }
         };
 
@@ -139,6 +139,7 @@ namespace Kirkenta.Helpers
                 "Entradas" => "Entradas",
                 "Salidas" => "Salidas",
                 "Bajas" => "Bajas de inventario",
+                "EntregasBodega" => "Entregas en bodega",
                 "Proveedores" => "Proveedores",
                 "ProveedoresCreate" => "Nuevo proveedor",
                 "ProveedoresEdit" => "Editar proveedor",
@@ -262,6 +263,7 @@ namespace Kirkenta.Helpers
                 "Licencia" => "Licencia del sistema",
                 "AsistenteIA" => "Asistente con IA",
                 "Impresora" => "Impresora de tickets",
+                "Celular" => "Usar desde el celular",
                 "Respaldos" => "Respaldos del sistema",
                 "Actualizaciones" => "Actualizaciones del sistema",
                 "Catalogo" => "Catálogo en línea",

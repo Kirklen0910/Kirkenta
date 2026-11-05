@@ -275,11 +275,13 @@ FLUSH PRIVILEGES;
     # ---------- 4) Firewall (para entrar desde otros equipos de la red) ----------
     Get-NetFirewallRule -DisplayName "Kirkenta HTTP" -ErrorAction SilentlyContinue | Remove-NetFirewallRule
     Get-NetFirewallRule -DisplayName "Kirkenta HTTPS" -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+    # Todos los perfiles: Windows marca casi todo Wi-Fi nuevo como "Publica" y ahi los celulares quedaban
+    # bloqueados. LocalSubnet limita la entrada a los equipos de la misma red (nada desde internet).
     if ($httpsActivo) {
         # Con HTTPS activo el puerto HTTP solo escucha en esta computadora: en la red solo se abre el HTTPS
-        New-NetFirewallRule -DisplayName "Kirkenta HTTPS" -Direction Inbound -Protocol TCP -LocalPort $puertoHttps -Action Allow -Profile Private, Domain | Out-Null
+        New-NetFirewallRule -DisplayName "Kirkenta HTTPS" -Direction Inbound -Protocol TCP -LocalPort $puertoHttps -Action Allow -Profile Private, Domain, Public -RemoteAddress LocalSubnet | Out-Null
     } else {
-        New-NetFirewallRule -DisplayName "Kirkenta HTTP" -Direction Inbound -Protocol TCP -LocalPort $puertoWeb -Action Allow -Profile Private, Domain | Out-Null
+        New-NetFirewallRule -DisplayName "Kirkenta HTTP" -Direction Inbound -Protocol TCP -LocalPort $puertoWeb -Action Allow -Profile Private, Domain, Public -RemoteAddress LocalSubnet | Out-Null
     }
 
     # ---------- 5) Arrancar y esperar ----------

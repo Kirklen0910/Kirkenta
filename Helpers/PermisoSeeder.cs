@@ -183,6 +183,48 @@ namespace Kirkenta.Helpers
             }
         }
 
+        /// <summary>
+        /// «Entregas en bodega» pasó de usar los permisos de Ventas e Inventario/Salidas a tener
+        /// el suyo propio en Inventario. La primera vez (ningún rol lo tiene configurado) cada rol
+        /// queda con el mismo acceso que ya tenía: ver si veía ventas o salidas, crear si podía
+        /// vender o crear salidas, anular si podía eliminar ventas o salidas. Después no lo toca.
+        /// </summary>
+        public static void MigrarEntregasBodega(ApplicationDbContext context)
+        {
+            try
+            {
+                var roles = context.Roles.Where(r => r.Nombre != "Admin").Select(r => r.Id).ToList();
+                if (roles.Count == 0) return;
+                var permisos = context.Permisos.Where(p => roles.Contains(p.RolId)).ToList();
+                var objetivo = permisos.Where(p => p.Modulo == "Inventario" && p.Submodulo == "EntregasBodega").ToList();
+                if (objetivo.Count == 0) return;
+                if (objetivo.Any(p => p.PuedeVer || p.PuedeCrear || p.PuedeEditar || p.PuedeEliminar)) return;
+
+                Permiso? De(int rol, string mod, string sub) => permisos.FirstOrDefault(p => p.RolId == rol && p.Modulo == mod && p.Submodulo == sub);
+                int cambios = 0;
+                foreach (var destino in objetivo)
+                {
+                    var vIndex = De(destino.RolId, "Ventas", "Index");
+                    var vCreate = De(destino.RolId, "Ventas", "Create");
+                    var vDelete = De(destino.RolId, "Ventas", "Delete");
+                    var salidas = De(destino.RolId, "Inventario", "Salidas");
+                    destino.PuedeCrear = (vCreate?.PuedeCrear ?? false) || (salidas?.PuedeCrear ?? false);
+                    destino.PuedeEliminar = (vDelete?.PuedeEliminar ?? false) || (salidas?.PuedeEliminar ?? false);
+                    destino.PuedeVer = (vIndex?.PuedeVer ?? false) || (salidas?.PuedeVer ?? false) || destino.PuedeCrear || destino.PuedeEliminar;
+                    if (destino.PuedeVer) cambios++;
+                }
+                if (cambios > 0)
+                {
+                    context.SaveChanges();
+                    Console.WriteLine($"[PermisoSeeder] ✅ Entregas en bodega: {cambios} roles conservan su acceso con el permiso nuevo.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PermisoSeeder] ❌ Error al migrar permisos de entregas en bodega: {ex.Message}");
+            }
+        }
+
         private static Permiso NuevoPermisoSinAcceso(int rolId, string modulo, string? submodulo)
         {
             return new Permiso

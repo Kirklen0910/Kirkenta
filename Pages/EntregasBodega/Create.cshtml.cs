@@ -32,8 +32,7 @@ namespace Kirkenta.Pages.EntregasBodega
         }
 
         private bool Puede()
-            => PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Create", "crear")
-            || PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "Salidas", "crear");
+            => PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "EntregasBodega", "crear");
 
         private bool Cargar(int ventaId)
         {

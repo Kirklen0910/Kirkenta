@@ -78,16 +78,16 @@ namespace Kirkenta.Pages.Ventas
             LineasEntrega = EntregaBodegaHelper.Lineas(_context, id);
             Entregas = _context.EntregasBodega.AsNoTracking().Where(e => e.VentaId == id).OrderBy(e => e.Fecha).ToList();
             PendienteEntrega = LineasEntrega.Sum(l => l.Pendiente);
-            PuedeEntregar = PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Create", "crear")
-                         || PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "Salidas", "crear");
+            PuedeEntregar = PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "EntregasBodega", "crear");
 
             return Page();
         }
 
         public IActionResult OnPostControlEntrega(int id)
         {
+            // activar el control es decisión de la venta (como en el POS) o de quien entrega en bodega
             var puede = PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Ventas", "Create", "crear")
-                     || PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "Salidas", "crear");
+                     || PermisoHelper.UsuarioTienePermiso(_context, User.Identity?.Name, "Inventario", "EntregasBodega", "crear");
             if (!puede)
             {
                 TempData["Error"] = "No tienes permiso para controlar entregas";
