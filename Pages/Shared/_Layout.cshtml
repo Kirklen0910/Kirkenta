@@ -800,6 +800,7 @@
     @if (!esPendiente)
     {
         <partial name="_Asistente" />
+        <script src="~/js/enlaces-documentos.js" asp-append-version="true" defer></script>
     }
     @await RenderSectionAsync("Scripts", required: false)
 </body>

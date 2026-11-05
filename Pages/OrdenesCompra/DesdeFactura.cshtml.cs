@@ -164,9 +164,7 @@ namespace Kirkenta.Pages.OrdenesCompra
             var marca = numFactura.Length > 0 ? $"Factura del proveedor N° {numFactura}" : null;
             if (marca != null)
             {
-                var repetida = _db.OrdenesCompra.AsNoTracking()
-                    .Where(o => o.ProveedorId == proveedor.Id && o.Notas != null && o.Notas.Contains(marca) && o.Estado != "Cancelada" && o.Estado != "Anulada")
-                    .Select(o => o.Numero).FirstOrDefault();
+                var repetida = FacturaProveedorRepetida.OrdenConLaFactura(_db, proveedor.Id, numFactura);
                 if (repetida != null)
                     return new JsonResult(new { ok = false, error = $"Esa factura ya fue cargada en la orden {repetida}. Si es otra, cambia el número." });
             }

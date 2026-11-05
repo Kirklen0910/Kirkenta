@@ -154,10 +154,7 @@ namespace Kirkenta.Pages.OrdenesCompra
                     ModelState.AddModelError(string.Empty, "Indica el número de factura del proveedor de la compra ya recibida");
                 else if (Input.ProveedorId > 0)
                 {
-                    var marca = $"Factura del proveedor N° {Input.NumeroFacturaProveedor.Trim()}";
-                    var repetida = _context.OrdenesCompra.AsNoTracking()
-                        .Where(o => o.ProveedorId == Input.ProveedorId && o.Notas != null && o.Notas.Contains(marca) && o.Estado != "Cancelada" && o.Estado != "Anulada")
-                        .Select(o => o.Numero).FirstOrDefault();
+                    var repetida = FacturaProveedorRepetida.OrdenConLaFactura(_context, Input.ProveedorId, Input.NumeroFacturaProveedor);
                     if (repetida != null)
                         ModelState.AddModelError(string.Empty, $"Esa factura ya fue cargada en la orden {repetida}");
                 }

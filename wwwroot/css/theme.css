@@ -4113,3 +4113,9 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
     .pd-columnas { grid-template-columns: 1fr; }
     .pd-monto { font-size: 28px; }
 }
+
+
+/* Números de documento y nombres que llevan a su detalle (wwwroot/js/enlaces-documentos.js) */
+a.kk-doc-link { color: var(--color-primary); text-decoration: none; border-bottom: 1px dotted currentColor; font-weight: inherit; }
+a.kk-doc-link:hover { border-bottom-style: solid; text-decoration: none; }
+@media print { a.kk-doc-link { color: inherit !important; border-bottom: 0 !important; } }

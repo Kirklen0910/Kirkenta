@@ -1,0 +1,23 @@
+@page
+@model Kirkenta.Pages.IrModel
+@{
+    ViewData["Title"] = "Ir a un documento";
+}
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Ir a un documento</h2>
+        <p>Escribe el número de una venta, factura, orden de compra, cotización, pedido, devolución, cierre o asiento.</p>
+    </div>
+</div>
+
+<div class="module-card" style="padding:18px;max-width:560px">
+    @if (!string.IsNullOrEmpty(Model.Doc))
+    {
+        <div class="module-alert module-alert-warning" style="margin:0 0 12px">No encontré «@Model.Doc», o no tienes permiso para verlo.</div>
+    }
+    <form method="get" style="display:flex;gap:8px">
+        <input name="doc" class="form-input" value="@Model.Doc" placeholder="Ej: VEN-0012 o 000-001-01-00000120" autofocus required />
+        <button type="submit" class="btn-primary">Ir</button>
+    </form>
+</div>
