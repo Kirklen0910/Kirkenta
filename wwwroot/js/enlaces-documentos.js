@@ -16,6 +16,8 @@
     function raiz() { return document.querySelector('.erp-main') || document.querySelector('main'); }
 
     function saltar(n) {
+        // el rango autorizado del SAR («Rango: 000-001-01-00001000 — …») no es un documento: queda como texto
+        if (n.parentNode && /\brango\b/i.test(n.parentNode.textContent || '')) return true;
         for (var p = n.parentNode; p && p.nodeType === 1; p = p.parentNode) {
             if (noEntrar[p.tagName] || p.isContentEditable || p.classList.contains('no-autolink') ||
                 p.classList.contains('module-header') || p.classList.contains('kk-as-panel')) return true;
