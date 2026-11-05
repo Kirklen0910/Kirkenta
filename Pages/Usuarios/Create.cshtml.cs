@@ -51,10 +51,14 @@ namespace Kirkenta.Pages.Usuarios
             public bool Activo { get; set; } = true;
         }
 
-        public IActionResult OnGet()
+        /// <summary>Solo el administrador crea roles: él ve el atajo para crear el del puesto.</summary>
+        public bool PuedeCrearRol { get; set; }
+
+        public IActionResult OnGet(string? rol)
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
+            PuedeCrearRol = currentRol == "Admin";
 
             if (!PermisoHelper.TienePermiso(_context, currentRol, "Usuarios", "Create", "crear"))
             {
@@ -63,6 +67,8 @@ namespace Kirkenta.Pages.Usuarios
             }
 
             Roles = _context.Roles.Where(r => currentRol == "Admin" || r.Nombre != "Admin").OrderBy(r => r.Nombre).ToList();
+            // vuelve de «crear rol desde una plantilla»: queda elegido
+            if (!string.IsNullOrWhiteSpace(rol) && Roles.Any(r => r.Nombre == rol)) Input.Rol = rol;
             return Page();
         }
 
@@ -70,6 +76,7 @@ namespace Kirkenta.Pages.Usuarios
         {
             var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
             var currentRol = currentUser?.Rol ?? "Pendiente";
+            PuedeCrearRol = currentRol == "Admin";
 
             if (!PermisoHelper.TienePermiso(_context, currentRol, "Usuarios", "Create", "crear"))
             {

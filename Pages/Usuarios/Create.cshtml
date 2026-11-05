@@ -62,6 +62,16 @@
                         <option value="@rol.Nombre">@rol.Nombre</option>
                     }
                 </select>
+                @if (Model.PuedeCrearRol)
+                {
+                    <small class="form-help">
+                        ¿No existe el rol de su puesto? Créalo desde una plantilla:
+                        @foreach (var pl in Kirkenta.Helpers.PlantillasRol.Todas)
+                        {
+                            <a href="/Usuarios/RolesCreate?plantilla=@pl.Clave&volver=usuario" title="@pl.Descripcion" style="margin-right:6px">@pl.Nombre</a>
+                        }
+                    </small>
+                }
             </div>
         </div>
 

@@ -6,28 +6,24 @@ namespace Kirkenta.Helpers
         {
             { "Usuarios", new List<string> {
                 "Index", "Create", "Edit", "Delete",
-                "Roles", "RolesCreate", "RolesEdit", "RolesDelete",
                 "Perfil", "CambiarPassword", "Actividad"
             } },
             { "Ventas", new List<string> {
                 "POS", "Index", "Create", "Edit", "Delete",
                 "Cotizaciones", "Pedidos", "Facturas",
-                "Clientes", "ClientesCreate", "ClientesEdit", "ClientesDelete",
-                "ClientesExport", "ClientesImport",
+                "Clientes", "ClientesExport", "ClientesImport",
                 "Devoluciones"
             } },
             { "Inventario", new List<string> {
                 "Index",
-                "Productos", "ProductosCreate", "ProductosEdit", "ProductosDelete",
-                "ProductosExport", "ProductosImport",
+                "Productos", "ProductosExport", "ProductosImport",
                 "Categorias", "UnidadesMedida",
-                "Entradas", "Salidas", "Bajas",
+                "Salidas", "Bajas",
                 "TomaFisica", "Kardex", "Valoracion"
             } },
             { "Compras", new List<string> {
                 "Index",
-                "Proveedores", "ProveedoresCreate", "ProveedoresEdit", "ProveedoresDelete",
-                "ProveedoresExport", "ProveedoresImport",
+                "Proveedores", "ProveedoresCreate", "ProveedoresEdit", "ProveedoresExport", "ProveedoresImport",
                 "Ordenes", "OrdenesCreate", "OrdenesEdit", "OrdenesDelete", "OrdenesRecibir",
                 "Pagos", "PagosCreate",
                 "CuentasPorPagar",
@@ -42,15 +38,12 @@ namespace Kirkenta.Helpers
                 "Aperturas", "AperturasCreate",
                 "Cierres", "CierresCreate", "CierresAprobar",
                 "CierresContables", "CierresContablesCreate", "CierresContablesReabrir",
-                "Conciliacion", "ConciliacionCreate", "ConciliacionDetails", "ConciliacionCerrar",
-                "PlanCuentas", "PlanCuentasCreate", "PlanCuentasEdit", "PlanCuentasDelete",
-                "ContabilidadEstadoResultados",
+                "Conciliacion", "ConciliacionCreate", "ConciliacionCerrar",
+                "PlanCuentas", "ContabilidadEstadoResultados",
                 "ContabilidadBalanceGeneral",
                 "Asientos", "LibroDiario", "LibroMayor", "Balanza",
                 "CajaChica",
-                "Reportes", "FlujoCaja", "EstadoResultados", "BalanceGeneral",
-                "ISV",
-                "Cobros"
+                "Reportes", "Cobros"
             } },
             { "Produccion", new List<string> { "Index", "Calidad" } },
             { "RRHH", new List<string> {
@@ -68,8 +61,7 @@ namespace Kirkenta.Helpers
             } },
             { "Logistica", new List<string> {
                 "Index",
-                "Envios", "EnviosDetails", "EnviosAsignar",
-                "Rutas", "RutasCreate", "RutasEdit", "RutasDetails", "RutasDespachar", "RutasCerrar",
+                "Envios", "Rutas", "RutasCreate", "RutasEdit", "RutasDespachar", "RutasCerrar",
                 "Zonas", "ZonasCreate", "ZonasEdit", "ZonasDelete",
                 "Repartidores", "RepartidoresCreate", "RepartidoresEdit", "RepartidoresDelete",
                 "Tracking",

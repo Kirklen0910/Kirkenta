@@ -1,0 +1,110 @@
+@model Kirkenta.Helpers.EditorPermisos
+@using Kirkenta.Helpers
+@{
+    bool[] E(string clave) => Model.Estado.TryGetValue(clave, out var v) ? v : new bool[4];
+    string Chk(bool b) => b ? "checked" : "";
+    var acciones = new[] { ("PuedeVer", "Ver"), ("PuedeCrear", "Crear"), ("PuedeEditar", "Editar"), ("PuedeEliminar", "Eliminar") };
+    var datos = new
+    {
+        plantillas = PlantillasRol.Todas.Select(p => new { clave = p.Clave, nombre = p.Nombre, descripcion = p.Descripcion, niveles = PlantillasRol.Niveles(p) }),
+        roles = Model.OtrosRoles,
+        inicial = Model.PlantillaInicial
+    };
+}
+<link rel="stylesheet" href="~/css/editor-permisos.css" asp-append-version="true" />
+
+<div class="form-divider"></div>
+<div class="ep" id="editorPermisos">
+    <div class="ep-cab">
+        <div>
+            <h3 class="form-section-title">Permisos del rol</h3>
+            <p class="form-section-desc">Empieza desde un puesto y ajusta. En cada módulo elige el nivel; abre «Detalle» solo si quieres afinarlo.</p>
+        </div>
+        <span class="ep-contador"><strong id="epTotal">0</strong> permisos</span>
+    </div>
+
+    <div class="ep-barra">
+        <label class="ep-campo">
+            <span>Empezar desde un puesto</span>
+            <select id="epPlantilla" class="form-input">
+                <option value="">— Elegir plantilla —</option>
+                @foreach (var p in PlantillasRol.Todas) { <option value="@p.Clave" title="@p.Descripcion">@p.Nombre</option> }
+            </select>
+        </label>
+        @if (Model.OtrosRoles.Count > 0)
+        {
+            <label class="ep-campo">
+                <span>O copiar de otro rol</span>
+                <select id="epCopiar" class="form-input">
+                    <option value="">— Elegir rol —</option>
+                    @foreach (var r in Model.OtrosRoles.Keys) { <option value="@r">@r</option> }
+                </select>
+            </label>
+        }
+        <label class="ep-campo ep-buscar">
+            <span>Buscar opción</span>
+            <input type="search" id="epBuscar" class="form-input" placeholder="Ej: cierre, nómina, facturas" autocomplete="off" />
+        </label>
+        <div class="ep-rapidos">
+            <button type="button" class="btn-sm btn-secondary" id="epTodo">Todo</button>
+            <button type="button" class="btn-sm btn-secondary" id="epNada">Nada</button>
+        </div>
+    </div>
+    <p class="ep-desc-plantilla" id="epDescPlantilla" hidden></p>
+
+    <div class="ep-modulos">
+        @foreach (var (mod, subs) in ModulosERP.Modulos)
+        {
+            var em = E(mod);
+            <section class="ep-mod" data-modulo="@mod">
+                <div class="ep-mod-cab">
+                    <div class="ep-mod-nombre">
+                        <strong>@ModulosERP.NombreBonito(mod)</strong>
+                        <small class="ep-mod-cuenta"></small>
+                    </div>
+                    <div class="ep-niveles" role="radiogroup" aria-label="Nivel de @ModulosERP.NombreBonito(mod)">
+                        <button type="button" data-nivel="0">Sin acceso</button>
+                        <button type="button" data-nivel="1">Solo ver</button>
+                        <button type="button" data-nivel="2">Trabajar</button>
+                        <button type="button" data-nivel="3">Todo</button>
+                        <span class="ep-personalizado">Personalizado</span>
+                    </div>
+                    <button type="button" class="ep-detalle-btn" aria-expanded="false">Detalle ▾</button>
+                    @* permiso del módulo en sí (lo calcula el editor a partir de sus opciones) *@
+                    <span hidden>
+                        @for (int i = 0; i < acciones.Length; i++)
+                        {
+                            <input type="checkbox" class="ep-padre" data-i="@i" name="Input.Permisos[@mod].@acciones[i].Item1" value="true" @Chk(em[i]) />
+                        }
+                    </span>
+                </div>
+                <div class="ep-detalle" hidden>
+                    <table class="ep-tabla">
+                        <thead><tr><th>Opción</th>@foreach (var (_, t) in acciones) { <th>@t</th> }</tr></thead>
+                        <tbody>
+                            @foreach (var sub in subs)
+                            {
+                                var es = E(mod + "/" + sub);
+                                var delicada = PlantillasRol.Delicadas.Contains(mod + "/" + sub);
+                                <tr class="ep-op" data-clave="@(mod)/@(sub)" data-delicada="@(delicada ? "1" : "0")" data-texto="@(ModulosERP.NombreBonito(mod)) @(ModulosERP.NombreBonitoSub(sub)) @sub">
+                                    <td>@ModulosERP.NombreBonitoSub(sub)@if (delicada) { <span class="ep-delicada" title="Opción delicada: dala solo a quien la necesite">⚠</span> }</td>
+                                    @for (int i = 0; i < acciones.Length; i++)
+                                    {
+                                        <td><input type="checkbox" class="ep-sub" data-i="@i"
+                                                   name="Input.Permisos[@mod].Submodulos[@sub].@acciones[i].Item1" value="true" @Chk(es[i])
+                                                   aria-label="@acciones[i].Item2 · @ModulosERP.NombreBonitoSub(sub)" /></td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
+    </div>
+
+    <div class="ep-resumen" id="epResumen" aria-live="polite"></div>
+</div>
+
+<script type="application/json" id="epDatos">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(datos))</script>
+<script src="~/js/editor-permisos.js" asp-append-version="true"></script>

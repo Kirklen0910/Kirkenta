@@ -22,6 +22,7 @@ namespace Kirkenta.Pages.Usuarios
         public Dictionary<string, List<string>> Modulos { get; set; } = new();
 
         public Dictionary<string, PermisoModuloView> PermisosExistentes { get; set; } = new();
+        public EditorPermisos Editor { get; set; } = new();
 
         public class InputModel
         {
@@ -77,6 +78,7 @@ namespace Kirkenta.Pages.Usuarios
             }
 
             Modulos = ModulosERP.Modulos;
+            Editor = EditorPermisos.Crear(_context, id);
 
             Input = new InputModel
             {
@@ -136,6 +138,8 @@ namespace Kirkenta.Pages.Usuarios
             }
 
             Modulos = ModulosERP.Modulos;
+            Editor = EditorPermisos.Crear(_context, Input.Id);
+            Editor.Estado = EstadoDesde(Input.Permisos);
 
             if (!ModelState.IsValid)
             {
@@ -302,6 +306,19 @@ namespace Kirkenta.Pages.Usuarios
 
                 PermisosExistentes[modulo] = vista;
             }
+        }
+
+        /// <summary>Lo marcado en el formulario, para volver a mostrarlo si hay un error.</summary>
+        private static Dictionary<string, bool[]> EstadoDesde(Dictionary<string, PermisoModuloInput> permisos)
+        {
+            var r = new Dictionary<string, bool[]>();
+            foreach (var (mod, p) in permisos)
+            {
+                r[mod] = new[] { p.PuedeVer, p.PuedeCrear, p.PuedeEditar, p.PuedeEliminar };
+                foreach (var (sub, s) in p.Submodulos)
+                    r[mod + "/" + sub] = new[] { s.PuedeVer, s.PuedeCrear, s.PuedeEditar, s.PuedeEliminar };
+            }
+            return r;
         }
     }
 }

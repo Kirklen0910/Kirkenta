@@ -20,6 +20,7 @@
 
 <div class="module-card form-card-wide">
     <form method="post" class="erp-form">
+        <input type="hidden" name="Volver" value="@Model.Volver" />
         @if (!ViewData.ModelState.IsValid)
         {
             <div class="module-alert module-alert-error">
@@ -52,137 +53,7 @@
             <textarea asp-for="Input.Descripcion" class="form-input" rows="2" placeholder="Describe qué puede hacer este rol..."></textarea>
         </div>
 
-        <div class="form-divider"></div>
-
-        <div class="permisos-header">
-            <h3 class="form-section-title">Permisos del rol</h3>
-            <p class="form-section-desc">
-                Marca el módulo para dar acceso completo, o selecciona submódulos específicos.
-            </p>
-        </div>
-
-        <div class="permisos-toolbar">
-            <button type="button" class="btn-sm btn-secondary" id="btnSelectAll">Seleccionar todo</button>
-            <button type="button" class="btn-sm btn-secondary" id="btnClearAll">Limpiar todo</button>
-            <span class="permisos-counter">
-                <strong id="totalSeleccionados">0</strong> permisos seleccionados
-            </span>
-        </div>
-
-        <div class="permisos-table-wrapper">
-            <table class="permisos-table">
-                <thead>
-                    <tr>
-                        <th style="width: 40px;">
-                            <input type="checkbox" id="checkAllModulos" title="Seleccionar todos los módulos" />
-                        </th>
-                        <th>Módulo / Submódulo</th>
-                        <th style="width: 70px; text-align: center;">Ver</th>
-                        <th style="width: 70px; text-align: center;">Crear</th>
-                        <th style="width: 70px; text-align: center;">Editar</th>
-                        <th style="width: 70px; text-align: center;">Eliminar</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var modulo in Model.Modulos)
-                    {
-                        var moduloKey = modulo.Key;
-                        var submodulos = modulo.Value;
-
-                        <!-- Módulo padre -->
-                        <tr class="permiso-row-modulo">
-                            <td>
-                                <input type="checkbox"
-                                       class="check-modulo"
-                                       data-modulo="@moduloKey" />
-                            </td>
-                            <td>
-                                <strong>@Kirkenta.Helpers.ModulosERP.NombreBonito(moduloKey)</strong>
-                            </td>
-                            <td style="text-align: center;">
-                                <input type="checkbox"
-                                       name="Input.Permisos[@moduloKey].PuedeVer"
-                                       value="true"
-                                       class="permiso-ver permiso-modulo-ver"
-                                       data-modulo="@moduloKey"
-                                       data-tipo="ver" />
-                            </td>
-                            <td style="text-align: center;">
-                                <input type="checkbox"
-                                       name="Input.Permisos[@moduloKey].PuedeCrear"
-                                       value="true"
-                                       class="permiso-crear permiso-modulo-crear"
-                                       data-modulo="@moduloKey"
-                                       data-tipo="crear" />
-                            </td>
-                            <td style="text-align: center;">
-                                <input type="checkbox"
-                                       name="Input.Permisos[@moduloKey].PuedeEditar"
-                                       value="true"
-                                       class="permiso-editar permiso-modulo-editar"
-                                       data-modulo="@moduloKey"
-                                       data-tipo="editar" />
-                            </td>
-                            <td style="text-align: center;">
-                                <input type="checkbox"
-                                       name="Input.Permisos[@moduloKey].PuedeEliminar"
-                                       value="true"
-                                       class="permiso-eliminar permiso-modulo-eliminar"
-                                       data-modulo="@moduloKey"
-                                       data-tipo="eliminar" />
-                            </td>
-                        </tr>
-
-                        <!-- Submódulos -->
-                        @foreach (var sub in submodulos)
-                        {
-                            <tr class="permiso-row-submodulo">
-                                <td></td>
-                                <td>
-                                    <span class="submodulo-label">└ @Kirkenta.Helpers.ModulosERP.NombreBonitoSub(sub)</span>
-                                </td>
-                                <td style="text-align: center;">
-                                    <input type="checkbox"
-                                           name="Input.Permisos[@moduloKey].Submodulos[@sub].PuedeVer"
-                                           value="true"
-                                           class="permiso-ver permiso-sub-ver"
-                                           data-modulo="@moduloKey"
-                                           data-submodulo="@sub"
-                                           data-tipo="ver" />
-                                </td>
-                                <td style="text-align: center;">
-                                    <input type="checkbox"
-                                           name="Input.Permisos[@moduloKey].Submodulos[@sub].PuedeCrear"
-                                           value="true"
-                                           class="permiso-crear permiso-sub-crear"
-                                           data-modulo="@moduloKey"
-                                           data-submodulo="@sub"
-                                           data-tipo="crear" />
-                                </td>
-                                <td style="text-align: center;">
-                                    <input type="checkbox"
-                                           name="Input.Permisos[@moduloKey].Submodulos[@sub].PuedeEditar"
-                                           value="true"
-                                           class="permiso-editar permiso-sub-editar"
-                                           data-modulo="@moduloKey"
-                                           data-submodulo="@sub"
-                                           data-tipo="editar" />
-                                </td>
-                                <td style="text-align: center;">
-                                    <input type="checkbox"
-                                           name="Input.Permisos[@moduloKey].Submodulos[@sub].PuedeEliminar"
-                                           value="true"
-                                           class="permiso-eliminar permiso-sub-eliminar"
-                                           data-modulo="@moduloKey"
-                                           data-submodulo="@sub"
-                                           data-tipo="eliminar" />
-                                </td>
-                            </tr>
-                        }
-                    }
-                </tbody>
-            </table>
-        </div>
+        <partial name="_EditorPermisos" model="Model.Editor" />
 
         <div class="form-actions">
             <a asp-page="/Usuarios/Roles" class="btn-secondary">Cancelar</a>
@@ -199,120 +70,16 @@
 @section Scripts {
     <script>
         (function () {
-            // === Color picker ===
             var colorPicker = document.getElementById('colorPicker');
             var colorPreview = document.getElementById('colorPreview');
             if (colorPicker && colorPreview) {
                 colorPreview.style.background = colorPicker.value;
+                colorPreview.style.color = '#fff';
                 colorPicker.addEventListener('input', function () {
                     colorPreview.textContent = colorPicker.value;
                     colorPreview.style.background = colorPicker.value;
                 });
             }
-
-            // === Contador ===
-            function updateCounter() {
-                var total = document.querySelectorAll('.permisos-table input[type="checkbox"][name]:checked').length;
-                var counter = document.getElementById('totalSeleccionados');
-                if (counter) counter.textContent = total;
-            }
-
-            // === Check del módulo padre ===
-            // Marca TODOS los permisos (ver/crear/editar/eliminar) del módulo Y de sus submódulos
-            document.querySelectorAll('.check-modulo').forEach(function (checkPadre) {
-                checkPadre.addEventListener('change', function () {
-                    var modulo = this.getAttribute('data-modulo');
-                    var estado = this.checked;
-
-                    // Todos los permisos del módulo padre
-                    document.querySelectorAll(
-                        '.permiso-modulo-ver[data-modulo="' + modulo + '"],' +
-                        '.permiso-modulo-crear[data-modulo="' + modulo + '"],' +
-                        '.permiso-modulo-editar[data-modulo="' + modulo + '"],' +
-                        '.permiso-modulo-eliminar[data-modulo="' + modulo + '"]'
-                    ).forEach(function (cb) {
-                        cb.checked = estado;
-                    });
-
-                    // Todos los permisos de los submódulos
-                    document.querySelectorAll(
-                        '.permiso-sub-ver[data-modulo="' + modulo + '"],' +
-                        '.permiso-sub-crear[data-modulo="' + modulo + '"],' +
-                        '.permiso-sub-editar[data-modulo="' + modulo + '"],' +
-                        '.permiso-sub-eliminar[data-modulo="' + modulo + '"]'
-                    ).forEach(function (cb) {
-                        cb.checked = estado;
-                    });
-
-                    updateCounter();
-                });
-            });
-
-            // === Click en "Ver" del módulo padre → marca "Ver" de todos sus submódulos ===
-            document.querySelectorAll('.permiso-modulo-ver').forEach(function (checkVer) {
-                checkVer.addEventListener('change', function () {
-                    var modulo = this.getAttribute('data-modulo');
-                    var estado = this.checked;
-
-                    document.querySelectorAll('.permiso-sub-ver[data-modulo="' + modulo + '"]').forEach(function (cb) {
-                        cb.checked = estado;
-                    });
-
-                    updateCounter();
-                });
-            });
-
-            // === Cualquier checkbox del módulo padre → sincronizar el check-modulo si todos están marcados ===
-            document.querySelectorAll('.permiso-modulo-ver, .permiso-modulo-crear, .permiso-modulo-editar, .permiso-modulo-eliminar').forEach(function (cb) {
-                cb.addEventListener('change', function () {
-                    var modulo = this.getAttribute('data-modulo');
-                    var todosPadre = document.querySelectorAll(
-                        '.permiso-modulo-ver[data-modulo="' + modulo + '"],' +
-                        '.permiso-modulo-crear[data-modulo="' + modulo + '"],' +
-                        '.permiso-modulo-editar[data-modulo="' + modulo + '"],' +
-                        '.permiso-modulo-eliminar[data-modulo="' + modulo + '"]'
-                    );
-                    var todosMarcados = Array.from(todosPadre).every(function (c) { return c.checked; });
-
-                    var checkPadre = document.querySelector('.check-modulo[data-modulo="' + modulo + '"]');
-                    if (checkPadre) checkPadre.checked = todosMarcados;
-
-                    updateCounter();
-                });
-            });
-
-            // === Todos los checkboxes actualizan el contador ===
-            document.querySelectorAll('.permisos-table input[type="checkbox"][name]').forEach(function (cb) {
-                cb.addEventListener('change', updateCounter);
-            });
-
-            // === Botón "Seleccionar todo" ===
-            document.getElementById('btnSelectAll').addEventListener('click', function () {
-                document.querySelectorAll('.permisos-table input[type="checkbox"]').forEach(function (cb) {
-                    if (cb.id !== 'checkAllModulos') cb.checked = true;
-                });
-                updateCounter();
-            });
-
-            // === Botón "Limpiar todo" ===
-            document.getElementById('btnClearAll').addEventListener('click', function () {
-                document.querySelectorAll('.permisos-table input[type="checkbox"]').forEach(function (cb) {
-                    if (cb.id !== 'checkAllModulos') cb.checked = false;
-                });
-                updateCounter();
-            });
-
-            // === Checkbox "Seleccionar todos los módulos" del header ===
-            document.getElementById('checkAllModulos').addEventListener('change', function () {
-                var estado = this.checked;
-                document.querySelectorAll('.permisos-table input[type="checkbox"]').forEach(function (cb) {
-                    if (cb.id !== 'checkAllModulos') cb.checked = estado;
-                });
-                updateCounter();
-            });
-
-            // Inicializar
-            updateCounter();
         })();
     </script>
 }

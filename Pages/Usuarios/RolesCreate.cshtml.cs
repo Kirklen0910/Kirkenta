@@ -20,6 +20,12 @@ namespace Kirkenta.Pages.Usuarios
         public InputModel Input { get; set; } = new();
 
         public Dictionary<string, List<string>> Modulos { get; set; } = new();
+        public EditorPermisos Editor { get; set; } = new();
+
+        /// <summary>Puesto con el que arranca el editor (?plantilla=cajero).</summary>
+        [BindProperty(SupportsGet = true)] public string? Plantilla { get; set; }
+        /// <summary>«usuario»: al guardar vuelve a «Nuevo usuario» con este rol elegido.</summary>
+        [BindProperty(SupportsGet = true)] public string? Volver { get; set; }
 
         public class InputModel
         {
@@ -55,6 +61,7 @@ namespace Kirkenta.Pages.Usuarios
             }
 
             Modulos = ModulosERP.Modulos;
+            Editor = EditorPermisos.Crear(_context, null, Plantilla);
             return Page();
         }
 
@@ -69,6 +76,8 @@ namespace Kirkenta.Pages.Usuarios
             }
 
             Modulos = ModulosERP.Modulos;
+            Editor = EditorPermisos.Crear(_context, null);
+            Editor.Estado = EstadoDesde(Input.Permisos);
 
             if (!ModelState.IsValid)
                 return Page();
@@ -101,6 +110,7 @@ namespace Kirkenta.Pages.Usuarios
                 transaction.Commit();
 
                 TempData["Success"] = $"Rol '{rol.Nombre}' creado correctamente";
+                if (Volver == "usuario") return RedirectToPage("/Usuarios/Create", new { rol = rol.Nombre });
                 return RedirectToPage("/Usuarios/Roles");
             }
             catch (Exception ex)
@@ -160,6 +170,19 @@ namespace Kirkenta.Pages.Usuarios
             }
 
             return lista;
+        }
+
+        /// <summary>Lo marcado en el formulario, para volver a mostrarlo si hay un error.</summary>
+        private static Dictionary<string, bool[]> EstadoDesde(Dictionary<string, PermisoModuloInput> permisos)
+        {
+            var r = new Dictionary<string, bool[]>();
+            foreach (var (mod, p) in permisos)
+            {
+                r[mod] = new[] { p.PuedeVer, p.PuedeCrear, p.PuedeEditar, p.PuedeEliminar };
+                foreach (var (sub, s) in p.Submodulos)
+                    r[mod + "/" + sub] = new[] { s.PuedeVer, s.PuedeCrear, s.PuedeEditar, s.PuedeEliminar };
+            }
+            return r;
         }
     }
 }
