@@ -108,3 +108,4 @@ h3.kk-inf-h { display: block; }
     .kk-det-tabla tfoot { display: table-row-group; }
     .kk-det-gran { background: #eef2ff !important; }
 }
+.kk-det-nota { margin: 0; padding: 6px 14px; font-size: 11.5px; color: var(--color-muted); border-bottom: 1px solid var(--color-border); }

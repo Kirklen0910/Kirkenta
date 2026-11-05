@@ -664,7 +664,7 @@
                         '</div>' +
                         '<div class="pos-cart-item-controls">' +
                             '<button type="button" data-action="menos" data-idx="' + idx + '">−</button>' +
-                            '<span class="pos-cart-item-qty">' + item.cantidad + '</span>' +
+                            '<input type="number" class="pos-cart-item-qty" data-idx="' + idx + '" value="' + item.cantidad + '" min="0" step="any" inputmode="decimal" aria-label="Cantidad de ' + escHtml(item.nombre) + '" title="Escribe la cantidad">' +
                             '<button type="button" data-action="mas" data-idx="' + idx + '">+</button>' +
                         '</div>' +
                         '<span class="pos-cart-item-total">' + (descLinea > 0 ? '<span class="pos-item-total-viejo">' + formatMoney(item.precio * item.cantidad) + '</span>' : '') + formatMoney(sub) + '</span>' +
@@ -686,6 +686,24 @@
                         } else if (action === 'remove') {
                             carrito.splice(idx, 1);
                         }
+                        renderCarrito();
+                    });
+                });
+
+                // Cantidad escrita a mano (también admite decimales: libras, metros…); se aplica al salir del campo o con Enter
+                cartItems.querySelectorAll('input.pos-cart-item-qty').forEach(function (inp) {
+                    inp.addEventListener('focus', function () { this.select(); });
+                    inp.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+                        if (e.key === 'Escape') { this.value = carrito[parseInt(this.dataset.idx)].cantidad; this.blur(); }
+                    });
+                    inp.addEventListener('change', function () {
+                        var item = carrito[parseInt(this.dataset.idx)];
+                        if (!item) return;
+                        var n = parseFloat(String(this.value).replace(',', '.'));
+                        if (!isFinite(n) || n < 0) { this.value = item.cantidad; return; }
+                        if (n === 0) { carrito.splice(parseInt(this.dataset.idx), 1); renderCarrito(); return; }
+                        item.cantidad = Math.round(n * 1000) / 1000;
                         renderCarrito();
                     });
                 });

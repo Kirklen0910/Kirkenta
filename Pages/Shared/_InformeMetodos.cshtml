@@ -9,6 +9,8 @@
         todas = Model.Todas.Select(x => new { fecha = x.Fecha.ToString("dd/MM HH:mm", inv), doc = x.Documento, cliente = x.Cliente, metodo = x.Metodo, clave = x.Clave, @ref = x.Referencia, monto = x.Monto, tipo = x.Tipo }),
         totalCobrado = Model.TotalCobrado,
         totalTransacciones = Model.TotalTransacciones,
+        saldoFavor = Model.PagadoConSaldoFavor,
+        cantidadSaldoFavor = Model.CantidadSaldoFavor,
         ventasContado = Model.VentasContado,
         ventasCredito = Model.VentasCredito,
         cantidadCredito = Model.CantidadCredito,

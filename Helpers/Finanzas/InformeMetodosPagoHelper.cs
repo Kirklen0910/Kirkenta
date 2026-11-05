@@ -47,6 +47,10 @@ namespace Kirkenta.Helpers.Finanzas
     {
         public string Nombre { get; set; } = "";
         public bool EsCredito { get; set; }
+        /// <summary>Pagado con saldo a favor: es dinero que ya se había cobrado, no entra a la caja.</summary>
+        public bool EsSaldoFavor { get; set; }
+        /// <summary>No suma a «lo cobrado» (crédito por cobrar o saldo a favor ya cobrado antes).</summary>
+        public bool SinDineroNuevo => EsCredito || EsSaldoFavor;
         public List<FilaDetalleVenta> Filas { get; set; } = new();
         public decimal Subtotal => Filas.Sum(f => f.Subtotal);
         public decimal Descuento => Filas.Sum(f => f.Descuento);
@@ -72,6 +76,9 @@ namespace Kirkenta.Helpers.Finanzas
         public List<ResumenMetodo> Metodos { get; set; } = new();       // cobros por método (siempre todos)
         public decimal TotalCobrado { get; set; }
         public int TotalTransacciones { get; set; }
+        /// <summary>Ventas pagadas con saldo a favor: no es dinero nuevo (se cobró antes, en la venta devuelta).</summary>
+        public decimal PagadoConSaldoFavor { get; set; }
+        public int CantidadSaldoFavor { get; set; }
 
         public decimal VentasContado { get; set; }
         public decimal VentasCredito { get; set; }
@@ -136,11 +143,19 @@ namespace Kirkenta.Helpers.Finanzas
             var clienteIds = pagos.Select(p => p.ClienteId).Distinct().ToList();
             var clientes = db.Clientes.AsNoTracking().Where(c => clienteIds.Contains(c.Id)).ToDictionary(c => c.Id, c => c.Nombre);
 
-            var total = pagos.Sum(p => p.Monto);
-            inf.TotalCobrado = total;
-            inf.TotalTransacciones = pagos.Count;
+            // El saldo a favor no es un cobro: ese dinero ya entró antes (en la venta que después se devolvió).
+            // Si se sumara, lo cobrado del día quedaría inflado con plata que ya se había contado.
+            bool EsSaldoFavor(Pago p) => metodosId.TryGetValue(p.MetodoPagoId, out var mp)
+                && string.Equals(mp.Nombre, SaldoFavorHelper.NombreMetodo, StringComparison.OrdinalIgnoreCase);
+            var cobros = pagos.Where(p => !EsSaldoFavor(p)).ToList();
+            inf.PagadoConSaldoFavor = pagos.Where(EsSaldoFavor).Sum(p => p.Monto);
+            inf.CantidadSaldoFavor = pagos.Count(EsSaldoFavor);
 
-            inf.Metodos = pagos.GroupBy(p => p.MetodoPagoId)
+            var total = cobros.Sum(p => p.Monto);
+            inf.TotalCobrado = total;
+            inf.TotalTransacciones = cobros.Count;
+
+            inf.Metodos = cobros.GroupBy(p => p.MetodoPagoId)
                 .Select(g =>
                 {
                     metodosId.TryGetValue(g.Key, out var m);
@@ -158,6 +173,7 @@ namespace Kirkenta.Helpers.Finanzas
             {
                 var clave = Norm(m.Nombre);
                 if (clave.Contains("credito") && !clave.Contains("tarjeta")) continue; // el crédito tiene su propia vista
+                if (clave == Norm(SaldoFavorHelper.NombreMetodo)) continue;              // el saldo a favor también
                 if (inf.Metodos.Any(x => x.Clave == clave)) continue;
                 inf.Metodos.Add(new ResumenMetodo { Clave = clave, Nombre = m.Nombre, Tipo = m.Tipo ?? "" });
             }
@@ -200,7 +216,9 @@ namespace Kirkenta.Helpers.Finanzas
                 {
                     Fecha = p.Fecha, Documento = doc,
                     Cliente = clientes.TryGetValue(p.ClienteId, out var cn) ? cn : "Consumidor final",
-                    Metodo = mm?.Nombre ?? "Otro", Clave = Norm(mm?.Nombre ?? "Otro"), Referencia = p.Referencia, Monto = p.Monto, Tipo = "cobro"
+                    Metodo = mm?.Nombre ?? "Otro", Referencia = EsSaldoFavor(p) ? null : p.Referencia, Monto = p.Monto,
+                    Clave = EsSaldoFavor(p) ? "saldofavor" : Norm(mm?.Nombre ?? "Otro"),
+                    Tipo = EsSaldoFavor(p) ? "saldofavor" : "cobro"
                 });
             }
             foreach (var v in cred.OrderBy(x => x.Fecha))
@@ -245,7 +263,8 @@ namespace Kirkenta.Helpers.Finanzas
                 foreach (var g in pagos.GroupBy(p => p.MetodoPagoId))
                 {
                     metodosId.TryGetValue(g.Key, out var mp);
-                    var sec = new SeccionMetodo { Nombre = mp?.Nombre ?? "Otro" };
+                    var esSf = mp != null && string.Equals(mp.Nombre, SaldoFavorHelper.NombreMetodo, StringComparison.OrdinalIgnoreCase);
+                    var sec = new SeccionMetodo { Nombre = esSf ? "Saldo a favor (ya cobrado antes)" : mp?.Nombre ?? "Otro", EsSaldoFavor = esSf };
                     foreach (var p in g.OrderBy(p => p.Fecha))
                     {
                         var cliente = clientes.TryGetValue(p.ClienteId, out var cn) ? cn : "Consumidor final";
@@ -259,7 +278,7 @@ namespace Kirkenta.Helpers.Finanzas
                     if (sec.Filas.Count > 0) inf.Secciones.Add(sec);
                 }
                 // efectivo primero, después los demás por monto
-                inf.Secciones = inf.Secciones.OrderBy(s => Norm(s.Nombre).Contains("efectivo") ? 0 : 1).ThenByDescending(s => s.Total).ToList();
+                inf.Secciones = inf.Secciones.OrderBy(s => s.EsSaldoFavor ? 2 : Norm(s.Nombre).Contains("efectivo") ? 0 : 1).ThenByDescending(s => s.Total).ToList();
 
                 if (cred.Count > 0)
                     inf.Secciones.Add(new SeccionMetodo

@@ -13,6 +13,10 @@
                     <strong>@s.Nombre</strong>
                     <span>@s.Filas.Count venta(s) · @L(s.Total)</span>
                 </div>
+                @if (s.EsSaldoFavor)
+                {
+                    <p class="kk-det-nota">Se pagaron con el saldo que dejó una devolución: ese dinero ya se había cobrado antes, por eso no suma a lo cobrado ni a la caja.</p>
+                }
                 <div class="table-wrapper">
                     <table class="kk-det-tabla">
                         <thead>
@@ -55,8 +59,8 @@
                 </div>
             </div>
         }
-        @{ var cobrado = Model.Where(s => !s.EsCredito).ToList(); }
-        @if (cobrado.Count > 1)
+        @{ var cobrado = Model.Where(s => !s.SinDineroNuevo).ToList(); }
+        @if (cobrado.Count > 1 || Model.Any(s => s.EsSaldoFavor))
         {
             <div class="kk-det-gran">
                 <span>Total cobrado (todos los métodos)</span>

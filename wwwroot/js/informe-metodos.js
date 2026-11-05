@@ -69,7 +69,8 @@
         var metodos = d.metodos || [];
         var todas = d.todas || [];
         var m = metodos.filter(function (x) { return x.clave === sel; })[0];
-        if (sel !== 'todo' && sel !== 'credito' && !m) sel = 'todo';
+        if (sel === 'saldofavor' && !(d.saldoFavor > 0)) sel = 'todo';
+        if (sel !== 'todo' && sel !== 'credito' && sel !== 'saldofavor' && !m) sel = 'todo';
         var totalVentas = (d.ventasContado || 0) + (d.ventasCredito || 0);
         var irA = function (clave) { return function () { render(root, d, clave); }; };
 
@@ -96,6 +97,7 @@
         tab('todo', 'Todo', d.totalCobrado);
         metodos.forEach(function (x) { tab(x.clave, x.nombre, x.total); });
         tab('credito', 'Crédito', d.ventasCredito);
+        if (d.saldoFavor > 0) tab('saldofavor', 'Saldo a favor', d.saldoFavor);
         root.appendChild(tabs);
 
         // ── Resumen de la vista elegida ──
@@ -112,7 +114,13 @@
             stats.appendChild(stat('Ventas', money(totalVentas), 'contado ' + money(d.ventasContado) + ' · crédito ' + money(d.ventasCredito)));
             stats.appendChild(stat('Salidas', money(d.totalEgresos), nSalidas + ' movimiento(s)'));
             stats.appendChild(stat('Crédito por cobrar', money(d.saldoCredito), d.cantidadCredito + ' venta(s) a crédito', d.saldoCredito > 0));
+            if (d.saldoFavor > 0) stats.appendChild(stat('Pagado con saldo a favor', money(d.saldoFavor), 'ya cobrado antes: no entra a caja'));
             if (d.efectivo) stats.appendChild(stat('Efectivo esperado en caja', money(d.efectivo.esperado), cajaTexto));
+        } else if (sel === 'saldofavor') {
+            principal.appendChild(el('span', 'kk-inf-etq', 'Pagado con saldo a favor'));
+            principal.appendChild(el('span', 'kk-inf-monto', money(d.saldoFavor)));
+            principal.appendChild(el('span', 'kk-inf-nota', d.cantidadSaldoFavor + ' pago(s) · dinero que ya se había cobrado (devoluciones): no suma a lo cobrado ni a la caja'));
+            stats.appendChild(stat('Peso en las ventas', pct(d.saldoFavor, totalVentas) + '%', 'de ' + money(totalVentas)));
         } else if (sel === 'credito') {
             principal.appendChild(el('span', 'kk-inf-etq', 'Vendido a crédito'));
             principal.appendChild(el('span', 'kk-inf-monto', money(d.ventasCredito)));
@@ -186,7 +194,7 @@
         // ── Detalle (sin la columna de método cuando ya se filtró por uno) ──
         var filas = sel === 'todo' ? todas : todas.filter(function (x) { return x.clave === sel; });
         var conMetodo = sel === 'todo';
-        var titulo = sel === 'todo' ? 'Todas las transacciones' : sel === 'credito' ? 'Ventas a crédito' : 'Cobros con ' + m.nombre;
+        var titulo = sel === 'todo' ? 'Todas las transacciones' : sel === 'credito' ? 'Ventas a crédito' : sel === 'saldofavor' ? 'Pagado con saldo a favor' : 'Cobros con ' + m.nombre;
         var totalL = filas.reduce(function (a, x) { return a + x.monto; }, 0);
         seccion(root, titulo, filas.length ? filas.length + ' · ' + money(totalL) : '');
         if (!filas.length) {
@@ -218,7 +226,7 @@
                 var q = new URLSearchParams(window.location.search).get('metodo');
                 if (q) {
                     q = norm(q);
-                    var claves = (d.metodos || []).map(function (x) { return x.clave; }).concat(['credito']);
+                    var claves = (d.metodos || []).map(function (x) { return x.clave; }).concat(['credito', 'saldofavor']);
                     var exacta = claves.filter(function (c) { return c === q; })[0];
                     var parecida = claves.filter(function (c) { return c.indexOf(q) >= 0; })[0];
                     inicial = exacta || parecida || 'todo';

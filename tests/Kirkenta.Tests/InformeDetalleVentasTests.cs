@@ -50,5 +50,36 @@ namespace Kirkenta.Tests
             Assert.True(cred.EsCredito);
             Assert.Equal(57.5m, cred.Total);
         }
+
+        [Fact]
+        public void PagoConSaldoAFavor_NoSeSumaALoCobrado()
+        {
+            using var ctx = TestDb.Crear();
+            var efectivo = new MetodoPago { Nombre = "Efectivo", Tipo = "Efectivo", Activo = true };
+            var saldo = new MetodoPago { Nombre = Kirkenta.Helpers.SaldoFavorHelper.NombreMetodo, Tipo = "SaldoFavor", Activo = false };
+            ctx.MetodosPago.AddRange(efectivo, saldo);
+            var cli = new Cliente { Nombre = "Carlos" };
+            ctx.Clientes.Add(cli);
+            ctx.SaveChanges();
+            var hoy = DateTime.Now;
+            // como en la prueba real: 1,595.62 todo con saldo; 1,732.27 = 1,200.39 efectivo + 531.88 saldo
+            var v4 = new Venta { Numero = "VEN-0004", Fecha = hoy, ClienteId = cli.Id, Subtotal = 1387.50m, Impuestos = 208.12m, Total = 1595.62m, Estado = "Completada" };
+            var v5 = new Venta { Numero = "VEN-0005", Fecha = hoy, ClienteId = cli.Id, Subtotal = 1506.32m, Impuestos = 225.95m, Total = 1732.27m, Estado = "Completada" };
+            ctx.Ventas.AddRange(v4, v5);
+            ctx.SaveChanges();
+            ctx.Pagos.AddRange(
+                new Pago { VentaId = v4.Id, ClienteId = cli.Id, Fecha = hoy, Monto = 1595.62m, MetodoPagoId = saldo.Id },
+                new Pago { VentaId = v5.Id, ClienteId = cli.Id, Fecha = hoy, Monto = 1200.39m, MetodoPagoId = efectivo.Id },
+                new Pago { VentaId = v5.Id, ClienteId = cli.Id, Fecha = hoy, Monto = 531.88m, MetodoPagoId = saldo.Id });
+            ctx.SaveChanges();
+
+            var inf = InformeMetodosPagoHelper.Generar(ctx, hoy.Date, hoy.Date.AddDays(1));
+            Assert.Equal(1200.39m, inf.TotalCobrado);                 // solo el dinero que entró
+            Assert.Equal(2127.50m, inf.PagadoConSaldoFavor);          // aparte: ya se había cobrado antes
+            Assert.DoesNotContain(inf.Metodos, m => m.Nombre == Kirkenta.Helpers.SaldoFavorHelper.NombreMetodo);
+            var sf = inf.Secciones.Single(s => s.EsSaldoFavor);
+            Assert.True(sf.SinDineroNuevo);
+            Assert.Equal(1200.39m, inf.Secciones.Where(s => !s.SinDineroNuevo).Sum(s => s.Total));
+        }
     }
 }
