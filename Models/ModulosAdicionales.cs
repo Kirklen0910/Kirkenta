@@ -204,6 +204,9 @@ namespace Kirkenta.Models
 
         public DateTime? FechaAplicacion { get; set; }
         public int? UsuarioId { get; set; }
+
+        /// <summary>Categoría que se cuenta (null = todo el inventario). Los productos nuevos de esa categoría entran solos a la toma.</summary>
+        public int? CategoriaId { get; set; }
     }
 
     public class DetalleTomaFisica

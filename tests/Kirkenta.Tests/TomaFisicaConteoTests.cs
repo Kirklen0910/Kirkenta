@@ -72,6 +72,72 @@ namespace Kirkenta.Tests
         }
 
         [Fact]
+        public void ProductosDeUnaConversion_HechaDespuesDeIniciar_EntranALaToma()
+        {
+            var (db, toma, _) = Crear();
+            using var _db = db;
+            var lance = db.Productos.First(p => p.SKU == "MAR-16");
+            var conv = new ConversionInventario
+            {
+                Numero = "CNV-1", ProductoOrigenId = lance.Id, CantidadOrigen = 1, CantidadDestino = 20,
+                NuevoProductoNombre = "Martillo por pieza", NuevoProductoUnidad = "Pieza", NuevoProductoPrecioVenta = 15m
+            };
+            db.ConversionesInventario.Add(conv); db.SaveChanges();
+            Assert.Null(ConversionInventarioHelper.Aprobar(db, conv, 1));
+            db.SaveChanges();
+
+            var agregados = TomaFisicaConteoHelper.AgregarNuevos(db, toma);
+            Assert.Equal(new[] { "Martillo por pieza" }, agregados);
+            var it = Assert.Single(TomaFisicaConteoHelper.Buscar(db, toma, "por pieza"));
+            Assert.Equal(20m, it.Sistema);                                        // entra con el stock que tiene ahora
+            Assert.Empty(TomaFisicaConteoHelper.AgregarNuevos(db, toma));         // no se duplica
+            Assert.Equal(4, TomaFisicaConteoHelper.Totales(db, toma).Total);
+        }
+
+        [Fact]
+        public void TomaPorCategoria_SoloRecibeLosNuevosDeEsaCategoria()
+        {
+            using var db = TestDb.Crear();
+            var herr = new Categoria { Nombre = "Herramientas", Activa = true };
+            var pint = new Categoria { Nombre = "Pinturas", Activa = true };
+            db.Categorias.AddRange(herr, pint); db.SaveChanges();
+            var viejo = new Producto { Nombre = "Llave", Stock = 3, CategoriaId = herr.Id, FechaCreacion = DateTime.Now.AddDays(-5) };
+            var otraCat = new Producto { Nombre = "Brocha", Stock = 2, CategoriaId = pint.Id, FechaCreacion = DateTime.Now.AddDays(-5) };
+            db.Productos.AddRange(viejo, otraCat); db.SaveChanges();
+
+            // toma nueva con su categoría guardada
+            var t1 = new TomaFisica { Numero = "TF-A", CategoriaId = herr.Id, Fecha = DateTime.Now.AddDays(-1) };
+            // toma de antes, sin el dato: solo tenía herramientas aunque ya existía la brocha
+            var t2 = new TomaFisica { Numero = "TF-B", Fecha = DateTime.Now.AddDays(-1), Estado = "Cancelada" };
+            db.TomasFisicas.AddRange(t1, t2); db.SaveChanges();
+            db.DetallesTomaFisica.Add(new DetalleTomaFisica { TomaFisicaId = t1.Id, ProductoId = viejo.Id, StockSistema = 3 });
+            db.SaveChanges();
+
+            db.Productos.AddRange(new Producto { Nombre = "Serrucho", CategoriaId = herr.Id }, new Producto { Nombre = "Rodillo", CategoriaId = pint.Id });
+            db.SaveChanges();
+            Assert.Equal(new[] { "Serrucho" }, TomaFisicaConteoHelper.AgregarNuevos(db, t1.Id));
+
+            t1.Estado = "Cancelada"; t2.Estado = "EnConteo"; db.SaveChanges();
+            db.DetallesTomaFisica.Add(new DetalleTomaFisica { TomaFisicaId = t2.Id, ProductoId = viejo.Id, StockSistema = 3 });
+            db.SaveChanges();
+            Assert.Equal(new[] { "Serrucho" }, TomaFisicaConteoHelper.AgregarNuevos(db, t2.Id));   // deduce la categoría
+
+            // una toma ya aplicada o cancelada no se toca
+            Assert.Empty(TomaFisicaConteoHelper.AgregarNuevos(db, t1.Id));
+        }
+
+        [Fact]
+        public void TomaDeTodoElInventario_RecibeLosNuevosDeCualquierCategoria()
+        {
+            var (db, toma, _) = Crear();
+            using var _db = db;
+            db.Productos.Add(new Producto { Nombre = "Producto nuevo", CategoriaId = null });
+            db.Productos.Add(new Producto { Nombre = "Inactivo", Activo = false });
+            db.SaveChanges();
+            Assert.Equal(new[] { "Producto nuevo" }, TomaFisicaConteoHelper.AgregarNuevos(db, toma));
+        }
+
+        [Fact]
         public void Contar_RechazaNegativos_YTomasCerradas()
         {
             var (db, toma, det) = Crear();

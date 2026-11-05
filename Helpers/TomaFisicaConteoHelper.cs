@@ -70,6 +70,46 @@ namespace Kirkenta.Helpers
             return exactos.Concat(parecidos).Take(max).ToList();
         }
 
+        /// <summary>
+        /// Mete en la toma en conteo los productos activos que no están en ella: los creados después de
+        /// iniciarla (una conversión, una compra, uno nuevo) o reactivados. Entran con el stock que tienen
+        /// ahora. Respeta la categoría de la toma; en tomas de antes sin ese dato, la deduce: si todos sus
+        /// productos son de una categoría y quedaron fuera productos de otras que ya existían, era por categoría.
+        /// Devuelve los productos agregados.
+        /// </summary>
+        public static List<string> AgregarNuevos(ApplicationDbContext db, int tomaId)
+        {
+            var toma = db.TomasFisicas.FirstOrDefault(t => t.Id == tomaId);
+            if (toma == null || toma.Estado != "EnConteo") return new();
+
+            var enToma = db.DetallesTomaFisica.Where(d => d.TomaFisicaId == tomaId).Select(d => d.ProductoId).ToHashSet();
+            var activos = db.Productos.Where(p => p.Activo)
+                .Select(p => new { p.Id, p.CategoriaId, p.FechaCreacion }).ToList();
+            var faltan = activos.Where(p => !enToma.Contains(p.Id)).ToList();
+            if (faltan.Count == 0) return new();
+
+            var categoria = toma.CategoriaId;
+            if (categoria == null)
+            {
+                var cats = activos.Where(p => enToma.Contains(p.Id)).Select(p => p.CategoriaId).Distinct().ToList();
+                if (cats.Count == 1 && cats[0] != null
+                    && faltan.Any(p => p.CategoriaId != cats[0] && p.FechaCreacion <= toma.Fecha))
+                    categoria = cats[0];
+            }
+            if (categoria != null) faltan = faltan.Where(p => p.CategoriaId == categoria).ToList();
+            if (faltan.Count == 0) return new();
+
+            var ids = faltan.Select(p => p.Id).ToList();
+            var productos = db.Productos.Where(p => ids.Contains(p.Id)).OrderBy(p => p.Nombre).ToList();
+            foreach (var p in productos)
+                db.DetallesTomaFisica.Add(new Models.DetalleTomaFisica
+                {
+                    TomaFisicaId = tomaId, ProductoId = p.Id, StockSistema = p.Stock, CostoUnitario = p.PrecioCompra
+                });
+            db.SaveChanges();
+            return productos.Select(p => p.Nombre).ToList();
+        }
+
         public static Item? Uno(ApplicationDbContext db, int tomaId, int detalleId) =>
             Items(db, tomaId).FirstOrDefault(i => i.DetalleId == detalleId);
 

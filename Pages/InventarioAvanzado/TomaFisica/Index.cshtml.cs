@@ -83,7 +83,8 @@ namespace Kirkenta.Pages.InventarioAvanzado.TomaFisica
                 Fecha = DateTime.Now,
                 Descripcion = string.IsNullOrWhiteSpace(Descripcion) ? "Toma física de inventario" : Descripcion.Trim(),
                 Estado = "EnConteo",
-                UsuarioId = usuario?.Id
+                UsuarioId = usuario?.Id,
+                CategoriaId = CategoriaId
             };
             _context.TomasFisicas.Add(toma);
             _context.SaveChanges();

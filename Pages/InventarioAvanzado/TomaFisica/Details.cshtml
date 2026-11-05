@@ -31,6 +31,13 @@
     <div class="tf-kpi"><span>Impacto a costo</span><b id="tfImpacto" class="@(Model.ImpactoValor < 0 ? "tf-neg" : Model.ImpactoValor > 0 ? "tf-pos" : "")">L. @Model.ImpactoValor.ToString("N2")</b></div>
 </div>
 
+@if (Model.Agregados.Count > 0)
+{
+    <div class="module-alert module-alert-info">
+        @(Model.Agregados.Count == 1 ? "Se agregó a la toma 1 producto creado" : $"Se agregaron a la toma {Model.Agregados.Count} productos creados") después de iniciarla, para que también los cuentes: <strong>@string.Join(", ", Model.Agregados.Take(8))</strong>@(Model.Agregados.Count > 8 ? $" y {Model.Agregados.Count - 8} más." : ".")
+    </div>
+}
+
 @if (Model.PuedeEditar && Model.StockCambio > 0)
 {
     <div class="module-alert module-alert-warning">

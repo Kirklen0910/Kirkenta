@@ -78,10 +78,14 @@ namespace Kirkenta.Pages.InventarioAvanzado.TomaFisica
 
         /// <summary>Código de barras / SKU → detalle, para que el escáner ubique el producto al instante.</summary>
         public Dictionary<string, int> Codigos { get; set; } = new();
+        /// <summary>Productos nuevos que se acaban de meter a la toma.</summary>
+        public List<string> Agregados { get; set; } = new();
 
         public IActionResult OnGet(int id)
         {
             if (!Permiso("ver")) { TempData["Error"] = "No tienes permiso para ver tomas físicas"; return RedirectToPage("/Index"); }
+            // productos creados (o reactivados) después de iniciar la toma: entran solos para poder contarlos
+            Agregados = TomaFisicaConteoHelper.AgregarNuevos(_context, id);
             if (!Cargar(id)) { TempData["Error"] = "Toma física no encontrada"; return RedirectToPage("/InventarioAvanzado/TomaFisica/Index"); }
             if (PuedeEditar) Codigos = TomaFisicaConteoHelper.IndiceCodigos(_context, id);
             return Page();
@@ -97,6 +101,8 @@ namespace Kirkenta.Pages.InventarioAvanzado.TomaFisica
         public IActionResult OnGetBuscar(int id, string? q, int? detalle)
         {
             if (!Permiso("ver")) return new JsonResult(new { error = "Sin permiso" }) { StatusCode = 403 };
+            // un producto creado mientras se cuenta (por ejemplo, otra conversión) también se encuentra
+            if (!detalle.HasValue) TomaFisicaConteoHelper.AgregarNuevos(_context, id);
             if (detalle.HasValue)
             {
                 var uno = TomaFisicaConteoHelper.Uno(_context, id, detalle.Value);
