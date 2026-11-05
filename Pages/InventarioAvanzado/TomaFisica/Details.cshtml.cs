@@ -64,11 +64,10 @@ namespace Kirkenta.Pages.InventarioAvanzado.TomaFisica
             var filas = vista.Select(d => new Fila { Detalle = d, Producto = productos.TryGetValue(d.ProductoId, out var p) ? p : null }).ToList();
             if (!string.IsNullOrWhiteSpace(Q))
             {
-                var s = Q.Trim();
-                filas = filas.Where(f => f.Producto != null &&
-                    (f.Producto.Nombre.Contains(s, StringComparison.OrdinalIgnoreCase)
-                     || (f.Producto.SKU ?? "").Contains(s, StringComparison.OrdinalIgnoreCase)
-                     || (f.Producto.CodigoBarras ?? "").Contains(s, StringComparison.OrdinalIgnoreCase))).ToList();
+                // todas las palabras, sin importar tildes ni mayúsculas
+                var palabras = TomaFisicaConteoHelper.Normalizar(Q).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                filas = filas.Where(f => f.Producto != null && palabras.All(w =>
+                    TomaFisicaConteoHelper.Normalizar(f.Producto.Nombre + " " + f.Producto.SKU + " " + f.Producto.CodigoBarras).Contains(w))).ToList();
             }
             filas = filas.OrderBy(f => f.Producto?.Nombre).ToList();
 
@@ -77,11 +76,51 @@ namespace Kirkenta.Pages.InventarioAvanzado.TomaFisica
             return true;
         }
 
+        /// <summary>Código de barras / SKU → detalle, para que el escáner ubique el producto al instante.</summary>
+        public Dictionary<string, int> Codigos { get; set; } = new();
+
         public IActionResult OnGet(int id)
         {
             if (!Permiso("ver")) { TempData["Error"] = "No tienes permiso para ver tomas físicas"; return RedirectToPage("/Index"); }
             if (!Cargar(id)) { TempData["Error"] = "Toma física no encontrada"; return RedirectToPage("/InventarioAvanzado/TomaFisica/Index"); }
+            if (PuedeEditar) Codigos = TomaFisicaConteoHelper.IndiceCodigos(_context, id);
             return Page();
+        }
+
+        private static object Json(TomaFisicaConteoHelper.Item i) => new
+        {
+            id = i.DetalleId, nombre = i.Nombre, sku = i.Sku, codigo = i.Codigo, unidad = i.Unidad,
+            sistema = i.Sistema, contado = i.Contado
+        };
+
+        /// <summary>Buscador del conteo: devuelve los productos de la toma que coinciden.</summary>
+        public IActionResult OnGetBuscar(int id, string? q, int? detalle)
+        {
+            if (!Permiso("ver")) return new JsonResult(new { error = "Sin permiso" }) { StatusCode = 403 };
+            if (detalle.HasValue)
+            {
+                var uno = TomaFisicaConteoHelper.Uno(_context, id, detalle.Value);
+                return new JsonResult(new { items = uno == null ? new object[0] : new[] { Json(uno) } });
+            }
+            return new JsonResult(new { items = TomaFisicaConteoHelper.Buscar(_context, id, q).Select(Json) });
+        }
+
+        /// <summary>Registra el conteo de un producto sin recargar la página (escáner, buscador o tabla).</summary>
+        public IActionResult OnPostContar(int id, int detalleId, string? cantidad, bool sumar)
+        {
+            if (!Permiso("editar")) return new JsonResult(new { error = "No tienes permiso para registrar conteos" }) { StatusCode = 403 };
+            decimal? valor = null;
+            var texto = cantidad?.Trim().Replace(',', '.');
+            if (!string.IsNullOrEmpty(texto))
+            {
+                if (!decimal.TryParse(texto, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var v))
+                    return new JsonResult(new { error = "Escribe una cantidad válida" }) { StatusCode = 400 };
+                valor = v;
+            }
+            var (item, error) = TomaFisicaConteoHelper.Contar(_context, id, detalleId, valor, sumar);
+            if (error != null) return new JsonResult(new { error }) { StatusCode = 400 };
+            var t = TomaFisicaConteoHelper.Totales(_context, id);
+            return new JsonResult(new { item = Json(item!), total = t.Total, contados = t.Contados, conDiferencia = t.ConDiferencia, impacto = t.Impacto });
         }
 
         /// <summary>Guarda los conteos de la página (campos vacíos no se tocan).</summary>
@@ -98,7 +137,7 @@ namespace Kirkenta.Pages.InventarioAvanzado.TomaFisica
             foreach (var kv in conteos)
             {
                 if (!porId.TryGetValue(kv.Key, out var d)) continue;
-                var texto = kv.Value?.Trim();
+                var texto = kv.Value?.Trim().Replace(',', '.');
                 if (string.IsNullOrEmpty(texto)) continue;
                 if (!decimal.TryParse(texto, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var valor) || valor < 0)
                 {

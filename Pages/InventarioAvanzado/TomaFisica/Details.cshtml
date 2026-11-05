@@ -3,24 +3,32 @@
 @{
     ViewData["Title"] = $"Toma física {Model.Toma.Numero}";
     var ci = System.Globalization.CultureInfo.InvariantCulture;
+    var pct = Model.Total > 0 ? (int)Math.Round(Model.Contados * 100m / Model.Total) : 0;
+    var estado = Model.Toma.Estado == "EnConteo" ? "En conteo" : Model.Toma.Estado;
+    string Num(decimal v) => v.ToString("0.##");
+    var filtro = Model.SoloPendientes ? "pend" : Model.SoloDiferencias ? "dif" : "todos";
 }
+<link rel="stylesheet" href="~/css/toma-fisica.css" asp-append-version="true" />
 
 <div class="module-header">
     <div class="module-header-left">
         <a asp-page="/InventarioAvanzado/TomaFisica/Index" class="back-link">← Volver a tomas físicas</a>
-        <h2>@Model.Toma.Numero — @Model.Toma.Descripcion</h2>
-        <p>Iniciada el @Model.Toma.Fecha.ToString("dd/MM/yyyy HH:mm") · @(Model.Toma.Estado == "EnConteo" ? "En conteo" : Model.Toma.Estado)</p>
+        <h2>@Model.Toma.Numero · @Model.Toma.Descripcion</h2>
+        <p>Iniciada el @Model.Toma.Fecha.ToString("dd/MM/yyyy HH:mm") · <span class="tf-estado tf-estado-@Model.Toma.Estado.ToLowerInvariant()">@estado</span></p>
     </div>
 </div>
 
 @if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
 @if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
 
-<div class="kpi-grid" style="margin-bottom: 20px;">
-    <div class="kpi-card"><span class="kpi-label">Productos</span><span class="kpi-value">@Model.Total</span></div>
-    <div class="kpi-card"><span class="kpi-label">Contados</span><span class="kpi-value" style="color: var(--color-success);">@Model.Contados</span><span class="kpi-trend">@(Model.Total - Model.Contados) pendientes</span></div>
-    <div class="kpi-card"><span class="kpi-label">Con diferencia</span><span class="kpi-value" style="color: var(--color-warning);">@Model.ConDiferencia</span></div>
-    <div class="kpi-card"><span class="kpi-label">Impacto a costo</span><span class="kpi-value" style="color: @(Model.ImpactoValor < 0 ? "var(--color-danger)" : "var(--color-success)");">L. @Model.ImpactoValor.ToString("N2")</span></div>
+<div class="tf-resumen">
+    <div class="tf-avance">
+        <div class="tf-avance-txt"><strong id="tfContados">@Model.Contados</strong> de <span id="tfTotal">@Model.Total</span> contados <span class="tf-pct" id="tfPct">@pct%</span></div>
+        <div class="tf-barra"><span id="tfBarra" style="width:@pct%"></span></div>
+    </div>
+    <div class="tf-kpi"><span>Pendientes</span><b id="tfPend">@(Model.Total - Model.Contados)</b></div>
+    <div class="tf-kpi"><span>Con diferencia</span><b id="tfDifs" class="tf-warn">@Model.ConDiferencia</b></div>
+    <div class="tf-kpi"><span>Impacto a costo</span><b id="tfImpacto" class="@(Model.ImpactoValor < 0 ? "tf-neg" : Model.ImpactoValor > 0 ? "tf-pos" : "")">L. @Model.ImpactoValor.ToString("N2")</b></div>
 </div>
 
 @if (Model.PuedeEditar && Model.StockCambio > 0)
@@ -30,67 +38,148 @@
     </div>
 }
 
-<div class="module-card">
-    <form method="get" class="module-toolbar">
-        <div class="search-box"><input type="text" name="Q" value="@Model.Q" placeholder="Buscar producto, SKU o código de barras..." data-escaner="enviar" /></div>
-        <div class="filter-group">
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" name="SoloPendientes" value="true" checked="@Model.SoloPendientes" /> Solo pendientes</label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" name="SoloDiferencias" value="true" checked="@Model.SoloDiferencias" /> Solo diferencias</label>
-            <button type="submit" class="btn-secondary">Filtrar</button>
+@if (Model.PuedeEditar)
+{
+    <section class="tf-contar" id="tfContar"
+             data-buscar="@Url.Page("/InventarioAvanzado/TomaFisica/Details", "Buscar", new { id = Model.Toma.Id })"
+             data-contar="@Url.Page("/InventarioAvanzado/TomaFisica/Details", "Contar", new { id = Model.Toma.Id })">
+        <div class="tf-entrada">
+            <label class="tf-buscador">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input id="tfQ" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"
+                       placeholder="Escanea el código o escribe el nombre" aria-label="Escanear o buscar producto"
+                       role="combobox" aria-expanded="false" aria-controls="tfSug" aria-autocomplete="list" />
+            </label>
+            <button type="button" class="tf-cam" id="tfCam" title="Escanear con la cámara">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="10.5" y1="8" x2="10.5" y2="16"/><line x1="14" y1="8" x2="14" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
+                <span>Cámara</span>
+            </button>
+        </div>
+        <ul class="tf-sug" id="tfSug" role="listbox" hidden></ul>
+
+        <div class="tf-opciones">
+            <div class="tf-seg" role="radiogroup" aria-label="Cómo contar">
+                <button type="button" data-modo="fijar" class="is-on" aria-pressed="true">Escribir cantidad</button>
+                <button type="button" data-modo="sumar" aria-pressed="false">Cada escaneo suma 1</button>
+            </div>
+            <span class="tf-ayuda" id="tfAyuda">Escanea o elige el producto y escribe cuántos hay.</span>
+        </div>
+
+        <div class="tf-ficha" id="tfFicha" hidden>
+            <div class="tf-ficha-cab">
+                <div class="tf-ficha-nombre">
+                    <strong id="tfNombre"></strong>
+                    <small id="tfMeta"></small>
+                </div>
+                <button type="button" class="tf-x" id="tfCerrar" aria-label="Cerrar">×</button>
+            </div>
+            <div class="tf-datos">
+                <div><span>Sistema</span><b id="tfSistema"></b></div>
+                <div><span>Contado</span><b id="tfContado"></b></div>
+                <div><span>Diferencia</span><b id="tfDif"></b></div>
+            </div>
+            <div class="tf-cantidad">
+                <button type="button" class="tf-paso" data-paso="-1" aria-label="Uno menos">−</button>
+                <input id="tfCant" type="text" inputmode="decimal" autocomplete="off" placeholder="0" aria-label="Cantidad contada" />
+                <button type="button" class="tf-paso" data-paso="1" aria-label="Uno más">+</button>
+                <button type="button" class="btn-primary tf-guardar" id="tfGuardar">Guardar</button>
+            </div>
+            <label class="tf-sumar"><input type="checkbox" id="tfSumar" /> Sumar a lo ya contado (otra caja, otro estante)</label>
+            <p class="tf-msg" id="tfMsg" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="tf-recientes" id="tfRecientes" hidden>
+            <span class="tf-et">Últimos contados</span>
+            <ul></ul>
+        </div>
+        <script type="application/json" id="tfCodigos">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Codigos))</script>
+    </section>
+}
+
+<div class="module-card tf-lista">
+    <form method="get" class="tf-filtros">
+        <div class="tf-chips" role="tablist">
+            <a class="tf-chip @(filtro == "todos" ? "is-on" : "")" asp-route-id="@Model.Toma.Id" asp-route-Q="@Model.Q">Todos</a>
+            <a class="tf-chip @(filtro == "pend" ? "is-on" : "")" asp-route-id="@Model.Toma.Id" asp-route-Q="@Model.Q" asp-route-SoloPendientes="true">Pendientes</a>
+            <a class="tf-chip @(filtro == "dif" ? "is-on" : "")" asp-route-id="@Model.Toma.Id" asp-route-Q="@Model.Q" asp-route-SoloDiferencias="true">Con diferencia</a>
+        </div>
+        @if (Model.SoloPendientes) { <input type="hidden" name="SoloPendientes" value="true" /> }
+        @if (Model.SoloDiferencias) { <input type="hidden" name="SoloDiferencias" value="true" /> }
+        <div class="search-box tf-filtro-q">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" name="Q" value="@Model.Q" placeholder="Filtrar la lista..." />
         </div>
     </form>
 
-    <form method="post" asp-page-handler="Guardar" asp-route-id="@Model.Toma.Id">
-        <div class="table-wrapper">
-            <table class="erp-table">
-                <thead>
-                    <tr><th>Producto</th><th>SKU</th><th style="text-align:right;">Sistema</th><th style="text-align:right; width:140px;">Contado</th><th style="text-align:right;">Diferencia</th></tr>
-                </thead>
-                <tbody>
-                    @foreach (var f in Model.Filas)
-                    {
-                        <tr>
-                            <td>@(f.Producto?.Nombre ?? "Producto eliminado")</td>
-                            <td>@f.Producto?.SKU</td>
-                            <td style="text-align:right;">@f.Detalle.StockSistema.ToString("0.##")</td>
-                            <td style="text-align:right;">
-                                @if (Model.PuedeEditar)
-                                {
-                                    <input type="text" inputmode="decimal" name="conteos[@f.Detalle.Id]" class="form-input" style="width:110px; text-align:right;"
-                                           value="@(f.Detalle.StockContado.HasValue ? f.Detalle.StockContado.Value.ToString("0.####", ci) : "")" />
-                                }
-                                else
-                                {
-                                    @(f.Detalle.StockContado.HasValue ? f.Detalle.StockContado.Value.ToString("0.##") : "—")
-                                }
-                            </td>
-                            <td style="text-align:right; font-weight:600; color: @(f.Diferencia > 0 ? "var(--color-success)" : f.Diferencia < 0 ? "var(--color-danger)" : "inherit");">
-                                @(f.Diferencia.HasValue ? (f.Diferencia.Value > 0 ? "+" : "") + f.Diferencia.Value.ToString("0.##") : "")
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+    <form method="post" asp-page-handler="Guardar" asp-route-id="@Model.Toma.Id" id="tfForm">
+        <input type="hidden" name="Q" value="@Model.Q" />
+        <input type="hidden" name="SoloPendientes" value="@(Model.SoloPendientes ? "true" : "false")" />
+        <input type="hidden" name="SoloDiferencias" value="@(Model.SoloDiferencias ? "true" : "false")" />
+        <input type="hidden" name="p" value="@Model.Pagina" />
+        @if (Model.Filas.Count == 0)
+        {
+            <div class="tf-vacio">@(string.IsNullOrWhiteSpace(Model.Q) ? (Model.SoloPendientes ? "¡No queda nada pendiente!" : "No hay productos en esta vista.") : $"Ningún producto coincide con «{Model.Q}».")</div>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="erp-table tf-tabla">
+                    <thead>
+                        <tr><th>Producto</th><th class="tf-num">Sistema</th><th class="tf-num tf-col-contado">Contado</th><th class="tf-num">Diferencia</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var f in Model.Filas)
+                        {
+                            var dif = f.Diferencia;
+                            <tr data-detalle="@f.Detalle.Id" class="@(f.Detalle.StockContado.HasValue ? "is-contado" : "")">
+                                <td>
+                                    <div class="tf-prod">@(f.Producto?.Nombre ?? "Producto eliminado")</div>
+                                    <div class="tf-sub">@f.Producto?.SKU@(!string.IsNullOrEmpty(f.Producto?.CodigoBarras) && f.Producto?.CodigoBarras != f.Producto?.SKU ? " · " + f.Producto?.CodigoBarras : "")</div>
+                                </td>
+                                <td class="tf-num" data-sistema="@f.Detalle.StockSistema.ToString(ci)">@Num(f.Detalle.StockSistema)</td>
+                                <td class="tf-num">
+                                    @if (Model.PuedeEditar)
+                                    {
+                                        <input type="text" inputmode="decimal" name="conteos[@f.Detalle.Id]" class="tf-celda" autocomplete="off" placeholder="—"
+                                               aria-label="Contado de @f.Producto?.Nombre"
+                                               value="@(f.Detalle.StockContado.HasValue ? f.Detalle.StockContado.Value.ToString("0.####", ci) : "")" />
+                                    }
+                                    else
+                                    {
+                                        @(f.Detalle.StockContado.HasValue ? Num(f.Detalle.StockContado.Value) : "—")
+                                    }
+                                </td>
+                                <td class="tf-num"><span class="tf-dif @(dif > 0 ? "tf-dif-pos" : dif < 0 ? "tf-dif-neg" : dif == 0 ? "tf-dif-ok" : "")">@(dif.HasValue ? (dif.Value == 0 ? "Cuadra" : (dif.Value > 0 ? "+" : "") + Num(dif.Value)) : "")</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
         <partial name="_Pager" model="Model.Pager" />
 
-        @if (Model.PuedeEditar)
+        @if (Model.PuedeEditar && Model.Filas.Count > 0)
         {
-            <div style="padding: 16px 20px; display:flex; gap:10px; flex-wrap: wrap;">
-                <button type="submit" class="btn-primary">Guardar conteos de esta página</button>
+            <div class="tf-guardar-lista">
+                <span class="tf-auto">Lo que escribes en la lista se guarda solo.</span>
+                <button type="submit" class="btn-secondary tf-sin-js">Guardar conteos de esta página</button>
             </div>
         }
     </form>
-
-    @if (Model.PuedeEditar)
-    {
-        <div style="padding: 0 20px 20px; display:flex; gap:10px; flex-wrap: wrap;">
-            <form method="post" asp-page-handler="Aplicar" asp-route-id="@Model.Toma.Id" onsubmit="return confirm('Se ajustará el inventario con lo contado. ¿Aplicar la toma física?');">
-                <button type="submit" class="btn-primary" style="background: var(--color-success);">Aplicar al inventario</button>
-            </form>
-            <form method="post" asp-page-handler="Cancelar" asp-route-id="@Model.Toma.Id" onsubmit="return confirm('¿Cancelar la toma sin ajustar el inventario?');">
-                <button type="submit" class="btn-secondary">Cancelar toma</button>
-            </form>
-        </div>
-    }
 </div>
+
+@if (Model.PuedeEditar)
+{
+    <div class="tf-acciones">
+        <form method="post" asp-page-handler="Cancelar" asp-route-id="@Model.Toma.Id" onsubmit="return confirm('¿Cancelar la toma sin ajustar el inventario?');">
+            <button type="submit" class="btn-secondary">Cancelar toma</button>
+        </form>
+        <form method="post" asp-page-handler="Aplicar" asp-route-id="@Model.Toma.Id" onsubmit="return confirm('Se ajustará el inventario con lo contado (' + document.getElementById('tfContados').textContent + ' productos). Lo que no contaste no se toca. ¿Aplicar la toma física?');">
+            <button type="submit" class="btn-primary tf-aplicar">Aplicar al inventario</button>
+        </form>
+    </div>
+}
+
+@section Scripts {
+    <script src="~/js/toma-fisica.js" asp-append-version="true"></script>
+}

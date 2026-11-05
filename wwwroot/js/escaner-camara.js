@@ -75,10 +75,13 @@
         var ahora = Date.now();
         if (valor === ultimoCodigo && ahora - ultimoTiempo < 2500) return; // evita leer el mismo producto dos veces seguidas
         ultimoCodigo = valor; ultimoTiempo = ahora;
-        var ok = false;
-        try { ok = !!(alLeer && alLeer(valor)); } catch (e) { ok = false; }
+        // el callback devuelve true/false, o un texto propio para mostrar cuando lo encontró
+        var r = false;
+        try { r = alLeer ? alLeer(valor) : false; } catch (e) { r = false; }
+        var ok = !!r;
         pitido(ok);
-        mensaje(ok ? '✔ Agregado: ' + valor : '✖ No encontré el producto: ' + valor, ok ? '#86efac' : '#fca5a5');
+        if (!overlay) return;   // el callback cerró el escáner
+        mensaje(ok ? (typeof r === 'string' ? r : '✔ Agregado: ' + valor) : '✖ No encontré el producto: ' + valor, ok ? '#86efac' : '#fca5a5');
     }
 
     async function abrir(callback) {
@@ -113,7 +116,8 @@
         document.querySelectorAll('input[data-escaner]').forEach(function (inp) {
             if (inp.dataset.escanerListo) return;
             inp.dataset.escanerListo = '1';
-            var btn = el('button', 'margin-left:6px;border:1px solid var(--color-border,#d1d5db);background:var(--color-surface-2,#f3f4f6);border-radius:8px;padding:6px 10px;font-size:16px;line-height:1;cursor:pointer;flex:none;', '📷');
+            var btn = el('button', '', '📷');
+            btn.className = 'kk-escaner-btn';
             btn.type = 'button'; btn.title = 'Escanear con la cámara'; btn.setAttribute('aria-label', 'Escanear código de barras con la cámara');
             btn.addEventListener('click', function () {
                 abrir(function (codigo) {
@@ -129,7 +133,12 @@
                     return true;
                 });
             });
-            inp.insertAdjacentElement('afterend', btn);
+            // campo y botón juntos en una fila con aire entre ambos (antes el botón quedaba pegado o saltaba de línea)
+            var fila = el('span', '');
+            fila.className = 'kk-escaner-campo';
+            inp.parentNode.insertBefore(fila, inp);
+            fila.appendChild(inp);
+            fila.appendChild(btn);
         });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', conectarCampos); else conectarCampos();
