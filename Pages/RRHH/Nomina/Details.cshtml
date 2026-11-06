@@ -14,7 +14,7 @@
             Volver a nóminas
         </a>
         <h2>Nómina @Model.Nomina.Numero</h2>
-        <p>@Model.Nomina.PeriodoDescripcion • @Model.Nomina.Tipo</p>
+        <p>@Model.Nomina.PeriodoDescripcion • @Kirkenta.Helpers.RRHH.NominaHelper.NombreTipo(Model.Nomina.Tipo)</p>
     </div>
     <div class="module-header-right">
         @if (Model.PuedeAprobar && Model.Nomina.Estado == "Calculada")
@@ -106,7 +106,7 @@
             <h4 class="factura-info-label">Período</h4>
             <p><strong>@Model.Nomina.PeriodoDescripcion</strong></p>
             <p>Del @Model.Nomina.FechaInicio.ToString("dd/MM/yyyy") al @Model.Nomina.FechaFin.ToString("dd/MM/yyyy")</p>
-            <p>Tipo: <strong>@Model.Nomina.Tipo</strong></p>
+            <p>Tipo: <strong>@Kirkenta.Helpers.RRHH.NominaHelper.NombreTipo(Model.Nomina.Tipo)</strong></p>
         </div>
         <div>
             <h4 class="factura-info-label">Información</h4>

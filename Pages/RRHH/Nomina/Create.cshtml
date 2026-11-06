@@ -45,8 +45,17 @@
         </div>
 
         <div class="form-field">
-            <label asp-for="Input.Tipo">Tipo de nómina *</label>
-            <select asp-for="Input.Tipo" class="form-input" required>
+            <label asp-for="Input.Clase">Planilla *</label>
+            <select asp-for="Input.Clase" class="form-input" id="nmClase">
+                <option value="Normal">Planilla normal</option>
+                <option value="DecimoTercer">Décimo tercer mes (aguinaldo)</option>
+                <option value="DecimoCuarto">Décimo cuarto mes</option>
+            </select>
+        </div>
+
+        <div class="form-field" id="nmCampoTipo">
+            <label asp-for="Input.Tipo">Frecuencia de pago *</label>
+            <select asp-for="Input.Tipo" class="form-input" id="nmTipo" required>
                 <option value="Mensual">Mensual</option>
                 <option value="Quincenal">Quincenal</option>
                 <option value="Catorcenal">Catorcenal</option>
@@ -55,25 +64,31 @@
             <small class="form-help">Solo se incluirán los empleados con esta frecuencia de pago</small>
         </div>
 
+        <div class="form-field" id="nmCampoAnio" hidden>
+            <label asp-for="Input.Anio">Año del décimo *</label>
+            <input asp-for="Input.Anio" type="number" min="2000" max="2100" class="form-input" id="nmAnio" />
+            <small class="form-help">Entran todos los empleados activos. Es lo ganado de salario en el período entre 12, respetando cada aumento, y sin deducciones.</small>
+        </div>
+
         <div class="form-row">
             <div class="form-field">
                 <label asp-for="Input.FechaInicio">Fecha inicio del período *</label>
-                <input asp-for="Input.FechaInicio" type="date" class="form-input" required />
+                <input asp-for="Input.FechaInicio" type="date" class="form-input" id="nmInicio" required />
             </div>
             <div class="form-field">
                 <label asp-for="Input.FechaFin">Fecha fin del período *</label>
-                <input asp-for="Input.FechaFin" type="date" class="form-input" required />
+                <input asp-for="Input.FechaFin" type="date" class="form-input" id="nmFin" required />
             </div>
         </div>
 
         <div class="form-row">
             <div class="form-field">
                 <label asp-for="Input.FechaPago">Fecha de pago *</label>
-                <input asp-for="Input.FechaPago" type="date" class="form-input" required />
+                <input asp-for="Input.FechaPago" type="date" class="form-input" id="nmPago" required />
             </div>
             <div class="form-field">
                 <label asp-for="Input.PeriodoDescripcion">Descripción del período</label>
-                <input asp-for="Input.PeriodoDescripcion" class="form-input" placeholder="Ej: Primera quincena de octubre" />
+                <input asp-for="Input.PeriodoDescripcion" class="form-input" id="nmDescripcion" placeholder="Ej: Primera quincena de octubre" />
             </div>
         </div>
 
@@ -81,6 +96,21 @@
             <label asp-for="Input.Notas">Notas</label>
             <textarea asp-for="Input.Notas" class="form-input" rows="2"></textarea>
         </div>
+
+        @if (Model.PideAutorizacion)
+        {
+            <div class="module-alert module-alert-warning">Este período ya tiene una nómina. Generarla otra vez paga dos veces: necesita un administrador.</div>
+            <div class="form-row">
+                <div class="form-field">
+                    <label asp-for="Input.AutorizaUsuario">Usuario administrador</label>
+                    <input asp-for="Input.AutorizaUsuario" class="form-input" autocomplete="off" />
+                </div>
+                <div class="form-field">
+                    <label asp-for="Input.AutorizaClave">Contraseña</label>
+                    <input asp-for="Input.AutorizaClave" type="password" value="" class="form-input" autocomplete="new-password" />
+                </div>
+            </div>
+        }
 
         <div class="form-actions">
             <a asp-page="/RRHH/Nomina/Index" class="btn-secondary">Cancelar</a>
@@ -93,3 +123,34 @@
         </div>
     </form>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var clase = document.getElementById('nmClase'), tipo = document.getElementById('nmTipo'), anio = document.getElementById('nmAnio');
+            var campoTipo = document.getElementById('nmCampoTipo'), campoAnio = document.getElementById('nmCampoAnio');
+            var inicio = document.getElementById('nmInicio'), fin = document.getElementById('nmFin');
+
+            // Al cambiar la planilla, las fechas son las de ese período (una quincenal no muestra todo el mes)
+            function sugerir() {
+                var decimo = clase.value !== 'Normal';
+                campoTipo.hidden = decimo;
+                tipo.required = !decimo;
+                campoAnio.hidden = !decimo;
+                inicio.readOnly = fin.readOnly = decimo;
+                var url = '?handler=Sugerir&clase=' + encodeURIComponent(clase.value) + '&tipo=' + encodeURIComponent(tipo.value)
+                    + (decimo && anio.value ? '&anio=' + encodeURIComponent(anio.value) : '');
+                fetch(url, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
+                    inicio.value = d.inicio; fin.value = d.fin;
+                    document.getElementById('nmPago').value = d.pago;
+                    document.getElementById('nmDescripcion').value = d.descripcion;
+                    if (d.anio) anio.value = d.anio;
+                });
+            }
+            clase.addEventListener('change', function () { anio.value = ''; sugerir(); });
+            tipo.addEventListener('change', sugerir);
+            anio.addEventListener('change', sugerir);
+            @if (!Model.PideAutorizacion && ViewData.ModelState.IsValid) { <text>sugerir();</text> }
+        })();
+    </script>
+}

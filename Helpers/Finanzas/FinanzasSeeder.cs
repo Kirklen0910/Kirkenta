@@ -201,6 +201,8 @@ namespace Kirkenta.Helpers.Finanzas
                 ("Egreso",  "Pago a proveedores", "6.2.10", "1.1.03.001"),
                 ("Ingreso", "Préstamos recibidos", "4.2.02", "2.1.05"),
                 ("Egreso",  "Adelantos/Vales a empleados", "6.2.02", "1.1.02.003"),
+                // El vuelto no es un gasto: reduce lo que entró por la venta (el ingreso se registra por lo recibido)
+                ("Egreso",  "Cambio entregado", "6.3.02", "4.1.01"),
             };
 
             bool cambios = false;

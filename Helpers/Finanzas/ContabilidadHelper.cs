@@ -1081,7 +1081,7 @@ namespace Kirkenta.Helpers.Finanzas
                 .Where(m => m.Estado == "Activo"
                          && m.Fecha >= desdeFull
                          && m.Fecha <= hastaFull)
-                .Where(m => m.Origen != "Apertura") // Apertura SÍ tiene plan
+                .Where(m => m.Origen != "Apertura" && m.Tipo != "Transferencia") // Apertura SÍ tiene plan; una transferencia no lleva categoría
                 .Where(m => m.CategoriaId == null
                          || !context.CategoriasFinancieras
                             .Where(c => c.Id == m.CategoriaId)

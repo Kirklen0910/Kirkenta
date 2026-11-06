@@ -341,7 +341,8 @@ namespace Kirkenta.Pages.Finanzas.Cierres
                 (Input.SinConteo ? $". SIN CONTEO FÍSICO, autorizó: {autorizo!.Username}" : ""),
                 HttpContext.Connection.RemoteIpAddress?.ToString());
 
-            TempData["Success"] = $"Cierre {cierre.Numero} registrado. Resultado: {cierre.Resultado}";
+            var quedaEnCaja = _context.CuentasFinancieras.Where(c => c.Id == Input.CuentaId).Select(c => c.SaldoActual).FirstOrDefault();
+            TempData["Success"] = $"Cierre {cierre.Numero} registrado. Resultado: {cierre.Resultado}. Quedan L. {quedaEnCaja:N2} en caja para la próxima apertura.";
             return RedirectToPage("/Finanzas/Cierres/Details", new { id = cierre.Id });
         }
 

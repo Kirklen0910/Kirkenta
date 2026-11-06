@@ -34,7 +34,7 @@
         <div class="totales-panel" style="max-width: 100%; margin: 16px 0;">
             <div class="totales-row"><span>Nómina:</span><strong>@Model.Nomina.Numero</strong></div>
             <div class="totales-row"><span>Período:</span><strong>@Model.Nomina.PeriodoDescripcion</strong></div>
-            <div class="totales-row"><span>Tipo:</span><strong>@Model.Nomina.Tipo</strong></div>
+            <div class="totales-row"><span>Tipo:</span><strong>@Kirkenta.Helpers.RRHH.NominaHelper.NombreTipo(Model.Nomina.Tipo)</strong></div>
             <div class="totales-row"><span>Empleados:</span><strong>@Model.Nomina.CantidadEmpleados</strong></div>
             <div class="totales-row totales-row-final">
                 <span>TOTAL NETO:</span>

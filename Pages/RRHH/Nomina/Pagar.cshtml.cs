@@ -148,8 +148,9 @@ namespace Kirkenta.Pages.RRHH.Nomina
             var numeroMov = NumeroDocumentoHelper.GenerarSiguiente(_context, "MovimientoFinanciero");
             var monedaDefecto = _context.Monedas.FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1;
 
-            var categoria = _context.CategoriasFinancieras
-                .FirstOrDefault(c => c.Tipo == "Egreso" && c.Nombre.Contains("Nómina"));
+            var categoria = NominaHelper.EsDecimo(nomina.Tipo)
+                ? MovimientoManualHelper.ObtenerOCrearCategoria(_context, "Egreso", NominaHelper.NombreTipo(nomina.Tipo), "6.2.02", "#dc2626")
+                : _context.CategoriasFinancieras.FirstOrDefault(c => c.Tipo == "Egreso" && c.Nombre.Contains("Nómina"));
 
             if (categoria == null)
             {

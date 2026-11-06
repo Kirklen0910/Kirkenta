@@ -11,6 +11,130 @@ namespace Kirkenta.Helpers.RRHH
         /// </summary>
         public const decimal DeduccionGastosMedicosAnual = 40000m;
 
+        public const string TipoDecimoTercer = "DecimoTercer";
+        public const string TipoDecimoCuarto = "DecimoCuarto";
+
+        public static bool EsDecimo(string? tipo) => tipo == TipoDecimoTercer || tipo == TipoDecimoCuarto;
+
+        public static string NombreTipo(string? tipo) => tipo switch
+        {
+            TipoDecimoTercer => "Décimo tercer mes",
+            TipoDecimoCuarto => "Décimo cuarto mes",
+            _ => tipo ?? ""
+        };
+
+        // ============================================================
+        // PERÍODOS DE PLANILLA
+        // ============================================================
+
+        /// <summary>Período legal de cada décimo: aguinaldo enero a diciembre; catorceavo julio del año anterior a junio.</summary>
+        public static (DateTime inicio, DateTime fin) PeriodoDecimo(string tipo, int anio) =>
+            tipo == TipoDecimoCuarto
+                ? (new DateTime(anio - 1, 7, 1), new DateTime(anio, 6, 30))
+                : (new DateTime(anio, 1, 1), new DateTime(anio, 12, 31));
+
+        /// <summary>Días entre dos fechas en año comercial (meses de 30 días), contando ambos extremos.</summary>
+        public static int DiasComerciales(DateTime desde, DateTime hasta)
+        {
+            if (hasta.Date < desde.Date) return 0;
+            int d1 = Math.Min(desde.Day, 30), d2 = Math.Min(hasta.Day, 30);
+            // el último día de un mes corto cuenta como día 30
+            if (hasta.Day == DateTime.DaysInMonth(hasta.Year, hasta.Month)) d2 = 30;
+            return (hasta.Year - desde.Year) * 360 + (hasta.Month - desde.Month) * 30 + (d2 - d1) + 1;
+        }
+
+        /// <summary>
+        /// Décimo de un empleado: lo que ganó de salario ordinario en el período entre 12. Cada mes vale lo que sus
+        /// nóminas le pagaron de salario base, así un aumento pesa solo desde el mes en que empezó; lo que todavía
+        /// no tiene nómina (los meses que faltan) se proyecta con el salario actual. Las horas extra no entran.
+        /// Proporcional si entró o salió en medio del período. Sin deducciones: la ley exime el aguinaldo de
+        /// impuestos y cotizaciones, y ninguno de los dos cotiza.
+        /// </summary>
+        public static DetalleNomina? CalcularDecimo(ApplicationDbContext context, Empleado e, string tipo, DateTime inicio, DateTime fin)
+        {
+            var desde = e.FechaIngreso.Date > inicio.Date ? e.FechaIngreso.Date : inicio.Date;
+            var hasta = e.FechaBaja.HasValue && e.FechaBaja.Value.Date < fin.Date ? e.FechaBaja.Value.Date : fin.Date;
+            var dias = Math.Min(DiasComerciales(desde, hasta), 360);
+            if (dias <= 0) return null;
+
+            var pagado = (from d in context.DetalleNominas
+                          join n in context.Nominas on d.NominaId equals n.Id
+                          where d.EmpleadoId == e.Id && n.Estado != "Anulada"
+                                && n.Tipo != TipoDecimoTercer && n.Tipo != TipoDecimoCuarto
+                                && n.FechaFin >= desde && n.FechaInicio <= hasta
+                          select new { n.FechaInicio, d.SalarioBase, d.DiasTrabajados }).ToList()
+                .GroupBy(x => new { x.FechaInicio.Year, x.FechaInicio.Month })
+                .ToDictionary(g => (g.Key.Year, g.Key.Month), g => (Salario: g.Sum(x => x.SalarioBase), Dias: g.Sum(x => x.DiasTrabajados)));
+
+            decimal ganado = 0;
+            for (var mes = new DateTime(desde.Year, desde.Month, 1); mes <= hasta; mes = mes.AddMonths(1))
+            {
+                var finMes = mes.AddMonths(1).AddDays(-1);
+                var diasMes = (decimal)DiasComerciales(desde > mes ? desde : mes, hasta < finMes ? hasta : finMes);
+                decimal cubierto = 0;
+                if (pagado.TryGetValue((mes.Year, mes.Month), out var p) && p.Dias > 0)
+                {
+                    // una nómina repetida con autorización no cuenta doble
+                    cubierto = Math.Min(p.Dias, diasMes);
+                    ganado += p.Salario * cubierto / p.Dias;
+                }
+                ganado += (diasMes - cubierto) / 30m * e.SalarioBase;
+            }
+
+            var monto = Math.Round(ganado / 12m, 2, MidpointRounding.AwayFromZero);
+            if (monto <= 0) return null;
+            return new DetalleNomina
+            {
+                EmpleadoId = e.Id,
+                SalarioBase = monto,
+                TotalBruto = monto,
+                SalarioNeto = monto,
+                DiasTrabajados = dias,
+                Notas = $"{NombreTipo(tipo)}: {dias} de 360 días"
+            };
+        }
+
+        /// <summary>El período que sigue para una frecuencia: arranca donde terminó la última planilla de ese tipo.</summary>
+        public static (DateTime inicio, DateTime fin) PeriodoDesde(string frecuencia, DateTime desde)
+        {
+            var d = desde.Date;
+            var finMes = new DateTime(d.Year, d.Month, DateTime.DaysInMonth(d.Year, d.Month));
+            return frecuencia switch
+            {
+                "Semanal" => (d, d.AddDays(6)),
+                "Catorcenal" => (d, d.AddDays(13)),
+                "Quincenal" => d.Day <= 15
+                    ? (new DateTime(d.Year, d.Month, 1), new DateTime(d.Year, d.Month, 15))
+                    : (new DateTime(d.Year, d.Month, 16), finMes),
+                _ => (new DateTime(d.Year, d.Month, 1), finMes)
+            };
+        }
+
+        /// <summary>Revisa que las fechas correspondan a la frecuencia: el salario se calcula por período completo.</summary>
+        public static string? ValidarPeriodo(string frecuencia, DateTime inicio, DateTime fin)
+        {
+            var (i, f) = PeriodoDesde(frecuencia, inicio);
+            if (i == inicio.Date && f == fin.Date) return null;
+            return frecuencia switch
+            {
+                "Quincenal" => "Una planilla quincenal va del 1 al 15 o del 16 al fin de mes.",
+                "Semanal" => "Una planilla semanal debe tener 7 días.",
+                "Catorcenal" => "Una planilla catorcenal debe tener 14 días.",
+                _ => "Una planilla mensual va del primero al último día del mes."
+            };
+        }
+
+        public static string DescribirPeriodo(string frecuencia, DateTime inicio, DateTime fin)
+        {
+            var mes = inicio.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-HN"));
+            return frecuencia switch
+            {
+                "Quincenal" => (inicio.Day == 1 ? "Primera quincena de " : "Segunda quincena de ") + mes,
+                "Mensual" => char.ToUpper(mes[0]) + mes[1..],
+                _ => $"{inicio:dd/MM/yyyy} - {fin:dd/MM/yyyy}"
+            };
+        }
+
         // ============================================================
         // CONFIGURACIÓN DE DEDUCCIONES POR AÑO
         // ============================================================
@@ -134,7 +258,7 @@ namespace Kirkenta.Helpers.RRHH
             // Solo cuentan nóminas vigentes: una nómina anulada/rechazada NO retuvo ISR de verdad
             var nominasDelAnio = context.Nominas
                 .Where(n => n.FechaInicio >= inicioAnio && n.FechaInicio < inicioMesActual
-                         && n.Estado != "Anulada")
+                         && n.Estado != "Anulada" && n.Tipo != TipoDecimoTercer && n.Tipo != TipoDecimoCuarto)
                 .Select(n => new { n.Id, n.FechaInicio })
                 .ToList();
             var idsNominas = nominasDelAnio.Select(n => n.Id).ToList();
@@ -324,6 +448,7 @@ namespace Kirkenta.Helpers.RRHH
         {
             if (nomina.Estado != "Calculada" && nomina.Estado != "Aprobada")
                 return "Esta nómina ya no admite cambios.";
+            if (EsDecimo(nomina.Tipo)) return "Una planilla de décimo no lleva extras.";
             if (extras < 0) return "Los extras no pueden ser negativos.";
             extras = Math.Round(extras, 2, MidpointRounding.AwayFromZero);
             if (extras == detalle.MontoHorasExtra && (motivo ?? "") == (detalle.Notas ?? "")) return null;

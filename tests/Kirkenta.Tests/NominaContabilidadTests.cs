@@ -214,6 +214,137 @@ namespace Kirkenta.Tests
             Assert.Equal(n, ctx.MovimientosFinancieros.Count(m => m.Origen == RetencionesHelper.OrigenNomina));
         }
 
+        // ===== Décimos y períodos =====
+        [Theory]
+        [InlineData("2026-01-01", "2026-12-31", 360)]
+        [InlineData("2026-07-01", "2026-12-31", 180)]
+        [InlineData("2026-02-01", "2026-02-28", 30)]
+        [InlineData("2026-03-16", "2026-03-31", 15)]
+        public void DiasComerciales_UsanMesesDe30(string d, string h, int esperado)
+            => Assert.Equal(esperado, NominaHelper.DiasComerciales(DateTime.Parse(d), DateTime.Parse(h)));
+
+        [Fact]
+        public void Decimos_PeriodoLegal_YProporcionalSinDeducciones()
+        {
+            Assert.Equal((new DateTime(2026, 1, 1), new DateTime(2026, 12, 31)), NominaHelper.PeriodoDecimo(NominaHelper.TipoDecimoTercer, 2026));
+            Assert.Equal((new DateTime(2025, 7, 1), new DateTime(2026, 6, 30)), NominaHelper.PeriodoDecimo(NominaHelper.TipoDecimoCuarto, 2026));
+
+            using var ctx = TestDb.Crear();
+            var (i, f) = NominaHelper.PeriodoDecimo(NominaHelper.TipoDecimoTercer, 2026);
+            var todo = NominaHelper.CalcularDecimo(ctx, new Empleado { SalarioBase = 36000m, FechaIngreso = new DateTime(2020, 1, 1) }, NominaHelper.TipoDecimoTercer, i, f)!;
+            Assert.Equal(36000m, todo.TotalBruto);
+            Assert.Equal(36000m, todo.SalarioNeto);
+            Assert.Equal(0m, todo.TotalDeducciones + todo.DeduccionISR + todo.AporteIHSSPatronal);
+
+            var medio = NominaHelper.CalcularDecimo(ctx, new Empleado { SalarioBase = 36000m, FechaIngreso = new DateTime(2026, 7, 1) }, NominaHelper.TipoDecimoTercer, i, f)!;
+            Assert.Equal(18000m, medio.TotalBruto);
+
+            Assert.Null(NominaHelper.CalcularDecimo(ctx, new Empleado { SalarioBase = 36000m, FechaIngreso = new DateTime(2027, 2, 1) }, NominaHelper.TipoDecimoTercer, i, f));
+        }
+
+        private static void NominaDe(ApplicationDbContext ctx, Empleado e, int anio, int mes, decimal salario, string estado = "Pagada")
+        {
+            var n = new Nomina { Numero = $"N-{anio}{mes:D2}{estado}", Tipo = "Mensual", PeriodoDescripcion = "x", FechaInicio = new DateTime(anio, mes, 1), FechaFin = new DateTime(anio, mes, DateTime.DaysInMonth(anio, mes)), FechaPago = DateTime.Today, Estado = estado };
+            ctx.Nominas.Add(n); ctx.SaveChanges();
+            ctx.DetalleNominas.Add(new DetalleNomina { NominaId = n.Id, EmpleadoId = e.Id, SalarioBase = salario, TotalBruto = salario, SalarioNeto = salario, DiasTrabajados = 30, MontoHorasExtra = 0 });
+            ctx.SaveChanges();
+        }
+
+        [Fact]
+        public void Decimo_RespetaElAumento_MesPorMes()
+        {
+            using var ctx = TestDb.Crear();
+            var e = new Empleado { Nombres = "A", Apellidos = "B", SalarioBase = 36000m, FechaIngreso = new DateTime(2020, 1, 1) };
+            ctx.Empleados.Add(e); ctx.SaveChanges();
+            // seis meses a 30,000 y seis a 36,000 → (180,000 + 216,000) / 12
+            for (var m = 1; m <= 6; m++) NominaDe(ctx, e, 2026, m, 30000m);
+            for (var m = 7; m <= 12; m++) NominaDe(ctx, e, 2026, m, 36000m);
+
+            var (i, f) = NominaHelper.PeriodoDecimo(NominaHelper.TipoDecimoTercer, 2026);
+            Assert.Equal(33000m, NominaHelper.CalcularDecimo(ctx, e, NominaHelper.TipoDecimoTercer, i, f)!.TotalBruto);
+        }
+
+        [Fact]
+        public void Decimo_LosMesesSinNominaSeProyectan_YUnaAnuladaNoCuenta()
+        {
+            using var ctx = TestDb.Crear();
+            var e = new Empleado { Nombres = "A", Apellidos = "B", SalarioBase = 36000m, FechaIngreso = new DateTime(2020, 1, 1) };
+            ctx.Empleados.Add(e); ctx.SaveChanges();
+            for (var m = 1; m <= 6; m++) NominaDe(ctx, e, 2026, m, 24000m);
+            NominaDe(ctx, e, 2026, 7, 1m, "Anulada");
+
+            var (i, f) = NominaHelper.PeriodoDecimo(NominaHelper.TipoDecimoTercer, 2026);
+            // 6 meses a 24,000 y 6 proyectados a 36,000 → 30,000
+            Assert.Equal(30000m, NominaHelper.CalcularDecimo(ctx, e, NominaHelper.TipoDecimoTercer, i, f)!.TotalBruto);
+        }
+
+        [Fact]
+        public void Decimo_QuincenasYElCatorceavoCruzandoDeAnio()
+        {
+            using var ctx = TestDb.Crear();
+            var e = new Empleado { Nombres = "A", Apellidos = "B", SalarioBase = 24000m, FechaIngreso = new DateTime(2020, 1, 1) };
+            ctx.Empleados.Add(e); ctx.SaveChanges();
+            // el período del catorceavo arranca en julio del año anterior: esos 6 meses ganó 12,000
+            for (var m = 7; m <= 12; m++) NominaDe(ctx, e, 2025, m, 12000m);
+
+            var (i, f) = NominaHelper.PeriodoDecimo(NominaHelper.TipoDecimoCuarto, 2026);
+            Assert.Equal(18000m, NominaHelper.CalcularDecimo(ctx, e, NominaHelper.TipoDecimoCuarto, i, f)!.TotalBruto);
+        }
+
+        [Fact]
+        public void Decimo_NoEntraAlAcumuladoDelIsr_NiLlevaExtras()
+        {
+            var (ctx, _, emp, nomina, _) = Base();
+            using var _c = ctx;
+            var anio = DateTime.Today.Year;
+            var mes = new DateTime(anio, DateTime.Today.Month, 1);
+            var sinDecimo = NominaHelper.CalcularISRAcumulativo(ctx, emp.Id, 40000m, anio, DateTime.Today.Month, NominaHelper.ObtenerConfiguracion(ctx, anio));
+
+            var dec = new Nomina { Numero = "NOM-D", Tipo = NominaHelper.TipoDecimoCuarto, PeriodoDescripcion = "d", FechaInicio = new DateTime(anio, 1, 1), FechaFin = new DateTime(anio, 1, 2), FechaPago = DateTime.Today, Estado = "Pagada" };
+            ctx.Nominas.Add(dec); ctx.SaveChanges();
+            var d = new DetalleNomina { NominaId = dec.Id, EmpleadoId = emp.Id, TotalBruto = 40000m, SalarioNeto = 40000m };
+            ctx.DetalleNominas.Add(d); ctx.SaveChanges();
+
+            if (DateTime.Today.Month > 1)
+                Assert.Equal(sinDecimo, NominaHelper.CalcularISRAcumulativo(ctx, emp.Id, 40000m, anio, DateTime.Today.Month, NominaHelper.ObtenerConfiguracion(ctx, anio)));
+            dec.Estado = "Aprobada"; ctx.SaveChanges();
+            Assert.NotNull(NominaHelper.AplicarExtras(ctx, dec, d, 100m, "x"));
+        }
+
+        [Theory]
+        [InlineData("Quincenal", "2026-11-01", "2026-11-15", true)]
+        [InlineData("Quincenal", "2026-11-16", "2026-11-30", true)]
+        [InlineData("Quincenal", "2026-11-01", "2026-11-30", false)]
+        [InlineData("Mensual", "2026-11-01", "2026-11-30", true)]
+        [InlineData("Mensual", "2026-11-01", "2026-11-15", false)]
+        [InlineData("Semanal", "2026-11-02", "2026-11-08", true)]
+        [InlineData("Catorcenal", "2026-11-02", "2026-11-15", true)]
+        public void Periodo_DebeCorresponderALaFrecuencia(string tipo, string i, string f, bool valido)
+            => Assert.Equal(valido, NominaHelper.ValidarPeriodo(tipo, DateTime.Parse(i), DateTime.Parse(f)) == null);
+
+        [Fact]
+        public void Quincenas_SeSiguenUnaTrasOtra()
+        {
+            Assert.Equal((new DateTime(2026, 11, 16), new DateTime(2026, 11, 30)), NominaHelper.PeriodoDesde("Quincenal", new DateTime(2026, 11, 16)));
+            Assert.Equal((new DateTime(2026, 12, 1), new DateTime(2026, 12, 15)), NominaHelper.PeriodoDesde("Quincenal", new DateTime(2026, 12, 1)));
+            Assert.Equal("Segunda quincena de noviembre 2026", NominaHelper.DescribirPeriodo("Quincenal", new DateTime(2026, 11, 16), new DateTime(2026, 11, 30)));
+        }
+
+        [Fact]
+        public void CambioEntregado_ReduceLasVentas_NoEsGasto()
+        {
+            using var ctx = TestDb.Crear();
+            PlanCuentasHelper.Seed(ctx);
+            var gastos = ctx.PlanCuentas.Single(p => p.Codigo == "6.3.02");
+            ctx.CategoriasFinancieras.Add(new CategoriaFinanciera { Nombre = "Cambio entregado", Tipo = "Egreso", Activa = true, PlanCuentaId = gastos.Id, CuentaContable = "6.3.02" });
+            ctx.SaveChanges();
+
+            FinanzasSeeder.Seed(ctx);
+
+            var ventas = ctx.PlanCuentas.Single(p => p.Codigo == "4.1.01");
+            Assert.Equal(ventas.Id, ctx.CategoriasFinancieras.Single(c => c.Nombre == "Cambio entregado").PlanCuentaId);
+        }
+
         // ===== Envío en facturas =====
         [Fact]
         public void Factura_MuestraElIsvDelEnvioAparte()

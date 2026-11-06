@@ -22,6 +22,7 @@ namespace Kirkenta.Pages.RRHH.Nomina
         public Models.Nomina Nomina { get; set; } = new();
         public List<DetallePagoItem> Detalles { get; set; } = new();
         public List<CuentaFinanciera> Cuentas { get; set; } = new();
+        public bool EsDecimo => NominaHelper.EsDecimo(Nomina.Tipo);
 
         [BindProperty]
         public List<int> DetalleIdsSeleccionados { get; set; } = new();
@@ -221,7 +222,9 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 }
             }
 
-            var categoria = ObtenerCategoriaNomina(_context);
+            var categoria = NominaHelper.EsDecimo(nomina.Tipo)
+                ? MovimientoManualHelper.ObtenerOCrearCategoria(_context, "Egreso", NominaHelper.NombreTipo(nomina.Tipo), "6.2.02", "#dc2626")
+                : ObtenerCategoriaNomina(_context);
 
             int pagosRealizados = 0;
 

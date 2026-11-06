@@ -53,7 +53,7 @@
                         </th>
                         <th style="width: 50px;"></th>
                         <th>Empleado</th>
-                        <th style="width: 260px;">Extras</th>
+                        @if (!Model.EsDecimo) { <th style="width: 260px;">Extras</th> }
                         <th style="text-align: right;">Bruto</th>
                         <th style="text-align: right;">Deducciones</th>
                         <th style="text-align: right;">Neto a pagar</th>
@@ -84,6 +84,8 @@
                                 <strong>@d.EmpleadoNombre</strong>
                                 <br /><span class="table-user-sub">@d.EmpleadoCodigo</span>
                             </td>
+                            @if (!Model.EsDecimo)
+                            {
                             <td>
                                 @if (d.YaPagado)
                                 {
@@ -98,6 +100,7 @@
                                     </div>
                                 }
                             </td>
+                            }
                             <td style="text-align: right;">L. @d.TotalBruto.ToString("N2")</td>
                             <td style="text-align: right; color: var(--color-danger);">- L. @d.TotalDeducciones.ToString("N2")</td>
                             <td style="text-align: right;"><strong style="color: var(--color-success);">L. @d.SalarioNeto.ToString("N2")</strong></td>
@@ -116,7 +119,7 @@
                 </tbody>
                 <tfoot>
                     <tr style="background: var(--color-surface-2); font-weight: 700; border-top: 2px solid var(--color-border);">
-                        <td colspan="6" style="text-align: right;">TOTAL SELECCIONADO:</td>
+                        <td colspan="@(Model.EsDecimo ? 5 : 6)" style="text-align: right;">TOTAL SELECCIONADO:</td>
                         <td style="text-align: right; color: var(--color-primary);" id="totalSeleccionado">L. 0.00</td>
                         <td></td>
                     </tr>
@@ -124,10 +127,13 @@
             </table>
         </div>
 
-        <div class="nm-extras-accion">
-            <span>Horas extra o un trabajo especial: suman al bruto y recalculan el ISR. Actualiza antes de pagar.</span>
-            <button type="submit" class="btn-secondary btn-sm" asp-page-handler="Extras" asp-route-id="@Model.Nomina.Id" formnovalidate>Actualizar extras</button>
-        </div>
+        @if (!Model.EsDecimo)
+        {
+            <div class="nm-extras-accion">
+                <span>Horas extra o un trabajo especial: suman al bruto y recalculan el ISR. Actualiza antes de pagar.</span>
+                <button type="submit" class="btn-secondary btn-sm" asp-page-handler="Extras" asp-route-id="@Model.Nomina.Id" formnovalidate>Actualizar extras</button>
+            </div>
+        }
 
         <div class="form-divider"></div>
 
