@@ -211,7 +211,7 @@ namespace Kirkenta.Helpers.Finanzas
                     continue;
                 }
 
-                var monto = Math.Round(mov.Monto * (mov.TipoCambio > 0 ? mov.TipoCambio : 1m), 2);
+                var monto = Math.Round(mov.Monto * (mov.TipoCambio > 0 ? mov.TipoCambio : 1m), 2, MidpointRounding.AwayFromZero);
                 // Monto negativo (p.ej. reversion de costo por devolucion): se registra el asiento inverso
                 bool inverso = monto < 0;
                 monto = Math.Abs(monto);
@@ -242,7 +242,7 @@ namespace Kirkenta.Helpers.Finanzas
                         if (info != null)
                         {
                             if (info.AlCredito && idCxC != null && idVentas != null) haberId = idCxC;
-                            else { isv = Math.Round(monto * info.Isv, 2); env = Math.Round(monto * info.Envio, 2); }
+                            else { isv = Math.Round(monto * info.Isv, 2, MidpointRounding.AwayFromZero); env = Math.Round(monto * info.Envio, 2, MidpointRounding.AwayFromZero); }
                         }
                     }
                     else if (mov.Tipo == "Egreso" && nombreCat == "Cambio entregado" && (mov.Origen == "Venta" || mov.Origen == "Factura"))
@@ -250,14 +250,14 @@ namespace Kirkenta.Helpers.Finanzas
                         var info = InfoDe(mov.Origen, docId);
                         if (info != null && !info.AlCredito)
                         {
-                            isv = Math.Round(monto * info.Isv, 2);
-                            env = Math.Round(monto * info.Envio, 2);
+                            isv = Math.Round(monto * info.Isv, 2, MidpointRounding.AwayFromZero);
+                            env = Math.Round(monto * info.Envio, 2, MidpointRounding.AwayFromZero);
                         }
                     }
                     else if (mov.Tipo == "Egreso" && mov.Origen == "PagoProveedor" && isvPagosProveedor.TryGetValue(docId, out var propIsvPago))
                     {
                         // El ISV pagado al proveedor es crédito fiscal contra el ISV por pagar, no costo de la mercadería
-                        isv = Math.Round(monto * propIsvPago, 2);
+                        isv = Math.Round(monto * propIsvPago, 2, MidpointRounding.AwayFromZero);
                     }
                     else if (mov.Tipo == "Egreso" && mov.Origen == "Devolucion" && nombreCat == "Devoluciones en ventas"
                              && devolucionesOrigen.TryGetValue(docId, out var dv))
@@ -266,7 +266,7 @@ namespace Kirkenta.Helpers.Finanzas
                         if (dv.VentaId.HasValue) info = InfoDe("Venta", dv.VentaId.Value);
                         else if (dv.FacturaId.HasValue) info = InfoDe("Factura", dv.FacturaId.Value);
                         // El ISV de lo devuelto se regresa siempre (en ventas a crédito ya se había devengado)
-                        if (info != null) isv = Math.Round(monto * info.Isv, 2);
+                        if (info != null) isv = Math.Round(monto * info.Isv, 2, MidpointRounding.AwayFromZero);
                     }
                 }
                 if (idIsvPorPagar == null) isv = 0m;
@@ -347,9 +347,9 @@ namespace Kirkenta.Helpers.Finanzas
                         continue;
                     }
 
-                    var isv = idIsvPorPagar != null ? Math.Round(Math.Max(0m, d.Isv), 2) : 0m;
-                    var env = idEnvios != null ? Math.Round(Math.Max(0m, d.Envio), 2) : 0m;
-                    var total = Math.Round(d.Total, 2);
+                    var isv = idIsvPorPagar != null ? Math.Round(Math.Max(0m, d.Isv), 2, MidpointRounding.AwayFromZero) : 0m;
+                    var env = idEnvios != null ? Math.Round(Math.Max(0m, d.Envio), 2, MidpointRounding.AwayFromZero) : 0m;
+                    var total = Math.Round(d.Total, 2, MidpointRounding.AwayFromZero);
                     var neto = total - isv - env;
                     if (neto < 0) { isv = 0m; env = 0m; neto = total; }
 
@@ -398,9 +398,9 @@ namespace Kirkenta.Helpers.Finanzas
                     }
 
                     var info = ventasInfo[dv.VentaId!.Value];
-                    var aplicado = Math.Round(dv.MontoAplicadoSaldo, 2);
-                    var isv = idIsvPorPagar != null ? Math.Round(aplicado * info.Isv, 2) : 0m;
-                    var env = idEnvios != null ? Math.Round(aplicado * info.Envio, 2) : 0m;
+                    var aplicado = Math.Round(dv.MontoAplicadoSaldo, 2, MidpointRounding.AwayFromZero);
+                    var isv = idIsvPorPagar != null ? Math.Round(aplicado * info.Isv, 2, MidpointRounding.AwayFromZero) : 0m;
+                    var env = idEnvios != null ? Math.Round(aplicado * info.Envio, 2, MidpointRounding.AwayFromZero) : 0m;
                     if (isv + env >= aplicado) { isv = 0m; env = 0m; }
                     var baseDev = aplicado - isv - env;
 
@@ -518,6 +518,15 @@ namespace Kirkenta.Helpers.Finanzas
                     return (CuentaContableDe(mov.CuentaId), CategoriaContable("Ingreso"));
 
                 case "Egreso":
+                    // Nómina: el gasto va contra la deuda con cada entidad (o contra el anticipo del vale)
+                    if (mov.Origen == RetencionesHelper.OrigenNomina)
+                    {
+                        var codigoDeuda = RetencionesHelper.CodigoDe(mov.Notas);
+                        return (CategoriaContable("Egreso"), codigoDeuda != null ? cod(codigoDeuda) : null);
+                    }
+                    // La depreciación no toca el inventario: su contrapartida es la depreciación acumulada
+                    if (mov.Origen == "Depreciacion")
+                        return (CategoriaContable("Egreso"), cod("1.2.02.002") ?? cod("1.2.02.001"));
                     if (SaldoHelper.EsSoloContable(context, mov))
                         return (CategoriaContable("Egreso"), cod("1.1.03.001"));
                     return (CategoriaContable("Egreso"), CuentaContableDe(mov.CuentaId));

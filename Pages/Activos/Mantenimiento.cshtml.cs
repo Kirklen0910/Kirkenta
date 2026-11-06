@@ -4,6 +4,7 @@ using Kirkenta.Helpers;
 using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Kirkenta.Pages.Activos
@@ -131,7 +132,21 @@ namespace Kirkenta.Pages.Activos
             var activo = _context.ActivosFijos.FirstOrDefault(a => a.Id == m.ActivoFijoId);
             var usuario = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
 
+            costo = Math.Round(costo, 2, MidpointRounding.AwayFromZero);
             using var tx = _context.Database.BeginTransaction();
+            // Reclamo atómico: un doble clic no paga dos veces el mismo mantenimiento
+            if (_context.Database.IsRelational())
+            {
+                var filas = _context.MantenimientosActivo.Where(x => x.Id == id && x.Estado == "Programado")
+                    .ExecuteUpdate(u => u.SetProperty(x => x.Estado, "Realizado"));
+                if (filas == 0)
+                {
+                    tx.Rollback();
+                    TempData["Error"] = "Este mantenimiento ya fue registrado";
+                    return RedirectToPage();
+                }
+                _context.Entry(m).Reload();
+            }
             m.Estado = "Realizado";
             m.Costo = costo;
 

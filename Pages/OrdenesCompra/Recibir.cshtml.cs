@@ -216,7 +216,7 @@ namespace Kirkenta.Pages.OrdenesCompra
                     detalle.PrecioUnitario = precioRecibido;
                     var bruto = detalle.Cantidad * precioRecibido;
                     var conDescuento = Math.Max(0m, bruto - detalle.Descuento);
-                    var iva = Math.Round(conDescuento * (detalle.ImpuestoPorcentaje / 100m), 2);
+                    var iva = Math.Round(conDescuento * (detalle.ImpuestoPorcentaje / 100m), 2, MidpointRounding.AwayFromZero);
                     detalle.Subtotal = bruto;
                     detalle.Total = conDescuento + iva;
                     ordenModificada = true;
@@ -254,9 +254,9 @@ namespace Kirkenta.Pages.OrdenesCompra
                             && producto.PrecioCompra != costoPrevio)
                         {
                             var factor = producto.PrecioCompra / costoPrevio;
-                            producto.PrecioVenta = Math.Round(precioVentaPrevio * factor, 2);
+                            producto.PrecioVenta = Math.Round(precioVentaPrevio * factor, 2, MidpointRounding.AwayFromZero);
                             if (precioMayoristaPrevio > 0)
-                                producto.PrecioMayorista = Math.Round(precioMayoristaPrevio * factor, 2);
+                                producto.PrecioMayorista = Math.Round(precioMayoristaPrevio * factor, 2, MidpointRounding.AwayFromZero);
                         }
 
                         if (producto.PrecioCompra != costoPrevio || producto.PrecioVenta != precioVentaPrevio)
@@ -294,7 +294,8 @@ namespace Kirkenta.Pages.OrdenesCompra
 
             if (todoRecibido)
             {
-                orden.Estado = "Recibida";
+                // Si ya estaba pagada por completo (recepción parcial pagada), no queda nada por pagar
+                orden.Estado = orden.Saldo <= 0 ? "Pagada" : "Recibida";
                 orden.FechaRecepcion = DateTime.Now;
             }
             else

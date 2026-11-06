@@ -1,0 +1,25 @@
+/* Pago de ISR, IHSS y RAP (Finanzas/Retenciones) */
+.rt-total { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+.rt-total span { font-size: 13px; color: var(--color-muted); }
+.rt-total strong { font-size: 26px; font-variant-numeric: tabular-nums; }
+
+.rt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.rt-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); }
+.rt-card header h3 { margin: 0; font-size: 15px; }
+.rt-card header small { font-size: 12px; color: var(--color-muted); }
+.rt-monto { font-size: 22px; font-variant-numeric: tabular-nums; color: var(--color-danger); }
+.rt-monto.is-cero { color: var(--color-success); }
+.rt-card dl { margin: 0; display: flex; flex-direction: column; gap: 3px; }
+.rt-card dl div { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; }
+.rt-card dt { font-weight: 400; color: var(--color-muted); }
+.rt-card dd { margin: 0; font-variant-numeric: tabular-nums; }
+.rt-pagar { margin-top: auto; }
+
+.rt-tabla { padding: 16px; margin-bottom: 16px; }
+.rt-vacio { margin: 8px 0 0; font-size: 13px; color: var(--color-muted); }
+
+.rt-dialogo { width: min(420px, calc(100vw - 32px)); padding: 22px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-lg); }
+.rt-dialogo::backdrop { background: rgba(15, 23, 42, .45); }
+.rt-dialogo form { display: flex; flex-direction: column; gap: 12px; }
+.rt-dialogo h3 { margin: 0; font-size: 17px; }
+.rt-dialogo-botones { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 4px; }

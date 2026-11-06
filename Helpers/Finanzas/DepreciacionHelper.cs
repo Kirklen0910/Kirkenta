@@ -13,7 +13,7 @@ namespace Kirkenta.Helpers.Finanzas
         {
             var restante = a.CostoAdquisicion - a.ValorResidual - a.DepreciacionAcumulada;
             if (restante <= 0) return 0;
-            return Math.Round(Math.Min(a.DepreciacionMensual, restante), 2);
+            return Math.Round(Math.Min(a.DepreciacionMensual, restante), 2, MidpointRounding.AwayFromZero);
         }
     }
 }

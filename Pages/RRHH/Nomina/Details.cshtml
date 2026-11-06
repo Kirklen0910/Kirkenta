@@ -177,6 +177,14 @@
         </div>
     </div>
 
+    @if (Model.Nomina.TotalAportesPatronales > 0)
+    {
+        <p class="table-user-sub" style="margin: -8px 0 24px;">
+            La empresa aporta además L. @Model.Nomina.TotalAportesPatronales.ToString("N2") a IHSS, RAP e INFOP (no se descuenta al empleado).
+            Costo total de esta nómina: <strong>L. @((Model.Nomina.TotalSalariosBrutos + Model.Nomina.TotalAportesPatronales).ToString("N2"))</strong>.
+        </p>
+    }
+
     <!-- Estado de pagos -->
     @if (Model.Nomina.Estado == "Pagada" || Model.Nomina.Estado == "Aprobada")
     {
@@ -215,6 +223,7 @@
                     <th>Empleado</th>
                     <th style="text-align: right;">Salario base</th>
                     <th style="text-align: right;">Bonos</th>
+                    <th style="text-align: right;">Extras</th>
                     <th style="text-align: right;">Bruto</th>
                     <th style="text-align: right;">IHSS</th>
                     <th style="text-align: right;">RAP</th>
@@ -244,6 +253,7 @@
                         </td>
                         <td style="text-align: right;">L. @d.SalarioBase.ToString("N2")</td>
                         <td style="text-align: right;">L. @d.Bonos.ToString("N2")</td>
+                        <td style="text-align: right;" title="@d.MotivoExtras">L. @d.Extras.ToString("N2")</td>
                         <td style="text-align: right;"><strong>L. @d.TotalBruto.ToString("N2")</strong></td>
                         <td style="text-align: right; color: @(d.DeduccionIHSS > 0 ? "var(--color-danger)" : "var(--color-muted)");">
                             @(d.DeduccionIHSS > 0 ? "-" : "") L. @d.DeduccionIHSS.ToString("N2")
@@ -279,7 +289,7 @@
             </tbody>
             <tfoot>
                 <tr style="background: var(--color-surface-2); font-weight: 700; border-top: 2px solid var(--color-border);">
-                    <td colspan="4" style="text-align: right;">TOTALES:</td>
+                    <td colspan="5" style="text-align: right;">TOTALES:</td>
                     <td style="text-align: right;">L. @Model.Nomina.TotalSalariosBrutos.ToString("N2")</td>
                     <td style="text-align: right; color: var(--color-danger);">- L. @Model.Nomina.TotalDeduccionIHSS.ToString("N2")</td>
                     <td style="text-align: right; color: var(--color-danger);">- L. @Model.Nomina.TotalDeduccionRAP.ToString("N2")</td>

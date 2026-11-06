@@ -112,11 +112,11 @@ namespace Kirkenta.Pages.OrdenesCompra
                     total = l.Total,
                     productoId = p?.Id,
                     impuesto = p != null ? TasaDe(p) : 0m,
-                    puntaje = Math.Round(puntaje, 2)
+                    puntaje = Math.Round(puntaje, 2, MidpointRounding.AwayFromZero)
                 };
             }).ToList();
 
-            var suma = lineas.Sum(l => Math.Round(l.cantidad * l.precio, 2));
+            var suma = lineas.Sum(l => Math.Round(l.cantidad * l.precio, 2, MidpointRounding.AwayFromZero));
             return new JsonResult(new
             {
                 ok = true,
@@ -176,8 +176,8 @@ namespace Kirkenta.Pages.OrdenesCompra
             var detalles = new List<DetalleOrdenCompra>();
             foreach (var l in lineas)
             {
-                var bruto = Math.Round(l.Cantidad * l.Precio, 2);
-                var iva = Math.Round(bruto * (l.Impuesto / 100m), 2);
+                var bruto = Math.Round(l.Cantidad * l.Precio, 2, MidpointRounding.AwayFromZero);
+                var iva = Math.Round(bruto * (l.Impuesto / 100m), 2, MidpointRounding.AwayFromZero);
                 subtotal += bruto; impuestos += iva; total += bruto + iva;
                 detalles.Add(new DetalleOrdenCompra
                 {

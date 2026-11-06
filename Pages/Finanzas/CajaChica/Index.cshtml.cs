@@ -130,7 +130,7 @@ namespace Kirkenta.Pages.Finanzas.CajaChica
                 Concepto = Gasto.Concepto.Trim(),
                 Beneficiario = Gasto.Beneficiario,
                 Comprobante = Gasto.Comprobante,
-                Monto = Gasto.Monto,
+                Monto = Math.Round(Gasto.Monto, 2, MidpointRounding.AwayFromZero),
                 Estado = "Pendiente",
                 UsuarioSolicitaId = usuario?.Id
             };
@@ -248,6 +248,7 @@ namespace Kirkenta.Pages.Finanzas.CajaChica
         public IActionResult OnPostReponer(int cuentaOrigenId, decimal monto)
         {
             if (!Permiso("editar")) { TempData["Error"] = "No tienes permiso para reponer el fondo"; return RedirectToPage(); }
+            monto = Math.Round(monto, 2, MidpointRounding.AwayFromZero);
             if (monto <= 0) { TempData["Error"] = "El monto de la reposición debe ser mayor a 0"; return RedirectToPage(); }
 
             var fondo = ResolverFondo();

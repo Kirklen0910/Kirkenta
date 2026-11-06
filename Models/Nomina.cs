@@ -50,6 +50,8 @@ namespace Kirkenta.Models
         public decimal TotalOtrasDeducciones { get; set; } = 0;
 
         public decimal TotalNeto { get; set; } = 0;
+        /// <summary>IHSS, RAP e INFOP que paga la empresa además del bruto.</summary>
+        public decimal TotalAportesPatronales { get; set; } = 0;
 
         // ===== APROBACIÓN =====
         public int? UsuarioCalculoId { get; set; }
@@ -104,6 +106,11 @@ namespace Kirkenta.Models
 
         // ===== NETO =====
         public decimal SalarioNeto { get; set; } = 0;
+
+        // ===== APORTES DEL PATRONO (no salen del salario del empleado) =====
+        public decimal AporteIHSSPatronal { get; set; } = 0;
+        public decimal AporteRAPPatronal { get; set; } = 0;
+        public decimal AporteINFOP { get; set; } = 0;
 
         // ===== DÍAS Y AUSENCIAS =====
         public decimal DiasTrabajados { get; set; } = 30;

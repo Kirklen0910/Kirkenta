@@ -110,7 +110,7 @@ namespace Kirkenta.Pages.RRHH.Vales
             if (!ModelState.IsValid) return Page();
 
             var numero = NumeroDocumentoHelper.GenerarSiguiente(_context, "ValeEmpleado");
-            var montoCuota = Math.Round(Input.Monto / Input.Cuotas, 2);
+            var montoCuota = Math.Round(Input.Monto / Input.Cuotas, 2, MidpointRounding.AwayFromZero);
 
             var vale = new ValeEmpleado
             {

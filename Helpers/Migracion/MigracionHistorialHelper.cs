@@ -410,12 +410,12 @@ namespace Kirkenta.Helpers.Migracion
                     var total = Dec("Total");
                     if (total == null || total < 0) { r.Omitidos++; r.Error(nf, "el total falta o no es válido."); continue; }
                     if (total == 0) { r.Omitidos++; continue; }
-                    p.Total = Math.Round(total.Value, 2);
-                    p.Descuento = Math.Round(Dec("Descuento") ?? 0, 2);
-                    p.Impuestos = Math.Round(Dec("Impuestos") ?? 0, 2);
-                    p.Subtotal = Math.Round(Dec("Subtotal") ?? (p.Total - p.Impuestos), 2);
+                    p.Total = Math.Round(total.Value, 2, MidpointRounding.AwayFromZero);
+                    p.Descuento = Math.Round(Dec("Descuento") ?? 0, 2, MidpointRounding.AwayFromZero);
+                    p.Impuestos = Math.Round(Dec("Impuestos") ?? 0, 2, MidpointRounding.AwayFromZero);
+                    p.Subtotal = Math.Round(Dec("Subtotal") ?? (p.Total - p.Impuestos), 2, MidpointRounding.AwayFromZero);
                     var saldoV = Dec("Saldo");
-                    if (saldoV != null && saldoV > 0) p.Saldo = Math.Min(Math.Round(saldoV.Value, 2), p.Total);
+                    if (saldoV != null && saldoV > 0) p.Saldo = Math.Min(Math.Round(saldoV.Value, 2, MidpointRounding.AwayFromZero), p.Total);
                     var forma = Valor(fila, op.Mapa, "FormaPago");
                     if (forma != null) p.Notas = (p.Notas == null ? "" : p.Notas + " · ") + "Forma de pago: " + forma;
 
@@ -426,9 +426,9 @@ namespace Kirkenta.Helpers.Migracion
                     var saldo = Dec("Saldo");
                     if (saldo == null) { r.Omitidos++; r.Error(nf, "el saldo falta o no es válido."); continue; }
                     if (saldo <= 0) { r.Omitidos++; r.Aviso(nf, "saldo en cero o negativo: no se importa (un saldo a favor se registra a mano)."); continue; }
-                    p.Saldo = Math.Round(saldo.Value, 2);
+                    p.Saldo = Math.Round(saldo.Value, 2, MidpointRounding.AwayFromZero);
                     var total = Dec("Total");
-                    p.Total = total != null && total >= p.Saldo ? Math.Round(total.Value, 2) : p.Saldo;
+                    p.Total = total != null && total >= p.Saldo ? Math.Round(total.Value, 2, MidpointRounding.AwayFromZero) : p.Saldo;
                     if (total != null && total < p.Saldo) r.Aviso(nf, "el total original es menor que el saldo: se usó el saldo como total.");
                 }
 
@@ -591,7 +591,7 @@ namespace Kirkenta.Helpers.Migracion
                                 FechaVencimientoCredito = venceV,
                                 // Crédito con saldo: MovimientoRegistrado=false para poder cobrarla en Finanzas → Cobros.
                                 MovimientoRegistrado = !cred, FechaMovimiento = cred ? null : p.Fecha,
-                                CostoRegistrado = true, CostoTotalVendido = Math.Round(costo, 2),
+                                CostoRegistrado = true, CostoTotalVendido = Math.Round(costo, 2, MidpointRounding.AwayFromZero),
                                 Notas = $"Venta histórica migrada — documento {p.Documento}" + (p.Notas != null ? " — " + p.Notas : ""),
                                 UsuarioCreoId = usuarioId, LoteMigracion = lote
                             };
@@ -615,13 +615,13 @@ namespace Kirkenta.Helpers.Migracion
                                     pid = generico;
                                 }
                                 var desc = l.Nombre ?? l.Codigo;
-                                var sub = Math.Round(l.Cantidad * l.Precio - l.Descuento, 2);
+                                var sub = Math.Round(l.Cantidad * l.Precio - l.Descuento, 2, MidpointRounding.AwayFromZero);
                                 ctx.DetalleVentas.Add(new DetalleVenta
                                 {
                                     VentaId = v.Id, ProductoId = pid.Value, Descripcion = desc == null ? null : Recortar(desc, 250),
                                     Cantidad = l.Cantidad, PrecioUnitario = l.Precio, Descuento = l.Descuento,
                                     Subtotal = sub, Total = l.Total > 0 ? l.Total : sub,
-                                    CostoUnitarioSnapshot = l.Costo, CostoTotalLinea = Math.Round(l.Costo * l.Cantidad, 2)
+                                    CostoUnitarioSnapshot = l.Costo, CostoTotalLinea = Math.Round(l.Costo * l.Cantidad, 2, MidpointRounding.AwayFromZero)
                                 });
                                 r.LineasCreadas++;
                             }
@@ -670,8 +670,8 @@ namespace Kirkenta.Helpers.Migracion
                     Nombre = Valor(fila, op.MapaDetalle, "ProductoNombre"),
                     Cantidad = cant.Value,
                     Precio = Math.Round(precio.Value, 4),
-                    Descuento = Math.Round(ParserHelper.ParsearDecimal(Valor(fila, op.MapaDetalle, "Descuento")) ?? 0, 2),
-                    Total = Math.Round(ParserHelper.ParsearDecimal(Valor(fila, op.MapaDetalle, "TotalLinea")) ?? 0, 2),
+                    Descuento = Math.Round(ParserHelper.ParsearDecimal(Valor(fila, op.MapaDetalle, "Descuento")) ?? 0, 2, MidpointRounding.AwayFromZero),
+                    Total = Math.Round(ParserHelper.ParsearDecimal(Valor(fila, op.MapaDetalle, "TotalLinea")) ?? 0, 2, MidpointRounding.AwayFromZero),
                     Costo = Math.Round(ParserHelper.ParsearDecimal(Valor(fila, op.MapaDetalle, "Costo")) ?? 0, 4)
                 };
                 if (!porDoc.TryGetValue(doc, out var lista)) porDoc[doc] = lista = new List<LineaPlan>();

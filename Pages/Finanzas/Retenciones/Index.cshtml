@@ -1,0 +1,154 @@
+@page
+@model Kirkenta.Pages.Finanzas.Retenciones.IndexModel
+@using Kirkenta.Helpers.Finanzas
+@{
+    ViewData["Title"] = "Pago de ISR, IHSS y RAP";
+    var meses = new[] { "", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic" };
+    var conceptos = RetencionesHelper.Conceptos.Where(c => c.Clave != "INFOP" || Model.Resumen.Any(f => f.Concepto.Clave == "INFOP" && (f.Retenido + f.AportePatronal + f.Pagado) > 0)).ToList();
+    var filas = Model.Resumen.Where(f => conceptos.Contains(f.Concepto)).ToList();
+}
+<link rel="stylesheet" href="~/css/retenciones.css" asp-append-version="true" />
+
+<div class="module-header">
+    <div class="module-header-left">
+        <h2>Pago de ISR, IHSS y RAP</h2>
+        <p>Lo que la nómina retuvo y aportó no es de la empresa: aquí se ve cuánto se debe a cada entidad y se registra su pago.</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
+<div class="rt-total">
+    <span>Total por pagar</span>
+    <strong>L. @Model.TotalPendiente.ToString("N2")</strong>
+</div>
+
+<div class="rt-grid">
+    @foreach (var f in filas)
+    {
+        <section class="rt-card">
+            <header>
+                <h3>@f.Concepto.Nombre</h3>
+                <small>@f.Concepto.Entidad</small>
+            </header>
+            <strong class="rt-monto @(f.Pendiente > 0 ? "" : "is-cero")">L. @f.Pendiente.ToString("N2")</strong>
+            <dl>
+                <div><dt>Retenido a empleados</dt><dd>@f.Retenido.ToString("N2")</dd></div>
+                @if (f.Concepto.Clave != "ISR") { <div><dt>Aporte de la empresa</dt><dd>@f.AportePatronal.ToString("N2")</dd></div> }
+                <div><dt>Ya pagado</dt><dd>@f.Pagado.ToString("N2")</dd></div>
+            </dl>
+            @if (Model.PuedePagar && f.Pendiente > 0)
+            {
+                <button type="button" class="btn-primary rt-pagar" data-clave="@f.Concepto.Clave" data-nombre="@f.Concepto.Nombre" data-monto="@f.Pendiente.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)">Registrar pago</button>
+            }
+        </section>
+    }
+</div>
+
+<div class="module-card rt-tabla">
+    <h3 class="form-section-title">Generado por mes</h3>
+    @if (Model.PorMes.Count == 0)
+    {
+        <p class="rt-vacio">Todavía no hay nóminas pagadas.</p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Mes</th>@foreach (var c in conceptos) { <th style="text-align:right;">@c.Nombre</th> }<th style="text-align:right;">Total</th></tr></thead>
+                <tbody>
+                    @foreach (var m in Model.PorMes)
+                    {
+                        <tr>
+                            <td>@meses[m.Mes] @m.Anio</td>
+                            @foreach (var c in conceptos) { <td style="text-align:right;">@m.Montos.GetValueOrDefault(c.Clave).ToString("N2")</td> }
+                            <td style="text-align:right;"><strong>@m.Montos.Values.Sum().ToString("N2")</strong></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="module-card rt-tabla">
+    <h3 class="form-section-title">Pagos registrados</h3>
+    @if (Model.Pagos.Count == 0)
+    {
+        <p class="rt-vacio">Aún no se ha registrado ningún pago.</p>
+    }
+    else
+    {
+        <div class="table-wrapper">
+            <table class="erp-table">
+                <thead><tr><th>Fecha</th><th>Concepto</th><th>Recibo</th><th>Cuenta</th><th>Estado</th><th style="text-align:right;">Monto</th></tr></thead>
+                <tbody>
+                    @foreach (var p in Model.Pagos)
+                    {
+                        <tr>
+                            <td>@p.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@p.Concepto</td>
+                            <td>@p.Referencia</td>
+                            <td>@Model.NombresCuenta.GetValueOrDefault(p.CuentaId)</td>
+                            <td>@if (p.Estado == "Activo") { <span class="badge badge-success">Pagado</span> } else { <span class="badge badge-danger">Anulado</span> }</td>
+                            <td style="text-align:right;"><strong>L. @p.Monto.ToString("N2")</strong></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (Model.PuedePagar)
+{
+    <dialog class="rt-dialogo" id="rtDialogo" aria-labelledby="rtTitulo">
+        <form method="post" asp-page-handler="Pagar" autocomplete="off">
+            <h3 id="rtTitulo">Registrar pago</h3>
+            <input type="hidden" name="clave" id="rtClave" />
+            <div class="form-field">
+                <label for="rtMonto">Monto (L.)</label>
+                <input id="rtMonto" name="monto" type="number" step="0.01" min="0.01" class="form-input" required />
+            </div>
+            <div class="form-field">
+                <label for="rtCuenta">Sale de</label>
+                <select id="rtCuenta" name="cuentaId" class="form-input" required>
+                    <option value="">— Elige la cuenta —</option>
+                    @foreach (var c in Model.Cuentas) { <option value="@c.Id">@c.Nombre — L. @c.SaldoActual.ToString("N2")</option> }
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="rtFecha">Fecha</label>
+                <input id="rtFecha" name="fecha" type="date" class="form-input" value="@DateTime.Today.ToString("yyyy-MM-dd")" max="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+            </div>
+            <div class="form-field">
+                <label for="rtRef">Número de recibo o transacción</label>
+                <input id="rtRef" name="referencia" maxlength="100" class="form-input" required />
+            </div>
+            <div class="rt-dialogo-botones">
+                <button type="button" class="btn-secondary" id="rtCerrar">Cancelar</button>
+                <button type="submit" class="btn-primary">Registrar pago</button>
+            </div>
+        </form>
+    </dialog>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            var d = document.getElementById('rtDialogo');
+            if (!d) return;
+            document.querySelectorAll('.rt-pagar').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    document.getElementById('rtClave').value = b.dataset.clave;
+                    document.getElementById('rtTitulo').textContent = 'Registrar pago de ' + b.dataset.nombre;
+                    var m = document.getElementById('rtMonto');
+                    m.value = b.dataset.monto; m.max = b.dataset.monto;
+                    d.showModal();
+                });
+            });
+            document.getElementById('rtCerrar').addEventListener('click', function () { d.close(); });
+        })();
+    </script>
+}

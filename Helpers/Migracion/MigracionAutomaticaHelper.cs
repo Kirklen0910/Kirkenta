@@ -276,8 +276,8 @@ namespace Kirkenta.Helpers.Migracion
             if (suma != null)
             {
                 l.Concepto = suma.Value.concepto;
-                l.MontoOrigen = Math.Round(tabla.Rows.Sum(f => suma.Value.valor(f) ?? 0m), 2);
-                l.MontoMigrado = Math.Round(r.Monto, 2);
+                l.MontoOrigen = Math.Round(tabla.Rows.Sum(f => suma.Value.valor(f) ?? 0m), 2, MidpointRounding.AwayFromZero);
+                l.MontoMigrado = Math.Round(r.Monto, 2, MidpointRounding.AwayFromZero);
             }
             // Las ventas con su detalle pueden dejar filas fuera del conteo cuando el mismo documento viene repetido
             if (!l.FilasCuadran && l.FilasOrigen > l.Creados + l.YaExistian + l.Descartados && paso.Destino == "@ventas")
@@ -323,7 +323,7 @@ namespace Kirkenta.Helpers.Migracion
                     var cant = ParserHelper.ParsearDecimal(Valor(f, md, "Cantidad"));
                     var precio = ParserHelper.ParsearDecimal(Valor(f, md, "Precio"));
                     if (cant == null || precio == null || cant <= 0) continue;
-                    linea = Math.Round(cant.Value * precio.Value, 2) - (ParserHelper.ParsearDecimal(Valor(f, md, "Descuento")) ?? 0);
+                    linea = Math.Round(cant.Value * precio.Value, 2, MidpointRounding.AwayFromZero) - (ParserHelper.ParsearDecimal(Valor(f, md, "Descuento")) ?? 0);
                 }
                 suma[doc] = suma.GetValueOrDefault(doc) + linea;
             }

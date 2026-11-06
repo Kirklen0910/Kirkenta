@@ -77,7 +77,7 @@ namespace Kirkenta.Pages.Reportes
             }).OrderBy(o => o.Saldo <= 0).ThenBy(o => o.Vence).ToList();
 
             var desde30 = DateTime.Today.AddDays(-30);
-            PagadoUltimos30 = _context.PagosProveedor.Where(p => p.Fecha >= desde30).Sum(p => (decimal?)p.Monto) ?? 0m;
+            PagadoUltimos30 = _context.PagosProveedor.Where(p => p.Fecha >= desde30 && p.Estado != "Anulado").Sum(p => (decimal?)p.Monto) ?? 0m;
 
             foreach (var g in ordenes.GroupBy(o => o.ProveedorId))
             {

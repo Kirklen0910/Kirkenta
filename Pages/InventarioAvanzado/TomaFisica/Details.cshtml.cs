@@ -55,7 +55,7 @@ namespace Kirkenta.Pages.InventarioAvanzado.TomaFisica
             Contados = todos.Count(d => d.StockContado.HasValue);
             var difs = todos.Where(d => d.StockContado.HasValue && d.StockContado.Value != d.StockSistema).ToList();
             ConDiferencia = difs.Count;
-            ImpactoValor = difs.Sum(d => Math.Round((d.StockContado!.Value - d.StockSistema) * d.CostoUnitario, 2));
+            ImpactoValor = difs.Sum(d => Math.Round((d.StockContado!.Value - d.StockSistema) * d.CostoUnitario, 2, MidpointRounding.AwayFromZero));
             StockCambio = todos.Count(d => productos.TryGetValue(d.ProductoId, out var p) && p.Stock != d.StockSistema);
 
             IEnumerable<DetalleTomaFisica> vista = todos;
@@ -160,11 +160,22 @@ namespace Kirkenta.Pages.InventarioAvanzado.TomaFisica
         }
 
         /// <summary>Aplica las diferencias contadas al inventario (con kardex).</summary>
-        public IActionResult OnPostAplicar(int id)
+        public IActionResult OnPostAplicar(int id, string? autorizaUsuario, string? autorizaClave)
         {
             if (!Permiso("editar")) { TempData["Error"] = "No tienes permiso para aplicar la toma"; return RedirectToPage(new { id }); }
             var toma = _context.TomasFisicas.FirstOrDefault(t => t.Id == id);
             if (toma == null || toma.Estado != "EnConteo") { TempData["Error"] = "La toma ya no está en conteo"; return RedirectToPage(new { id }); }
+
+            // Aplicar cambia el inventario y no tiene vuelta atrás: lo autoriza un administrador con su clave.
+            // Si no se autoriza, la toma sigue abierta y los conteos se pueden corregir.
+            if (!AutorizacionHelper.VerificarAdmin(_context, autorizaUsuario, autorizaClave, out var autorizo, out var errorAut))
+            {
+                var quien = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+                ActividadHelper.Registrar(_context, quien?.Id ?? 0, "Aplicar toma física: autorización rechazada",
+                    $"Intento de aplicar la toma {toma.Numero} con autorizador «{autorizaUsuario}»", HttpContext.Connection.RemoteIpAddress?.ToString());
+                TempData["Error"] = errorAut + " La toma no se aplicó.";
+                return RedirectToPage(new { id });
+            }
 
             var detalles = _context.DetallesTomaFisica.Where(d => d.TomaFisicaId == id && d.StockContado != null).ToList();
             if (detalles.Count == 0) { TempData["Error"] = "No has registrado ningún conteo"; return RedirectToPage(new { id }); }
@@ -197,7 +208,7 @@ namespace Kirkenta.Pages.InventarioAvanzado.TomaFisica
             }
 
             ActividadHelper.Registrar(_context, usuario?.Id ?? 0, "Aplicar toma física",
-                $"Aplicó la toma {toma.Numero}: {ajustados} producto(s) ajustado(s)", HttpContext.Connection.RemoteIpAddress?.ToString());
+                $"Aplicó la toma {toma.Numero}: {ajustados} producto(s) ajustado(s). Autorizó: {autorizo!.Username}", HttpContext.Connection.RemoteIpAddress?.ToString());
             TempData["Success"] = $"Toma {toma.Numero} aplicada: {ajustados} producto(s) ajustado(s) en el inventario";
             return RedirectToPage(new { id });
         }

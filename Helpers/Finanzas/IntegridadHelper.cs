@@ -336,7 +336,7 @@ namespace Kirkenta.Helpers.Finanzas
 
         private static RevisionIntegridad PagosProveedorMovimiento(ApplicationDbContext db, DateTime d, DateTime h)
         {
-            var pagos = db.PagosProveedor.AsNoTracking().Where(p => p.Fecha >= d && p.Fecha < h).Select(p => new { p.Id, p.Numero, p.Monto }).ToList();
+            var pagos = db.PagosProveedor.AsNoTracking().Where(p => p.Fecha >= d && p.Fecha < h && p.Estado != "Anulado").Select(p => new { p.Id, p.Numero, p.Monto }).ToList();
             var ids = pagos.Select(p => p.Id).ToList();
             var conMov = db.MovimientosFinancieros.AsNoTracking()
                 .Where(m => m.Origen == "PagoProveedor" && m.OrigenId != null && ids.Contains(m.OrigenId.Value) && m.Estado == "Activo")

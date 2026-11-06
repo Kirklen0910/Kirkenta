@@ -63,10 +63,14 @@ namespace Kirkenta.Pages.Reportes
                 .Where(v => v.Fecha >= inicioAnt && v.Fecha < hastaAnt && v.Estado == "Completada")
                 .Select(v => new { v.Fecha, v.Total }).ToList();
 
-            VentasMes = ventasMes.Sum(v => v.Total);
-            VentasMesAnteriorMismoPeriodo = ventasAnt.Sum(v => v.Total);
+            // Lo devuelto no es venta: se descuenta en el día de la devolución
+            var devoluciones = _context.Devoluciones.AsNoTracking()
+                .Where(d => d.Estado == "Aplicada" && d.Fecha >= inicioAnt && d.Fecha < fin)
+                .Select(d => new { d.Fecha, d.Total }).ToList();
+            VentasMes = ventasMes.Sum(v => v.Total) - devoluciones.Where(d => d.Fecha >= inicio).Sum(d => d.Total);
+            VentasMesAnteriorMismoPeriodo = ventasAnt.Sum(v => v.Total) - devoluciones.Where(d => d.Fecha < hastaAnt).Sum(d => d.Total);
             TransaccionesMes = ventasMes.Count;
-            TicketPromedio = TransaccionesMes > 0 ? Math.Round(VentasMes / TransaccionesMes, 2) : 0;
+            TicketPromedio = TransaccionesMes > 0 ? Math.Round(VentasMes / TransaccionesMes, 2, MidpointRounding.AwayFromZero) : 0;
             VariacionPct = VentasMesAnteriorMismoPeriodo > 0
                 ? Math.Round((VentasMes - VentasMesAnteriorMismoPeriodo) / VentasMesAnteriorMismoPeriodo * 100, 1)
                 : 0;
@@ -84,13 +88,15 @@ namespace Kirkenta.Pages.Reportes
                 labels.Add(d.ToString());
                 if (d <= hoy.Day)
                 {
-                    accA += ventasMes.Where(v => v.Fecha.Day == d).Sum(v => v.Total);
+                    accA += ventasMes.Where(v => v.Fecha.Day == d).Sum(v => v.Total)
+                          - devoluciones.Where(x => x.Fecha >= inicio && x.Fecha.Day == d).Sum(x => x.Total);
                     actual.Add(accA);
                 }
                 else actual.Add(null);
                 if (d <= diasAntMes)
                 {
-                    accP += ventasAntCompleto.Where(v => v.Fecha.Day == d).Sum(v => v.Total);
+                    accP += ventasAntCompleto.Where(v => v.Fecha.Day == d).Sum(v => v.Total)
+                          - devoluciones.Where(x => x.Fecha < inicio && x.Fecha.Day == d).Sum(x => x.Total);
                     anterior.Add(accP);
                 }
                 else anterior.Add(null);
@@ -102,8 +108,9 @@ namespace Kirkenta.Pages.Reportes
                 .Join(_context.Ventas.AsNoTracking().Where(v => v.Fecha >= inicio && v.Fecha < fin && v.Estado == "Completada"),
                       d => d.VentaId, v => v.Id, (d, v) => new { d.ProductoId, d.Descripcion, d.Subtotal, d.CostoTotalLinea })
                 .ToList();
-            IngresosLineas = lineas.Sum(l => l.Subtotal);
-            CostoLineas = lineas.Sum(l => l.CostoTotalLinea);
+            var devueltoMes = DevolucionVentaHelper.DevueltoSinIsv(_context, inicio, fin);
+            IngresosLineas = lineas.Sum(l => l.Subtotal) - devueltoMes.Sum(d => d.Base);
+            CostoLineas = lineas.Sum(l => l.CostoTotalLinea) - devueltoMes.Sum(d => d.Costo);
 
             var nombres = _context.Productos.AsNoTracking().Select(p => new { p.Id, p.Nombre }).ToList().ToDictionary(p => p.Id, p => p.Nombre);
             TopUtilidad = lineas.GroupBy(l => l.ProductoId)

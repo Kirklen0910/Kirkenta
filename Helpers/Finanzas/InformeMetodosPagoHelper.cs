@@ -254,8 +254,8 @@ namespace Kirkenta.Helpers.Finanzas
                     return new FilaDetalleVenta
                     {
                         Fecha = fecha, Venta = venta, Factura = factura, Cliente = cliente, Referencia = referencia,
-                        Subtotal = Math.Round(subtotal * factor, 2), Descuento = Math.Round(descuento * factor, 2),
-                        Isv = Math.Round(isv * factor, 2), Total = factor == 1m ? total : cobrado,
+                        Subtotal = Math.Round(subtotal * factor, 2, MidpointRounding.AwayFromZero), Descuento = Math.Round(descuento * factor, 2, MidpointRounding.AwayFromZero),
+                        Isv = Math.Round(isv * factor, 2, MidpointRounding.AwayFromZero), Total = factor == 1m ? total : cobrado,
                         TotalDocumento = factor == 1m ? null : total
                     };
                 }

@@ -79,7 +79,7 @@ namespace Kirkenta.Pages.OrdenesCompra
                 return RedirectToPage("/OrdenesCompra/Details", new { id });
             }
 
-            if (_context.PagosProveedor.Any(p => p.OrdenCompraId == id))
+            if (_context.PagosProveedor.Any(p => p.OrdenCompraId == id && p.Estado != "Anulado"))
             {
                 TempData["Error"] = "No se puede editar: la orden ya tiene pagos registrados";
                 return RedirectToPage("/OrdenesCompra/Details", new { id });
@@ -154,7 +154,7 @@ namespace Kirkenta.Pages.OrdenesCompra
                 return RedirectToPage("/OrdenesCompra/Details", new { id = orden.Id });
             }
 
-            if (_context.PagosProveedor.Any(p => p.OrdenCompraId == orden.Id))
+            if (_context.PagosProveedor.Any(p => p.OrdenCompraId == orden.Id && p.Estado != "Anulado"))
             {
                 TempData["Error"] = "No se puede editar: la orden ya tiene pagos";
                 return RedirectToPage("/OrdenesCompra/Details", new { id = orden.Id });
@@ -201,7 +201,7 @@ namespace Kirkenta.Pages.OrdenesCompra
             {
                 var bruto = item.Cantidad * item.PrecioUnitario;
                 var conDescuento = bruto - item.Descuento;
-                var iva = Math.Round(conDescuento * (item.ImpuestoPorcentaje / 100m), 2);
+                var iva = Math.Round(conDescuento * (item.ImpuestoPorcentaje / 100m), 2, MidpointRounding.AwayFromZero);
                 var totalLinea = conDescuento + iva;
 
                 subtotal += bruto;
@@ -237,7 +237,7 @@ namespace Kirkenta.Pages.OrdenesCompra
             orden.Total = total;
 
             var pagosAplicados = _context.PagosProveedor
-                .Where(p => p.OrdenCompraId == orden.Id)
+                .Where(p => p.OrdenCompraId == orden.Id && p.Estado != "Anulado")
                 .Sum(p => (decimal?)p.Monto) ?? 0;
 
             orden.Saldo = orden.Total - pagosAplicados;

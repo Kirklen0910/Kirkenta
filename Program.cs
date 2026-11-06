@@ -310,6 +310,16 @@ using (var scope = app.Services.CreateScope())
     // Columna "admite descuento" de los productos (antes de cualquier consulta)
     EjecutarTarea("EsquemaDescuentoProducto", () => EsquemaDescuentoProducto.Aplicar(db));
 
+    // Columnas de anulación de pagos a proveedor (antes de cualquier consulta)
+    EjecutarTarea("EsquemaAnulacionPagoProveedor", () => EsquemaAnulacionPagoProveedor.Aplicar(db));
+
+    // Cantidades, stock y costos a 4 decimales (solo amplía las columnas que tenían 2)
+    EjecutarTarea("EsquemaPrecisionCantidades", () =>
+    {
+        var ampliadas = EsquemaPrecisionCantidades.Aplicar(db);
+        if (ampliadas > 0) logger.LogWarning("[Arranque] Columnas ampliadas a 4 decimales: {N}", ampliadas);
+    });
+
     // Tablas de Activos fijos, Producción, Caja chica, Toma física y Asientos (solo crea las que faltan)
     EjecutarTarea("EsquemaModulosNuevos", () => EsquemaModulosNuevos.Aplicar(db));
 
@@ -351,6 +361,8 @@ using (var scope = app.Services.CreateScope())
     EjecutarTarea("PermisoSeeder", () => PermisoSeeder.MigrarPermisosFaltantes(db));
     EjecutarTarea("PermisosPredeterminados", () => PermisoSeeder.AplicarPermisosPredeterminados(db));
     EjecutarTarea("PermisosEntregasBodega", () => PermisoSeeder.MigrarEntregasBodega(db));
+    EjecutarTarea("ClienteGenerico", () => ClienteGenericoHelper.Reparar(db));
+    EjecutarTarea("RetencionesNomina", () => Kirkenta.Helpers.Finanzas.RetencionesHelper.Reparar(db));
     EjecutarTarea("PlanCuentasHelper", () => PlanCuentasHelper.Seed(db));
     EjecutarTarea("FinanzasSeeder", () => FinanzasSeeder.Seed(db));
 

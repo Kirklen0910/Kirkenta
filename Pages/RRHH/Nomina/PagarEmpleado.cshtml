@@ -18,6 +18,9 @@
     </div>
 </div>
 
+@if (TempData["Success"] != null) { <div class="module-alert module-alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="module-alert module-alert-error">@TempData["Error"]</div> }
+
 <div class="module-card form-card-wide">
     <form method="post">
         @if (!ViewData.ModelState.IsValid)
@@ -50,6 +53,7 @@
                         </th>
                         <th style="width: 50px;"></th>
                         <th>Empleado</th>
+                        <th style="width: 260px;">Extras</th>
                         <th style="text-align: right;">Bruto</th>
                         <th style="text-align: right;">Deducciones</th>
                         <th style="text-align: right;">Neto a pagar</th>
@@ -80,6 +84,20 @@
                                 <strong>@d.EmpleadoNombre</strong>
                                 <br /><span class="table-user-sub">@d.EmpleadoCodigo</span>
                             </td>
+                            <td>
+                                @if (d.YaPagado)
+                                {
+                                    <span>@(d.MontoExtras > 0 ? "L. " + d.MontoExtras.ToString("N2") : "—")</span>
+                                    @if (!string.IsNullOrEmpty(d.MotivoExtras)) { <br /><span class="table-user-sub">@d.MotivoExtras</span> }
+                                }
+                                else
+                                {
+                                    <div class="nm-extras">
+                                        <input type="number" name="Extras[@d.Id]" value="@(d.MontoExtras > 0 ? d.MontoExtras.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) : "")" step="0.01" min="0" placeholder="0.00" class="form-input" aria-label="Extras de @d.EmpleadoNombre" />
+                                        <input type="text" name="MotivoExtras[@d.Id]" value="@d.MotivoExtras" maxlength="200" placeholder="Motivo" class="form-input" aria-label="Motivo de los extras de @d.EmpleadoNombre" />
+                                    </div>
+                                }
+                            </td>
                             <td style="text-align: right;">L. @d.TotalBruto.ToString("N2")</td>
                             <td style="text-align: right; color: var(--color-danger);">- L. @d.TotalDeducciones.ToString("N2")</td>
                             <td style="text-align: right;"><strong style="color: var(--color-success);">L. @d.SalarioNeto.ToString("N2")</strong></td>
@@ -98,12 +116,17 @@
                 </tbody>
                 <tfoot>
                     <tr style="background: var(--color-surface-2); font-weight: 700; border-top: 2px solid var(--color-border);">
-                        <td colspan="5" style="text-align: right;">TOTAL SELECCIONADO:</td>
+                        <td colspan="6" style="text-align: right;">TOTAL SELECCIONADO:</td>
                         <td style="text-align: right; color: var(--color-primary);" id="totalSeleccionado">L. 0.00</td>
                         <td></td>
                     </tr>
                 </tfoot>
             </table>
+        </div>
+
+        <div class="nm-extras-accion">
+            <span>Horas extra o un trabajo especial: suman al bruto y recalculan el ISR. Actualiza antes de pagar.</span>
+            <button type="submit" class="btn-secondary btn-sm" asp-page-handler="Extras" asp-route-id="@Model.Nomina.Id" formnovalidate>Actualizar extras</button>
         </div>
 
         <div class="form-divider"></div>

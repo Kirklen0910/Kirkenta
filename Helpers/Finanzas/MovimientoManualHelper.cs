@@ -50,12 +50,13 @@ namespace Kirkenta.Helpers.Finanzas
             int? origenId,
             int? usuarioId,
             bool soloContable = false,
-            string? notas = null)
+            string? notas = null,
+            bool validarPeriodo = true)
         {
             if (monto <= 0) return (null, "El monto debe ser mayor a 0.");
 
             var (periodoOk, periodoError) = CierreContableHelper.ValidarFecha(context, fecha);
-            if (!periodoOk) return (null, periodoError);
+            if (validarPeriodo && !periodoOk) return (null, periodoError);
 
             var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId);
             if (cuenta == null) return (null, "La cuenta financiera no existe.");
@@ -81,7 +82,7 @@ namespace Kirkenta.Helpers.Finanzas
             {
                 Numero = NumeroDocumentoHelper.GenerarSiguiente(context, "MovimientoFinanciero"),
                 Tipo = tipo,
-                Fecha = fecha,
+                Fecha = FormaPagoHelper.FechaReal(fecha),
                 CuentaId = cuentaId,
                 CuentaDestinoId = tipo == "Transferencia" ? cuentaDestinoId : null,
                 CategoriaId = tipo == "Transferencia" ? null : categoriaId,

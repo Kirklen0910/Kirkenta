@@ -377,7 +377,7 @@ namespace Kirkenta.Helpers.Migracion
                 if (nombre == null) { r.Omitidos++; r.Error(nf, "sin nombre."); continue; }
                 var codigo = V(fila, mapa, "Codigo");
                 var numero = V(fila, mapa, "NumeroCuenta");
-                var saldo = Math.Round(D(fila, mapa, "Saldo") ?? 0m, 2);
+                var saldo = Math.Round(D(fila, mapa, "Saldo") ?? 0m, 2, MidpointRounding.AwayFromZero);
                 var banco = V(fila, mapa, "Banco");
                 var tipoTxt = Norm(V(fila, mapa, "Tipo"));
                 var tipo = tipoTxt.Contains("banc") || tipoTxt.Contains("ahorro") || tipoTxt.Contains("corriente") || tipoTxt.Contains("cheque")
@@ -504,7 +504,7 @@ namespace Kirkenta.Helpers.Migracion
                 if (ingreso == null) { ingreso = DateTime.Today; r.Aviso(nf, $"«{nombres} {apellidos}» sin fecha de ingreso válida: se usó hoy (corrígela para calcular vacaciones y prestaciones)."); }
                 var baja = ParsearFecha(V(fila, mapa, "FechaBaja"));
                 var activo = EsActivo(V(fila, mapa, "Estado")) && baja == null;
-                var salario = Math.Max(0, Math.Round(D(fila, mapa, "Salario") ?? 0m, 2));
+                var salario = Math.Max(0, Math.Round(D(fila, mapa, "Salario") ?? 0m, 2, MidpointRounding.AwayFromZero));
                 if (salario == 0) r.Aviso(nf, $"«{nombres} {apellidos}» sin salario: entra con L. 0.00.");
                 var email = V(fila, mapa, "Email");
                 if (email != null && !email.Contains('@')) email = null;
@@ -590,7 +590,7 @@ namespace Kirkenta.Helpers.Migracion
                 if (doc == null || cant == null || cant <= 0 || precio == null) continue;
                 if (!res.TryGetValue(doc, out var l)) res[doc] = l = new();
                 l.Add((Valor(fila, op.MapaDetalle, "ProductoCodigo"), Valor(fila, op.MapaDetalle, "ProductoNombre"), cant.Value,
-                       Math.Round(precio.Value, 4), Math.Round(ParserHelper.ParsearDecimal(Valor(fila, op.MapaDetalle, "Descuento")) ?? 0, 2)));
+                       Math.Round(precio.Value, 4), Math.Round(ParserHelper.ParsearDecimal(Valor(fila, op.MapaDetalle, "Descuento")) ?? 0, 2, MidpointRounding.AwayFromZero)));
             }
             return res;
         }
@@ -647,16 +647,16 @@ namespace Kirkenta.Helpers.Migracion
                 numeros.Add(numero);
 
                 var provId = Tercero(ctx, idxProv, true, V(fila, op.Mapa, "ProveedorCodigo"), V(fila, op.Mapa, "ProveedorRTN"), V(fila, op.Mapa, "Proveedor"), usuarioId, r);
-                var desc = Math.Round(D(fila, op.Mapa, "Descuento") ?? 0, 2);
-                var imp = Math.Round(D(fila, op.Mapa, "Impuestos") ?? 0, 2);
-                var sub = Math.Round(D(fila, op.Mapa, "Subtotal") ?? (total.Value - imp + desc), 2);
-                var saldo = Math.Min(Math.Max(0, Math.Round(D(fila, op.Mapa, "Saldo") ?? 0, 2)), total.Value);
+                var desc = Math.Round(D(fila, op.Mapa, "Descuento") ?? 0, 2, MidpointRounding.AwayFromZero);
+                var imp = Math.Round(D(fila, op.Mapa, "Impuestos") ?? 0, 2, MidpointRounding.AwayFromZero);
+                var sub = Math.Round(D(fila, op.Mapa, "Subtotal") ?? (total.Value - imp + desc), 2, MidpointRounding.AwayFromZero);
+                var saldo = Math.Min(Math.Max(0, Math.Round(D(fila, op.Mapa, "Saldo") ?? 0, 2, MidpointRounding.AwayFromZero)), total.Value);
                 var tasa = TasaDe(sub, desc, imp);
 
                 var oc = new OrdenCompra
                 {
                     Numero = numero, ProveedorId = provId, Fecha = fecha.Value, FechaRecepcion = fecha.Value, Estado = "Recibida",
-                    Subtotal = sub, Descuento = desc, Impuestos = imp, Total = Math.Round(total.Value, 2), Saldo = saldo,
+                    Subtotal = sub, Descuento = desc, Impuestos = imp, Total = Math.Round(total.Value, 2, MidpointRounding.AwayFromZero), Saldo = saldo,
                     Notas = $"Compra histórica migrada — documento {doc}" + (V(fila, op.Mapa, "Notas") is string nt ? " — " + nt : ""),
                     UsuarioCreoId = usuarioId, UsuarioRecibioId = usuarioId, LoteMigracion = lote
                 };
@@ -668,12 +668,12 @@ namespace Kirkenta.Helpers.Migracion
                     foreach (var (cod, nom, cant, precio, dLinea) in ls)
                     {
                         var prodId = idxProd.Buscar(cod, nom) ?? (generico ??= ProductoGenerico(ctx));
-                        var bruto = Math.Round(cant * precio, 2);
+                        var bruto = Math.Round(cant * precio, 2, MidpointRounding.AwayFromZero);
                         var neto = Math.Max(0, bruto - dLinea);
                         ctx.DetalleOrdenesCompra.Add(new DetalleOrdenCompra
                         {
                             OrdenCompraId = oc.Id, ProductoId = prodId, Cantidad = cant, CantidadRecibida = cant, PrecioUnitario = precio,
-                            Descuento = dLinea, ImpuestoPorcentaje = tasa, Subtotal = bruto, Total = Math.Round(neto * (1 + tasa / 100m), 2)
+                            Descuento = dLinea, ImpuestoPorcentaje = tasa, Subtotal = bruto, Total = Math.Round(neto * (1 + tasa / 100m), 2, MidpointRounding.AwayFromZero)
                         });
                         r.LineasCreadas++;
                     }
@@ -712,9 +712,9 @@ namespace Kirkenta.Helpers.Migracion
                 int clienteId = hayCliente
                     ? Tercero(ctx, idxCli, false, V(fila, op.Mapa, "ClienteCodigo"), V(fila, op.Mapa, "ClienteRTN"), V(fila, op.Mapa, "Cliente"), usuarioId, r)
                     : 1;
-                var desc = Math.Round(D(fila, op.Mapa, "Descuento") ?? 0, 2);
-                var imp = Math.Round(D(fila, op.Mapa, "Impuestos") ?? 0, 2);
-                var sub = Math.Round(D(fila, op.Mapa, "Subtotal") ?? (total.Value - imp + desc), 2);
+                var desc = Math.Round(D(fila, op.Mapa, "Descuento") ?? 0, 2, MidpointRounding.AwayFromZero);
+                var imp = Math.Round(D(fila, op.Mapa, "Impuestos") ?? 0, 2, MidpointRounding.AwayFromZero);
+                var sub = Math.Round(D(fila, op.Mapa, "Subtotal") ?? (total.Value - imp + desc), 2, MidpointRounding.AwayFromZero);
                 var vence = ParsearFecha(V(fila, op.Mapa, "Vencimiento"));
                 var est = Norm(V(fila, op.Mapa, "Estado"));
                 var estado = est.Contains("acept") || est.Contains("aprob") ? "Aceptada"
@@ -724,7 +724,7 @@ namespace Kirkenta.Helpers.Migracion
                 var c = new Cotizacion
                 {
                     Numero = numero, ClienteId = clienteId, Fecha = fecha.Value, FechaVencimiento = vence,
-                    Subtotal = sub, Descuento = desc, Impuestos = imp, Total = Math.Round(total.Value, 2), Estado = estado,
+                    Subtotal = sub, Descuento = desc, Impuestos = imp, Total = Math.Round(total.Value, 2, MidpointRounding.AwayFromZero), Estado = estado,
                     Validez = vence != null ? Math.Max(0, (vence.Value.Date - fecha.Value.Date).Days) : 30,
                     Notas = $"Cotización migrada — documento {doc}" + (V(fila, op.Mapa, "Notas") is string nt ? " — " + nt : ""),
                     UsuarioCreoId = usuarioId
@@ -739,12 +739,12 @@ namespace Kirkenta.Helpers.Migracion
                     foreach (var (cod, nom, cant, precio, dLinea) in ls)
                     {
                         var prodId = idxProd.Buscar(cod, nom) ?? (generico ??= ProductoGenerico(ctx));
-                        var neto = Math.Max(0, Math.Round(cant * precio, 2) - dLinea);
+                        var neto = Math.Max(0, Math.Round(cant * precio, 2, MidpointRounding.AwayFromZero) - dLinea);
                         ctx.DetalleCotizaciones.Add(new DetalleCotizacion
                         {
                             CotizacionId = c.Id, ProductoId = prodId, Descripcion = nom == null ? null : Recortar(nom, 300), Cantidad = cant,
                             PrecioUnitario = precio, Descuento = dLinea, ImpuestoPorcentaje = tasa, Subtotal = neto,
-                            Total = Math.Round(neto * (1 + tasa / 100m), 2)
+                            Total = Math.Round(neto * (1 + tasa / 100m), 2, MidpointRounding.AwayFromZero)
                         });
                         r.LineasCreadas++;
                     }
@@ -804,7 +804,7 @@ namespace Kirkenta.Helpers.Migracion
                          : m < 0 ? "Egreso" : "Ingreso";
                     monto = Math.Abs(m.Value);
                 }
-                monto = Math.Round(monto, 2);
+                monto = Math.Round(monto, 2, MidpointRounding.AwayFromZero);
                 if (monto == 0) { r.Omitidos++; r.Error(nf, "monto en cero."); continue; }
 
                 var nomCuenta = V(fila, op.Mapa, "Cuenta");
@@ -850,13 +850,13 @@ namespace Kirkenta.Helpers.Migracion
                 n++; int nf = n + 1;
                 var codigo = V(fila, op.Mapa, "Codigo")?.Trim();
                 if (codigo == null) { r.Omitidos++; r.Error(nf, "sin código de cuenta."); continue; }
-                decimal debe = Math.Round(D(fila, op.Mapa, "Debe") ?? 0, 2), haber = Math.Round(D(fila, op.Mapa, "Haber") ?? 0, 2);
+                decimal debe = Math.Round(D(fila, op.Mapa, "Debe") ?? 0, 2, MidpointRounding.AwayFromZero), haber = Math.Round(D(fila, op.Mapa, "Haber") ?? 0, 2, MidpointRounding.AwayFromZero);
                 if (debe == 0 && haber == 0 && D(fila, op.Mapa, "Saldo") is decimal saldo && saldo != 0)
                 {
                     // Saldo con signo: positivo en el lado normal de la cuenta (deudora → debe, acreedora → haber)
                     var nat = porCodigo.TryGetValue(codigo, out var pc) ? pc.Naturaleza
                             : TipoCuentaContable(V(fila, op.Mapa, "Nombre"), codigo) is "Activo" or "Costo" or "Gasto" ? "Deudora" : "Acreedora";
-                    if ((nat == "Deudora") == (saldo > 0)) debe = Math.Round(Math.Abs(saldo), 2); else haber = Math.Round(Math.Abs(saldo), 2);
+                    if ((nat == "Deudora") == (saldo > 0)) debe = Math.Round(Math.Abs(saldo), 2, MidpointRounding.AwayFromZero); else haber = Math.Round(Math.Abs(saldo), 2, MidpointRounding.AwayFromZero);
                 }
                 if (debe < 0) { haber -= debe; debe = 0; }
                 if (haber < 0) { debe -= haber; haber = 0; }

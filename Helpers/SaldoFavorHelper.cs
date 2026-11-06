@@ -27,7 +27,7 @@ namespace Kirkenta.Helpers
             {
                 ClienteId = clienteId,
                 Fecha = DateTime.Now,
-                Monto = Math.Round(monto, 2),
+                Monto = Math.Round(monto, 2, MidpointRounding.AwayFromZero),
                 Tipo = tipo,
                 Concepto = concepto,
                 DevolucionId = devolucionId,
@@ -46,7 +46,7 @@ namespace Kirkenta.Helpers
             {
                 ClienteId = clienteId,
                 Fecha = DateTime.Now,
-                Monto = -Math.Round(monto, 2),
+                Monto = -Math.Round(monto, 2, MidpointRounding.AwayFromZero),
                 Tipo = "Uso",
                 Concepto = concepto,
                 VentaId = ventaId,

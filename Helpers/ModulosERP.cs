@@ -42,7 +42,7 @@ namespace Kirkenta.Helpers
                 "PlanCuentas", "ContabilidadEstadoResultados",
                 "ContabilidadBalanceGeneral",
                 "Asientos", "LibroDiario", "LibroMayor", "Balanza",
-                "CajaChica",
+                "CajaChica", "Retenciones",
                 "Reportes", "Cobros"
             } },
             { "Produccion", new List<string> { "Index", "Calidad" } },
@@ -175,6 +175,7 @@ namespace Kirkenta.Helpers
                 "CierresCreate" => "Nuevo cierre",
                 "CierresAprobar" => "Aprobar cierre",
                 "CierresContables" => "Cierres contables",
+                "Retenciones" => "Pago de ISR, IHSS y RAP",
                 "CierresContablesCreate" => "Cerrar mes",
                 "CierresContablesReabrir" => "Reabrir mes",
                 "Conciliacion" => "Conciliación bancaria",

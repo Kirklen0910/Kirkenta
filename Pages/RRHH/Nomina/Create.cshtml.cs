@@ -133,8 +133,6 @@ namespace Kirkenta.Pages.RRHH.Nomina
             _context.SaveChanges();
 
             // Calcular detalle de cada empleado
-            decimal totalBruto = 0, totalBonos = 0, totalIHSS = 0, totalRAP = 0, totalISR = 0, totalVales = 0, totalNeto = 0;
-
             foreach (var emp in empleados)
             {
                 var detalle = NominaHelper.CalcularDetalleEmpleado(
@@ -147,23 +145,11 @@ namespace Kirkenta.Pages.RRHH.Nomina
 
                 detalle.NominaId = nomina.Id;
                 _context.DetalleNominas.Add(detalle);
-
-                totalBruto += detalle.TotalBruto;
-                totalBonos += detalle.BonoTransporte + detalle.BonoAlimentacion + detalle.OtrosBonos;
-                totalIHSS += detalle.DeduccionIHSS;
-                totalRAP += detalle.DeduccionRAP;
-                totalISR += detalle.DeduccionISR;
-                totalVales += detalle.DeduccionVales;
-                totalNeto += detalle.SalarioNeto;
             }
 
-            nomina.TotalSalariosBrutos = totalBruto;
-            nomina.TotalBonos = totalBonos;
-            nomina.TotalDeduccionIHSS = totalIHSS;
-            nomina.TotalDeduccionRAP = totalRAP;
-            nomina.TotalDeduccionISR = totalISR;
-            nomina.TotalDeduccionVales = totalVales;
-            nomina.TotalNeto = totalNeto;
+            _context.SaveChanges();
+            NominaHelper.RecalcularTotales(_context, nomina);
+            var totalNeto = nomina.TotalNeto;
 
             _context.SaveChanges();
             tx.Commit();

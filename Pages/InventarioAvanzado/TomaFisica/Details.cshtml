@@ -138,7 +138,7 @@
                         @foreach (var f in Model.Filas)
                         {
                             var dif = f.Diferencia;
-                            <tr data-detalle="@f.Detalle.Id" class="@(f.Detalle.StockContado.HasValue ? "is-contado" : "")">
+                            <tr data-detalle="@f.Detalle.Id" class="@(dif == 0 ? "is-cuadra" : dif != null ? "is-difiere" : "")">
                                 <td>
                                     <div class="tf-prod">@(f.Producto?.Nombre ?? "Producto eliminado")</div>
                                     <div class="tf-sub">@f.Producto?.SKU@(!string.IsNullOrEmpty(f.Producto?.CodigoBarras) && f.Producto?.CodigoBarras != f.Producto?.SKU ? " · " + f.Producto?.CodigoBarras : "")</div>
@@ -181,10 +181,32 @@
         <form method="post" asp-page-handler="Cancelar" asp-route-id="@Model.Toma.Id" onsubmit="return confirm('¿Cancelar la toma sin ajustar el inventario?');">
             <button type="submit" class="btn-secondary">Cancelar toma</button>
         </form>
-        <form method="post" asp-page-handler="Aplicar" asp-route-id="@Model.Toma.Id" onsubmit="return confirm('Se ajustará el inventario con lo contado (' + document.getElementById('tfContados').textContent + ' productos). Lo que no contaste no se toca. ¿Aplicar la toma física?');">
-            <button type="submit" class="btn-primary tf-aplicar">Aplicar al inventario</button>
-        </form>
+        <button type="button" class="btn-primary tf-aplicar" id="tfAbrirAplicar">Aplicar al inventario</button>
     </div>
+
+    <dialog class="tf-dialogo" id="tfDialogo" aria-labelledby="tfDialogoTitulo">
+        <form method="post" asp-page-handler="Aplicar" asp-route-id="@Model.Toma.Id" autocomplete="off">
+            <h3 id="tfDialogoTitulo">Aplicar al inventario</h3>
+            <p class="tf-dialogo-aviso">Esto ajusta el stock y <strong>no se puede deshacer</strong>. Si algo no cuadra, regresa y corrígelo antes.</p>
+            <dl class="tf-dialogo-resumen">
+                <div><dt>Contados</dt><dd id="tfDlgContados">@Model.Contados</dd></div>
+                <div><dt>Con diferencia</dt><dd id="tfDlgDifs">@Model.ConDiferencia</dd></div>
+                <div><dt>Sin contar (no se tocan)</dt><dd id="tfDlgPend">@(Model.Total - Model.Contados)</dd></div>
+            </dl>
+            <div class="form-field">
+                <label for="tfAutUsuario">Usuario administrador</label>
+                <input id="tfAutUsuario" name="autorizaUsuario" class="form-input" required autocomplete="off" autocapitalize="off" spellcheck="false" />
+            </div>
+            <div class="form-field">
+                <label for="tfAutClave">Contraseña</label>
+                <input id="tfAutClave" name="autorizaClave" type="password" class="form-input" required autocomplete="new-password" />
+            </div>
+            <div class="tf-dialogo-botones">
+                <button type="button" class="btn-secondary" id="tfCerrarDialogo">Seguir revisando</button>
+                <button type="submit" class="btn-primary tf-aplicar">Autorizar y aplicar</button>
+            </div>
+        </form>
+    </dialog>
 }
 
 @section Scripts {

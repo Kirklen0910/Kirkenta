@@ -59,6 +59,11 @@ namespace Kirkenta.Helpers
         /// </summary>
         public static readonly List<PasoManual> PasosManuales = new()
         {
+            new PasoManual {
+                Id = "2026-11-05-001-aportes-patronales",
+                Descripcion = "Tasas patronales de IHSS y RAP en las configuraciones de nómina existentes",
+                Sql = new[] { "UPDATE `ConfiguracionDeducciones` SET `PorcentajeIHSSPatronal` = 8.5, `PorcentajeRAPPatronal` = 1.5, `PorcentajeINFOP` = 1 WHERE `PorcentajeIHSSPatronal` = 0 AND `PorcentajeRAPPatronal` = 0" }
+            },
         };
 
         private static readonly Regex NombreValido = new("^[A-Za-z0-9_]{1,64}$", RegexOptions.Compiled);

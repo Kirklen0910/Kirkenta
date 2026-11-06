@@ -183,7 +183,7 @@ namespace Kirkenta.Services.Asistente
             {
                 $"🛒 Ventas del mes: {L(sMes)} ({(pct >= 0 ? "↑" : "↓")} {Math.Abs(pct)}% vs el mismo avance del mes pasado, {L(sAnt)})",
                 $"💵 Utilidad bruta: {L(utilidad)}" + (ingresos > 0 ? $" (margen {Math.Round(utilidad / ingresos * 100, 1)}%)" : ""),
-                $"🧾 {mes.Count} ventas, ticket promedio {L(mes.Count > 0 ? Math.Round(sMes / mes.Count, 2) : 0)}",
+                $"🧾 {mes.Count} ventas, ticket promedio {L(mes.Count > 0 ? Math.Round(sMes / mes.Count, 2, MidpointRounding.AwayFromZero) : 0)}",
                 $"💰 Por cobrar: {L(cxc.Sum(x => x.SaldoPendiente))}" + (vencido > 0 ? $" (vencido {L(vencido)})" : "")
             };
             var r = RespuestaAsistente.Texto(string.Join("\n", lineasTxt), "Cómo va el negocio");

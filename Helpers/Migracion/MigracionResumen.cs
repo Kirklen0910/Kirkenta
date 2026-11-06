@@ -14,7 +14,7 @@ namespace Kirkenta.Helpers.Migracion
 
         public int Facturas { get; set; }
         public decimal TotalVendido { get; set; }
-        public decimal TicketPromedio => Facturas == 0 ? 0 : Math.Round(TotalVendido / Facturas, 2);
+        public decimal TicketPromedio => Facturas == 0 ? 0 : Math.Round(TotalVendido / Facturas, 2, MidpointRounding.AwayFromZero);
         public DateTime? Desde { get; set; }
         public DateTime? Hasta { get; set; }
         public List<Mes> VentasPorMes { get; } = new();

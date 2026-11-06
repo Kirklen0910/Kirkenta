@@ -289,17 +289,38 @@ else if (Model.FiscalActiva && Model.CaiPorVencer)
     @* ===== TOTALES ===== *@
     <div class="totales-panel" style="margin-top: 16px;">
         <div class="totales-row">
-            <span>Subtotal:</span>
-            <strong>L. @Model.Factura.Subtotal.ToString("N2")</strong>
+            <span>Subtotal productos:</span>
+            <strong>L. @((Model.DesgloseISV?.SubtotalProductos ?? Model.Factura.Subtotal).ToString("N2"))</strong>
         </div>
-        <div class="totales-row">
-            <span>Descuento:</span>
-            <strong>L. @Model.Factura.Descuento.ToString("N2")</strong>
-        </div>
-        <div class="totales-row">
-            <span>ISV total:</span>
-            <strong>L. @Model.Factura.Impuestos.ToString("N2")</strong>
-        </div>
+        @if (Model.Factura.Descuento > 0)
+        {
+            <div class="totales-row">
+                <span>Descuento:</span>
+                <strong>- L. @Model.Factura.Descuento.ToString("N2")</strong>
+            </div>
+        }
+        @if (Model.Factura.MontoEnvio > 0)
+        {
+            <div class="totales-row">
+                <span>Envío:</span>
+                <strong>L. @Model.Factura.MontoEnvio.ToString("N2")</strong>
+            </div>
+            <div class="totales-row">
+                <span>ISV de productos:</span>
+                <strong>L. @((Model.Factura.Impuestos - (Model.DesgloseISV?.EnvioISV ?? 0)).ToString("N2"))</strong>
+            </div>
+            <div class="totales-row">
+                <span>ISV del envío:</span>
+                <strong>L. @((Model.DesgloseISV?.EnvioISV ?? 0).ToString("N2"))</strong>
+            </div>
+        }
+        else
+        {
+            <div class="totales-row">
+                <span>ISV total:</span>
+                <strong>L. @Model.Factura.Impuestos.ToString("N2")</strong>
+            </div>
+        }
         <div class="totales-row totales-row-final">
             <span>TOTAL:</span>
             <strong>L. @Model.Factura.Total.ToString("N2")</strong>

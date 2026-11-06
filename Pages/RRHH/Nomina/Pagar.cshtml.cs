@@ -230,6 +230,21 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 _context.SaveChanges();
             }
 
+            // El neto ya salió: lo demás del gasto (retenciones, vales y aportes) entra como deuda, sin mover dinero
+            foreach (var pagoEmp in _context.PagosNominaEmpleado.Where(p => p.NominaId == nomina.Id && p.MovimientoId == movimiento.Id).ToList())
+            {
+                var det = detallesPendientes.First(d => d.Id == pagoEmp.DetalleNominaId);
+                var emp = _context.Empleados.FirstOrDefault(e => e.Id == det.EmpleadoId);
+                var errorRet = RetencionesHelper.RegistrarDeNomina(_context, pagoEmp, det, nomina.Numero, $"{emp?.Nombres} {emp?.Apellidos}", currentUser?.Id);
+                if (errorRet != null)
+                {
+                    tx.Rollback();
+                    _context.ChangeTracker.Clear();
+                    TempData["Error"] = "No se pagó la nómina: " + errorRet;
+                    return RedirectToPage("/RRHH/Nomina/Details", new { id });
+                }
+            }
+
             // DESCONTAR VALES
             foreach (var detalle in detallesPendientes)
             {
@@ -262,7 +277,7 @@ namespace Kirkenta.Pages.RRHH.Nomina
             {
                 if (restante <= 0) break;
 
-                var descuento = Math.Min(vale.MontoCuota, Math.Min(vale.SaldoPendiente, restante));
+                var descuento = Math.Min(NominaHelper.CuotaVale(vale), restante);
                 if (descuento <= 0) continue;
 
                 vale.SaldoPendiente -= descuento;

@@ -30,6 +30,15 @@ namespace Kirkenta.Models
 
         public decimal? TopeRAP { get; set; }
 
+        // ===== APORTES DEL PATRONO (son gasto de la empresa, no se le descuentan al empleado) =====
+        /// <summary>IHSS del patrono: 5% Enfermedad y Maternidad + 3.5% IVM, sobre la misma base topada del empleado.</summary>
+        public decimal PorcentajeIHSSPatronal { get; set; } = 8.5m;
+        /// <summary>RAP del patrono, sobre la misma base del empleado (lo que excede el techo).</summary>
+        public decimal PorcentajeRAPPatronal { get; set; } = 1.5m;
+        /// <summary>INFOP: lo paga el patrono sobre la planilla cuando le aplica por ley.</summary>
+        public bool AplicaINFOP { get; set; } = false;
+        public decimal PorcentajeINFOP { get; set; } = 1m;
+
         // ===== ISR =====
         public bool AplicaISR { get; set; } = true;
 

@@ -109,8 +109,11 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
 
             // KPIs sobre el conjunto filtrado (solo movimientos activos), calculados en la BD
             var activos = query.Where(m => m.Estado == "Activo");
-            TotalIngresos = activos.Where(m => m.Tipo == "Ingreso").Sum(m => (decimal?)m.Monto) ?? 0;
-            TotalEgresos = activos.Where(m => m.Tipo == "Egreso").Sum(m => (decimal?)m.Monto) ?? 0;
+            // Los totales son dinero real: los movimientos solo contables (costo de ventas, retenciones) no lo mueven
+            var marca = Kirkenta.Helpers.Finanzas.SaldoHelper.MarcaSoloContable;
+            var dinero = activos.Where(m => m.Notas == null || !m.Notas.Contains(marca));
+            TotalIngresos = dinero.Where(m => m.Tipo == "Ingreso").Sum(m => (decimal?)m.Monto) ?? 0;
+            TotalEgresos = dinero.Where(m => m.Tipo == "Egreso").Sum(m => (decimal?)m.Monto) ?? 0;
             Balance = TotalIngresos - TotalEgresos;
             CantidadMovimientos = activos.Count();
 

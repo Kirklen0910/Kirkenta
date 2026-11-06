@@ -79,6 +79,16 @@ namespace Kirkenta.Pages.Finanzas.Aperturas
 
             if (!ModelState.IsValid) return Page();
 
+            // Abrir con menos de lo que dice el sistema registra un faltante (un gasto): no puede pasar sin explicación
+            var saldoCuenta = _context.CuentasFinancieras.Where(c => c.Id == Input.CuentaId).Select(c => c.SaldoActual).FirstOrDefault();
+            if (Input.SaldoInicial < saldoCuenta - 0.005m && string.IsNullOrWhiteSpace(Input.Notas))
+            {
+                ModelState.AddModelError("Input.Notas",
+                    $"El sistema dice que esta caja tiene L. {saldoCuenta:N2} y estás abriendo con L. {Input.SaldoInicial:N2}. " +
+                    $"Se registrará un faltante de L. {saldoCuenta - Input.SaldoInicial:N2}: escribe en notas qué pasó con ese dinero.");
+                return Page();
+            }
+
             var (apertura, error) = AperturaHelper.Abrir(
                 _context,
                 Input.CuentaId,

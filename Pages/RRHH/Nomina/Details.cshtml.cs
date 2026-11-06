@@ -41,6 +41,8 @@ namespace Kirkenta.Pages.RRHH.Nomina
             public string? FotoPath { get; set; }
             public decimal SalarioBase { get; set; }
             public decimal Bonos { get; set; }
+            public decimal Extras { get; set; }
+            public string? MotivoExtras { get; set; }
             public decimal TotalBruto { get; set; }
             public decimal DeduccionIHSS { get; set; }
             public decimal DeduccionRAP { get; set; }
@@ -125,6 +127,8 @@ namespace Kirkenta.Pages.RRHH.Nomina
                     FotoPath = emp?.FotoPath,
                     SalarioBase = d.SalarioBase,
                     Bonos = d.BonoTransporte + d.BonoAlimentacion + d.OtrosBonos,
+                    Extras = d.MontoHorasExtra,
+                    MotivoExtras = d.Notas,
                     TotalBruto = d.TotalBruto,
                     DeduccionIHSS = d.DeduccionIHSS,
                     DeduccionRAP = d.DeduccionRAP,

@@ -233,17 +233,36 @@ else if (!Model.Venta.MovimientoRegistrado && Model.Venta.Estado != "Anulada")
 
     <div class="totales-panel" style="margin-top: 24px;">
         <div class="totales-row">
-            <span>Subtotal:</span>
-            <strong>L. @Model.Venta.Subtotal.ToString("N2")</strong>
+            <span>Subtotal productos:</span>
+            <strong>L. @((Model.Venta.Subtotal - Model.Venta.MontoEnvio).ToString("N2"))</strong>
         </div>
         <div class="totales-row">
             <span>Descuento:</span>
             <strong>L. @((Model.Venta.Descuento + Model.Items.Sum(i => i.Descuento)).ToString("N2"))</strong>
         </div>
-        <div class="totales-row">
-            <span>Impuestos:</span>
-            <strong>L. @Model.Venta.Impuestos.ToString("N2")</strong>
-        </div>
+        @if (Model.Venta.MontoEnvio > 0)
+        {
+            var isvEnvio = Math.Max(0m, Model.Venta.Impuestos - Model.Items.Sum(i => i.Total - i.Subtotal));
+            <div class="totales-row">
+                <span>Envío:</span>
+                <strong>L. @Model.Venta.MontoEnvio.ToString("N2")</strong>
+            </div>
+            <div class="totales-row">
+                <span>ISV de productos:</span>
+                <strong>L. @((Model.Venta.Impuestos - isvEnvio).ToString("N2"))</strong>
+            </div>
+            <div class="totales-row">
+                <span>ISV del envío:</span>
+                <strong>L. @isvEnvio.ToString("N2")</strong>
+            </div>
+        }
+        else
+        {
+            <div class="totales-row">
+                <span>Impuestos:</span>
+                <strong>L. @Model.Venta.Impuestos.ToString("N2")</strong>
+            </div>
+        }
         <div class="totales-row totales-row-final">
             <span>TOTAL:</span>
             <strong>L. @Model.Venta.Total.ToString("N2")</strong>

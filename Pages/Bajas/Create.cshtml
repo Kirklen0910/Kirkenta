@@ -57,7 +57,7 @@
         <div class="form-row">
             <div class="form-field">
                 <label asp-for="Input.Cantidad">Cantidad a dar de baja *</label>
-                <input asp-for="Input.Cantidad" asp-format="{0:0.##}" type="number" step="0.01" min="0.01" class="form-input" id="cantidadInput" required />
+                <input asp-for="Input.Cantidad" asp-format="{0:0.####}" type="number" step="any" min="0.0001" class="form-input" id="cantidadInput" required />
                 <small class="form-help" id="stockInfo"></small>
             </div>
             <div class="form-field">

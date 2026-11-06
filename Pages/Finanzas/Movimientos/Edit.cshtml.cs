@@ -116,8 +116,11 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 ModelState.AddModelError(string.Empty, periodoError!);
             }
 
+            Input.Monto = Math.Round(Input.Monto, 2, MidpointRounding.AwayFromZero);
             if (Input.Monto <= 0)
                 ModelState.AddModelError("Input.Monto", "El monto debe ser mayor a 0");
+            if (Input.Fecha.Date > DateTime.Today)
+                ModelState.AddModelError("Input.Fecha", "No se pueden registrar movimientos con fecha futura");
             if (string.IsNullOrWhiteSpace(Input.Concepto))
                 ModelState.AddModelError("Input.Concepto", "El concepto es obligatorio");
             if (!Input.CategoriaId.HasValue || !_context.CategoriasFinancieras.Any(c => c.Id == Input.CategoriaId.Value && c.Activa))
@@ -141,6 +144,13 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
                 return RedirectToPage("/Finanzas/Movimientos/Index");
             }
 
+            // Una categoría solo contable no mueve saldo: el dinero del movimiento desaparecería de la cuenta
+            if (SaldoHelper.EsSoloContable(_context, new MovimientoFinanciero { Tipo = mov.Tipo, CategoriaId = catEdit.Id }))
+            {
+                TempData["Error"] = "Esa categoría es solo contable (costo de ventas): no se puede usar en un movimiento manual";
+                return RedirectToPage("/Finanzas/Movimientos/Index");
+            }
+
             // Validar que no se intente editar un movimiento de un mes cerrado
             var (periodoOkViejo, periodoErrorViejo) = CierreContableHelper.ValidarFecha(_context, mov.Fecha);
             if (!periodoOkViejo)
@@ -159,7 +169,8 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             mov.Estado = "Activo";
 
             // Aplicar cambios
-            mov.Fecha = Input.Fecha;
+            // El formulario solo trae el día: si no cambia, se conserva la hora (define a qué turno de caja pertenece)
+            mov.Fecha = Input.Fecha.Date == mov.Fecha.Date ? mov.Fecha : FormaPagoHelper.FechaReal(Input.Fecha);
             mov.CuentaId = Input.CuentaId;
             mov.CategoriaId = Input.CategoriaId;
             mov.Monto = Input.Monto;

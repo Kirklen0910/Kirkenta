@@ -128,7 +128,7 @@ namespace Kirkenta.Pages.Catalogo
                 if (!prods.TryGetValue(g.Key, out var p) || p.PrecioVenta <= 0)
                     return new JsonResult(new { ok = false, error = "Uno de los productos ya no está disponible. Actualiza la página." });
                 var cant = Math.Min(g.Sum(x => x.Cantidad), CatalogoWebHelper.MaxCantidadPorLinea);
-                cant = Math.Round(cant, 2);
+                cant = Math.Round(cant, 2, MidpointRounding.AwayFromZero);
                 if (cant > p.Stock)
                     return new JsonResult(new { ok = false, error = $"De «{p.Nombre}» solo quedan {p.Stock.ToString("0.##", CultureInfo.InvariantCulture)}." });
                 var tasa = p.ImpuestoId.HasValue && tasas.TryGetValue(p.ImpuestoId.Value, out var t) ? t : tasaDefault;

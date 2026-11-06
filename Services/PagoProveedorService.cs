@@ -14,6 +14,8 @@ namespace Kirkenta.Services
     /// </summary>
     public static class PagoProveedorService
     {
+        public const string EstadoAnulado = "Anulado";
+
         public class Solicitud
         {
             public int OrdenCompraId { get; set; }
@@ -46,6 +48,7 @@ namespace Kirkenta.Services
             if (orden.Estado != "Recibida" && orden.Estado != "RecibidaParcial")
                 return Fallo($"Solo se pueden pagar órdenes en estado Recibida o Recibida Parcial (estado actual: {orden.Estado})");
 
+            s.Monto = Math.Round(s.Monto, 2, MidpointRounding.AwayFromZero);
             if (s.Monto <= 0) return Fallo("El monto debe ser mayor a 0", "Input.Monto");
 
             if (orden.Saldo <= 0) return Fallo("Esta orden ya está completamente pagada");
@@ -125,10 +128,10 @@ namespace Kirkenta.Services
                             pago.Id,
                             pago.Numero ?? "—",
                             // Finanzas trabaja en moneda local: se convierte con el tipo de cambio de la orden
-                            Math.Round(pago.Monto * pago.TipoCambio, 2),
+                            Math.Round(pago.Monto * pago.TipoCambio, 2, MidpointRounding.AwayFromZero),
                             usuarioId ?? 0,
                             nombreProveedor: proveedor?.Nombre ?? "—",
-                            formaPago: metodoPago?.Nombre,
+                            formaPago: FormaPagoHelper.Rotulo(metodoPago),
                             tipoMetodo: metodoPago?.Tipo);
 
                         if (mov == null)
@@ -163,5 +166,114 @@ namespace Kirkenta.Services
                 tx?.Dispose();
             }
         }
+
+        /// <summary>
+        /// Anula un pago: devuelve el monto al saldo de la orden, la regresa de "Pagada" a "Recibida"
+        /// (una "RecibidaParcial" sigue igual) y anula y revierte su egreso en Finanzas. El pago queda
+        /// como historial en estado "Anulado". Todo en una sola transaccion: o se guarda completo o nada.
+        /// </summary>
+        public static Resultado Anular(ApplicationDbContext context, int pagoId, string? motivo, int? usuarioId)
+        {
+            motivo = motivo?.Trim();
+            if (string.IsNullOrEmpty(motivo)) return Fallo("Debes indicar el motivo de la anulación", "motivo");
+
+            var pago = context.PagosProveedor.FirstOrDefault(p => p.Id == pagoId);
+            if (pago == null) return Fallo("Pago no encontrado");
+            if (pago.Estado == EstadoAnulado) return Fallo("Este pago ya fue anulado");
+
+            var orden = pago.OrdenCompraId.HasValue
+                ? context.OrdenesCompra.FirstOrDefault(o => o.Id == pago.OrdenCompraId.Value)
+                : null;
+            if (orden != null && orden.Estado != "Pagada" && orden.Estado != "Recibida" && orden.Estado != "RecibidaParcial")
+                return Fallo($"No se puede anular: la orden {orden.Numero} está en estado {orden.Estado}");
+
+            var (pagoOk, pagoError) = CierreContableHelper.ValidarFecha(context, pago.Fecha);
+            if (!pagoOk) return Fallo($"El pago pertenece a un período cerrado. {pagoError}");
+
+            var (hoyOk, hoyError) = CierreContableHelper.ValidarFecha(context, DateTime.Today);
+            if (!hoyOk) return Fallo(hoyError!);
+
+            foreach (var m in MovimientosActivos(context, pagoId))
+            {
+                var (movOk, movError) = CierreContableHelper.ValidarFecha(context, m.Fecha);
+                if (!movOk) return Fallo($"El movimiento {m.Numero} pertenece a un período cerrado. {movError}");
+            }
+
+            // Si quien llama ya abrió una transaccion se une a ella; si no, abre la suya.
+            var propia = context.Database.CurrentTransaction == null;
+            var tx = propia ? context.Database.BeginTransaction() : null;
+
+            try
+            {
+                // Reclamo atomico: si dos personas (o dos clics) anulan a la vez, solo una continua
+                // y el saldo de la orden y el de la cuenta no se devuelven dos veces.
+                if (context.Database.IsRelational())
+                {
+                    var filas = context.PagosProveedor
+                        .Where(p => p.Id == pagoId && p.Estado != EstadoAnulado)
+                        .ExecuteUpdate(u => u.SetProperty(p => p.Estado, EstadoAnulado));
+                    if (filas == 0)
+                    {
+                        tx?.Rollback();
+                        context.ChangeTracker.Clear();
+                        return Fallo("Este pago ya fue anulado");
+                    }
+                    context.Entry(pago).Reload();
+                }
+
+                pago.Estado = EstadoAnulado;
+                pago.MotivoAnulacion = motivo;
+                pago.FechaAnulacion = DateTime.Now;
+                pago.UsuarioAnuloId = usuarioId;
+
+                if (orden != null)
+                {
+                    // Suma atomica: no pisa otro pago o devolucion que toque la misma orden a la vez
+                    if (context.Database.IsRelational())
+                    {
+                        var monto = pago.Monto;
+                        context.OrdenesCompra
+                            .Where(o => o.Id == orden.Id)
+                            .ExecuteUpdate(u => u.SetProperty(o => o.Saldo, o => o.Saldo + monto));
+                        context.Entry(orden).Reload();
+                    }
+                    else
+                    {
+                        orden.Saldo += pago.Monto;
+                    }
+
+                    if (orden.Estado == "Pagada" && orden.Saldo > 0) orden.Estado = "Recibida";
+                }
+
+                // Primero se marca como anulado y DESPUES se revierte: Revertir ignora los activos.
+                foreach (var m in MovimientosActivos(context, pagoId))
+                {
+                    m.Estado = "Anulado";
+                    m.MotivoAnulacion = $"Anulación del pago {pago.Numero}: {motivo}";
+                    m.FechaAnulacion = DateTime.Now;
+                    m.UsuarioAnuloId = usuarioId;
+                    SaldoHelper.Revertir(context, m);
+                }
+
+                context.SaveChanges();
+                tx?.Commit();
+                return new Resultado { Pago = pago, Orden = orden };
+            }
+            catch
+            {
+                tx?.Rollback();
+                context.ChangeTracker.Clear();
+                throw;
+            }
+            finally
+            {
+                tx?.Dispose();
+            }
+        }
+
+        private static List<MovimientoFinanciero> MovimientosActivos(ApplicationDbContext context, int pagoId) =>
+            context.MovimientosFinancieros
+                .Where(m => m.Origen == "PagoProveedor" && m.OrigenId == pagoId && m.Estado == "Activo")
+                .ToList();
     }
 }

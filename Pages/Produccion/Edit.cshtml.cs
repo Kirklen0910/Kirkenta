@@ -152,7 +152,7 @@ namespace Kirkenta.Pages.Produccion
                     Cantidad = cantidadLinea,
                     CostoUnitario = costo
                 });
-                total += Math.Round(cantidadLinea * costo, 2);
+                total += Math.Round(cantidadLinea * costo, 2, MidpointRounding.AwayFromZero);
             }
             orden.CostoTotal = total;
             _context.SaveChanges();

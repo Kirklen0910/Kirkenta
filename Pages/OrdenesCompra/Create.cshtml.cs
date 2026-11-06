@@ -186,7 +186,7 @@ namespace Kirkenta.Pages.OrdenesCompra
             {
                 var bruto = item.Cantidad * item.PrecioUnitario;
                 var conDescuento = bruto - item.Descuento;
-                var iva = Math.Round(conDescuento * (item.ImpuestoPorcentaje / 100m), 2);
+                var iva = Math.Round(conDescuento * (item.ImpuestoPorcentaje / 100m), 2, MidpointRounding.AwayFromZero);
                 var totalLinea = conDescuento + iva;
 
                 subtotal += bruto;
@@ -267,8 +267,8 @@ namespace Kirkenta.Pages.OrdenesCompra
                     if (Input.ActualizarPrecioVenta && costoPrevio > 0 && precioVentaPrevio > 0 && producto.PrecioCompra != costoPrevio)
                     {
                         var factor = producto.PrecioCompra / costoPrevio;
-                        producto.PrecioVenta = Math.Round(precioVentaPrevio * factor, 2);
-                        if (precioMayoristaPrevio > 0) producto.PrecioMayorista = Math.Round(precioMayoristaPrevio * factor, 2);
+                        producto.PrecioVenta = Math.Round(precioVentaPrevio * factor, 2, MidpointRounding.AwayFromZero);
+                        if (precioMayoristaPrevio > 0) producto.PrecioMayorista = Math.Round(precioMayoristaPrevio * factor, 2, MidpointRounding.AwayFromZero);
                     }
                     if (producto.PrecioCompra != costoPrevio)
                         cambiosCosto.Add($"{producto.Nombre}: costo L. {costoPrevio:N2} → L. {producto.PrecioCompra:N2}");

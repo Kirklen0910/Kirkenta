@@ -16,7 +16,24 @@
         <h2>Pago @Model.Pago.Numero</h2>
         <p>Registrado el @Model.Pago.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
     </div>
+    @if (Model.PuedeAnular)
+    {
+        <div class="module-header-right">
+            <form method="post" asp-page-handler="Anular" asp-route-id="@Model.Pago.Id" style="display:inline-flex;gap:6px;align-items:center;"
+                  onsubmit="return confirm('¿Anular este pago?\n\nEl monto vuelve al saldo de la orden y se revierte el egreso en Finanzas. Esta acción no se puede deshacer.');">
+                <input type="text" name="motivo" required maxlength="200" class="form-input" placeholder="Motivo de anulación" style="width:200px;" />
+                <button type="submit" class="btn-secondary" style="color:var(--color-danger-text);">Anular pago</button>
+            </form>
+        </div>
+    }
 </div>
+
+@if (Model.Anulado)
+{
+    <div class="module-alert module-alert-error">
+        <span><strong>Pago anulado</strong>@(Model.Pago.FechaAnulacion.HasValue ? $" el {Model.Pago.FechaAnulacion:dd/MM/yyyy HH:mm}" : "")@(Model.AnuladoPor != null ? $" por {Model.AnuladoPor}" : ""). Motivo: @Model.Pago.MotivoAnulacion</span>
+    </div>
+}
 
 <div class="module-card" style="padding: 40px;">
     <div class="factura-header">

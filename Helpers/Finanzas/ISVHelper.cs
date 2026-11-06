@@ -20,6 +20,10 @@ namespace Kirkenta.Helpers.Finanzas
             public decimal Total { get; set; }
             public decimal Descuento { get; set; }
             public decimal DescuentoAplicadoBase { get; set; }
+            /// <summary>Productos antes de descuentos (sin envío).</summary>
+            public decimal SubtotalProductos { get; set; }
+            /// <summary>ISV cobrado sobre el envío (está dentro de ISVTotal).</summary>
+            public decimal EnvioISV { get; set; }
 
             public List<decimal> TasasAplicadas => BasePorTasa.Keys.OrderBy(t => t).ToList();
         }
@@ -93,7 +97,7 @@ namespace Kirkenta.Helpers.Finanzas
             // 3. Aplicar el factor proporcionalmente a cada línea
             foreach (var (neto, tasa) in lineas)
             {
-                var netoConDescuento = Math.Round(neto * factorDescuento, 2);
+                var netoConDescuento = Math.Round(neto * factorDescuento, 2, MidpointRounding.AwayFromZero);
                 if (netoConDescuento <= 0) continue;
 
                 if (tasa > 0)
@@ -121,7 +125,7 @@ namespace Kirkenta.Helpers.Finanzas
             // 4. Aplicar el descuento proporcional al envío
             if (montoEnvio > 0)
             {
-                var envioConDescuento = Math.Round(montoEnvio * factorDescuento, 2);
+                var envioConDescuento = Math.Round(montoEnvio * factorDescuento, 2, MidpointRounding.AwayFromZero);
 
                 if (impuestoPredeterminado > 0 && !exonerado)
                 {
@@ -149,13 +153,13 @@ namespace Kirkenta.Helpers.Finanzas
             foreach (var tasa in resultado.BasePorTasa.Keys.ToList())
             {
                 var baseTasa = resultado.BasePorTasa[tasa];
-                var isv = Math.Round(baseTasa * (tasa / 100m), 2);
+                var isv = Math.Round(baseTasa * (tasa / 100m), 2, MidpointRounding.AwayFromZero);
                 resultado.ISVPorTasa[tasa] = isv;
                 resultado.ISVTotal += isv;
             }
 
             resultado.DescuentoAplicadoBase = descuentoAplicable;
-            resultado.Total = Math.Round(resultado.Subtotal + resultado.ISVTotal, 2);
+            resultado.Total = Math.Round(resultado.Subtotal + resultado.ISVTotal, 2, MidpointRounding.AwayFromZero);
 
             return resultado;
         }
@@ -228,7 +232,7 @@ namespace Kirkenta.Helpers.Finanzas
                 {
                     var bruto = item.Cantidad * item.PrecioUnitario;
                     var neto = bruto - item.Descuento;
-                    var isv = Math.Round(neto * (item.ImpuestoPorcentaje / 100m), 2);
+                    var isv = Math.Round(neto * (item.ImpuestoPorcentaje / 100m), 2, MidpointRounding.AwayFromZero);
 
                     item.Subtotal = neto;
                     item.Total = neto + isv;
@@ -272,8 +276,11 @@ namespace Kirkenta.Helpers.Finanzas
                 MontoEnvio = factura.MontoEnvio
             };
 
-            var lineas = items
-                .Select(i => (neto: i.Subtotal > 0 ? i.Subtotal : (i.Cantidad * i.PrecioUnitario - i.Descuento),
+            var itemsLista = items.ToList();
+            // Neto de cada línea: ya trae su propio descuento. En una factura de cotización o pedido el Subtotal
+            // puede venir bruto, por eso se calcula siempre de cantidad, precio y descuento.
+            var lineas = itemsLista
+                .Select(i => (neto: Math.Round(i.Cantidad * i.PrecioUnitario - i.Descuento, 2, MidpointRounding.AwayFromZero),
                               tasa: i.ImpuestoPorcentaje))
                 .Where(l => l.neto > 0)
                 .ToList();
@@ -282,7 +289,9 @@ namespace Kirkenta.Helpers.Finanzas
             decimal envio = Math.Max(factura.MontoEnvio, 0);
             decimal baseTotal = baseItems + envio;
 
-            decimal descuento = Math.Max(factura.Descuento, 0);
+            // factura.Descuento incluye el de las líneas: aquí solo cuenta el general en monto que quedó fuera de ellas
+            // (restarlo completo descontaba dos veces y el importe gravado impreso no cuadraba con el ISV).
+            decimal descuento = Math.Max(factura.Descuento - itemsLista.Sum(i => i.Descuento), 0);
             if (descuento > baseTotal) descuento = baseTotal;
             decimal factor = baseTotal > 0 ? (baseTotal - descuento) / baseTotal : 0;
 
@@ -314,7 +323,7 @@ namespace Kirkenta.Helpers.Finanzas
             var baseLineasPorTasa = new Dictionary<decimal, decimal>();
             foreach (var (neto, tasa) in lineas)
             {
-                var netoConDescuento = Math.Round(neto * factor, 2);
+                var netoConDescuento = Math.Round(neto * factor, 2, MidpointRounding.AwayFromZero);
                 Sumar(tasa, netoConDescuento);
                 if (tasa > 0)
                 {
@@ -323,12 +332,12 @@ namespace Kirkenta.Helpers.Finanzas
             }
             foreach (var kv in baseLineasPorTasa)
             {
-                isvLineas += Math.Round(kv.Value * (kv.Key / 100m), 2);
+                isvLineas += Math.Round(kv.Value * (kv.Key / 100m), 2, MidpointRounding.AwayFromZero);
             }
 
             if (envio > 0)
             {
-                var envioConDescuento = Math.Round(envio * factor, 2);
+                var envioConDescuento = Math.Round(envio * factor, 2, MidpointRounding.AwayFromZero);
 
                 // Tasa del envío: la que explica el ISV que sobra después de las líneas
                 var tasasConocidas = context.Impuestos.Where(i => i.Activo).Select(i => i.Porcentaje).ToList();
@@ -353,17 +362,20 @@ namespace Kirkenta.Helpers.Finanzas
                 }
 
                 Sumar(tasaEnvio, envioConDescuento);
+                r.EnvioISV = Math.Round(envioConDescuento * (tasaEnvio / 100m), 2, MidpointRounding.AwayFromZero);
             }
+
+            r.SubtotalProductos = Math.Round(itemsLista.Sum(i => i.Cantidad * i.PrecioUnitario), 2, MidpointRounding.AwayFromZero);
 
             foreach (var tasa in r.BasePorTasa.Keys.ToList())
             {
-                var isv = Math.Round(r.BasePorTasa[tasa] * (tasa / 100m), 2);
+                var isv = Math.Round(r.BasePorTasa[tasa] * (tasa / 100m), 2, MidpointRounding.AwayFromZero);
                 r.ISVPorTasa[tasa] = isv;
                 r.ISVTotal += isv;
             }
 
             r.DescuentoAplicadoBase = descuento;
-            r.Total = Math.Round(r.Subtotal + r.ISVTotal, 2);
+            r.Total = Math.Round(r.Subtotal + r.ISVTotal, 2, MidpointRounding.AwayFromZero);
             return r;
         }
 

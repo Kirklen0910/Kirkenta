@@ -82,8 +82,8 @@ namespace Kirkenta.Pages.Finanzas.Asientos
             if (lineas.Any(l => (l.Debe ?? 0) == 0 && (l.Haber ?? 0) == 0))
                 ModelState.AddModelError(string.Empty, "Cada línea debe tener un monto en Debe o en Haber");
 
-            var totalDebe = Math.Round(lineas.Sum(l => l.Debe ?? 0), 2);
-            var totalHaber = Math.Round(lineas.Sum(l => l.Haber ?? 0), 2);
+            var totalDebe = Math.Round(lineas.Sum(l => l.Debe ?? 0), 2, MidpointRounding.AwayFromZero);
+            var totalHaber = Math.Round(lineas.Sum(l => l.Haber ?? 0), 2, MidpointRounding.AwayFromZero);
             if (totalDebe != totalHaber)
                 ModelState.AddModelError(string.Empty, $"El asiento no cuadra: Debe L. {totalDebe:N2} ≠ Haber L. {totalHaber:N2}");
             if (totalDebe <= 0)
@@ -118,8 +118,8 @@ namespace Kirkenta.Pages.Finanzas.Asientos
                 {
                     AsientoContableId = asiento.Id,
                     PlanCuentaId = l.PlanCuentaId,
-                    Debe = Math.Round(l.Debe ?? 0, 2),
-                    Haber = Math.Round(l.Haber ?? 0, 2),
+                    Debe = Math.Round(l.Debe ?? 0, 2, MidpointRounding.AwayFromZero),
+                    Haber = Math.Round(l.Haber ?? 0, 2, MidpointRounding.AwayFromZero),
                     Detalle = l.Detalle
                 });
             }

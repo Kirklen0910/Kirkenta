@@ -97,14 +97,17 @@
 .tf-celda.is-guardando { border-color: var(--color-muted); }
 .tf-celda.is-ok { border-color: var(--color-success); box-shadow: 0 0 0 3px rgba(22, 163, 74, .15); }
 .tf-celda.is-error { border-color: var(--color-danger); box-shadow: 0 0 0 3px rgba(220, 38, 38, .15); }
-.tf-tabla tr.is-contado td:first-child { box-shadow: inset 3px 0 0 var(--color-success); }
+.tf-tabla tr.is-cuadra td { background: rgba(22, 163, 74, .10); }
+.tf-tabla tr.is-difiere td { background: rgba(220, 38, 38, .09); }
+.tf-tabla tr.is-cuadra td:first-child { box-shadow: inset 3px 0 0 var(--color-success); }
+.tf-tabla tr.is-difiere td:first-child { box-shadow: inset 3px 0 0 var(--color-danger); }
 .tf-tabla tr.is-flash td { animation: tfFila 1s ease; }
 @keyframes tfFila { from { background: var(--color-primary-soft); } to { background: transparent; } }
 .tf-dif { display: inline-block; min-width: 54px; padding: 2px 8px; border-radius: 999px; font-size: 12.5px; font-weight: 600; text-align: center; }
 .tf-dif:empty { display: none; }
 .tf-dif-pos { background: rgba(22, 163, 74, .12); color: var(--color-success); }
 .tf-dif-neg { background: rgba(220, 38, 38, .12); color: var(--color-danger); }
-.tf-dif-ok { background: var(--color-surface-2); color: var(--color-muted); }
+.tf-dif-ok { background: rgba(22, 163, 74, .12); color: var(--color-success); }
 .tf-vacio { padding: 40px 16px; text-align: center; color: var(--color-muted); }
 .tf-guardar-lista { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 12px 16px; }
 .tf-auto { display: none; font-size: 12.5px; color: var(--color-muted); }
@@ -112,6 +115,19 @@ form.tf-js .tf-auto { display: inline; }
 form.tf-js .tf-sin-js { display: none; }
 .tf-acciones { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .tf-aplicar { background: var(--color-success); border-color: var(--color-success); }
+
+/* autorización para aplicar */
+.tf-dialogo { width: min(420px, calc(100vw - 32px)); padding: 22px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-lg); }
+.tf-dialogo::backdrop { background: rgba(15, 23, 42, .45); }
+.tf-dialogo form { display: flex; flex-direction: column; gap: 12px; }
+.tf-dialogo h3 { margin: 0; font-size: 17px; }
+.tf-dialogo-aviso { margin: 0; font-size: 13.5px; color: var(--color-muted); }
+.tf-dialogo-resumen { margin: 0; display: flex; flex-direction: column; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.tf-dialogo-resumen div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 12px; font-size: 13px; }
+.tf-dialogo-resumen div + div { border-top: 1px solid var(--color-border); }
+.tf-dialogo-resumen dt { font-weight: 400; color: var(--color-muted); }
+.tf-dialogo-resumen dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tf-dialogo-botones { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 
 @media (max-width: 720px) {
     .tf-resumen { grid-template-columns: repeat(3, 1fr); }

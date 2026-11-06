@@ -171,15 +171,15 @@ namespace Kirkenta.Helpers.Migracion
                     l.Diferencia($"{quien}: fecha {fe:dd/MM/yyyy HH:mm} → {g.Fecha:dd/MM/yyyy HH:mm}");
                 if (saldo)
                 {
-                    var s = Math.Round(Num(f, m, "Saldo"), 2);
+                    var s = Math.Round(Num(f, m, "Saldo"), 2, MidpointRounding.AwayFromZero);
                     Comparar(l, quien, "saldo", s, g.Saldo);
-                    if (m.ContainsKey("Total") && Math.Round(Num(f, m, "Total"), 2) is var tot && tot >= s) Comparar(l, quien, "total", tot, g.Total);
+                    if (m.ContainsKey("Total") && Math.Round(Num(f, m, "Total"), 2, MidpointRounding.AwayFromZero) is var tot && tot >= s) Comparar(l, quien, "total", tot, g.Total);
                 }
                 else
                 {
-                    Comparar(l, quien, "total", Math.Round(Num(f, m, "Total"), 2), g.Total);
+                    Comparar(l, quien, "total", Math.Round(Num(f, m, "Total"), 2, MidpointRounding.AwayFromZero), g.Total);
                     if (paso.Destino == "@compras" && m.ContainsKey("Saldo"))
-                        Comparar(l, quien, "saldo", Math.Min(Math.Round(Num(f, m, "Saldo"), 2), Math.Round(Num(f, m, "Total"), 2)), g.Saldo);
+                        Comparar(l, quien, "saldo", Math.Min(Math.Round(Num(f, m, "Saldo"), 2, MidpointRounding.AwayFromZero), Math.Round(Num(f, m, "Total"), 2, MidpointRounding.AwayFromZero)), g.Saldo);
                 }
             }
         }

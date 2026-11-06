@@ -23,7 +23,7 @@ namespace Kirkenta.Helpers.Finanzas
         public decimal TotalDescuento { get; set; }
         public decimal VentasBrutas { get; set; }
         public int VentasConDescuento { get; set; }
-        public decimal PorcentajeSobreVentas => VentasBrutas > 0 ? Math.Round(TotalDescuento / VentasBrutas * 100m, 2) : 0m;
+        public decimal PorcentajeSobreVentas => VentasBrutas > 0 ? Math.Round(TotalDescuento / VentasBrutas * 100m, 2, MidpointRounding.AwayFromZero) : 0m;
         public List<LineaDescuento> Lineas { get; set; } = new();
     }
 
@@ -64,7 +64,7 @@ namespace Kirkenta.Helpers.Finanzas
                     ProductoId = x.ProductoId,
                     Producto = !string.IsNullOrWhiteSpace(x.Descripcion) ? x.Descripcion! : (productos.TryGetValue(x.ProductoId, out var n) ? n : "—"),
                     Cantidad = x.Cantidad, PrecioUnitario = x.PrecioUnitario, Bruto = bruto, Descuento = x.Descuento,
-                    Porcentaje = bruto > 0 ? Math.Round(x.Descuento / bruto * 100m, 2) : 0m
+                    Porcentaje = bruto > 0 ? Math.Round(x.Descuento / bruto * 100m, 2, MidpointRounding.AwayFromZero) : 0m
                 };
             }).ToList();
             return inf;

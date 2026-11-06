@@ -260,7 +260,7 @@
 
                     return '<tr>' +
                         '<td><strong>' + escHtml(item.nombre) + '</strong></td>' +
-                        '<td><input type="number" min="1" step="1" value="' + item.cantidad + '" data-idx="' + idx + '" data-field="cantidad" class="form-input" style="padding:6px 8px;text-align:center;" /></td>' +
+                        '<td><input type="number" min="0.0001" step="any" value="' + item.cantidad + '" data-idx="' + idx + '" data-field="cantidad" class="form-input" style="padding:6px 8px;text-align:center;" /></td>' +
                         '<td><input type="number" min="0" step="0.01" value="' + item.precio.toFixed(2) + '" data-idx="' + idx + '" data-field="precio" class="form-input" style="padding:6px 8px;" /></td>' +
                         '<td><input type="number" min="0" step="0.01" value="' + item.descuento.toFixed(2) + '" data-idx="' + idx + '" data-field="descuento" class="form-input" style="padding:6px 8px;" /></td>' +
                         '<td><input type="number" min="0" max="100" step="0.01" value="' + item.impuesto.toFixed(2) + '" data-idx="' + idx + '" data-field="impuesto" class="form-input" style="padding:6px 8px;text-align:center;" /></td>' +

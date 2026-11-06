@@ -44,7 +44,7 @@ namespace Kirkenta.Helpers.Finanzas
             {
                 if (saldoInicial < 0)
                     return (null, "El saldo inicial no puede ser negativo.");
-                saldoInicial = Math.Round(saldoInicial, 2);
+                saldoInicial = Math.Round(saldoInicial, 2, MidpointRounding.AwayFromZero);
 
                 var cuenta = context.CuentasFinancieras.AsNoTracking().FirstOrDefault(c => c.Id == cuentaId);
                 if (cuenta == null) return (null, "La cuenta seleccionada no existe.");
@@ -67,7 +67,7 @@ namespace Kirkenta.Helpers.Finanzas
 
                 // El saldo de la cuenta tiene que tener su movimiento antes de compararlo con lo contado
                 AperturaCuentaHelper.RegistrarAperturaCuenta(context, cuentaId, usuarioId);
-                var saldoSistema = Math.Round(context.CuentasFinancieras.AsNoTracking().Where(c => c.Id == cuentaId).Select(c => c.SaldoActual).First(), 2);
+                var saldoSistema = Math.Round(context.CuentasFinancieras.AsNoTracking().Where(c => c.Id == cuentaId).Select(c => c.SaldoActual).First(), 2, MidpointRounding.AwayFromZero);
                 var diferencia = saldoInicial - saldoSistema;
                 if (cuentaOrigenFondoId.HasValue && diferencia > 0)
                 {

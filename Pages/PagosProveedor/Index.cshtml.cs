@@ -98,14 +98,14 @@ namespace Kirkenta.Pages.PagosProveedor
 
             // KPIs sobre TODOS los pagos (no solo la página mostrada)
             var pagosMes = _context.PagosProveedor.AsNoTracking()
-                .Where(p => p.Fecha >= inicioMes && p.Fecha < finMes);
+                .Where(p => p.Fecha >= inicioMes && p.Fecha < finMes && p.Estado != "Anulado");
             TotalPagadoMes = pagosMes.Sum(p => (decimal?)p.Monto) ?? 0m;
             CantidadPagosMes = pagosMes.Count();
 
             TotalPorPagar = OrdenesPorPagar.Sum(o => o.Saldo);
             OrdenesPendientes = OrdenesPorPagar.Count;
             ProveedoresConDeuda = OrdenesPorPagar.Select(o => o.ProveedorId).Distinct().Count();
-            TotalHistorico = _context.PagosProveedor.AsNoTracking().Sum(p => (decimal?)p.Monto) ?? 0m;
+            TotalHistorico = _context.PagosProveedor.AsNoTracking().Where(p => p.Estado != "Anulado").Sum(p => (decimal?)p.Monto) ?? 0m;
 
             return Page();
         }

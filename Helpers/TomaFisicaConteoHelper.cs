@@ -119,7 +119,7 @@ namespace Kirkenta.Helpers
                 .Select(x => new { x.StockSistema, x.StockContado, x.CostoUnitario }).ToList();
             var difs = d.Where(x => x.StockContado.HasValue && x.StockContado.Value != x.StockSistema).ToList();
             return new Resumen(d.Count, d.Count(x => x.StockContado.HasValue), difs.Count,
-                difs.Sum(x => Math.Round((x.StockContado!.Value - x.StockSistema) * x.CostoUnitario, 2)));
+                difs.Sum(x => Math.Round((x.StockContado!.Value - x.StockSistema) * x.CostoUnitario, 2, MidpointRounding.AwayFromZero)));
         }
 
         /// <summary>

@@ -90,7 +90,7 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             if (Input.Tipo != "Ingreso" && Input.Tipo != "Egreso" && Input.Tipo != "Transferencia")
                 ModelState.AddModelError("Input.Tipo", "Tipo de movimiento no válido");
 
-            Input.Monto = Math.Round(Input.Monto, 2);
+            Input.Monto = Math.Round(Input.Monto, 2, MidpointRounding.AwayFromZero);
             if (Input.Monto <= 0)
                 ModelState.AddModelError("Input.Monto", "El monto debe ser mayor a 0");
 
@@ -159,7 +159,7 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
             {
                 Numero = numero,
                 Tipo = Input.Tipo,
-                Fecha = Input.Fecha,
+                Fecha = FormaPagoHelper.FechaReal(Input.Fecha),
                 CuentaId = Input.CuentaId,
                 CuentaDestinoId = Input.Tipo == "Transferencia" ? Input.CuentaDestinoId : null,
                 CategoriaId = Input.Tipo == "Transferencia" ? null : Input.CategoriaId,

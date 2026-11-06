@@ -1,6 +1,7 @@
 ﻿using Kirkenta.Data;
 using Kirkenta.Helpers.Finanzas;
 using Kirkenta.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kirkenta.Helpers
 {
@@ -43,6 +44,23 @@ namespace Kirkenta.Helpers
 
             try
             {
+                // 0) Reclamo atómico: si dos personas anulan la misma factura a la vez, solo una continúa
+                if (context.Database.IsRelational())
+                {
+                    var filas = context.Facturas
+                        .Where(f => f.Id == facturaId && f.Estado != "Anulada")
+                        .ExecuteUpdate(u => u.SetProperty(f => f.Estado, "Anulada"));
+                    if (filas == 0)
+                    {
+                        tx?.Rollback();
+                        return (false, "La factura ya está anulada.");
+                    }
+                    context.Entry(factura).Reload();
+                    movimientos = context.MovimientosFinancieros
+                        .Where(m => m.Estado == "Activo" && m.Origen == "Factura" && m.OrigenId == facturaId)
+                        .ToList();
+                }
+
                 // 1) Inventario de vuelta
                 var detalles = context.DetalleFacturas.Where(d => d.FacturaId == facturaId).ToList();
                 foreach (var d in detalles)

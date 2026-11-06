@@ -2,6 +2,7 @@ using Kirkenta.Data;
 using Kirkenta.Helpers;
 using Kirkenta.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Kirkenta.Pages.Produccion
@@ -59,6 +60,17 @@ namespace Kirkenta.Pages.Produccion
             return Page();
         }
 
+        /// <summary>
+        /// Reclamo atómico del estado: con un doble clic o dos personas a la vez, solo una continúa
+        /// (si no, los insumos se descontaban dos veces o el producto terminado entraba dos veces).
+        /// </summary>
+        private bool Reclamar(int id, string estado)
+        {
+            if (!_context.Database.IsRelational()) return true;
+            return _context.OrdenesProduccion.Where(o => o.Id == id && o.Estado == estado)
+                .ExecuteUpdate(u => u.SetProperty(o => o.Estado, "Reclamada")) > 0;
+        }
+
         /// <summary>Descuenta los insumos del inventario y pasa la orden a "En proceso".</summary>
         public IActionResult OnPostIniciar(int id)
         {
@@ -91,12 +103,13 @@ namespace Kirkenta.Pages.Produccion
             try
             {
                 using var tx = _context.Database.BeginTransaction();
+                if (!Reclamar(id, "Planificada")) { tx.Rollback(); TempData["Error"] = "La orden ya fue iniciada"; return RedirectToPage(new { id }); }
                 decimal total = 0;
                 foreach (var d in detalles)
                 {
                     var p = productos[d.ProductoId];
                     d.CostoUnitario = p.PrecioCompra;
-                    total += Math.Round(d.Cantidad * d.CostoUnitario, 2);
+                    total += Math.Round(d.Cantidad * d.CostoUnitario, 2, MidpointRounding.AwayFromZero);
                     InventarioHelper.Registrar(_context, p, -d.Cantidad, "Produccion", orden.Numero, orden.Id,
                         usuario?.Id, p.PrecioCompra, $"Insumo para orden {orden.Numero}");
                 }
@@ -135,6 +148,7 @@ namespace Kirkenta.Pages.Produccion
             try
             {
                 using var tx = _context.Database.BeginTransaction();
+                if (!Reclamar(id, "EnProceso")) { tx.Rollback(); TempData["Error"] = "La orden ya fue terminada"; return RedirectToPage(new { id }); }
                 var costoUnitario = Math.Round(orden.CostoTotal / cantidadProducida, 4);
                 producto.PrecioCompra = InventarioHelper.CostoPromedio(producto.Stock, producto.PrecioCompra, cantidadProducida, costoUnitario);
                 InventarioHelper.Registrar(_context, producto, cantidadProducida, "Produccion", orden.Numero, orden.Id,
@@ -175,6 +189,7 @@ namespace Kirkenta.Pages.Produccion
             try
             {
                 using var tx = _context.Database.BeginTransaction();
+                if (!Reclamar(id, orden.Estado)) { tx.Rollback(); TempData["Error"] = "La orden cambió mientras la cancelabas"; return RedirectToPage(new { id }); }
                 if (orden.Estado == "EnProceso")
                 {
                     var detalles = _context.DetallesOrdenProduccion.Where(d => d.OrdenProduccionId == id).ToList();

@@ -29,7 +29,7 @@ namespace Kirkenta.Tests
         [InlineData(22360.36, 0.00)]
         [InlineData(30000.00, 1145.95)]
         [InlineData(50000.00, 5028.63)]
-        [InlineData(100000.00, 16488.38)]
+        [InlineData(100000.00, 16488.39)]
         public void ISR_mensual_tabla_2026(decimal salario, decimal esperado)
         {
             var tramos = new List<TramoISR>

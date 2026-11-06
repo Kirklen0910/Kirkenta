@@ -60,8 +60,23 @@
         if (inp && document.activeElement !== inp) inp.value = it.contado == null ? '' : String(it.contado);
         var s = tr.querySelector('.tf-dif');
         if (s) { s.className = difClase(it); s.textContent = difTexto(it); }
-        tr.classList.toggle('is-contado', it.contado != null);
+        // verde si cuadra, rojo si no, sin color mientras no se cuente
+        tr.classList.toggle('is-cuadra', it.contado != null && it.contado === it.sistema);
+        tr.classList.toggle('is-difiere', it.contado != null && it.contado !== it.sistema);
         tr.classList.remove('is-flash'); void tr.offsetWidth; tr.classList.add('is-flash');
+    }
+
+    // ── aplicar: pide autorización y muestra lo que va a pasar ──
+    var dialogo = $('tfDialogo');
+    if (dialogo) {
+        $('tfAbrirAplicar').addEventListener('click', function () {
+            $('tfDlgContados').textContent = $('tfContados').textContent;
+            $('tfDlgDifs').textContent = $('tfDifs').textContent;
+            $('tfDlgPend').textContent = $('tfPend').textContent;
+            dialogo.showModal();
+            $('tfAutUsuario').focus();
+        });
+        $('tfCerrarDialogo').addEventListener('click', function () { $('tfAutClave').value = ''; dialogo.close(); });
     }
 
     // ── la lista se guarda sola ──

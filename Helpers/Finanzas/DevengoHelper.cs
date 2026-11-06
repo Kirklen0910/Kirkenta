@@ -49,7 +49,7 @@ namespace Kirkenta.Helpers.Finanzas
 
             var ids = ordenes.Select(o => o.Id).ToList();
             var pagado = context.PagosProveedor.AsNoTracking()
-                .Where(p => p.OrdenCompraId != null && ids.Contains(p.OrdenCompraId.Value) && p.Fecha < hastaExcl)
+                .Where(p => p.OrdenCompraId != null && ids.Contains(p.OrdenCompraId.Value) && p.Fecha < hastaExcl && p.Estado != "Anulado")
                 .Select(p => new { Id = p.OrdenCompraId!.Value, p.Monto }).ToList()
                 .GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.Sum(x => x.Monto));
             var devuelto = context.DevolucionesProveedor.AsNoTracking()
@@ -87,10 +87,10 @@ namespace Kirkenta.Helpers.Finanzas
 
                 pagado.TryGetValue(o.Id, out var pg);
                 devuelto.TryGetValue(o.Id, out var dv);
-                var pend = Math.Round(Math.Max(0m, recibido - pg - dv), 2);
+                var pend = Math.Round(Math.Max(0m, recibido - pg - dv), 2, MidpointRounding.AwayFromZero);
                 if (pend <= 0) continue;
 
-                var isv = Math.Round(pend * Math.Min(1m, isvRecibido / recibido), 2);
+                var isv = Math.Round(pend * Math.Min(1m, isvRecibido / recibido), 2, MidpointRounding.AwayFromZero);
                 res.Add(new CompraPendiente(o.Id, o.Numero, o.Fecha, pend, isv, pend - isv));
             }
             return res;
@@ -170,10 +170,10 @@ namespace Kirkenta.Helpers.Finanzas
             Procesar(facturas, cobrosFactura);
 
             foreach (var k in r.IngresoPorAnio.Keys.ToList())
-                r.IngresoPorAnio[k] = Math.Round(r.IngresoPorAnio[k], 2);
-            r.CuentasPorCobrar = Math.Round(r.CuentasPorCobrar, 2);
-            r.IsvPendienteVentas = Math.Round(r.IsvPendienteVentas, 2);
-            r.EnvioPendienteVentas = Math.Round(r.EnvioPendienteVentas, 2);
+                r.IngresoPorAnio[k] = Math.Round(r.IngresoPorAnio[k], 2, MidpointRounding.AwayFromZero);
+            r.CuentasPorCobrar = Math.Round(r.CuentasPorCobrar, 2, MidpointRounding.AwayFromZero);
+            r.IsvPendienteVentas = Math.Round(r.IsvPendienteVentas, 2, MidpointRounding.AwayFromZero);
+            r.EnvioPendienteVentas = Math.Round(r.EnvioPendienteVentas, 2, MidpointRounding.AwayFromZero);
 
             // ===== Compras recibidas (total o parcialmente) sin pagar =====
             foreach (var c in ComprasPendientes(context, hastaExcl))
@@ -182,9 +182,9 @@ namespace Kirkenta.Helpers.Finanzas
                 r.IsvCreditoPendiente += c.Isv;
                 r.InventarioPendiente += c.Inventario;
             }
-            r.CuentasPorPagar = Math.Round(r.CuentasPorPagar, 2);
-            r.IsvCreditoPendiente = Math.Round(r.IsvCreditoPendiente, 2);
-            r.InventarioPendiente = Math.Round(r.InventarioPendiente, 2);
+            r.CuentasPorPagar = Math.Round(r.CuentasPorPagar, 2, MidpointRounding.AwayFromZero);
+            r.IsvCreditoPendiente = Math.Round(r.IsvCreditoPendiente, 2, MidpointRounding.AwayFromZero);
+            r.InventarioPendiente = Math.Round(r.InventarioPendiente, 2, MidpointRounding.AwayFromZero);
 
             return r;
         }

@@ -40,7 +40,7 @@ namespace Kirkenta.Helpers.Logistica
             {
                 Numero = numero,
                 VentaId = venta.Id,
-                ClienteId = venta.ClienteId ?? 1, // 1 = consumidor final (igual que facturas y pagos)
+                ClienteId = venta.ClienteId ?? ClienteGenericoHelper.Id(context),
                 ClienteNombre = cliente?.Nombre ?? "Consumidor final",
                 DireccionEntrega = direccionEntrega,
                 Referencia = referencia,

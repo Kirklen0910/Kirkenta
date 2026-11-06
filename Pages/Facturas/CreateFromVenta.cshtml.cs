@@ -167,7 +167,7 @@ namespace Kirkenta.Pages.Facturas
                 var factura = new Factura
                 {
                     Numero = "",
-                    ClienteId = venta.ClienteId ?? 1,
+                    ClienteId = venta.ClienteId ?? ClienteGenericoHelper.Id(_context),
                     VentaId = venta.Id,
                     Fecha = DateTime.Now,
                     FechaVencimiento = venta.FechaVencimientoCredito ?? Input.FechaVencimiento,

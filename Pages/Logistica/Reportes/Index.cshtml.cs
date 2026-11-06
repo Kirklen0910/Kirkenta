@@ -176,10 +176,10 @@ namespace Kirkenta.Pages.Logistica.Reportes
             // Tasa de éxito sobre los resueltos (Entregado + Fallido)
             var resueltos = TotalEntregados + TotalFallidos;
             TasaExito = resueltos > 0
-                ? Math.Round((decimal)TotalEntregados / resueltos * 100, 2)
+                ? Math.Round((decimal)TotalEntregados / resueltos * 100, 2, MidpointRounding.AwayFromZero)
                 : 0;
             TasaFallo = resueltos > 0
-                ? Math.Round((decimal)TotalFallidos / resueltos * 100, 2)
+                ? Math.Round((decimal)TotalFallidos / resueltos * 100, 2, MidpointRounding.AwayFromZero)
                 : 0;
 
             // Montos
@@ -200,8 +200,8 @@ namespace Kirkenta.Pages.Logistica.Reportes
             {
                 var totalHoras = entregadosConFecha
                     .Sum(e => (e.FechaEntregaReal!.Value - e.FechaSalida!.Value).TotalHours);
-                TiempoPromedioEntregaHoras = Math.Round((decimal)totalHoras / entregadosConFecha.Count, 2);
-                TiempoPromedioEntregaDias = Math.Round(TiempoPromedioEntregaHoras / 24m, 2);
+                TiempoPromedioEntregaHoras = Math.Round((decimal)totalHoras / entregadosConFecha.Count, 2, MidpointRounding.AwayFromZero);
+                TiempoPromedioEntregaDias = Math.Round(TiempoPromedioEntregaHoras / 24m, 2, MidpointRounding.AwayFromZero);
             }
 
             // ===== Reporte por repartidor =====
@@ -307,7 +307,7 @@ namespace Kirkenta.Pages.Logistica.Reportes
                 {
                     var totalHoras = conTiempo
                         .Sum(e => (e.FechaEntregaReal!.Value - e.FechaSalida!.Value).TotalHours);
-                    tiempoPromedio = Math.Round((decimal)totalHoras / conTiempo.Count / 24m, 2);
+                    tiempoPromedio = Math.Round((decimal)totalHoras / conTiempo.Count / 24m, 2, MidpointRounding.AwayFromZero);
                 }
 
                 resultado.Add(new RepartidorReporte
@@ -320,7 +320,7 @@ namespace Kirkenta.Pages.Logistica.Reportes
                     Fallidos = fallidos,
                     Pendientes = pendientes,
                     TasaExito = resueltos > 0
-                        ? Math.Round((decimal)entregados / resueltos * 100, 2)
+                        ? Math.Round((decimal)entregados / resueltos * 100, 2, MidpointRounding.AwayFromZero)
                         : 0,
                     TiempoPromedioDias = tiempoPromedio,
                     MontoTotal = g.Sum(e => e.Monto)
@@ -362,7 +362,7 @@ namespace Kirkenta.Pages.Logistica.Reportes
                     Entregados = entregados,
                     Fallidos = fallidos,
                     TasaExito = resueltos > 0
-                        ? Math.Round((decimal)entregados / resueltos * 100, 2)
+                        ? Math.Round((decimal)entregados / resueltos * 100, 2, MidpointRounding.AwayFromZero)
                         : 0,
                     MontoTotal = g.Sum(e => e.Monto)
                 });

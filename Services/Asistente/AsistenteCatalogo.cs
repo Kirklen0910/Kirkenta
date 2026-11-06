@@ -254,8 +254,10 @@ namespace Kirkenta.Services.Asistente
             }
             if (Acceso(c, "Finanzas", "Movimientos"))
             {
+                var marcaContable = Kirkenta.Helpers.Finanzas.SaldoHelper.MarcaSoloContable;
                 var movs = c.Db.MovimientosFinancieros.AsNoTracking()
-                    .Where(m => m.Estado == "Activo" && m.Fecha >= d && m.Fecha < h && (m.Tipo == "Ingreso" || m.Tipo == "Egreso"))
+                    .Where(m => m.Estado == "Activo" && m.Fecha >= d && m.Fecha < h && (m.Tipo == "Ingreso" || m.Tipo == "Egreso")
+                             && (m.Notas == null || !m.Notas.Contains(marcaContable)))
                     .Select(m => new { m.Tipo, m.Monto }).ToList();
                 var ing = movs.Where(m => m.Tipo == "Ingreso").Sum(m => m.Monto);
                 var egr = movs.Where(m => m.Tipo == "Egreso").Sum(m => m.Monto);
@@ -584,8 +586,10 @@ namespace Kirkenta.Services.Asistente
             var movs = c.Db.MovimientosFinancieros.AsNoTracking()
                 .Where(m => m.Estado == "Activo" && m.Fecha >= d && m.Fecha < h && tipos.Contains(m.Tipo))
                 .OrderBy(m => m.Fecha).ToList();
-            var ing = movs.Where(m => m.Tipo == "Ingreso").Sum(m => m.Monto);
-            var egr = movs.Where(m => m.Tipo == "Egreso").Sum(m => m.Monto);
+            var marcaContable = Kirkenta.Helpers.Finanzas.SaldoHelper.MarcaSoloContable;
+            var dinero = movs.Where(m => m.Notas == null || !m.Notas.Contains(marcaContable)).ToList();
+            var ing = dinero.Where(m => m.Tipo == "Ingreso").Sum(m => m.Monto);
+            var egr = dinero.Where(m => m.Tipo == "Egreso").Sum(m => m.Monto);
             var filas = movs.Take(Limite).Select(m => Fila(m.Numero, m.Fecha.ToString("dd/MM HH:mm", Inv), m.Tipo, m.Concepto, L(m.Monto))).ToList();
             return RespuestaAsistente.Tabla($"Movimientos {c.RangoTexto}",
                 movs.Count == 0 ? $"No hay movimientos {c.RangoTexto}." : $"{movs.Count} movimiento(s) {c.RangoTexto}: ingresos {L(ing)}, egresos {L(egr)}{Nota(movs.Count)}.",

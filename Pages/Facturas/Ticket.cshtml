@@ -65,7 +65,7 @@
     </table>
     <hr />
     <table>
-        <tr><td>Subtotal</td><td class="r">@Model.Factura.Subtotal.ToString("N2")</td></tr>
+        <tr><td>Subtotal productos</td><td class="r">@Model.Desglose.SubtotalProductos.ToString("N2")</td></tr>
         @if (Model.Factura.Descuento > 0) { <tr><td>Descuento</td><td class="r">-@Model.Factura.Descuento.ToString("N2")</td></tr> }
         @if (Model.Factura.MontoEnvio > 0) { <tr><td>Envío</td><td class="r">@Model.Factura.MontoEnvio.ToString("N2")</td></tr> }
         <tr><td>Imp. exonerado</td><td class="r">@Model.Desglose.BaseExoneradaTotal.ToString("N2")</td></tr>
@@ -78,6 +78,7 @@
         {
             <tr><td>ISV @tasa.ToString("0.##")%</td><td class="r">@Model.Desglose.ISVPorTasa[tasa].ToString("N2")</td></tr>
         }
+        @if (Model.Desglose.EnvioISV > 0) { <tr><td>(incluye ISV envío)</td><td class="r">@Model.Desglose.EnvioISV.ToString("N2")</td></tr> }
         @if (!Model.Desglose.TasasAplicadas.Any())
         {
             <tr><td>ISV</td><td class="r">0.00</td></tr>

@@ -95,6 +95,13 @@ else
                 <input asp-for="Input.TopeRAP" asp-format="{0:0.00}" type="number" step="0.01" min="0" class="form-input" /></div>
 
             <h4>ISR</h4>
+            <div class="form-field"><label asp-for="Input.PorcentajeIHSSPatronal">IHSS que paga el patrono (%)</label>
+                <input asp-for="Input.PorcentajeIHSSPatronal" asp-format="{0:0.00}" type="number" step="0.01" min="0" max="100" class="form-input" /></div>
+            <div class="form-field"><label asp-for="Input.PorcentajeRAPPatronal">RAP que paga el patrono (%)</label>
+                <input asp-for="Input.PorcentajeRAPPatronal" asp-format="{0:0.00}" type="number" step="0.01" min="0" max="100" class="form-input" /></div>
+            <div class="form-field"><label class="form-checkbox"><input asp-for="Input.AplicaINFOP" type="checkbox" /><span>Aplica INFOP (lo paga el patrono)</span></label></div>
+            <div class="form-field"><label asp-for="Input.PorcentajeINFOP">INFOP (%)</label>
+                <input asp-for="Input.PorcentajeINFOP" asp-format="{0:0.00}" type="number" step="0.01" min="0" max="100" class="form-input" /></div>
             <div class="form-field"><label class="form-checkbox"><input asp-for="Input.AplicaISR" type="checkbox" /><span>Aplica ISR</span></label></div>
             @{
                 var primerHasta = tramosVista.FirstOrDefault()?.Hasta;

@@ -72,7 +72,7 @@ namespace Kirkenta.Pages.Produccion
             TotalInspecciones = todas.Count();
             var insp = todas.Sum(i => (decimal?)i.CantidadInspeccionada) ?? 0;
             var def = todas.Sum(i => (decimal?)i.CantidadDefectuosa) ?? 0;
-            PorcentajeDefectos = insp > 0 ? Math.Round(def / insp * 100m, 2) : 0;
+            PorcentajeDefectos = insp > 0 ? Math.Round(def / insp * 100m, 2, MidpointRounding.AwayFromZero) : 0;
             Rechazadas = todas.Count(i => i.Resultado == "Rechazado");
         }
 

@@ -46,7 +46,7 @@ namespace Kirkenta.Pages.Movil
         public int CantidadVentasHoy { get; set; }
         public decimal VentasAyer { get; set; }
         public decimal VentasMes { get; set; }
-        public decimal TicketPromedio => CantidadVentasHoy > 0 ? Math.Round(VentasHoy / CantidadVentasHoy, 2) : 0;
+        public decimal TicketPromedio => CantidadVentasHoy > 0 ? Math.Round(VentasHoy / CantidadVentasHoy, 2, MidpointRounding.AwayFromZero) : 0;
         public List<string> Dias7 { get; set; } = new();
         public List<decimal> Montos7 { get; set; } = new();
         public List<Tarjeta> Tarjetas { get; set; } = new();

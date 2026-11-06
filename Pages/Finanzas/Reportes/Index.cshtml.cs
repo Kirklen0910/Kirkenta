@@ -135,6 +135,8 @@ namespace Kirkenta.Pages.Finanzas.Reportes
             var catsSoloContables = Kirkenta.Helpers.Finanzas.FlujoCajaHelper.CategoriasSoloContables(_context);
             var movimientos = query.OrderBy(m => m.Fecha).ThenBy(m => m.Id).ToList()
                 .Where(m => !Kirkenta.Helpers.Finanzas.FlujoCajaHelper.EsSoloContable(m, catsSoloContables))
+                // El saldo inicial de una cuenta no es un ingreso del período (tampoco mueve el saldo)
+                .Where(m => m.Origen != "Apertura")
                 .ToList();
 
             // Diccionarios
@@ -198,7 +200,7 @@ namespace Kirkenta.Pages.Finanzas.Reportes
                     Color = g.Key.HasValue ? categoriasDict.GetValueOrDefault(g.Key.Value)?.Color : "#6b7280",
                     Cantidad = g.Count(),
                     Total = g.Sum(m => m.Monto),
-                    Porcentaje = Math.Round(g.Sum(m => m.Monto) / totalIngresos * 100, 2)
+                    Porcentaje = Math.Round(g.Sum(m => m.Monto) / totalIngresos * 100, 2, MidpointRounding.AwayFromZero)
                 })
                 .OrderByDescending(x => x.Total)
                 .ToList();
@@ -215,7 +217,7 @@ namespace Kirkenta.Pages.Finanzas.Reportes
                     Color = g.Key.HasValue ? categoriasDict.GetValueOrDefault(g.Key.Value)?.Color : "#6b7280",
                     Cantidad = g.Count(),
                     Total = g.Sum(m => m.Monto),
-                    Porcentaje = Math.Round(g.Sum(m => m.Monto) / totalEgresos * 100, 2)
+                    Porcentaje = Math.Round(g.Sum(m => m.Monto) / totalEgresos * 100, 2, MidpointRounding.AwayFromZero)
                 })
                 .OrderByDescending(x => x.Total)
                 .ToList();
@@ -228,26 +230,29 @@ namespace Kirkenta.Pages.Finanzas.Reportes
                 var saldoActual = cuenta?.SaldoActual ?? 0;
 
                 // Efecto neto de los movimientos del rango sobre esta cuenta
-                decimal efectoRango = 0;
-                foreach (var m in movimientos)
+                decimal Efecto(MovimientoFinanciero m)
                 {
+                    decimal e = 0;
                     if (m.CuentaId == FiltroCuentaId.Value)
-                    {
-                        if (m.Tipo == "Ingreso") efectoRango += m.Monto;
-                        else if (m.Tipo == "Egreso") efectoRango -= m.Monto;
-                        else if (m.Tipo == "Transferencia") efectoRango -= m.Monto;
-                    }
+                        e += m.Tipo == "Ingreso" ? m.Monto : -m.Monto;
                     if (m.CuentaDestinoId == FiltroCuentaId.Value && m.Tipo == "Transferencia")
-                    {
-                        efectoRango += m.Monto;
-                    }
+                        e += m.Monto;
+                    return e;
                 }
 
-                // Saldo inicial aproximado = saldo actual - efecto de movimientos posteriores
-                // Simplificamos: saldoInicial = saldoActual - efecto total de movimientos en rango
-                // (Nota: no considera movimientos fuera del rango, es una aproximación)
-                SaldoInicialCuenta = saldoActual - efectoRango;
-                SaldoFinalCuenta = saldoActual;
+                // Saldos reales del rango: se parte del saldo de hoy y se quita todo lo posterior, sin importar
+                // el filtro de categoría (si el rango termina en el pasado, el saldo final no es el de hoy)
+                var movimientosCuenta = _context.MovimientosFinancieros.AsNoTracking()
+                    .Where(m => m.Estado == "Activo" && m.Origen != "Apertura" && m.Fecha >= desdeFull
+                             && (m.CuentaId == FiltroCuentaId.Value || m.CuentaDestinoId == FiltroCuentaId.Value))
+                    .ToList()
+                    .Where(m => !Kirkenta.Helpers.Finanzas.FlujoCajaHelper.EsSoloContable(m, catsSoloContables))
+                    .ToList();
+                var efectoPosterior = movimientosCuenta.Where(m => m.Fecha > hastaFull).Sum(Efecto);
+                var efectoRango = movimientosCuenta.Where(m => m.Fecha <= hastaFull).Sum(Efecto);
+
+                SaldoFinalCuenta = saldoActual - efectoPosterior;
+                SaldoInicialCuenta = SaldoFinalCuenta - efectoRango;
 
                 decimal saldoAcum = SaldoInicialCuenta;
                 foreach (var m in movimientos)

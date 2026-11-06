@@ -80,7 +80,7 @@ namespace Kirkenta.Helpers
                 lineas.Add((det, prod, it.Cantidad, CostoUnitarioLocal(det, orden.TipoCambio)));
             }
 
-            decimal total = Math.Round(lineas.Sum(l => l.costo * l.cantidad), 2);
+            decimal total = Math.Round(lineas.Sum(l => l.costo * l.cantidad), 2, MidpointRounding.AwayFromZero);
             if (total <= 0) return (null, "El total de la devolución debe ser mayor a cero.");
 
             var abrimosTx = context.Database.CurrentTransaction == null;
@@ -112,7 +112,7 @@ namespace Kirkenta.Helpers
                 var numero = NumeroDocumentoHelper.GenerarSiguiente(context, "DevolucionProveedor");
 
                 // El saldo de la orden está en la moneda de la orden; el total aquí en moneda local.
-                var totalEnMonedaOrden = orden.TipoCambio > 0 ? Math.Round(total / orden.TipoCambio, 2) : total;
+                var totalEnMonedaOrden = orden.TipoCambio > 0 ? Math.Round(total / orden.TipoCambio, 2, MidpointRounding.AwayFromZero) : total;
                 var aplicado = Math.Min(totalEnMonedaOrden, orden.Saldo);
                 var porRecuperar = totalEnMonedaOrden - aplicado;
 
@@ -141,7 +141,7 @@ namespace Kirkenta.Helpers
                         DetalleOrdenCompraId = det.Id,
                         Cantidad = cantidad,
                         PrecioUnitario = costo,
-                        Total = Math.Round(costo * cantidad, 2)
+                        Total = Math.Round(costo * cantidad, 2, MidpointRounding.AwayFromZero)
                     });
 
                     InventarioHelper.Registrar(context, prod, -cantidad, "DevolucionProveedor",

@@ -2895,7 +2895,15 @@ namespace Kirkenta.Migrations
                     b.Property<int>("EmpresaId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
                     b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaAnulacion")
                         .HasColumnType("datetime(6)");
 
                     b.Property<int>("MetodoPagoId")
@@ -2906,6 +2914,9 @@ namespace Kirkenta.Migrations
 
                     b.Property<decimal>("Monto")
                         .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("MotivoAnulacion")
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Notas")
                         .HasColumnType("longtext");
@@ -2924,6 +2935,9 @@ namespace Kirkenta.Migrations
 
                     b.Property<decimal>("TipoCambio")
                         .HasColumnType("decimal(65,30)");
+
+                    b.Property<int?>("UsuarioAnuloId")
+                        .HasColumnType("int");
 
                     b.Property<int?>("UsuarioCreoId")
                         .HasColumnType("int");

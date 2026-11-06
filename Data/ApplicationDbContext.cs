@@ -1,6 +1,7 @@
 using Kirkenta.Helpers;
 using Kirkenta.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Kirkenta.Data
 {
@@ -202,6 +203,25 @@ namespace Kirkenta.Data
                 .IsConcurrencyToken()
                 .ValueGeneratedOnAddOrUpdate()
                 .HasColumnType("timestamp(6)");
+
+            // Cantidades y stock guardan 4 decimales, pero 10.0000 debe seguir viéndose como 10: al leer se quitan
+            // los ceros de sobra (dividir entre 1.000… no cambia el valor, solo normaliza el decimal).
+            var sinCeros = new ValueConverter<decimal, decimal>(v => v, v => v / 1.000000000000000000000000000000m);
+            modelBuilder.Entity<Producto>().Property(p => p.Stock).HasConversion(sinCeros);
+            modelBuilder.Entity<Producto>().Property(p => p.StockMinimo).HasConversion(sinCeros);
+            modelBuilder.Entity<Producto>().Property(p => p.PrecioCompra).HasConversion(sinCeros);
+            modelBuilder.Entity<DetalleVenta>().Property(d => d.Cantidad).HasConversion(sinCeros);
+            modelBuilder.Entity<DetalleFactura>().Property(d => d.Cantidad).HasConversion(sinCeros);
+            modelBuilder.Entity<DetalleCotizacion>().Property(d => d.Cantidad).HasConversion(sinCeros);
+            modelBuilder.Entity<DetallePedido>().Property(d => d.Cantidad).HasConversion(sinCeros);
+            modelBuilder.Entity<DetalleDevolucion>().Property(d => d.Cantidad).HasConversion(sinCeros);
+            modelBuilder.Entity<DetalleDevolucion>().Property(d => d.PrecioUnitario).HasConversion(sinCeros);
+            modelBuilder.Entity<DetalleDevolucionProveedor>().Property(d => d.Cantidad).HasConversion(sinCeros);
+            modelBuilder.Entity<DetalleDevolucionProveedor>().Property(d => d.PrecioUnitario).HasConversion(sinCeros);
+            modelBuilder.Entity<DetalleOrdenCompra>().Property(d => d.Cantidad).HasConversion(sinCeros);
+            modelBuilder.Entity<DetalleOrdenCompra>().Property(d => d.CantidadRecibida).HasConversion(sinCeros);
+            modelBuilder.Entity<DetalleOrdenCompra>().Property(d => d.PrecioUnitario).HasConversion(sinCeros);
+            modelBuilder.Entity<BajaInventario>().Property(b => b.Cantidad).HasConversion(sinCeros);
 
             // ===== ÍNDICES ÚNICOS =====
             modelBuilder.Entity<Permiso>()

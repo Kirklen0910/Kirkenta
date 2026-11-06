@@ -69,8 +69,9 @@ namespace Kirkenta.Pages.Finanzas.Cobros
             }
 
             Venta = venta;
+            // Solo la factura vigente: un cobro no puede tocar una anulada (la dejaba «Pagada»)
             Factura = _context.Facturas
-                .Where(f => f.VentaId == ventaId)
+                .Where(f => f.VentaId == ventaId && f.Estado != "Anulada")
                 .OrderByDescending(f => f.Id)
                 .FirstOrDefault();
             Cliente = venta.ClienteId.HasValue
@@ -116,8 +117,9 @@ namespace Kirkenta.Pages.Finanzas.Cobros
             }
 
             Venta = venta;
+            // Solo la factura vigente: un cobro no puede tocar una anulada (la dejaba «Pagada»)
             Factura = _context.Facturas
-                .Where(f => f.VentaId == ventaId)
+                .Where(f => f.VentaId == ventaId && f.Estado != "Anulada")
                 .OrderByDescending(f => f.Id)
                 .FirstOrDefault();
             Cliente = venta.ClienteId.HasValue
@@ -136,7 +138,7 @@ namespace Kirkenta.Pages.Finanzas.Cobros
 
             if (!ModelState.IsValid) return Page();
 
-            Input.Monto = Math.Round(Input.Monto, 2);
+            Input.Monto = Math.Round(Input.Monto, 2, MidpointRounding.AwayFromZero);
 
             if (Input.Monto <= 0)
             {
@@ -172,10 +174,7 @@ namespace Kirkenta.Pages.Finanzas.Cobros
             }
 
             // Si es efectivo pero el método se llama distinto (p.ej. "Contado"), se rotula "Efectivo" para el arqueo de caja
-            var formaPago = metodoPago.Nombre;
-            if ((metodoPago.Tipo ?? "").Contains("efectivo", StringComparison.OrdinalIgnoreCase)
-                && !(metodoPago.Nombre ?? "").Contains("efectivo", StringComparison.OrdinalIgnoreCase))
-                formaPago = "Efectivo";
+            var formaPago = FormaPagoHelper.Rotulo(metodoPago);
 
             using var transaction = _context.Database.BeginTransaction();
 
@@ -241,10 +240,7 @@ namespace Kirkenta.Pages.Finanzas.Cobros
                 {
                     Factura.Saldo -= Input.Monto;
                     if (Factura.Saldo < 0) Factura.Saldo = 0;
-                    if (Factura.Saldo == 0)
-                    {
-                        Factura.Estado = "Pagada";
-                    }
+                    Factura.Estado = Factura.Saldo == 0 ? "Pagada" : "PagadaParcial";
                 }
 
                 _context.SaveChanges();

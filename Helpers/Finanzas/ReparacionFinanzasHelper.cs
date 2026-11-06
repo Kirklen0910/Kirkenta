@@ -68,7 +68,7 @@ namespace Kirkenta.Helpers.Finanzas
             int n = 0;
             foreach (var f in facturas)
             {
-                var esperado = Math.Round(desc[f.VentaId!.Value] + cabeceras.GetValueOrDefault(f.VentaId.Value), 2);
+                var esperado = Math.Round(desc[f.VentaId!.Value] + cabeceras.GetValueOrDefault(f.VentaId.Value), 2, MidpointRounding.AwayFromZero);
                 if (f.Descuento == esperado) continue;
                 f.Descuento = esperado;
                 n++;

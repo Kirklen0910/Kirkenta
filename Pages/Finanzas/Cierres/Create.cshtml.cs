@@ -301,20 +301,19 @@ namespace Kirkenta.Pages.Finanzas.Cierres
                     return Page();
                 }
 
-                if (!Input.SinConteo)
-                {
-                    var (okDist, distError) = DistribucionHelper.RegistrarDistribuciones(
-                        _context, cierreReg.Id, Input.CuentaId, Input.EfectivoContado,
-                        distribuciones, currentUser.Id);
+                // También sin conteo: antes el depósito que se escribía en un cierre sin conteo no se guardaba,
+                // el dinero seguía «en la caja» y la siguiente apertura lo registraba como faltante.
+                var (okDist, distError) = DistribucionHelper.RegistrarDistribuciones(
+                    _context, cierreReg.Id, Input.CuentaId, Input.EfectivoContado,
+                    distribuciones, currentUser.Id);
 
-                    if (!okDist)
-                    {
-                        txCierre.Rollback();
-                        _context.ChangeTracker.Clear();
-                        ModelState.AddModelError(string.Empty,
-                            $"No se cerró la caja: hubo un problema con las distribuciones. {distError}");
-                        return Page();
-                    }
+                if (!okDist)
+                {
+                    txCierre.Rollback();
+                    _context.ChangeTracker.Clear();
+                    ModelState.AddModelError(string.Empty,
+                        $"No se cerró la caja: hubo un problema con las distribuciones. {distError}");
+                    return Page();
                 }
 
                 txCierre.Commit();

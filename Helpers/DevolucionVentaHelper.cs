@@ -41,6 +41,29 @@ namespace Kirkenta.Helpers
                    .ToDictionary(g => g.Key, g => g.Sum(x => x.Cantidad));
         }
 
+        public record LineaDevuelta(int ProductoId, decimal Cantidad, decimal Base, decimal Costo);
+
+        /// <summary>
+        /// Lo devuelto en un período, medido igual que las ventas: sin ISV. El precio guardado en la devolución
+        /// lleva ISV, y restarlo de ventas sin ISV dejaba la utilidad más baja de lo real. El costo solo cuenta
+        /// si la mercadería regresó al inventario.
+        /// </summary>
+        public static List<LineaDevuelta> DevueltoSinIsv(ApplicationDbContext context, DateTime desde, DateTime hastaExcl)
+        {
+            var filas = (from dd in context.DetalleDevoluciones.AsNoTracking()
+                         join dev in context.Devoluciones.AsNoTracking() on dd.DevolucionId equals dev.Id
+                         where dev.Fecha >= desde && dev.Fecha < hastaExcl && dev.Estado == "Aplicada"
+                         select new { dd.ProductoId, dd.Cantidad, dd.PrecioUnitario, dd.CostoUnitario, dd.DetalleVentaId, dev.ReingresaInventario }).ToList();
+            var ids = filas.Where(f => f.DetalleVentaId.HasValue).Select(f => f.DetalleVentaId!.Value).Distinct().ToList();
+            var lineas = context.DetalleVentas.AsNoTracking().Where(d => ids.Contains(d.Id)).ToDictionary(d => d.Id);
+            return filas.Select(f =>
+            {
+                var unitario = f.DetalleVentaId.HasValue && lineas.TryGetValue(f.DetalleVentaId.Value, out var l) && l.Cantidad > 0
+                    ? l.Subtotal / l.Cantidad : f.PrecioUnitario;
+                return new LineaDevuelta(f.ProductoId, f.Cantidad, f.Cantidad * unitario, f.ReingresaInventario ? f.Cantidad * f.CostoUnitario : 0m);
+            }).ToList();
+        }
+
         /// <summary>
         /// Factor que prorratea el descuento general de la venta entre sus líneas
         /// (el envío no se devuelve). Siempre entre 0 y 1.
@@ -100,12 +123,23 @@ namespace Kirkenta.Helpers
                 lineas.Add((det, it.Cantidad, PrecioUnitarioDevolucion(det, factor)));
             }
 
-            decimal total = Math.Round(lineas.Sum(l => l.precio * l.cantidad), 2);
+            decimal total = Math.Round(lineas.Sum(l => l.precio * l.cantidad), 2, MidpointRounding.AwayFromZero);
             if (total <= 0) return (null, "El total de la devolución debe ser mayor a cero.");
 
             var devueltoPrevio = context.Devoluciones
                 .Where(d => d.VentaId == venta.Id && d.Estado == "Aplicada")
                 .Sum(d => (decimal?)d.Total) ?? 0m;
+
+            // Si con esta devolución ya regresa TODO lo vendido, el total es exactamente lo que falta por devolver:
+            // tres devoluciones de 3.33 sobre una venta de 10.00 dejaban un centavo sin devolver al cliente.
+            var porLinea = items.GroupBy(i => i.DetalleVentaId).ToDictionary(g => g.Key, g => g.Sum(x => x.Cantidad));
+            var todoRegresa = detalles.All(d =>
+                d.Cantidad - (yaDevuelto.TryGetValue(d.Id, out var yd2) ? yd2 : 0) - porLinea.GetValueOrDefault(d.Id) <= 0);
+            if (todoRegresa && venta.MontoEnvio == 0)
+            {
+                var resto = Math.Round(venta.Total - devueltoPrevio, 2, MidpointRounding.AwayFromZero);
+                if (resto > 0 && Math.Abs(resto - total) <= 0.05m) total = resto;
+            }
             if (devueltoPrevio + total > (venta.Total - venta.MontoEnvio) + 0.05m)
                 return (null, "El total devuelto supera el valor de los productos de la venta.");
 
@@ -171,7 +205,7 @@ namespace Kirkenta.Helpers
                         .Sum(d => (decimal?)d.MontoReembolsado) ?? 0m;
                     var maxEfectivo = Math.Max(0m, efectivoPagado - yaReembolsado);
                     if (reembolso > maxEfectivo)
-                        haciaSaldoFavor = Math.Round(reembolso - maxEfectivo, 2);
+                        haciaSaldoFavor = Math.Round(reembolso - maxEfectivo, 2, MidpointRounding.AwayFromZero);
                 }
                 decimal reembolsoEfectivo = reembolso - haciaSaldoFavor;
 
@@ -180,7 +214,7 @@ namespace Kirkenta.Helpers
                     Numero = numero,
                     VentaId = venta.Id,
                     FacturaId = factura?.Id,
-                    ClienteId = venta.ClienteId ?? 1,
+                    ClienteId = venta.ClienteId ?? ClienteGenericoHelper.Id(context),
                     Fecha = DateTime.Now,
                     Motivo = s.Motivo,
                     Total = total,
@@ -228,7 +262,7 @@ namespace Kirkenta.Helpers
                         DetalleVentaId = det.Id,
                         Cantidad = cantidad,
                         PrecioUnitario = precio,
-                        Total = Math.Round(precio * cantidad, 2),
+                        Total = Math.Round(precio * cantidad, 2, MidpointRounding.AwayFromZero),
                         CostoUnitario = det.CostoUnitarioSnapshot
                     });
 
@@ -244,7 +278,7 @@ namespace Kirkenta.Helpers
                         }
                     }
                 }
-                dev.CostoRevertido = Math.Round(costoRevertido, 2);
+                dev.CostoRevertido = Math.Round(costoRevertido, 2, MidpointRounding.AwayFromZero);
 
                 // ===== Saldo a crédito =====
                 if (aplicadoSaldo > 0)
@@ -256,7 +290,7 @@ namespace Kirkenta.Helpers
                     {
                         factura.Saldo -= aplicadoSaldo;
                         if (factura.Saldo < 0) factura.Saldo = 0;
-                        if (factura.Saldo == 0) factura.Estado = "Pagada";
+                        factura.Estado = factura.Saldo == 0 ? "Pagada" : "PagadaParcial";
                     }
                 }
 

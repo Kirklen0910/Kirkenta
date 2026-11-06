@@ -214,7 +214,7 @@ namespace Kirkenta.Services
             var itemsConTasa = new List<(ItemVentaRequest original, int productoId, decimal tasa, decimal costoUnitario)>();
 
             var descuentosFinales = new List<decimal>(); // descuento total de cada línea (propio + parte del general)
-            var pctGeneral = Math.Round(request.DescuentoGeneralPorcentaje, 2);
+            var pctGeneral = Math.Round(request.DescuentoGeneralPorcentaje, 2, MidpointRounding.AwayFromZero);
 
             foreach (var item in request.Items)
             {
@@ -235,6 +235,10 @@ namespace Kirkenta.Services
                     return ResultadoVenta.Falla(
                         $"El precio de '{prod.Nombre}' cambió (ahora L. {prod.PrecioVenta:N2}). Recarga el POS e intenta de nuevo.");
                 }
+                // La tolerancia solo evita rechazar por un redondeo: el precio que se cobra es el del sistema,
+                // no el que manda el navegador (un centavo menos por unidad se nota en una venta grande).
+                if (Math.Abs(item.PrecioUnitario - prod.PrecioVenta) <= 0.01m) item.PrecioUnitario = prod.PrecioVenta;
+                else item.PrecioUnitario = preciosCotizados[item.ProductoId].First(c => Math.Abs(item.PrecioUnitario - c) <= 0.01m);
 
                 if (item.Descuento > item.Cantidad * item.PrecioUnitario)
                     return ResultadoVenta.Falla($"El descuento de '{prod.Nombre}' no puede ser mayor que su subtotal.");
@@ -303,8 +307,9 @@ namespace Kirkenta.Services
                 var (itemOrig, productoId, tasa, costoUnitario) = itemsConTasa[idxItem];
                 var descLinea = descuentosFinales[idxItem];
                 var st = itemOrig.Cantidad * itemOrig.PrecioUnitario;
-                var stConDesc = st - descLinea;
-                var iv = Math.Round(stConDesc * (tasa / 100m), 2);
+                // Línea redondeada a centavos, igual que la base del ISV: así el detalle y el total cuadran
+                var stConDesc = Math.Round(st - descLinea, 2, MidpointRounding.AwayFromZero);
+                var iv = Math.Round(stConDesc * (tasa / 100m), 2, MidpointRounding.AwayFromZero);
                 var tot = stConDesc + iv;
 
                 var costoLinea = costoUnitario * itemOrig.Cantidad;
@@ -327,17 +332,20 @@ namespace Kirkenta.Services
                 });
             }
 
-            subtotalItems += montoEnvioCalculo;
+            subtotalItems = Math.Round(subtotalItems + montoEnvioCalculo, 2, MidpointRounding.AwayFromZero);
             var impuestosTotal = isvResult.ISVTotal;
             var total = isvResult.Total;
 
             // Saldo a favor del cliente: se paga primero con el crédito y solo el resto se cobra
-            decimal credito = request.SaldoFavorAplicar > 0 ? Math.Round(Math.Min(request.SaldoFavorAplicar, total), 2) : 0m;
+            decimal credito = request.SaldoFavorAplicar > 0 ? Math.Round(Math.Min(request.SaldoFavorAplicar, total), 2, MidpointRounding.AwayFromZero) : 0m;
             if (credito > 0 && !request.ClienteId.HasValue)
                 return ResultadoVenta.Falla("El saldo a favor solo se puede usar con un cliente seleccionado.");
             decimal porCobrar = total - credito;
 
             var metodoPago = await _context.MetodosPago.FirstOrDefaultAsync(m => m.Id == request.MetodoPagoId);
+            // Solo si todo se paga con saldo a favor puede no haber método
+            if (metodoPago == null && porCobrar > 0)
+                return ResultadoVenta.Falla("Elige un método de pago válido.");
             var tipoMetodo = (metodoPago?.Tipo ?? "").Trim().ToLower();
 
             bool esEfectivo = tipoMetodo.Contains("efectivo")
@@ -458,7 +466,7 @@ namespace Kirkenta.Services
                     InventarioHelper.Registrar(_context, prod, -d.Cantidad, "Venta", venta.Numero, venta.Id, usuarioId, d.CostoUnitarioSnapshot, notaKardex);
                 }
 
-                int clienteIdPago = request.ClienteId ?? 1;
+                int clienteIdPago = request.ClienteId ?? ClienteGenericoHelper.Id(_context);
                 var pago = new Pago
                 {
                     VentaId = venta.Id,
@@ -533,7 +541,7 @@ namespace Kirkenta.Services
                         monto: esEfectivo ? montoRecibido : porCobrar,
                         usuarioId: usuarioId,
                         // Si es efectivo pero el metodo se llama distinto (p.ej. "Contado"), se rotula "Efectivo" para que el arqueo de caja lo cuente.
-                        formaPago: (esEfectivo && !(metodoPago?.Nombre ?? "").Contains("efectivo", StringComparison.OrdinalIgnoreCase)) ? "Efectivo" : metodoPago?.Nombre,
+                        formaPago: (esEfectivo && !(metodoPago?.Nombre ?? "").Contains("efectivo", StringComparison.OrdinalIgnoreCase)) ? FormaPagoHelper.Efectivo : metodoPago?.Nombre,
                         cuentaId: apertura.CuentaId
                     );
 

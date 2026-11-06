@@ -41,6 +41,11 @@ namespace Kirkenta.Pages.RRHH.Deducciones
             [Range(0, 100000000, ErrorMessage = "El tope de RAP no es válido")]
             public decimal? TopeRAP { get; set; }
 
+            public decimal PorcentajeIHSSPatronal { get; set; }
+            public decimal PorcentajeRAPPatronal { get; set; }
+            public bool AplicaINFOP { get; set; }
+            public decimal PorcentajeINFOP { get; set; }
+
             public bool AplicaISR { get; set; } = true;
             [Range(0, 1000000000, ErrorMessage = "El tope anual exento de ISR no es válido")]
             public decimal TopeAnualExentoISR { get; set; }
@@ -91,6 +96,8 @@ namespace Kirkenta.Pages.RRHH.Deducciones
             {
                 AplicaIHSS = Config.AplicaIHSS, PorcentajeIHSS = Config.PorcentajeIHSS, TopeIHSS = Config.TopeIHSS,
                 AplicaRAP = Config.AplicaRAP, PorcentajeRAP = Config.PorcentajeRAP, TopeRAP = Config.TopeRAP,
+                PorcentajeIHSSPatronal = Config.PorcentajeIHSSPatronal, PorcentajeRAPPatronal = Config.PorcentajeRAPPatronal,
+                AplicaINFOP = Config.AplicaINFOP, PorcentajeINFOP = Config.PorcentajeINFOP,
                 AplicaISR = Config.AplicaISR, TopeAnualExentoISR = Config.TopeAnualExentoISR,
                 MetodoISR = Config.MetodoISR, Notas = Config.Notas
             };
@@ -139,6 +146,8 @@ namespace Kirkenta.Pages.RRHH.Deducciones
             {
                 Anio = anio, AplicaIHSS = origen.AplicaIHSS, PorcentajeIHSS = origen.PorcentajeIHSS, TopeIHSS = origen.TopeIHSS,
                 AplicaRAP = origen.AplicaRAP, PorcentajeRAP = origen.PorcentajeRAP, TopeRAP = origen.TopeRAP,
+                PorcentajeIHSSPatronal = origen.PorcentajeIHSSPatronal, PorcentajeRAPPatronal = origen.PorcentajeRAPPatronal,
+                AplicaINFOP = origen.AplicaINFOP, PorcentajeINFOP = origen.PorcentajeINFOP,
                 AplicaISR = origen.AplicaISR, TopeAnualExentoISR = origen.TopeAnualExentoISR, MetodoISR = origen.MetodoISR,
                 Notas = $"Copiada de {origen.Anio}", Activa = true, FechaCreacion = DateTime.Now
             };
@@ -158,11 +167,11 @@ namespace Kirkenta.Pages.RRHH.Deducciones
         /// <summary>Valida la tabla de tramos. Devuelve la lista limpia y ordenada, o null con el mensaje de error.</summary>
         /// <summary>Exento mensual (primer tramo) que corresponde a un exento anual del SAR.</summary>
         public static decimal ExentoMensual(decimal topeAnualExento)
-            => Math.Round((topeAnualExento + Kirkenta.Helpers.RRHH.NominaHelper.DeduccionGastosMedicosAnual) / 12m, 2);
+            => Math.Round((topeAnualExento + Kirkenta.Helpers.RRHH.NominaHelper.DeduccionGastosMedicosAnual) / 12m, 2, MidpointRounding.AwayFromZero);
 
         /// <summary>Exento anual del SAR que corresponde al "Hasta" del primer tramo mensual.</summary>
         public static decimal ExentoAnualDesdeTramo(decimal hastaPrimerTramo)
-            => Math.Round(hastaPrimerTramo * 12m - Kirkenta.Helpers.RRHH.NominaHelper.DeduccionGastosMedicosAnual, 2);
+            => Math.Round(hastaPrimerTramo * 12m - Kirkenta.Helpers.RRHH.NominaHelper.DeduccionGastosMedicosAnual, 2, MidpointRounding.AwayFromZero);
 
         /// <summary>
         /// Deja la tabla coherente con lo que se escribió: si hay exento anual, el primer tramo termina en su
@@ -190,7 +199,7 @@ namespace Kirkenta.Pages.RRHH.Deducciones
                 var ant = tramos[i - 1];
                 var inicioAnt = i - 1 == 0 ? 0m : tramos[i - 2].Hasta ?? ant.Desde ?? 0m;
                 var ancho = (ant.Hasta ?? 0m) - inicioAnt;
-                tramos[i].MontoFijo = Math.Round((ant.MontoFijo ?? 0m) + ancho * (ant.Porcentaje ?? 0m) / 100m, 2);
+                tramos[i].MontoFijo = Math.Round((ant.MontoFijo ?? 0m) + ancho * (ant.Porcentaje ?? 0m) / 100m, 2, MidpointRounding.AwayFromZero);
             }
             return null;
         }
@@ -247,6 +256,8 @@ namespace Kirkenta.Pages.RRHH.Deducciones
 
             config.AplicaIHSS = Input.AplicaIHSS; config.PorcentajeIHSS = Input.PorcentajeIHSS; config.TopeIHSS = Input.TopeIHSS;
             config.AplicaRAP = Input.AplicaRAP; config.PorcentajeRAP = Input.PorcentajeRAP; config.TopeRAP = Input.TopeRAP;
+            config.PorcentajeIHSSPatronal = Input.PorcentajeIHSSPatronal; config.PorcentajeRAPPatronal = Input.PorcentajeRAPPatronal;
+            config.AplicaINFOP = Input.AplicaINFOP; config.PorcentajeINFOP = Input.PorcentajeINFOP;
             config.AplicaISR = Input.AplicaISR; config.TopeAnualExentoISR = Input.TopeAnualExentoISR; config.MetodoISR = Input.MetodoISR;
             config.Notas = string.IsNullOrWhiteSpace(Input.Notas) ? null : Input.Notas.Trim();
             config.Activa = true;

@@ -116,7 +116,7 @@
         </table>
 
         <table class="totales">
-            <tr><td>Subtotal</td><td class="r">@f.Subtotal.ToString("N2")</td></tr>
+            <tr><td>Subtotal productos</td><td class="r">@Model.Desglose.SubtotalProductos.ToString("N2")</td></tr>
             @if (f.Descuento > 0) { <tr><td>Descuento</td><td class="r">-@f.Descuento.ToString("N2")</td></tr> }
             @if (f.MontoEnvio > 0) { <tr><td>Envío</td><td class="r">@f.MontoEnvio.ToString("N2")</td></tr> }
             <tr><td>Importe exonerado</td><td class="r">@Model.Desglose.BaseExoneradaTotal.ToString("N2")</td></tr>
@@ -129,6 +129,7 @@
             {
                 <tr><td>ISV @tasa.ToString("0.##")%</td><td class="r">@Model.Desglose.ISVPorTasa[tasa].ToString("N2")</td></tr>
             }
+            @if (Model.Desglose.EnvioISV > 0) { <tr><td>(incluye ISV del envío)</td><td class="r">@Model.Desglose.EnvioISV.ToString("N2")</td></tr> }
             @if (!Model.Desglose.TasasAplicadas.Any())
             {
                 <tr><td>ISV</td><td class="r">0.00</td></tr>

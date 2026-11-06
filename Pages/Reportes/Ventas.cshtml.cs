@@ -113,7 +113,7 @@ namespace Kirkenta.Pages.Reportes
             // === KPIs ===
             CantidadVentas = ventas.Count;
             TotalVendido = ventas.Sum(Monto);
-            TicketPromedio = CantidadVentas > 0 ? Math.Round(TotalVendido / CantidadVentas, 2) : 0;
+            TicketPromedio = CantidadVentas > 0 ? Math.Round(TotalVendido / CantidadVentas, 2, MidpointRounding.AwayFromZero) : 0;
             ProductosVendidos = (int)detalles.Sum(d => d.Cantidad);
             ClientesUnicos = ventas.Where(v => v.ClienteId.HasValue).Select(v => v.ClienteId!.Value).Distinct().Count();
 

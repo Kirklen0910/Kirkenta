@@ -51,6 +51,8 @@ namespace Kirkenta.Pages.RRHH.Nomina
             public decimal TotalDeducciones { get; set; }
             public decimal SalarioNeto { get; set; }
             public bool YaPagado { get; set; }
+            public decimal MontoExtras { get; set; }
+            public string? MotivoExtras { get; set; }
         }
 
         public IActionResult OnGet(int id)
@@ -74,6 +76,61 @@ namespace Kirkenta.Pages.RRHH.Nomina
 
             CargarDatos(nomina);
             return Page();
+        }
+
+        /// <summary>Guarda los extras y recalcula bruto, ISR y neto de cada empleado antes de pagar.</summary>
+        public IActionResult OnPostExtras(int id)
+        {
+            var currentUser = _context.Usuarios.FirstOrDefault(u => u.Username == User.Identity!.Name);
+            var currentRol = currentUser?.Rol ?? "Pendiente";
+            if (currentRol != "Admin" && !PermisoHelper.TienePermiso(_context, currentRol, "RRHH", "NominaPagar", "editar"))
+            {
+                TempData["Error"] = "No tienes permiso";
+                return RedirectToPage("/RRHH/Nomina/Index");
+            }
+
+            var nomina = _context.Nominas.FirstOrDefault(n => n.Id == id);
+            if (nomina == null || nomina.Estado != "Aprobada")
+            {
+                TempData["Error"] = "La nómina no admite cambios";
+                return RedirectToPage("/RRHH/Nomina/Index");
+            }
+
+            using var tx = _context.Database.BeginTransaction();
+            var cambios = new List<string>();
+            // Se leen del formulario a mano: como propiedades enlazadas validaban también el botón de pagar
+            foreach (var clave in Request.Form.Keys.Where(k => k.StartsWith("Extras[") && k.EndsWith("]")))
+            {
+                if (!int.TryParse(clave[7..^1], out var detalleId)) continue;
+                var detalle = _context.DetalleNominas.FirstOrDefault(d => d.Id == detalleId && d.NominaId == id);
+                if (detalle == null) continue;
+                var texto = Request.Form[clave].ToString().Trim().Replace(',', '.');
+                decimal monto = 0;
+                if (texto.Length > 0 && !decimal.TryParse(texto, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out monto))
+                {
+                    tx.Rollback();
+                    TempData["Error"] = "Revisa los montos de extras: uno no es un número válido.";
+                    return RedirectToPage(new { id });
+                }
+                var antes = detalle.MontoHorasExtra;
+                var motivo = Request.Form[$"MotivoExtras[{detalleId}]"].ToString();
+                var error = NominaHelper.AplicarExtras(_context, nomina, detalle, monto, motivo);
+                if (error != null)
+                {
+                    tx.Rollback();
+                    _context.ChangeTracker.Clear();
+                    TempData["Error"] = error;
+                    return RedirectToPage(new { id });
+                }
+                if (antes != detalle.MontoHorasExtra) cambios.Add($"línea {detalleId}: L. {antes:N2} → L. {detalle.MontoHorasExtra:N2}");
+            }
+            tx.Commit();
+
+            if (cambios.Count > 0)
+                ActividadHelper.Registrar(_context, currentUser?.Id ?? 0, "Extras de nómina",
+                    $"Nómina {nomina.Numero}: {string.Join("; ", cambios)}", HttpContext.Connection.RemoteIpAddress?.ToString());
+            TempData["Success"] = "Extras guardados: revisa el neto de cada empleado y paga.";
+            return RedirectToPage(new { id });
         }
 
         public IActionResult OnPost(int id)
@@ -227,6 +284,17 @@ namespace Kirkenta.Pages.RRHH.Nomina
                 };
 
                 _context.PagosNominaEmpleado.Add(pago);
+                _context.SaveChanges();
+
+                // El neto ya salió: lo demás del gasto (retenciones, vales y aportes) entra como deuda, sin mover dinero
+                var errorRet = RetencionesHelper.RegistrarDeNomina(_context, pago, detalle, nomina.Numero, $"{empleado?.Nombres} {empleado?.Apellidos}", currentUser?.Id);
+                if (errorRet != null)
+                {
+                    tx.Rollback();
+                    _context.ChangeTracker.Clear();
+                    TempData["Error"] = "No se pagó la nómina: " + errorRet;
+                    return RedirectToPage("/RRHH/Nomina/Details", new { id });
+                }
 
                 if (detalle.DeduccionVales > 0)
                 {
@@ -294,6 +362,8 @@ namespace Kirkenta.Pages.RRHH.Nomina
                     TotalBruto = d.TotalBruto,
                     TotalDeducciones = d.TotalDeducciones,
                     SalarioNeto = d.SalarioNeto,
+                    MontoExtras = d.MontoHorasExtra,
+                    MotivoExtras = d.Notas,
                     YaPagado = pagosExistentes.Contains(d.Id)
                 };
             }).ToList();
@@ -337,7 +407,7 @@ namespace Kirkenta.Pages.RRHH.Nomina
             {
                 if (restante <= 0) break;
 
-                var descuento = Math.Min(vale.MontoCuota, Math.Min(vale.SaldoPendiente, restante));
+                var descuento = Math.Min(NominaHelper.CuotaVale(vale), restante);
                 if (descuento <= 0) continue;
 
                 vale.SaldoPendiente -= descuento;

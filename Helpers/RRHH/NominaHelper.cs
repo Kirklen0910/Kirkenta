@@ -102,7 +102,7 @@ namespace Kirkenta.Helpers.RRHH
                 .Select(t => (decimal?)t.Hasta!.Value)
                 .Max();
             var excedente = salarioBrutoMensual - (limiteAnterior ?? tramo.Desde);
-            return Math.Round(tramo.MontoFijo + (excedente * (tramo.Porcentaje / 100m)), 2);
+            return Math.Round(tramo.MontoFijo + (excedente * (tramo.Porcentaje / 100m)), 2, MidpointRounding.AwayFromZero);
         }
 
         /// <summary>
@@ -175,7 +175,7 @@ namespace Kirkenta.Helpers.RRHH
 
             if (retencionMes < 0) retencionMes = 0;
 
-            return Math.Round(retencionMes, 2);
+            return Math.Round(retencionMes, 2, MidpointRounding.AwayFromZero);
         }
 
         // ============================================================
@@ -190,7 +190,7 @@ namespace Kirkenta.Helpers.RRHH
         {
             if (!config.AplicaIHSS) return 0;
             var baseCalculo = Math.Min(salarioMensual, config.TopeIHSS);
-            return Math.Round(baseCalculo * (config.PorcentajeIHSS / 100m), 2);
+            return Math.Round(baseCalculo * (config.PorcentajeIHSS / 100m), 2, MidpointRounding.AwayFromZero);
         }
 
         /// <summary>
@@ -207,7 +207,7 @@ namespace Kirkenta.Helpers.RRHH
                 : salarioMensual;
             var excedente = Math.Max(0m, salarioTopado - config.TopeIHSS);
 
-            return Math.Round(excedente * (config.PorcentajeRAP / 100m), 2);
+            return Math.Round(excedente * (config.PorcentajeRAP / 100m), 2, MidpointRounding.AwayFromZero);
         }
 
         // ============================================================
@@ -217,7 +217,7 @@ namespace Kirkenta.Helpers.RRHH
         public static decimal CalcularSalarioProporcional(decimal salarioBase, decimal diasTrabajados, decimal diasPeriodo)
         {
             if (diasPeriodo <= 0) return 0;
-            return Math.Round((salarioBase / diasPeriodo) * diasTrabajados, 2);
+            return Math.Round((salarioBase / diasPeriodo) * diasTrabajados, 2, MidpointRounding.AwayFromZero);
         }
 
         public static (DateTime inicio, DateTime fin, DateTime pago) CalcularPeriodo(string frecuencia, DateTime referencia)
@@ -264,6 +264,13 @@ namespace Kirkenta.Helpers.RRHH
                 .ToList();
         }
 
+        /// <summary>
+        /// Cuota de un vale en esta nómina. La última cubre lo que falte: 100 en 3 cuotas son 33.33 y sin esto
+        /// quedaba un centavo pendiente que salía como una cuarta cuota.
+        /// </summary>
+        public static decimal CuotaVale(ValeEmpleado vale) =>
+            vale.SaldoPendiente - vale.MontoCuota <= 0.05m ? vale.SaldoPendiente : vale.MontoCuota;
+
         public static (decimal totalDescuento, List<ValeEmpleado> valesAfectados) CalcularDescuentoVales(
             ApplicationDbContext context,
             int empleadoId)
@@ -274,7 +281,7 @@ namespace Kirkenta.Helpers.RRHH
 
             foreach (var vale in vales)
             {
-                var montoDescuento = Math.Min(vale.MontoCuota, vale.SaldoPendiente);
+                var montoDescuento = CuotaVale(vale);
                 if (montoDescuento > 0)
                 {
                     total += montoDescuento;
@@ -283,6 +290,68 @@ namespace Kirkenta.Helpers.RRHH
             }
 
             return (total, afectados);
+        }
+
+        // ============================================================
+        // EXTRAS Y TOTALES
+        // ============================================================
+
+        /// <summary>Vuelve a sumar los totales de la nómina a partir de sus detalles.</summary>
+        public static void RecalcularTotales(ApplicationDbContext context, Nomina nomina)
+        {
+            var detalles = context.DetalleNominas.Where(d => d.NominaId == nomina.Id).ToList();
+            foreach (var e in context.ChangeTracker.Entries<DetalleNomina>().Where(x => x.State == Microsoft.EntityFrameworkCore.EntityState.Added && x.Entity.NominaId == nomina.Id))
+                if (!detalles.Contains(e.Entity)) detalles.Add(e.Entity);
+
+            nomina.TotalSalariosBrutos = detalles.Sum(d => d.TotalBruto);
+            nomina.TotalBonos = detalles.Sum(d => d.BonoTransporte + d.BonoAlimentacion + d.OtrosBonos);
+            nomina.TotalHorasExtra = detalles.Sum(d => d.MontoHorasExtra);
+            nomina.TotalDeduccionIHSS = detalles.Sum(d => d.DeduccionIHSS);
+            nomina.TotalDeduccionRAP = detalles.Sum(d => d.DeduccionRAP);
+            nomina.TotalDeduccionISR = detalles.Sum(d => d.DeduccionISR);
+            nomina.TotalDeduccionVales = detalles.Sum(d => d.DeduccionVales);
+            nomina.TotalOtrasDeducciones = detalles.Sum(d => d.OtrasDeducciones);
+            nomina.TotalNeto = detalles.Sum(d => d.SalarioNeto);
+            nomina.TotalAportesPatronales = detalles.Sum(d => d.AporteIHSSPatronal + d.AporteRAPPatronal + d.AporteINFOP);
+        }
+
+        /// <summary>
+        /// Pone los extras de un empleado (horas extra o un trabajo especial) y recalcula su línea: suben el bruto
+        /// y el ISR; IHSS y RAP siguen sobre el salario base, igual que el resto del cálculo.
+        /// No se puede cambiar a quien ya se le pagó.
+        /// </summary>
+        public static string? AplicarExtras(ApplicationDbContext context, Nomina nomina, DetalleNomina detalle, decimal extras, string? motivo)
+        {
+            if (nomina.Estado != "Calculada" && nomina.Estado != "Aprobada")
+                return "Esta nómina ya no admite cambios.";
+            if (extras < 0) return "Los extras no pueden ser negativos.";
+            extras = Math.Round(extras, 2, MidpointRounding.AwayFromZero);
+            if (extras == detalle.MontoHorasExtra && (motivo ?? "") == (detalle.Notas ?? "")) return null;
+            if (context.PagosNominaEmpleado.Any(p => p.DetalleNominaId == detalle.Id && p.Estado == "Pagado"))
+                return "A este empleado ya se le pagó esta nómina.";
+            if (extras > 0 && string.IsNullOrWhiteSpace(motivo))
+                return "Escribe el motivo de los extras (por ejemplo: 8 horas extra).";
+
+            var empleado = context.Empleados.FirstOrDefault(e => e.Id == detalle.EmpleadoId);
+            if (empleado == null) return "Empleado no encontrado.";
+
+            var n = CalcularDetalleEmpleado(context, empleado, nomina.Tipo, DiasPeriodo(nomina.Tipo), nomina.FechaInicio, nomina.FechaFin, extras);
+            detalle.MontoHorasExtra = n.MontoHorasExtra;
+            detalle.TotalBruto = n.TotalBruto;
+            detalle.DeduccionISR = n.DeduccionISR;
+            detalle.DeduccionIHSS = n.DeduccionIHSS;
+            detalle.DeduccionRAP = n.DeduccionRAP;
+            detalle.DeduccionVales = n.DeduccionVales;
+            detalle.TotalDeducciones = n.TotalDeducciones;
+            detalle.SalarioNeto = n.SalarioNeto;
+            detalle.AporteIHSSPatronal = n.AporteIHSSPatronal;
+            detalle.AporteRAPPatronal = n.AporteRAPPatronal;
+            detalle.AporteINFOP = n.AporteINFOP;
+            detalle.Notas = string.IsNullOrWhiteSpace(motivo) ? null : motivo.Trim();
+            context.SaveChanges();
+            RecalcularTotales(context, nomina);
+            context.SaveChanges();
+            return null;
         }
 
         // ============================================================
@@ -295,7 +364,8 @@ namespace Kirkenta.Helpers.RRHH
             string tipoNomina,
             int diasPeriodo,
             DateTime fechaInicio,
-            DateTime fechaFin)
+            DateTime fechaFin,
+            decimal extras = 0)
         {
             var config = ObtenerConfiguracion(context, fechaInicio.Year);
 
@@ -305,7 +375,8 @@ namespace Kirkenta.Helpers.RRHH
             var bonoAlimentacion = (empleado.BonoAlimentacion ?? 0) * (diasPeriodo / 30m);
             var otrosBonos = (empleado.OtrosBonos ?? 0) * (diasPeriodo / 30m);
 
-            var totalBruto = Math.Round(salarioBaseProporcional + bonoTransporte + bonoAlimentacion + otrosBonos, 2);
+            extras = Math.Round(Math.Max(extras, 0m), 2, MidpointRounding.AwayFromZero);
+            var totalBruto = Math.Round(salarioBaseProporcional + bonoTransporte + bonoAlimentacion + otrosBonos + extras, 2, MidpointRounding.AwayFromZero);
 
             // ===== IHSS =====
             // Se calcula sobre el salario base mensual (los bonos de transporte/alimentación no cotizan),
@@ -314,7 +385,7 @@ namespace Kirkenta.Helpers.RRHH
             if (empleado.CotizaIHSS)
             {
                 var ihssMensual = CalcularIHSS(empleado.SalarioBase, config);
-                deduccionIHSS = Math.Round(ihssMensual * (diasPeriodo / 30m), 2);
+                deduccionIHSS = Math.Round(ihssMensual * (diasPeriodo / 30m), 2, MidpointRounding.AwayFromZero);
             }
 
             // ===== RAP =====
@@ -322,7 +393,7 @@ namespace Kirkenta.Helpers.RRHH
             if (empleado.CotizaRAP)
             {
                 var rapMensual = CalcularRAP(empleado.SalarioBase, config);
-                deduccionRAP = Math.Round(rapMensual * (diasPeriodo / 30m), 2);
+                deduccionRAP = Math.Round(rapMensual * (diasPeriodo / 30m), 2, MidpointRounding.AwayFromZero);
             }
 
             // ===== ISR =====
@@ -348,10 +419,13 @@ namespace Kirkenta.Helpers.RRHH
                         .OrderBy(t => t.Orden)
                         .ToList();
 
-                    // Base: bruto mensual equivalente (el salario más bonos), no solo el salario base
-                    var brutoMensualEquivalente = totalBruto * 30m / Math.Max(diasPeriodo, 1);
-                    var isrMensualCompleto = CalcularISRMensual(brutoMensualEquivalente, tramos);
-                    deduccionISR = Math.Round(isrMensualCompleto * (diasPeriodo / 30m), 2);
+                    // Base: bruto mensual equivalente (el salario más bonos), no solo el salario base.
+                    // Los extras ocurren una vez: no se multiplican al mes, entran enteros sobre esa base.
+                    var brutoRegular = totalBruto - extras;
+                    var mensualRegular = brutoRegular * 30m / Math.Max(diasPeriodo, 1);
+                    var isrRegular = CalcularISRMensual(mensualRegular, tramos);
+                    var isrConExtras = CalcularISRMensual(mensualRegular + extras, tramos);
+                    deduccionISR = Math.Round(isrRegular * (diasPeriodo / 30m) + (isrConExtras - isrRegular), 2, MidpointRounding.AwayFromZero);
                 }
             }
 
@@ -365,19 +439,33 @@ namespace Kirkenta.Helpers.RRHH
             // ===== OTRAS DEDUCCIONES =====
             decimal otrasDeducciones = 0;
 
-            var totalDeducciones = Math.Round(deduccionIHSS + deduccionRAP + deduccionISR + deduccionVales + otrasDeducciones, 2);
-            var salarioNeto = Math.Round(totalBruto - totalDeducciones, 2);
+            var totalDeducciones = Math.Round(deduccionIHSS + deduccionRAP + deduccionISR + deduccionVales + otrasDeducciones, 2, MidpointRounding.AwayFromZero);
+            var salarioNeto = Math.Round(totalBruto - totalDeducciones, 2, MidpointRounding.AwayFromZero);
             if (salarioNeto < 0) salarioNeto = 0;
+
+            // ===== APORTES DEL PATRONO =====
+            // Misma base que la del empleado; se calculan aunque el empleado no pague ISR
+            var prorrateo = diasPeriodo / 30m;
+            decimal aporteIHSS = 0, aporteRAP = 0, aporteINFOP = 0;
+            if (empleado.CotizaIHSS && config.AplicaIHSS)
+                aporteIHSS = Math.Round(Math.Min(empleado.SalarioBase, config.TopeIHSS) * (config.PorcentajeIHSSPatronal / 100m) * prorrateo, 2, MidpointRounding.AwayFromZero);
+            if (empleado.CotizaRAP && config.AplicaRAP)
+            {
+                var baseRAP = config.TopeRAP.HasValue ? Math.Min(empleado.SalarioBase, config.TopeRAP.Value) : empleado.SalarioBase;
+                aporteRAP = Math.Round(Math.Max(0m, baseRAP - config.TopeIHSS) * (config.PorcentajeRAPPatronal / 100m) * prorrateo, 2, MidpointRounding.AwayFromZero);
+            }
+            if (config.AplicaINFOP)
+                aporteINFOP = Math.Round(salarioBaseProporcional * (config.PorcentajeINFOP / 100m), 2, MidpointRounding.AwayFromZero);
 
             return new DetalleNomina
             {
                 EmpleadoId = empleado.Id,
-                SalarioBase = Math.Round(salarioBaseProporcional, 2),
-                BonoTransporte = Math.Round(bonoTransporte, 2),
-                BonoAlimentacion = Math.Round(bonoAlimentacion, 2),
-                OtrosBonos = Math.Round(otrosBonos, 2),
+                SalarioBase = Math.Round(salarioBaseProporcional, 2, MidpointRounding.AwayFromZero),
+                BonoTransporte = Math.Round(bonoTransporte, 2, MidpointRounding.AwayFromZero),
+                BonoAlimentacion = Math.Round(bonoAlimentacion, 2, MidpointRounding.AwayFromZero),
+                OtrosBonos = Math.Round(otrosBonos, 2, MidpointRounding.AwayFromZero),
                 HorasExtra = 0,
-                MontoHorasExtra = 0,
+                MontoHorasExtra = extras,
                 Comisiones = 0,
                 TotalBruto = totalBruto,
 
@@ -389,6 +477,10 @@ namespace Kirkenta.Helpers.RRHH
                 TotalDeducciones = totalDeducciones,
 
                 SalarioNeto = salarioNeto,
+
+                AporteIHSSPatronal = aporteIHSS,
+                AporteRAPPatronal = aporteRAP,
+                AporteINFOP = aporteINFOP,
 
                 DiasTrabajados = diasPeriodo,
                 DiasAusencia = 0,

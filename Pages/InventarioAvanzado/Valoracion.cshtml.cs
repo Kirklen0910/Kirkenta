@@ -49,8 +49,8 @@ namespace Kirkenta.Pages.InventarioAvanzado
 
             TotalProductos = productos.Count;
             TotalUnidades = productos.Where(p => p.Stock > 0).Sum(p => p.Stock);
-            ValorCostoTotal = productos.Where(p => p.Stock > 0).Sum(p => Math.Round(p.Stock * p.PrecioCompra, 2));
-            ValorVentaTotal = productos.Where(p => p.Stock > 0).Sum(p => Math.Round(p.Stock * p.PrecioVenta, 2));
+            ValorCostoTotal = productos.Where(p => p.Stock > 0).Sum(p => Math.Round(p.Stock * p.PrecioCompra, 2, MidpointRounding.AwayFromZero));
+            ValorVentaTotal = productos.Where(p => p.Stock > 0).Sum(p => Math.Round(p.Stock * p.PrecioVenta, 2, MidpointRounding.AwayFromZero));
             StockNegativo = productos.Count(p => p.Stock < 0);
 
             PorCategoria = productos
@@ -61,8 +61,8 @@ namespace Kirkenta.Pages.InventarioAvanzado
                     Nombre = g.Key,
                     Productos = g.Count(),
                     Unidades = g.Where(p => p.Stock > 0).Sum(p => p.Stock),
-                    ValorCosto = g.Where(p => p.Stock > 0).Sum(p => Math.Round(p.Stock * p.PrecioCompra, 2)),
-                    ValorVenta = g.Where(p => p.Stock > 0).Sum(p => Math.Round(p.Stock * p.PrecioVenta, 2))
+                    ValorCosto = g.Where(p => p.Stock > 0).Sum(p => Math.Round(p.Stock * p.PrecioCompra, 2, MidpointRounding.AwayFromZero)),
+                    ValorVenta = g.Where(p => p.Stock > 0).Sum(p => Math.Round(p.Stock * p.PrecioVenta, 2, MidpointRounding.AwayFromZero))
                 })
                 .OrderByDescending(f => f.ValorCosto).ToList();
 

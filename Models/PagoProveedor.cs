@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Kirkenta.Models
 {
     public class PagoProveedor
@@ -15,5 +17,16 @@ namespace Kirkenta.Models
         public string? Notas { get; set; }
         public int? UsuarioCreoId { get; set; }
         public int EmpresaId { get; set; } = Kirkenta.Helpers.EmpresaActual.Id;
+
+        /// <summary>
+        /// Estado: Activo | Anulado. Un pago anulado se conserva como historial (y su número queda consumido),
+        /// pero no cuenta como pagado en ningún saldo ni reporte.
+        /// </summary>
+        [StringLength(20)]
+        public string Estado { get; set; } = "Activo";
+
+        public string? MotivoAnulacion { get; set; }
+        public DateTime? FechaAnulacion { get; set; }
+        public int? UsuarioAnuloId { get; set; }
     }
 }

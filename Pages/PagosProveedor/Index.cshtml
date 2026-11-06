@@ -122,12 +122,18 @@
                             <tr data-numero="@(p.Numero?.ToLower() ?? "")"
                                 data-proveedor="@(prov?.Nombre.ToLower() ?? "")"
                                 data-proveedorid="@p.ProveedorId">
-                                <td><strong>@(p.Numero ?? "—")</strong></td>
+                                <td>
+                                    <strong>@(p.Numero ?? "—")</strong>
+                                    @if (p.Estado == "Anulado")
+                                    {
+                                        <span class="badge badge-danger">Anulado</span>
+                                    }
+                                </td>
                                 <td>@p.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
                                 <td>@(prov?.Nombre ?? "—")</td>
                                 <td>@(oc?.Numero ?? "—")</td>
                                 <td>@(metodo?.Nombre ?? "—")</td>
-                                <td><strong>L. @p.Monto.ToString("N2")</strong></td>
+                                <td><strong style="@(p.Estado == "Anulado" ? "text-decoration: line-through; color: var(--color-muted);" : "")">L. @p.Monto.ToString("N2")</strong></td>
                                 <td>@(p.Referencia ?? "—")</td>
                                 <td>
                                     <div class="table-actions">

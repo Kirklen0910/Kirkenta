@@ -124,7 +124,7 @@ namespace Kirkenta.Pages.Facturas
                 return Page();
             }
 
-            Input.Monto = Math.Round(Input.Monto, 2);
+            Input.Monto = Math.Round(Input.Monto, 2, MidpointRounding.AwayFromZero);
 
             if (Input.Monto > factura.Saldo)
             {
@@ -206,7 +206,7 @@ namespace Kirkenta.Pages.Facturas
             {
                 var (mov, errorFin) = MovimientoAutomaticoHelper.RegistrarIngresoPagoFactura(
                     _context, factura.Id, factura.Numero, Input.Monto, currentUser?.Id ?? 0,
-                    metodo.Nombre, metodo.Tipo);
+                    FormaPagoHelper.Rotulo(metodo), metodo.Tipo);
                 if (mov == null)
                 {
                     tx.Rollback();

@@ -47,7 +47,7 @@ namespace Kirkenta.Helpers
             }
             if (u.Rol != "Admin")
             {
-                error = "Solo un usuario con rol Administrador puede autorizar un cierre sin conteo.";
+                error = "Solo un usuario con rol Administrador puede autorizar esta operación.";
                 return false;
             }
             autor = u;

@@ -19,7 +19,7 @@ namespace Kirkenta.Helpers
         public int? ProveedorId { get; set; }
         public string Proveedor { get; set; } = "Sin proveedor anterior";
         public decimal CostoUnitario { get; set; }
-        public decimal CostoTotal => Math.Round(Sugerido * CostoUnitario, 2);
+        public decimal CostoTotal => Math.Round(Sugerido * CostoUnitario, 2, MidpointRounding.AwayFromZero);
     }
 
     /// <summary>
@@ -78,7 +78,7 @@ namespace Kirkenta.Helpers
                     Stock = p.Stock,
                     Minimo = p.StockMinimo,
                     Vendido = vend,
-                    DemandaDiaria = Math.Round(demanda, 2),
+                    DemandaDiaria = Math.Round(demanda, 2, MidpointRounding.AwayFromZero),
                     DiasRestantes = demanda > 0 ? Math.Round(Math.Max(0, p.Stock) / demanda, 1) : null,
                     EnCamino = camino,
                     Sugerido = sugerido,

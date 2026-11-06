@@ -125,10 +125,12 @@ namespace Kirkenta.Services
                 var nombre = !string.IsNullOrWhiteSpace(det.Descripcion) ? det.Descripcion! : (nombres.TryGetValue(det.ProductoId, out var n) ? n : $"Producto {det.ProductoId}");
                 d.Lineas.Add(new TicketLinea(nombre, det.Cantidad, det.PrecioUnitario, det.Total));
             }
-            d.Totales.Add(("Subtotal", TicketTermico.M(f.Subtotal)));
+            var desgloseIsv = Kirkenta.Helpers.Finanzas.ISVHelper.DesglosarFactura(_db, f, dets);
+            d.Totales.Add(("Subtotal productos", TicketTermico.M(desgloseIsv.SubtotalProductos)));
             if (f.Descuento > 0) d.Totales.Add(("Descuento", "-" + TicketTermico.M(f.Descuento)));
             if (f.MontoEnvio > 0) d.Totales.Add(("Envio", TicketTermico.M(f.MontoEnvio)));
             d.Totales.Add(f.EsExonerada ? ("ISV (exonerado)", TicketTermico.M(0m)) : ("ISV", TicketTermico.M(f.Impuestos)));
+            if (desgloseIsv.EnvioISV > 0) d.Totales.Add(("  incluye ISV envio", TicketTermico.M(desgloseIsv.EnvioISV)));
             d.TotalValor = TicketTermico.M(f.Total);
             d.Pie = PieTicket(cfg);
 

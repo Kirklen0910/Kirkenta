@@ -87,6 +87,7 @@ namespace Kirkenta.Helpers.Finanzas
                 ("Impuestos (ISV/IVA)", "#991b1b"),
                 ("Servicios bancarios", "#0f766e"),
                 ("Fletes y transporte", "#ea580c"),
+                ("Fletes de envíos a clientes", "#ea580c"),
                 ("Seguros", "#0891b2"),
                 ("Préstamos (cuotas)", "#b45309"),
                 ("Costo de mercadería vendida", "#b91c1c"),
@@ -146,7 +147,10 @@ namespace Kirkenta.Helpers.Finanzas
                 { "Publicidad y marketing",          ("Egreso", "6.1.01") },
                 { "Servicios profesionales",         ("Egreso", "6.2.05") },
                 { "Nómina",                          ("Egreso", "6.2.01") },
-                { "Adelantos/Vales a empleados",     ("Egreso", "6.2.02") },
+                // Un vale es dinero que el empleado devuelve en la nómina: es un activo, no un gasto
+                { "Adelantos/Vales a empleados",     ("Egreso", "1.1.02.003") },
+                // Lo cobrado al cliente por envío se aplica aquí: paga el flete sin tocar la utilidad
+                { "Fletes de envíos a clientes",     ("Egreso", "2.1.99") },
                 { "Pago a proveedores",              ("Egreso", "1.1.03.001") },
                 { "Impuestos (ISV/IVA)",             ("Egreso", "6.2.10") },
                 { "Servicios bancarios",             ("Egreso", "6.2.09") },
@@ -196,6 +200,7 @@ namespace Kirkenta.Helpers.Finanzas
             {
                 ("Egreso",  "Pago a proveedores", "6.2.10", "1.1.03.001"),
                 ("Ingreso", "Préstamos recibidos", "4.2.02", "2.1.05"),
+                ("Egreso",  "Adelantos/Vales a empleados", "6.2.02", "1.1.02.003"),
             };
 
             bool cambios = false;

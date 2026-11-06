@@ -27,10 +27,12 @@ namespace Kirkenta.Pages.Finanzas.Movimientos
         public string Motivo { get; set; } = "";
 
         /// <summary>
-        /// Los movimientos que nacen de una venta, factura, devolución, pago a proveedor o apertura se anulan
-        /// desde su documento: si se anulan aquí, el documento seguiría mostrándose como cobrado/pagado.
+        /// Los movimientos que nacen de un documento se anulan desde él: si se anulan aquí, el documento seguiría
+        /// mostrándose como cobrado o pagado (una nómina «pagada» sin egreso, un vale que se le descuenta al empleado
+        /// sin haberlo recibido, un cierre cuyo depósito ya no existe).
         /// </summary>
-        private static readonly string[] OrigenesDeDocumento = { "Venta", "Factura", "Devolucion", "PagoProveedor", "Apertura" };
+        private static readonly string[] OrigenesDeDocumento =
+            { "Venta", "Factura", "Devolucion", "PagoProveedor", "Apertura", "AperturaCaja", "CierreCaja", "Nomina", "NominaRetencion", "Vale", "Depreciacion" };
 
         private static bool MovimientoAnulable(MovimientoFinanciero mov, out string? motivo)
         {

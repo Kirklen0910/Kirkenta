@@ -109,14 +109,14 @@ namespace Kirkenta.Helpers
                         if (sumaBase + f.MontoEnvio > 0 && baseFactura < sumaBase + f.MontoEnvio - 0.01m)
                             factor = Math.Max(0m, baseFactura / (sumaBase + f.MontoEnvio));
                         foreach (var d in dets)
-                            l.Agregar(d.ImpuestoPorcentaje, Math.Round(d.Subtotal * factor, 2),
-                                      Math.Round((d.Total - d.Subtotal) * factor, 2), f.EsExonerada);
+                            l.Agregar(d.ImpuestoPorcentaje, Math.Round(d.Subtotal * factor, 2, MidpointRounding.AwayFromZero),
+                                      Math.Round((d.Total - d.Subtotal) * factor, 2, MidpointRounding.AwayFromZero), f.EsExonerada);
                     }
                     // ISV del envio (u otro cargo sin linea): lo que falta para igualar el ISV real de la factura
-                    var faltante = Math.Round(f.Impuestos - l.IsvTotal, 2);
+                    var faltante = Math.Round(f.Impuestos - l.IsvTotal, 2, MidpointRounding.AwayFromZero);
                     if (faltante > 0.01m && f.MontoEnvio > 0 && !f.EsExonerada)
                     {
-                        var baseEnvio = Math.Round(f.MontoEnvio * factor, 2);
+                        var baseEnvio = Math.Round(f.MontoEnvio * factor, 2, MidpointRounding.AwayFromZero);
                         var tasa = baseEnvio > 0 ? Math.Round(faltante / baseEnvio * 100m, 0) : 0m;
                         l.Agregar(baseEnvio > 0 ? tasa : 15m, baseEnvio, faltante, false);
                     }
@@ -152,8 +152,8 @@ namespace Kirkenta.Helpers
                         if (factor <= 0) continue;
                         // En las órdenes de compra Subtotal es el BRUTO (antes del descuento de la línea) y Total ya va
                         // con descuento + ISV: la base es Subtotal − Descuento. Antes el descuento salía restado del ISV.
-                        var baseLinea = Math.Round(Math.Max(0m, d.Subtotal - d.Descuento) * factor, 2);
-                        var total = Math.Round(d.Total * factor, 2);
+                        var baseLinea = Math.Round(Math.Max(0m, d.Subtotal - d.Descuento) * factor, 2, MidpointRounding.AwayFromZero);
+                        var total = Math.Round(d.Total * factor, 2, MidpointRounding.AwayFromZero);
                         l.Agregar(d.ImpuestoPorcentaje, baseLinea, total - baseLinea, false);
                         l.Total += total;
                     }
@@ -206,7 +206,7 @@ namespace Kirkenta.Helpers
                 (decimal imp, decimal tot) origen = (0m, 0m);
                 if (d.VentaId.HasValue && ventas.TryGetValue(d.VentaId.Value, out var v)) origen = (v.Impuestos, v.Total);
                 else if (d.FacturaId.HasValue && facturas.TryGetValue(d.FacturaId.Value, out var f)) origen = (f.Impuestos, f.Total);
-                if (origen.tot > 0) total += Math.Round(d.Total * origen.imp / origen.tot, 2);
+                if (origen.tot > 0) total += Math.Round(d.Total * origen.imp / origen.tot, 2, MidpointRounding.AwayFromZero);
             }
             return total;
         }

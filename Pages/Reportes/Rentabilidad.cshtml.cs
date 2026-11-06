@@ -93,17 +93,9 @@ namespace Kirkenta.Pages.Reportes
                 .ToDictionary(x => x.ProductoId);
 
             // Devoluciones aplicadas del período, para dejar las cifras netas
-            var devuelto = (from dd in _context.DetalleDevoluciones
-                            join dev in _context.Devoluciones on dd.DevolucionId equals dev.Id
-                            where dev.Fecha >= desde && dev.Fecha < hastaExclusivo && dev.Estado == "Aplicada"
-                            group dd by dd.ProductoId into g
-                            select new
-                            {
-                                ProductoId = g.Key,
-                                Unidades = g.Sum(x => x.Cantidad),
-                                Monto = g.Sum(x => x.Cantidad * x.PrecioUnitario),
-                                Costo = g.Sum(x => x.Cantidad * x.CostoUnitario)
-                            })
+            var devuelto = DevolucionVentaHelper.DevueltoSinIsv(_context, desde, hastaExclusivo)
+                .GroupBy(x => x.ProductoId)
+                .Select(g => new { ProductoId = g.Key, Unidades = g.Sum(x => x.Cantidad), Monto = g.Sum(x => x.Base), Costo = g.Sum(x => x.Costo) })
                 .ToDictionary(x => x.ProductoId);
 
             // Última venta (histórica) por producto

@@ -94,11 +94,11 @@ namespace Kirkenta.Helpers.Finanzas
             public decimal UtilidadNeta => UtilidadOperativa + TotalIngresosNoOperativos - TotalOtrosGastos;
 
             public decimal MargenBruto => TotalIngresosOperativos > 0
-                ? Math.Round(UtilidadBruta / TotalIngresosOperativos * 100m, 2)
+                ? Math.Round(UtilidadBruta / TotalIngresosOperativos * 100m, 2, MidpointRounding.AwayFromZero)
                 : 0m;
 
             public decimal MargenNeto => TotalIngresos > 0
-                ? Math.Round(UtilidadNeta / TotalIngresos * 100m, 2)
+                ? Math.Round(UtilidadNeta / TotalIngresos * 100m, 2, MidpointRounding.AwayFromZero)
                 : 0m;
 
             // Punto 11: ingresos cobrados (contra caja/banco real)
@@ -300,7 +300,9 @@ namespace Kirkenta.Helpers.Finanzas
                          && m.Origen != "Apertura"
                          && !string.Equals(m.FormaPago, SaldoFavorHelper.NombreMetodo, StringComparison.OrdinalIgnoreCase)
                          && (m.CuentaTipo == "Caja" || m.CuentaTipo == "Banco"))
-                .Sum(m => m.Monto);
+                .Sum(m => m.Monto)
+                // El ingreso de una venta en efectivo es lo RECIBIDO: el cambio que se devolvió no quedó en la empresa
+                - movimientos.Where(m => m.Tipo == "Egreso" && m.PlanCodigo == "4.1.01").Sum(m => m.Monto);
 
             // Punto 3: monto firmado por naturaleza
             var agrupado = movimientos
@@ -446,7 +448,7 @@ namespace Kirkenta.Helpers.Finanzas
 
             var res = q.AsEnumerable()
                 .GroupBy(x => x.Fecha.Year)
-                .ToDictionary(g => g.Key, g => Math.Round(g.Sum(x => x.Monto * x.MontoEnvio / x.Total), 2));
+                .ToDictionary(g => g.Key, g => Math.Round(g.Sum(x => x.Monto * x.MontoEnvio / x.Total), 2, MidpointRounding.AwayFromZero));
 
             var qf = from p in context.Pagos.AsNoTracking()
                      join f in context.Facturas.AsNoTracking() on p.FacturaId equals (int?)f.Id
@@ -459,7 +461,7 @@ namespace Kirkenta.Helpers.Finanzas
                 qf = qf.Where(x => x.Fecha >= d2);
             }
             foreach (var g in qf.AsEnumerable().GroupBy(x => x.Fecha.Year))
-                res[g.Key] = (res.TryGetValue(g.Key, out var prev) ? prev : 0m) + Math.Round(g.Sum(x => x.Monto * x.MontoEnvio / x.Total), 2);
+                res[g.Key] = (res.TryGetValue(g.Key, out var prev) ? prev : 0m) + Math.Round(g.Sum(x => x.Monto * x.MontoEnvio / x.Total), 2, MidpointRounding.AwayFromZero);
             return res;
         }
 
@@ -486,7 +488,7 @@ namespace Kirkenta.Helpers.Finanzas
 
             var res = q.AsEnumerable()
                 .GroupBy(x => x.Fecha.Year)
-                .ToDictionary(g => g.Key, g => Math.Round(g.Sum(x => x.Monto * x.Impuestos / x.Total), 2));
+                .ToDictionary(g => g.Key, g => Math.Round(g.Sum(x => x.Monto * x.Impuestos / x.Total), 2, MidpointRounding.AwayFromZero));
 
             // Cobros de facturas que no vienen de una venta (p.ej. cotización → factura)
             var qf = from p in context.Pagos.AsNoTracking()
@@ -500,7 +502,7 @@ namespace Kirkenta.Helpers.Finanzas
                 qf = qf.Where(x => x.Fecha >= d2);
             }
             foreach (var g in qf.AsEnumerable().GroupBy(x => x.Fecha.Year))
-                res[g.Key] = (res.TryGetValue(g.Key, out var prev) ? prev : 0m) + Math.Round(g.Sum(x => x.Monto * x.Impuestos / x.Total), 2);
+                res[g.Key] = (res.TryGetValue(g.Key, out var prev) ? prev : 0m) + Math.Round(g.Sum(x => x.Monto * x.Impuestos / x.Total), 2, MidpointRounding.AwayFromZero);
 
             // Devoluciones aplicadas: devuelven también su parte de ISV
             var dq = context.Devoluciones.AsNoTracking()
@@ -524,7 +526,7 @@ namespace Kirkenta.Helpers.Finanzas
                     else if (d.FacturaId.HasValue && facturas.TryGetValue(d.FacturaId.Value, out var ff)) origen = (ff.Impuestos, ff.Total);
                     if (origen.tot <= 0 || origen.imp <= 0) continue;
                     // La parte aplicada a una cuenta por cobrar ya reduce el ISV pendiente en el devengo
-                    var isvDev = Math.Round((d.Total - d.MontoAplicadoSaldo) * origen.imp / origen.tot, 2);
+                    var isvDev = Math.Round((d.Total - d.MontoAplicadoSaldo) * origen.imp / origen.tot, 2, MidpointRounding.AwayFromZero);
                     res[d.Fecha.Year] = (res.TryGetValue(d.Fecha.Year, out var cur) ? cur : 0m) - isvDev;
                 }
             }
@@ -539,10 +541,10 @@ namespace Kirkenta.Helpers.Finanzas
         {
             var q = from pp in context.PagosProveedor.AsNoTracking()
                     join o in context.OrdenesCompra.AsNoTracking() on pp.OrdenCompraId equals (int?)o.Id
-                    where o.Impuestos > 0 && o.Total > 0 && pp.Fecha < hastaExcl
+                    where o.Impuestos > 0 && o.Total > 0 && pp.Fecha < hastaExcl && pp.Estado != "Anulado"
                           && o.Estado != "Cancelada" && o.Estado != "Anulada" && o.Estado != "Borrador"
                     select new { pp.Monto, o.Impuestos, o.Total };
-            return Math.Round(q.AsEnumerable().Sum(x => x.Monto * x.Impuestos / x.Total), 2);
+            return Math.Round(q.AsEnumerable().Sum(x => x.Monto * x.Impuestos / x.Total), 2, MidpointRounding.AwayFromZero);
         }
 
         // ============================================================
@@ -651,6 +653,21 @@ namespace Kirkenta.Helpers.Finanzas
 
             resultado.Activos.AddRange(ConstruirActivosDesdeCuentasFinancieras(cuentasFin, saldosAFecha));
 
+            // La depreciación baja la utilidad y también el valor de los activos: sin esta línea el balance no cuadraba
+            var depreciacionAcumulada = movimientos.Where(m => m.Origen == "Depreciacion" && m.Tipo == "Egreso").Sum(m => m.Monto);
+            if (depreciacionAcumulada != 0)
+            {
+                resultado.Activos.Add(new LineaReporte
+                {
+                    Codigo = "1.2.02",
+                    Cuenta = "Depreciación acumulada",
+                    Tipo = "Activo",
+                    Naturaleza = "Deudora",
+                    Nivel = 3,
+                    Monto = -depreciacionAcumulada
+                });
+            }
+
             // ===== Inventario: compras pagadas (1.1.03.x) - costo de ventas acumulado =====
             decimal costoAcumulado = movimientos
                 .Where(m => m.PlanTipo == "Costo")
@@ -693,7 +710,10 @@ namespace Kirkenta.Helpers.Finanzas
             var enviosAnio = enviosPorAnio.TryGetValue(fechaCorte.Year, out var ea) ? ea : 0m;
             if (enviosTotal > 0.004m)
             {
-                resultado.Pasivos.Add(new LineaReporte
+                // Los fletes ya pagados (categoría «Fletes de envíos a clientes») vienen en esta línea en negativo
+                var lineaEnvios = resultado.Pasivos.FirstOrDefault(l => l.Codigo == "2.1.99");
+                if (lineaEnvios != null) lineaEnvios.Monto += enviosTotal;
+                else resultado.Pasivos.Add(new LineaReporte
                 {
                     Codigo = "2.1.99",
                     Cuenta = "Envíos cobrados por aplicar al flete",
@@ -703,6 +723,40 @@ namespace Kirkenta.Helpers.Finanzas
                     Monto = enviosTotal
                 });
                 resultado.Pasivos = resultado.Pasivos.OrderBy(l => l.Codigo).ToList();
+            }
+
+            // Nómina: lo retenido y aportado es deuda con cada entidad (los pagos ya vienen en negativo en su línea)
+            // y los vales descontados bajan el anticipo que se había entregado.
+            var generadoNomina = RetencionesHelper.Generado(context, fechaFin.AddSeconds(1));
+            foreach (var c in RetencionesHelper.Conceptos)
+            {
+                if (!generadoNomina.TryGetValue(c.Clave, out var generado) || generado == 0) continue;
+                var linea = resultado.Pasivos.FirstOrDefault(l => l.Codigo == c.CodigoPlan);
+                if (linea != null) linea.Monto += generado;
+                else resultado.Pasivos.Add(new LineaReporte
+                {
+                    Codigo = c.CodigoPlan,
+                    Cuenta = $"{c.Nombre} por pagar",
+                    Tipo = "Pasivo",
+                    Naturaleza = "Acreedora",
+                    Nivel = 4,
+                    Monto = generado
+                });
+            }
+            resultado.Pasivos = resultado.Pasivos.OrderBy(l => l.Codigo).ToList();
+            if (generadoNomina.TryGetValue(RetencionesHelper.ClaveVale, out var valesDescontados) && valesDescontados != 0)
+            {
+                var lineaAnticipos = resultado.Activos.FirstOrDefault(l => l.Codigo == RetencionesHelper.CodigoAnticipos);
+                if (lineaAnticipos != null) lineaAnticipos.Monto -= valesDescontados;
+                else resultado.Activos.Add(new LineaReporte
+                {
+                    Codigo = RetencionesHelper.CodigoAnticipos,
+                    Cuenta = "Anticipos a empleados",
+                    Tipo = "Activo",
+                    Naturaleza = "Deudora",
+                    Nivel = 4,
+                    Monto = -valesDescontados
+                });
             }
 
             // Saldo a favor de clientes (devoluciones dejadas como crédito y aún no usadas): la empresa
@@ -719,7 +773,7 @@ namespace Kirkenta.Helpers.Finanzas
                     Tipo = "Pasivo",
                     Naturaleza = "Acreedora",
                     Nivel = 3,
-                    Monto = Math.Round(saldoFavorClientes, 2)
+                    Monto = Math.Round(saldoFavorClientes, 2, MidpointRounding.AwayFromZero)
                 });
                 resultado.Pasivos = resultado.Pasivos.OrderBy(l => l.Codigo).ToList();
             }
@@ -912,7 +966,8 @@ namespace Kirkenta.Helpers.Finanzas
             ApplicationDbContext context)
         {
             return context.CuentasFinancieras
-                .Where(c => c.Activa)
+                // Una cuenta inactiva con dinero sigue siendo un activo: si se omite, el balance no cuadra
+                .Where(c => c.Activa || c.SaldoActual != 0)
                 .Where(c => c.Subtipo == null || c.Subtipo != "CuentasPorCobrar")
                 .OrderBy(c => c.Tipo)
                 .ThenBy(c => c.Codigo)

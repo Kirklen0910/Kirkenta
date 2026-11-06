@@ -41,8 +41,9 @@ namespace Kirkenta.Helpers.Finanzas
 
             decimal saldoInicial = apertura.SaldoInicial;
 
-            // 🔒 FIX: Solo se cuentan movimientos en EFECTIVO para el esperado del arqueo.
-            // Los movimientos de banco/tarjeta/transferencia NO afectan el efectivo físico.
+            // 🔒 FIX: Solo se cuentan movimientos en EFECTIVO para el esperado del arqueo
+            // (la regla está en FormaPagoHelper.EsEfectivo). Tarjeta y transferencias de clientes no son billetes,
+            // pero una transferencia entre cuentas sí saca o mete dinero físico de la caja.
             // El período del arqueo va desde que se abrió la caja (no desde medianoche): si la caja
             // se abrió ayer y se cierra hoy, o se abrió dos veces el mismo día, el esperado sigue cuadrando.
             var desde = apertura.FechaApertura;
@@ -54,7 +55,8 @@ namespace Kirkenta.Helpers.Finanzas
                          && m.Fecha >= desde
                          && m.Fecha <= hasta)
                 .Where(m => (m.CuentaId == cuentaId || m.CuentaDestinoId == cuentaId))
-                .Where(m => m.FormaPago != null && m.FormaPago.ToLower().Contains("efectivo"))
+                .ToList()
+                .Where(FormaPagoHelper.EsEfectivo)
                 .ToList();
 
             decimal ingresos = 0;
@@ -177,34 +179,16 @@ namespace Kirkenta.Helpers.Finanzas
                     AperturaHelper.Cerrar(context, calculo.AperturaId.Value, cierre.Id);
                 }
 
-                if (resultado != "Cuadrado")
+                // La tolerancia define si el cierre se ve «Cuadrado», pero todo centavo de diferencia se registra:
+                // si no, el saldo del sistema y el dinero contado quedaban distintos y la diferencia reaparecía
+                // en la siguiente apertura como un faltante o sobrante sin explicación.
+                if (Math.Abs(diferencia) >= 0.01m)
                 {
-                    var tipoAjuste = resultado == "Sobrante" ? "Ingreso" : "Egreso";
-                    var montoAjuste = Math.Abs(diferencia);
-
-                    if (tipoAjuste == "Egreso")
-                    {
-                        var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId);
-                        if (cuenta == null)
-                        {
-                            cierre.Notas = (string.IsNullOrWhiteSpace(cierre.Notas) ? "" : cierre.Notas + "\n") +
-                                $"[Advertencia] No se pudo generar el ajuste por FALTANTE: cuenta no encontrada.";
-                            context.SaveChanges();
-                            return (cierre, null);
-                        }
-
-                        if (cuenta.SaldoActual < montoAjuste)
-                        {
-                            cierre.Notas = (string.IsNullOrWhiteSpace(cierre.Notas) ? "" : cierre.Notas + "\n") +
-                                $"[Advertencia] No se pudo generar el ajuste por FALTANTE de L. {montoAjuste:N2}: " +
-                                $"la cuenta '{cuenta.Nombre}' solo tiene L. {cuenta.SaldoActual:N2} disponible.";
-                            context.SaveChanges();
-                            return (cierre, null);
-                        }
-                    }
-
-                    GenerarAjuste(context, cuentaId, tipoAjuste, montoAjuste, numero, cierre.Id, usuarioId);
+                    var tipoAjuste = diferencia > 0 ? "Ingreso" : "Egreso";
+                    GenerarAjuste(context, cuentaId, tipoAjuste, Math.Abs(diferencia), numero, cierre.Id, usuarioId);
                 }
+
+                TrasladarNoEfectivo(context, cuentaId, calculo.AperturaFechaHora, cierre, usuarioId);
 
                 return (cierre, null);
             }
@@ -213,6 +197,60 @@ namespace Kirkenta.Helpers.Finanzas
                 Console.WriteLine($"[CierreHelper] Error: {ex.Message}");
                 return (new CierreCaja(), ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Lo cobrado en el turno con tarjeta o transferencia entra a la cuenta de la caja, pero no son billetes:
+        /// ese dinero está en el banco. Al cerrar se traslada, para que el saldo de la caja sea solo su efectivo.
+        /// Antes se quedaba ahí y la siguiente apertura lo registraba como «Faltante de caja» (un gasto falso).
+        /// Sin cuenta de banco va a la cuenta puente «por depositar». Si el neto es negativo (reembolsos por
+        /// tarjeta mayores a lo cobrado) el traslado va al revés.
+        /// </summary>
+        private static void TrasladarNoEfectivo(ApplicationDbContext context, int cuentaId, DateTime? desde, CierreCaja cierre, int usuarioId)
+        {
+            if (desde == null) return;
+            var cuenta = context.CuentasFinancieras.FirstOrDefault(c => c.Id == cuentaId);
+            if (cuenta == null || cuenta.Tipo != "Caja") return;
+
+            var inicio = desde.Value;
+            var noEfectivo = context.MovimientosFinancieros.AsNoTracking()
+                .Where(m => m.Estado == "Activo" && m.CuentaId == cuentaId && m.Origen != "Apertura"
+                         && m.Fecha >= inicio && (m.Tipo == "Ingreso" || m.Tipo == "Egreso"))
+                .ToList()
+                .Where(m => !FormaPagoHelper.EsEfectivo(m) && !SaldoHelper.EsSoloContable(context, m))
+                .ToList();
+            var neto = noEfectivo.Sum(m => m.Tipo == "Ingreso" ? m.Monto : -m.Monto);
+            if (Math.Abs(neto) < 0.01m) return;
+
+            var destinoId = context.CuentasFinancieras.Where(c => c.Tipo == "Banco" && c.Activa)
+                .OrderBy(c => c.Id).Select(c => (int?)c.Id).FirstOrDefault()
+                ?? EfectivoPorDepositarHelper.Cuenta(context).Id;
+
+            var mov = new MovimientoFinanciero
+            {
+                Numero = NumeroDocumentoHelper.GenerarSiguiente(context, "MovimientoFinanciero"),
+                Tipo = "Transferencia",
+                Fecha = DateTime.Now,
+                CuentaId = neto > 0 ? cuentaId : destinoId,
+                CuentaDestinoId = neto > 0 ? destinoId : cuentaId,
+                Monto = Math.Abs(neto),
+                MonedaId = context.Monedas.FirstOrDefault(m => m.EsPredeterminada)?.Id ?? 1,
+                TipoCambio = 1,
+                Concepto = $"Tarjetas y transferencias del turno {cierre.Numero}",
+                Referencia = cierre.Numero,
+                FormaPago = "Transferencia",
+                Origen = "CierreCaja",
+                OrigenId = cierre.Id,
+                EsAutomatico = true,
+                Estado = "Activo",
+                FechaCreacion = DateTime.Now,
+                UsuarioCreoId = usuarioId,
+                EmpresaId = EmpresaActual.Id
+            };
+            context.MovimientosFinancieros.Add(mov);
+            context.SaveChanges();
+            SaldoHelper.Aplicar(context, mov);
+            context.SaveChanges();
         }
 
         private static void GenerarAjuste(
